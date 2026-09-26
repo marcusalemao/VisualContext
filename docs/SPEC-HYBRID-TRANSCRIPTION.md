@@ -23,6 +23,13 @@ Implement a **hybrid transcription engine** in the Android app with automatic pa
 2. Raw transcript only (no revision pass in v1)
 3. Tag output as `engine=basic`
 
+### Engine selection (user control)
+The app's admin/settings panel lets the user choose the transcription engine:
+- **Auto (default)** — the hybrid logic above runs automatically
+- **Cloud only** — always Path A; shows a clear warning if offline
+- **Native offline only** — always Path B; predictable, no network dependency
+The choice persists locally and applies to every dictation until changed.
+
 ### Path selection logic
 - `ConnectivityManager` check + lightweight connectivity probe before dictation starts
 - Online → Path A. On mid-request failure (timeout / API error) → automatic graceful fallback to Path B, no user data loss
@@ -66,6 +73,13 @@ Implementar um **motor de transcrição híbrido** no app Android com seleção 
 1. `SpeechRecognizer` nativo do Android com reconhecimento on-device (pacote de idioma baixado)
 2. Somente transcrição crua (sem revisão na v1)
 3. Marcar saída como `engine=basic`
+
+### Seleção de motor (controle do usuário)
+O painel de admin/ajustes do app deixa o usuário escolher o motor de transcrição:
+- **Automático (padrão)** — a lógica híbrida roda sozinha
+- **Somente nuvem** — sempre Caminho A; aviso claro se estiver offline
+- **Somente nativo offline** — sempre Caminho B; previsível, sem dependência de rede
+A escolha persiste localmente e vale para toda ditação até ser alterada.
 
 ### Lógica de seleção de caminho
 - Checagem com `ConnectivityManager` + probe leve de conectividade antes de ditar
