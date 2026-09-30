@@ -32,6 +32,10 @@ The native Vision AI on Rokid glasses is fast (camera + instant recognition), bu
 - **Remembers people**: who I talked to and a summary of the conversation — agreements, topics and follow-ups. Works EVEN WITHOUT facial recognition: each interaction is identified by transient visual anchors (e.g. "Person 1, red coat, 11:43 AM, Av. Paulista") + time + location + conversation summary.
 - **Schedule**: reminders for my Google tasks and events.
 
+### Roadmap
+
+- **5G tethering via Android smartwatches** (first target: Samsung Galaxy Watch 7 Ultra) — standalone connectivity for the glasses without the phone.
+
 ### Three types of memory
 
 | Type | Entity | Example |
@@ -40,7 +44,7 @@ The native Vision AI on Rokid glasses is fast (camera + instant recognition), bu
 | Places | `EpisodicMemory` (place) + coordinates | "Meeting on the 7th floor of building X, 2 PM" |
 | People | `PersonInteraction` | "Person 1, red coat, 11:43 AM, Av. Paulista — we discussed the budget, they'll send a proposal by Friday" |
 
-The people memory **does not depend on facial recognition**: each interaction gets a temporary identifier (`temp_identifier`), visual anchors (`visual_anchors`: clothing, glasses, accessories), a time window (`start_time`/`end_time`) and a conversation summary (`conversation_summary`). If the face is recognized later (via Vision), the interaction is linked to the permanent person record.
+The people memory **does not depend on facial recognition**: each interaction gets a temporary identifier (`temp_identifier`), visual anchors (`visual_anchors`: clothing, glasses, accessories), a time window (`start_time`/`end_time`) and a conversation summary (`conversation_summary`). If the face is recognized later, the interaction is linked to the permanent person record.
 
 ### Architecture (high level)
 
@@ -80,10 +84,6 @@ Tested on Samsung Galaxy Z Fold / Rokid (Android 16, One UI 8.5, Knox 3.13):
 
 Official name: **VisualContext** (formerly RokidLive, briefly Live Companion) — renamed 2026-09-15. Official product spec in [docs/visualcontext-spec.md](docs/visualcontext-spec.md).
 
-### Related
-
-- [Vision](https://github.com/marcusalemao/Vision) (formerly facecontext) — AR emulator / facial recognition.
-
 ---
 
 <a id="visual-context-pt-br"></a>
@@ -111,6 +111,10 @@ O Vision AI nativo dos Rokid é rápido (câmera + reconhecimento imediato), mas
 - **Lembra das pessoas**: com quem conversei e o resumo da conversa — acordos, tópicos e pendências. Funciona MESMO sem reconhecimento facial: a interação fica identificada por âncoras visuais transitórias (ex: "Pessoa 1, casaco vermelho, 11:43, Av. Paulista") + horário + local + resumo do que foi falado.
 - **Agenda**: lembretes das minhas tarefas e eventos do Google.
 
+### Roadmap
+
+- **Tethering 5G via smartwatches Android** (primeiro alvo: Samsung Galaxy Watch 7 Ultra) — conectividade standalone pros óculos, sem depender do celular.
+
 ### Três tipos de memória
 
 | Tipo | Entidade | Exemplo |
@@ -119,7 +123,7 @@ O Vision AI nativo dos Rokid é rápido (câmera + reconhecimento imediato), mas
 | Lugares | `EpisodicMemory` (lugar) + coordenadas | "Reunião no 7º andar do edifício X, 14h" |
 | Pessoas | `PersonInteraction` | "Pessoa 1, casaco vermelho, 11:43, Av. Paulista — falamos do orçamento, ficou de mandar proposta até sexta" |
 
-A memória de pessoas **não depende de reconhecimento facial**: cada interação ganha um identificador temporário (`temp_identifier`), âncoras visuais (`visual_anchors`: roupa, óculos, acessórios), janela de tempo (`start_time`/`end_time`) e resumo da conversa (`conversation_summary`). Se o rosto for reconhecido depois (via Vision), a interação é ligada à pessoa permanente.
+A memória de pessoas **não depende de reconhecimento facial**: cada interação ganha um identificador temporário (`temp_identifier`), âncoras visuais (`visual_anchors`: roupa, óculos, acessórios), janela de tempo (`start_time`/`end_time`) e resumo da conversa (`conversation_summary`). Se o rosto for reconhecido depois, a interação é ligada à pessoa permanente.
 
 ### Arquitetura (visão de alto nível)
 
@@ -159,6 +163,4 @@ Testado em Samsung Galaxy Z Fold / Rokid (Android 16, One UI 8.5, Knox 3.13):
 
 Nome oficial: **VisualContext** (ex-RokidLive, brevemente Live Companion) — renomeado em 15/09/2026. Spec oficial de produto em [docs/visualcontext-spec.md](docs/visualcontext-spec.md).
 
-### Relacionados
 
-- [Vision](https://github.com/marcusalemao/Vision) (ex-facecontext) — emulador AR / reconhecimento facial.
