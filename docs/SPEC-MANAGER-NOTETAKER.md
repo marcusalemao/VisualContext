@@ -52,7 +52,10 @@ No Brasil quase ninguém diz "meu nome é…". A apresentação é curta: **"Mar
 - **"Prazer" é o gatilho principal.** O nome colado a ele (antes ou depois) é o da pessoa na sua frente. Vale nos dois sentidos: ela diz "Ana, prazer" ou você diz "Prazer, Ana".
 - **Outros gatilhos:**
   - "meu nome é", "me chamo", "sou o/a…";
-  - você apresentando alguém: "esse é o…", "o nome dela é…".
+  - você apresentando alguém: "esse é o…", "o nome dela é…";
+  - você falando com a pessoa: "você é o Marcelo", "então você é o…".
+- **A fala chega sem vírgula e às vezes em minúsculas** ("marcelo campos é prazer"). As regras aceitam palavras de enchimento entre o nome e o "prazer" (é, né, então).
+- **App real:** se nenhuma regra pegar, a IA (Gemini) lê a transcrição no fim do encontro e sugere o nome.
 - **Falar de terceiros não conta.** "O João me disse…", "Aí, Carolina, tem que conhecer", "sua mãe, a Karin": nenhum desses vira o nome de quem está na frente. Nome depois de um parentesco (mãe, irmã, amigo…) é sempre de outra pessoa.
 - **Confirmação de grafia:** "Marcus com u" corrige a grafia de um nome já salvo (Marcos → Marcus) e mantém o sobrenome.
 - **Controle do usuário:** o nome ouvido entra direto e aparece no card na hora. Se veio errado, corrige no Manager ou falando a grafia.

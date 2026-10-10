@@ -891,8 +891,11 @@ function titleCase(w) { return /^(de|da|do|dos|das)$/i.test(w) ? w.toLowerCase()
 // "Carolina, tem que conhecer") matches none of them on purpose.
 var NOT_A_NAME = /^(Tudo|Bem|Muito|Oi|Olá|Ola|Então|Sim|Não|Obrigado|Obrigada|Prazer|Eu|Aqui|É|Também|Igualmente|Opa|Bom|Boa|Dia|Tarde|Noite|Gente|Galera|Pessoal|Cara|Mano|Sure|Fine|Here|Good|Not|So|The|Nice|Hi|Hello)$/;
 var NAME_GROUP = "(" + NAME_WORD + "(?:\\s+(?:(?:de|da|do|dos|das|e)\\s+)?" + NAME_WORD + "){0,3})";
-var CUE_INTRO_OTHER = new RegExp("(?:[Oo] nome d(?:ele|ela) é|[Ee]l[ae] se chama|[Ee]ss[ae] é [oa]|[Ee]st[ae] é [oa]|[Tt]his is)\\s+" + NAME_GROUP);
-var CUE_PRAZER_AFTER = new RegExp(NAME_GROUP + "\\s*,?\\s*(?:muito\\s+)?(?:[Pp]razer|[Nn]ice to meet you)");
+var CUE_INTRO_OTHER = new RegExp("(?:[Oo] nome d(?:ele|ela) é|[Oo] seu nome é|[Ee]l[ae] se chama|[Vv]ocê se chama|[Vv]ocê é [oa]|[Ee]ss[ae] é [oa]|[Ee]st[ae] é [oa]|[Tt]his is|[Yy]ou're|[Yy]ou are)\\s+" + NAME_GROUP);
+var FILLER = "(?:\\s*,?\\s*(?:é|né|então|ok|tá|muito|um|uh|eh|ah)\\b)*";
+var CUE_PRAZER_AFTER = new RegExp(NAME_GROUP + FILLER + "\\s*,?\\s*(?:muito\\s+)?(?:[Pp]razer|[Nn]ice to meet you)");
+// speech output often comes lowercase and without commas: "marcelo campos é prazer"
+var CUE_PRAZER_LOWER = /([a-zà-ÿ'’-]{2,}(?:\s+(?:(?:de|da|do|dos|das)\s+)?[a-zà-ÿ'’-]{2,}){0,2})(?:\s*,?\s*(?:é|né|então|ok|tá))*\s*,?\s*(?:muito\s+)?prazer\b/i;
 var CUE_PRAZER_BEFORE = new RegExp("(?:[Pp]razer|[Nn]ice to meet you)\\s*,?\\s*(?:(?:eu\\s+)?sou\\s+[oa]\\s+)?" + NAME_GROUP);
 var CUE_SPELL = new RegExp("(" + NAME_WORD + ")\\s*,?\\s+com\\s+(?:[a-zà-ú]|dois\\s+[a-z]|duas\\s+[a-z]|[a-z]{1,2}\\s+mud[oa])\\b");
 var THIRD_PARTY = /(?:mãe|mae|pai|irmã|irmão|irmao|avó|avô|tia|tio|filh[oa]|espos[oa]|marido|namorad[oa]|amig[oa]|chefe|primo|prima)\s*,?\s*[oa]?\s*$/i;
@@ -920,6 +923,13 @@ function detectName(text) {
     if (THIRD_PARTY.test(text.slice(0, c.index + (c[0].indexOf(c[1]) >= 0 ? c[0].indexOf(c[1]) : 0)))) continue;   // "sua mãe, a Karin"
     var n = cleanName(c[1]);
     if (n) return n;
+  }
+  var lw = CUE_PRAZER_LOWER.exec(text);
+  if (lw) {
+    var parts = lw[1].split(/\s+/).map(titleCase);
+    while (parts.length && (NOT_A_NAME.test(parts[0]) || NAME_STOP.test(parts[0]) || /^(o|a|que|você|voce|sou|é)$/i.test(parts[0]))) parts.shift();
+    var cand = parts.join(' ');
+    if (cand && !NOT_A_NAME.test(parts[0]) && !THIRD_PARTY.test(text.slice(0, lw.index))) return cand;
   }
   return '';
 }
