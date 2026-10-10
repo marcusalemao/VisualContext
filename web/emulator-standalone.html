@@ -10,7 +10,7 @@ html,body{background:#000;height:100%;overflow:hidden;font-family:monospace;colo
 
 /* ══ WAVEGUIDE — 640x480 landscape, camera as background ══ */
 #flip-cam-btn{
-  position:absolute; bottom:8px; right:8px; z-index:50;
+  position:absolute; top:8px; right:8px; z-index:50;   /* top-right is free on the display */
   width:34px; height:34px; border-radius:50%;
   background:rgba(0,20,10,.55); border:1px solid rgba(0,255,136,.35);
   color:#00ff88; font-size:15px; line-height:1;
@@ -371,7 +371,7 @@ VC_I18N.add({
 var t = VC_I18N.t;
 
 var camStream = null;
-var _facingMode = 'environment';
+var _facingMode = 'environment';   // phone: rear camera by default (what the glasses see); laptop: falls back to the webcam
 var _isTouchDevice = (function(){
   try { return window.matchMedia && window.matchMedia('(pointer: coarse)').matches
     || ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
@@ -1414,10 +1414,18 @@ function flipCamTap() {
   toggleFlipCam();
   setTimeout(function(){ _flipBusy = false; }, 800);
 }
+// Device labels/count are only reliable after permission, so this runs once the camera is on.
+function showFlipIfManyCameras() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+  navigator.mediaDevices.enumerateDevices().then(function(list){
+    var cams = list.filter(function(d){ return d.kind === 'videoinput'; }).length;
+    if (cams > 1) document.getElementById('flip-cam-btn').classList.add('show');
+  }).catch(function(){});
+}
 (function initFlipCamBtn(){
   var b = document.getElementById('flip-cam-btn');
   if (!b) return;
-  if (_isTouchDevice) b.classList.add('show');
+  if (_isTouchDevice) b.classList.add('show');   // phones always have front + rear
   var touched = false;
   b.addEventListener('touchstart', function(e){ e.preventDefault(); touched = true; }, {passive:false});
   b.addEventListener('touchend', function(e){ e.preventDefault(); if (touched){ touched = false; flipCamTap(); } }, {passive:false});
@@ -1441,6 +1449,7 @@ function startCam(auto) {
     b.textContent = ''; b.disabled = false;
     updateBar();
     log('✓ camera on', true);
+    showFlipIfManyCameras();
     startFaceDetection();
   })
   .catch(function(e) {
