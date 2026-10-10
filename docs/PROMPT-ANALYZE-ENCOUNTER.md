@@ -72,13 +72,29 @@ The phone sends `POST fcProxy {action:"analyze_encounter", ...}` once per encoun
 - **The name needs evidence.** Without a literal quote and a confidence score, an LLM can invent a plausible name. The app only accepts quoted names.
 - **The on-device rules stay.** The emulator and the phone already catch most introductions instantly, so the card updates live. This prompt is the safety net that runs at the end and also writes `tags`, `hook` and `dossier`.
 
+### International (the Store is global)
+
+The rules must not be Brazil-only, but they also don't need a version per country. Two layers:
+
+1. **On the device (instant, offline):** short rules for the most common introductions in **Portuguese, English and Spanish**. Same idea as the Brazilian rules: the person in front, never a third party.
+   - **English:** "I'm Mike", "Mike, nice to meet you", "Nice to meet you, Sarah", "You must be Sarah", "Sarah, right?", "This is my friend Tom", "It's Michael, but everyone calls me Mike". A name after mom, sister, boss… belongs to someone else.
+   - **Spanish:** "me llamo", "soy Carlos", "mucho gusto, Ana", "Ana, mucho gusto", "encantada", "te presento a mi amigo Luis", "tú eres Ana, ¿no?".
+   - Titles (Mr., Ms., Dr., Sr., Sra.) are not part of the name.
+2. **The AI at the end (all languages):** the prompt below is language-neutral. It covers what rules can't:
+   - **East Asia:** family name first; "Tanaka desu", 我叫/我是, 저는 … 입니다.
+   - **Honorifics:** -san, -ssi, 先生, which are not part of the name.
+   - **Titles instead of names:** "Manager Kim".
+3. **Business cards (Japan, Korea, China, business everywhere):** often the name is never said, it is handed over on a card. The existing badge OCR also reads business cards. The printed name has the highest confidence of all sources.
+
+Speech recognition follows the phone language. The AI receives `lang` and answers in that language.
+
 ### Prompt (system)
 
 ```text
 You process the transcript of ONE in-person encounter between the USER (wearing smart glasses) and ONE other person in front of them. Return ONLY valid JSON matching the schema. Write every text field in {lang}.
 
 1. NAME OF THE PERSON IN FRONT
-- In Brazil people rarely say "meu nome é". Expect short, informal introductions: "Marcos, prazer", "sou a Mariana", "prazer, Ana".
+- Introductions are short and informal in every language. Brazil: "Marcos, prazer", "sou a Mariana", "prazer, Ana" (rarely "meu nome é"). English: "I'm Mike", "nice to meet you, Sarah", "you must be Sarah". Spanish: "soy Carlos", "mucho gusto, Ana". Japanese/Chinese/Korean: family name first, honorifics (-san, -ssi, 先生) are not part of the name; people may be called by title ("Manager Kim"). A name read from a business card in the transcript or OCR is the strongest evidence.
 - "prazer" is a strong marker that an introduction just happened; the name next to it is the person in front.
 - The USER may name the person on purpose: "ah, então você é o Marcelo?", "deixa eu gravar você aqui, Marcelo Campos", "esse é o meu amigo Rafael Souza", "Karin, né?".
 - Corrections: the LAST valid name wins ("Gabriela… perdão, Gabriela não, você é a Beatriz" → Beatriz). Spelling confirmations ("Patrícia com C") fix the spelling.
@@ -134,6 +150,22 @@ O formato de entrada e de saída é o mesmo do JSON da seção em inglês acima.
 - **Durante a conversa, a linha 3 mostra o gancho do encontro anterior.** O encontro atual só é analisado quando termina. E é justamente isso que ajuda no meio da conversa ("da última vez: a fofoca do relógio falso").
 - **Nome só com prova.** Sem citação literal e nota de confiança, a IA pode inventar um nome plausível. O app só aceita nome citado.
 - **As regras no aparelho continuam.** O emulador e o celular pegam a maioria das apresentações na hora, e o card atualiza ao vivo. Este prompt é a rede de segurança que roda no fim e também escreve `tags`, `hook` e `dossier`.
+
+### Internacional (a loja é global)
+
+As regras não podem ser só do Brasil, mas também não precisam de uma versão por país. São duas camadas:
+
+1. **No aparelho (na hora, offline):** regras curtas para as apresentações mais comuns em **português, inglês e espanhol**. Mesma lógica das regras brasileiras: o nome é de quem está na frente, nunca de um terceiro.
+   - **Inglês:** "I'm Mike", "Mike, nice to meet you", "Nice to meet you, Sarah", "You must be Sarah", "Sarah, right?", "This is my friend Tom", "It's Michael, but everyone calls me Mike". Nome depois de mom, sister, boss… é de outra pessoa.
+   - **Espanhol:** "me llamo", "soy Carlos", "mucho gusto, Ana", "Ana, mucho gusto", "encantada", "te presento a mi amigo Luis", "tú eres Ana, ¿no?".
+   - Títulos (Mr., Ms., Dr., Sr., Sra.) não fazem parte do nome.
+2. **A IA no fim (todos os idiomas):** o prompt é neutro de idioma. Ele cobre o que as regras não pegam:
+   - **Ásia oriental:** sobrenome primeiro; "Tanaka desu", 我叫/我是, 저는 … 입니다.
+   - **Honoríficos:** -san, -ssi, 先生, que não fazem parte do nome.
+   - **Cargo no lugar do nome:** "Gerente Kim".
+3. **Cartão de visita (Japão, Coreia, China e negócios em geral):** muitas vezes o nome nem é falado, é entregue num cartão. O OCR de crachá que já existe lê também cartões de visita. O nome impresso tem a maior confiança de todas as fontes.
+
+O reconhecimento de voz segue o idioma do celular. A IA recebe `lang` e responde nesse idioma.
 
 ### Prompt (sistema)
 
