@@ -23,7 +23,9 @@ Card da pessoa, só leitura, com 70% da largura do display, pra não tampar a vi
    - Uma frase só (`headline`), por exemplo "Colega de trabalho há 2 anos".
    - Sem dossiê, sem linha do tempo, nada pra expandir. A ideia é não parecer distraído na frente da pessoa.
 2. **Revisão (fora da conversa):**
-   - Com ninguém na frente, o toque abre **"Hoje"**, a lista dos encontros do dia (ou **"Recentes"**, se não houve nenhum hoje). Depois isso vira comando de voz ("mostre os encontros de hoje").
+   - Quando o app está em repouso (ninguém na frente, nada gravando), aparece só uma linha discreta embaixo: **ÚLTIMOS ENCONTROS ⌃**.
+   - O toque abre uma grade de mini-cards com foto, nome curto ("Marcus M.") e data pequena, lado a lado.
+   - Entram **todos** os encontros, do mais recente pro mais antigo, com scroll vertical infinito, carregando de 12 em 12. Depois isso vira comando de voz ("mostre meus últimos encontros").
    - Deslizar ‹ › escolhe; toque abre o card completo.
    - O card completo tem foto, nome e pílulas, **SOBRE** (dossiê de 3–4 linhas) e **ENCONTROS** (mini-cards de 2 linhas com chevron: toque expande, 2 toques recolhem).
    - 2 toques voltam um nível: encontro expandido → card → lista → fecha.
