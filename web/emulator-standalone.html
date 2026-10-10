@@ -302,7 +302,7 @@ VC_I18N.add({
     idle_fail:'Could not access the camera', idle_fail_sub:'Check the permission in the 🔒 of the address bar',
     idle_stopped:'Camera stopped', idle_stopped_sub:'Tap Camera to turn it back on',
     idle_nosupport:'Camera not supported', idle_nosupport_sub:'Open over HTTPS in a browser with a camera',
-    about:'ABOUT', timeline:'ENCOUNTERS', list_title:'LAST ENCOUNTERS', list_empty:'No encounters yet.', hl_count:'{n} encounters · since {since}', hl_one:'Met once · {when}', dz_count:'Seen {n} times in the last year.', dz_once:'Seen once in the last year.', dz_last:'Last time {when}{where}: {what}', dz_at:' at {p}', today:'today', yesterday:'yesterday', no_summary:'(no summary)', p_preview:'Save this face?',
+    about:'ABOUT', timeline:'ENCOUNTERS', list_title:'LATEST RECORDS', list_empty:'Nothing recorded yet.', hl_count:'{n} encounters · since {since}', hl_one:'Met once · {when}', dz_count:'Seen {n} times in the last year.', dz_once:'Seen once in the last year.', dz_last:'Last time {when}{where}: {what}', dz_at:' at {p}', today:'today', yesterday:'yesterday', no_summary:'(no summary)', p_preview:'Save this face?',
     count_title:'Recording encounter:', count_hint:'Swipe forward to cancel',
     rec:'Recording encounter', paused:'Paused · Tap to resume',
     s_ready:'ready', s_loading:'loading AI…', s_cam:'camera on', s_buf_face:'buffering (face only)', s_buf_speech:'buffering · speech',
@@ -339,7 +339,7 @@ VC_I18N.add({
     idle_fail:'Não deu pra acessar a câmera', idle_fail_sub:'Verifique a permissão no 🔒 da barra de endereço',
     idle_stopped:'Câmera parada', idle_stopped_sub:'Toque em Câmera para religar',
     idle_nosupport:'Câmera não suportada', idle_nosupport_sub:'Abra em HTTPS num navegador com câmera',
-    about:'SOBRE', timeline:'ENCONTROS', list_title:'ÚLTIMOS ENCONTROS', list_empty:'Nenhum encontro ainda.', hl_count:'{n} encontros · desde {since}', hl_one:'Vocês se viram 1 vez · {when}', dz_count:'Registrado {n} vezes no último ano.', dz_once:'Registrado 1 vez no último ano.', dz_last:'Da última vez, {when}{where}: {what}', dz_at:' em {p}', today:'hoje', yesterday:'ontem', no_summary:'(sem resumo)', p_preview:'Salvar este rosto?',
+    about:'SOBRE', timeline:'ENCONTROS', list_title:'ÚLTIMOS REGISTROS', list_empty:'Nenhum registro ainda.', hl_count:'{n} encontros · desde {since}', hl_one:'Vocês se viram 1 vez · {when}', dz_count:'Registrado {n} vezes no último ano.', dz_once:'Registrado 1 vez no último ano.', dz_last:'Da última vez, {when}{where}: {what}', dz_at:' em {p}', today:'hoje', yesterday:'ontem', no_summary:'(sem resumo)', p_preview:'Salvar este rosto?',
     count_title:'Gravando encontro:', count_hint:'Deslize para frente para cancelar',
     rec:'Gravando encontro', paused:'Pausado · Toque para retomar',
     s_ready:'pronto', s_loading:'carregando IA…', s_cam:'câmera ativa', s_buf_face:'buffer (só rosto)', s_buf_speech:'buffer · com fala',
@@ -1266,7 +1266,7 @@ function applyTimeline() {
   });
 }
 
-// ── REVIEW: everyone you met (outside a conversation) ──
+// ── REVIEW: latest records — people now; vehicles and keys next (outside a conversation) ──
 // Idle (nobody in front, nothing recording): one discreet line "LAST ENCOUNTERS" at the bottom.
 // Tap → grid of mini cards (photo, name, date), all encounters, newest first, vertical infinite scroll.
 // Later: also by voice ("show my last encounters").
@@ -1290,12 +1290,15 @@ function openReview() {
   .then(function(r){ return r.json(); })
   .then(function(data){
     if (!_review) return;
+    // Records are not only people: vehicles and keys (object skills) come in with the same shape
+    // { kind, date, photo, title, sub, person? } once their sightings exist in the backend.
     _review.items = (Array.isArray(data) ? data : (data.records || [])).filter(function(e){ return e.date; })
-      .sort(function(a,b){ return new Date(b.date) - new Date(a.date); })
       .map(function(e){
         var person = _profiles.filter(function(p){ return p.id === e.person_id || (e.person_name && p.name === e.person_name); })[0];
-        return { enc:e, person:person };
-      }).filter(function(it){ return hasPhoto(it.person); });   // legacy records without a photo stay out
+        return { kind:'person', date:e.date, enc:e, person:person, photo: person && person.photo_url, title: person && shortName(person.name) };
+      })
+      .filter(function(it){ return hasPhoto(it.person); })   // legacy records without a photo stay out
+      .sort(function(a,b){ return new Date(b.date) - new Date(a.date); });
     _review.loading = false;
     renderReview();
   })
@@ -1318,11 +1321,12 @@ function renderReview() {
   var html = '';
   if (!_review.loading && !_review.items.length) html = '<div class="hl-empty">' + t('list_empty') + '</div>';
   _review.items.slice(0, _review.shown).forEach(function(it, i){
-    var d = relDate(new Date(it.enc.date));
-    var ph = '<img class="hl-ph" src="' + esc(it.person.photo_url) + '" alt="">';
+    var d = relDate(new Date(it.date));
+    var ph = '<img class="hl-ph" src="' + esc(it.photo) + '" alt="">';
+    var sub = it.sub || (d[0] + (d[1] ? ' ' + d[1] : ''));
     html += '<div class="hl-item' + (i === _review.focus ? ' focus' : '') + '" data-i="' + i + '">' + ph +
-      '<div class="hl-txt"><div class="hl-name">' + esc(shortName(it.person.name)) + '</div>' +
-      '<div class="hl-when">' + esc(d[0] + (d[1] ? ' ' + d[1] : '')) + '</div></div></div>';
+      '<div class="hl-txt"><div class="hl-name">' + esc(it.title) + '</div>' +
+      '<div class="hl-when">' + esc(sub) + '</div></div></div>';
   });
   var keep = items.scrollTop;
   items.innerHTML = html;
@@ -1352,7 +1356,7 @@ function reviewMove(d) {
 }
 function reviewOpenCard() {
   var it = _review && _review.items[_review.focus];
-  if (!it) return;
+  if (!it || it.kind !== 'person') return;   // object cards (vehicle/key) come with the object skills
   _review.card = true;
   renderReview();
   showProfile(it.person, null, 'review');

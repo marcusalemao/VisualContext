@@ -24,9 +24,9 @@ Card da pessoa, só leitura, com 70% da largura do display, pra não tampar a vi
    - Uma frase só (`headline`), por exemplo "Colega de trabalho há 2 anos".
    - Sem dossiê, sem linha do tempo, nada pra expandir. A ideia é não parecer distraído na frente da pessoa.
 2. **Revisão (fora da conversa):**
-   - Quando o app está em repouso (ninguém na frente, nada gravando), aparece só uma linha discreta embaixo: **ÚLTIMOS ENCONTROS ⌃**.
+   - Quando o app está em repouso (ninguém na frente, nada gravando), aparece só uma linha discreta embaixo: **ÚLTIMOS REGISTROS ⌃**.
    - O toque abre uma coluna estreita no canto (cerca de 40% da largura) com cards curtos: foto pequena ao lado do nome curto ("Marcus M.") e da data. Ocupa pouco espaço de propósito: se alguém aparecer ou você precisar pagar algo, nada atrapalha, e 2 toques fecham.
-   - Entram **todos** os encontros, do mais recente pro mais antigo, com scroll vertical infinito, carregando de 12 em 12. Depois isso vira comando de voz ("mostre meus últimos encontros").
+   - Entram **todos os registros, não só pessoas**: pessoas, moto, chave e o que mais as skills registrarem. Cada item tem foto, título e uma linha de contexto ("MARCUS M. · ontem 18:20", "MOTO · R. Augusta · 300 m", "CHAVE · mesa da sala · 22:10"). O VisualContext dá contexto às coisas, não só aos encontros. A lista vai do mais recente pro mais antigo, com scroll vertical infinito, carregando de 12 em 12. Depois isso vira comando de voz ("mostre meus últimos encontros").
    - Deslizar ‹ › escolhe; toque abre o card completo.
    - O card completo tem foto, nome e pílulas, **SOBRE** (dossiê de 3–4 linhas) e **ENCONTROS** (mini-cards de 2 linhas com chevron: toque expande, 2 toques recolhem).
    - 2 toques voltam um nível: encontro expandido → card → lista → fecha.
@@ -118,6 +118,7 @@ Os dados de contato lidos por OCR (crachá ou cartão de visita) viram uma açã
   - `dossier`: 3–4 linhas, até ~45 palavras, pra revisão.
   - Todos são reescritos a cada encontro.
 - Onde guardar ações e pílulas, e o estado de cada ação (sugerida, aceita, descartada).
+- Onde guardar os **registros de objetos** (moto, chave): foto do recorte, título, lugar ou descrição, GPS e hora. A lista "Últimos registros" lê pessoas e objetos no mesmo formato.
 - Conectores: Google Agenda e Google Tasks.
 
 **Claude**
