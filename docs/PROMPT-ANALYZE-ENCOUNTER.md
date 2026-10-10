@@ -88,6 +88,23 @@ The rules must not be Brazil-only, but they also don't need a version per countr
 
 Speech recognition follows the phone language. The AI receives `lang` and answers in that language.
 
+### Culture & formality: detect from the conversation, never from the person
+
+We never know in advance where someone is from, and living in the US doesn't make them American. So the app **never classifies the person** (by looks, accent or ethnicity). It reads **how the conversation happens**:
+
+- **Language of each sentence → which rules apply.** All rule sets run together and don't conflict. A mixed conversation (Portuguese plus English) works.
+- **Formality is detected from the cues themselves:**
+  - formal: "Sr./Dr./Mr.", "prazer em conhecê-lo", a business card, surname-only;
+  - informal: "e aí", first name only, nickname.
+  - It changes only how the name is shown and saved: "Sr. Tanaka" / "Dr. Paulo" vs. "Kenji" / "Paulo". It never changes how the person is described.
+- **Name order:** when the evidence is a business card or a family-name-first introduction, the AI returns `given_name` and `family_name` separately. The card shows what you call the person.
+
+**Optional user setup**, only if the automatic reading isn't enough:
+- "Languages I talk in" (multi-select, sets speech recognition);
+- "Mostly social / mostly business" (business makes the card OCR and titles more prominent).
+
+No profile per region (Latin, Asian, European) is needed. Those are proxies for the language and formality signals above, and they tend to misfire.
+
 ### Prompt (system)
 
 ```text
@@ -110,8 +127,10 @@ You process the transcript of ONE in-person encounter between the USER (wearing 
 - dossier: ~4 short lines about who this person is to the user. Merge with the previous dossier (given in input): keep durable facts, add new ones (job changes, tastes, life events), drop trivia.
 - actions: concrete follow-ups the USER committed to, if any.
 
+- Never infer nationality, ethnicity or culture of the person. Formality comes only from how they introduce themselves (titles, business card, surname-only). If the evidence gives family-name-first, fill given_name and family_name.
+
 Schema:
-{"name": string|null, "name_confidence": number, "name_evidence": string|null, "alias": string|null,
+{"name": string|null, "given_name": string|null, "family_name": string|null, "formal": boolean, "name_confidence": number, "name_evidence": string|null, "alias": string|null,
  "tags": string[], "hook": string, "context": string, "dossier": string, "actions": string[]}
 ```
 
@@ -166,6 +185,23 @@ As regras não podem ser só do Brasil, mas também não precisam de uma versão
 3. **Cartão de visita (Japão, Coreia, China e negócios em geral):** muitas vezes o nome nem é falado, é entregue num cartão. O OCR de crachá que já existe lê também cartões de visita. O nome impresso tem a maior confiança de todas as fontes.
 
 O reconhecimento de voz segue o idioma do celular. A IA recebe `lang` e responde nesse idioma.
+
+### Cultura e formalidade: perceber pela conversa, nunca pela pessoa
+
+Nunca sabemos antes de onde alguém é, e morar nos EUA não faz ninguém americano. Por isso o app **nunca classifica a pessoa** (pela aparência, pelo sotaque ou pela etnia). Ele lê **como a conversa acontece**:
+
+- **Idioma de cada frase → quais regras valem.** Todos os conjuntos de regras rodam juntos e não brigam. Conversa misturada (português e inglês) funciona.
+- **A formalidade é percebida pelos próprios sinais:**
+  - formal: "Sr./Dr./Mr.", "prazer em conhecê-lo", cartão de visita, só o sobrenome;
+  - informal: "e aí", só o primeiro nome, apelido.
+  - Ela muda só como o nome aparece e é salvo: "Sr. Tanaka" / "Dr. Paulo" vs. "Kenji" / "Paulo". Nunca muda como a pessoa é descrita.
+- **Ordem do nome:** quando a prova é um cartão ou uma apresentação com sobrenome primeiro, a IA devolve `given_name` e `family_name` separados. O card mostra como você chama a pessoa.
+
+**Ajuste opcional do usuário**, só se a leitura automática não bastar:
+- "Idiomas em que eu converso" (escolha múltipla, define o reconhecimento de voz);
+- "Mais social / mais negócios" (negócios dá mais peso ao cartão de visita e aos títulos).
+
+Não precisa de perfil por região (latino, asiático, europeu). Eles são atalhos para os sinais de idioma e formalidade acima, e costumam errar.
 
 ### Prompt (sistema)
 
