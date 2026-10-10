@@ -75,6 +75,18 @@ Ninguém é "desconhecido" nem "não cadastrado". Enquanto não há nome, o tít
 - **Registros antigos sem descrição:** são descritos no próximo encontro.
 - **No Evento (grupo),** a descrição não aparece no HUD. Ela fica no registro do evento.
 
+## Lugares: card preso ao prédio (proposta, 10/10, pode ser desligado)
+
+Você anda pela Paulista, olha para o MASP por ~1,5 s e aparece o card **MASP**. Se você virar a cabeça, o card fica preso ao prédio. O espírito é Minority Report, sem poluir.
+
+- **Reconhecer o lugar sem câmera:** GPS do celular + direção da cabeça (bússola/IMU dos óculos) + uma lista de pontos do entorno (OpenStreetMap/Wikidata) baixada por bairro. Custa poucos KB, não precisa de vídeo nem de IA de imagem. A câmera entra só para confirmar quando a bússola estiver em dúvida (fase 2).
+- **O card mistura o público e o pessoal:** "MASP · museu, 1968" + **a sua memória ali**: "você esteve aqui em 12/03 com a Carla". O diferencial do VisualContext é lembrar, não fazer turismo.
+- **Preso ao prédio (3 graus de liberdade):** a posição do card na tela = direção do prédio − direção da cabeça, recalculada ~60×/s com a IMU. Saiu do campo de visão → some (ou vira uma setinha na borda). Na altura, fica sempre dentro da zona dos 70%.
+- **Onde precisa rodar:** **nos óculos**, porque 60 quadros/s não atravessam o Bluetooth. Como plugin Nexus puro não dá (a imagem atualiza no máximo a cada 150 ms e os plugins não rodam código nos óculos). Precisa de app nativo nos óculos (a Opção B do estudo do Anezium) ou de uma capacidade nova no Nexus ("card ancorado por direção"), boa proposta para ele.
+- **Limite honesto:** a bússola erra 10–20° perto de prédios e de metal. O card pode "escorregar" do prédio. Confirmar pela câmera de vez em quando resolve.
+- **Controle:** liga/desliga em Ajustes; só aparece depois de ~1,5 s olhando (nada de chuva de cards).
+- **Dados e bateria:** dados quase zero (só a lista de pontos). A bateria pesa mais pela IMU e pela tela acesa do que pela rede.
+
 ## Encontro em grupo = Evento (proposta, 10/10, a decidir)
 
 Com 3 ou mais rostos estáveis no quadro, ou sem um rosto dominante, o app não tenta adivinhar com quem você fala. Ele grava um **Evento**, uma lembrança coletiva, em vez de um encontro 1:1.
