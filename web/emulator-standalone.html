@@ -42,9 +42,10 @@ html,body{background:#000;height:100%;overflow:hidden;font-family:monospace;colo
 #stage{position:absolute;left:0;top:0;width:640px;height:480px;transform-origin:0 0;pointer-events:none}
 #hud{position:absolute;inset:0;pointer-events:none;display:none}
 
-/* Person card — full width. Monochrome: green on black transparency only. */
+/* Person card — 70% of the display width, so most of the view stays clear (and less green shows
+   to the person in front of you). Monochrome: green on black transparency only. */
 #hud-card{
-  position:absolute; top:16px; left:16px; right:16px; max-height:412px;
+  position:absolute; top:52px; left:16px; width:448px; max-height:380px;
   flex-direction:column;
   background:rgba(0,0,0,.62);
   border:1px solid rgba(0,255,136,.3);
@@ -55,7 +56,7 @@ html,body{background:#000;height:100%;overflow:hidden;font-family:monospace;colo
 #hud-photo{width:56px;height:56px;border-radius:50%;object-fit:cover;flex-shrink:0;display:none;
   border:1px solid rgba(0,255,136,.5);filter:grayscale(1) sepia(1) hue-rotate(80deg) saturate(4) brightness(.85)}
 .hc-id{min-width:0;flex:1}
-#hud-name{font-size:24px;font-weight:bold;color:#00ff88;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:190px}   /* only the name line leaves room for the recording circle */
+#hud-name{font-size:24px;font-weight:bold;color:#00ff88;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #hud-sub{font-size:16px;color:#00aa55;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #hud-sub:empty{display:none}
 #hud-dossier{font-size:16px;line-height:1.4;color:#8fdfb5;margin-top:12px;flex-shrink:0;
@@ -94,9 +95,9 @@ html,body{background:#000;height:100%;overflow:hidden;font-family:monospace;colo
 #hc-num{font-weight:bold}
 #hc-hint{font-size:16px;color:#00aa55;margin-top:6px}
 
-/* Recording indicator — discreet circle, top right */
+/* Recording indicator — its own line at the top, outside the person card */
 #hud-rec{
-  position:absolute; top:22px; right:22px;
+  position:absolute; top:12px; left:16px;
   display:none; align-items:center; gap:8px;
   font-size:15px; color:#00cc6e;
   background:rgba(0,0,0,.55);

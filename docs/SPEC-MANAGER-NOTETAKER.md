@@ -12,7 +12,7 @@
 
 ## Óculos (HUD)
 
-Card da pessoa, só leitura, ocupando a largura do display (640×480):
+Card da pessoa, só leitura, com 70% da largura do display (640×480), pra não tampar a visão nem chamar atenção de quem está na frente. O indicador "Gravando encontro" fica fora do card, numa linha própria acima dele.
 
 1. **Topo:** foto, nome e uma definição curta: social ("amigo da academia") e/ou de trabalho ("CEO · Empresa"). Sem e-mail, a não ser que o usuário pergunte.
 2. **Dossiê geral** com 3–4 linhas, escrito pela IA a partir de todos os encontros. Exemplos: "Amigo seu, registrado 4 vezes no último ano…" ou "CEO da empresa tal. Vocês conversaram na feira XYZ; ele é fornecedor da empresa dos seus sócios." Enquanto o dossiê da IA não existe, o emulador monta um texto simples com o que já está salvo.
@@ -23,7 +23,7 @@ Card da pessoa, só leitura, ocupando a largura do display (640×480):
 Gravação de encontro: já está implementada no emulador.
 - O buffer começa no contato visual com fala.
 - Pessoa nova: contagem "Gravando encontro: 5…0".
-- Durante a gravação: círculo discreto no canto.
+- Durante a gravação: indicador discreto acima do card.
 - 2 toques param a gravação. Toque retoma.
 
 Visual: monocromático (verde e transparência sobre o preto), sem dicas de gesto e sem redundância.
