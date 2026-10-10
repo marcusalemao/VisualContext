@@ -862,7 +862,9 @@ function onSpeech(text) {
   _enc.transcript.push(String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0') + ': ' + text);
   log('“' + text + '”');
   var nm = detectName(text);
-  if (nm && _enc.person && isUnnamed(_enc.person)) renamePerson(_enc.person, nm);
+  var fix = (_enc.person && !isUnnamed(_enc.person)) ? spellingFix(text, _enc.person.name) : '';
+  if (fix) renamePerson(_enc.person, fix);                      // "Marcus com u": spelling confirmed
+  else if (nm && _enc.person && isUnnamed(_enc.person)) renamePerson(_enc.person, nm);
   else if (nm && !_enc.person) _enc.pendingName = nm;   // heard before the person was saved
 }
 
@@ -878,18 +880,59 @@ var NAME_RE = new RegExp(
 var STRONG_RE = /(?:meu nome é|me chamo|pode me chamar de|my name is|call me)\s+([a-zà-ÿ'’-]+(?:\s+(?:(?:de|da|do|dos|das)\s+)?[a-zà-ÿ'’-]+){0,3})/i;
 var NAME_STOP = /^(e|eu|trabalho|sou|tenho|moro|and|i|i'm|work|from|aqui|tudo|prazer|muito|com|na|no|em)$/i;
 function titleCase(w) { return /^(de|da|do|dos|das)$/i.test(w) ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1); }
+// Brazilian introductions are short: "Marcos, prazer", "Prazer, Ana", "esse é o Rafa".
+// Cues, strongest first. Talk ABOUT someone ("o João me disse", "sua mãe, a Karin",
+// "Carolina, tem que conhecer") matches none of them on purpose.
+var NOT_A_NAME = /^(Tudo|Bem|Muito|Oi|Olá|Ola|Então|Sim|Não|Obrigado|Obrigada|Prazer|Eu|Aqui|É|Também|Igualmente|Opa|Bom|Boa|Dia|Tarde|Noite|Gente|Galera|Pessoal|Cara|Mano|Sure|Fine|Here|Good|Not|So|The|Nice|Hi|Hello)$/;
+var NAME_GROUP = "(" + NAME_WORD + "(?:\\s+(?:(?:de|da|do|dos|das|e)\\s+)?" + NAME_WORD + "){0,3})";
+var CUE_INTRO_OTHER = new RegExp("(?:[Oo] nome d(?:ele|ela) é|[Ee]l[ae] se chama|[Ee]ss[ae] é [oa]|[Ee]st[ae] é [oa]|[Tt]his is)\\s+" + NAME_GROUP);
+var CUE_PRAZER_AFTER = new RegExp(NAME_GROUP + "\\s*,?\\s*(?:muito\\s+)?(?:[Pp]razer|[Nn]ice to meet you)");
+var CUE_PRAZER_BEFORE = new RegExp("(?:[Pp]razer|[Nn]ice to meet you)\\s*,?\\s*(?:(?:eu\\s+)?sou\\s+[oa]\\s+)?" + NAME_GROUP);
+var CUE_SPELL = new RegExp("(" + NAME_WORD + ")\\s*,?\\s+com\\s+(?:[a-zà-ú]|dois\\s+[a-z]|duas\\s+[a-z]|[a-z]{1,2}\\s+mud[oa])\\b");
+var THIRD_PARTY = /(?:mãe|mae|pai|irmã|irmão|irmao|avó|avô|tia|tio|filh[oa]|espos[oa]|marido|namorad[oa]|amig[oa]|chefe|primo|prima)\s*,?\s*[oa]?\s*$/i;
+function cleanName(n) {
+  var w = String(n || '').trim().split(/\s+/);
+  while (w.length && NOT_A_NAME.test(w[0])) w.shift();          // "Tudo bem Marcos, prazer" → "Marcos"
+  while (w.length && /^(de|da|do|dos|das|e)$/.test(w[w.length-1])) w.pop();
+  return w.join(' ');
+}
 function detectName(text) {
-  var m = NAME_RE.exec(String(text || ''));
-  if (!m) {
-    var st = STRONG_RE.exec(String(text || ''));
-    if (!st) return '';
+  text = String(text || '');
+  var m = NAME_RE.exec(text);                                    // "meu nome é", "me chamo", "sou o/a"
+  if (m && !NOT_A_NAME.test(m[1].split(/\s+/)[0])) return cleanName(m[1]);
+  var st = STRONG_RE.exec(text);                                 // same, lowercase speech output
+  if (st) {
     var words = [];
     st[1].split(/\s+/).some(function(w){ if (NAME_STOP.test(w)) return true; words.push(titleCase(w)); });
     while (words.length && /^(de|da|do|dos|das)$/.test(words[words.length-1])) words.pop();
-    return words.join(' ');
+    if (words.length) return words.join(' ');
   }
-  var n = m[1].trim();
-  return /^(Muito|Prazer|Bem|Aqui|Eu|Sure|Fine|Here|Good|Not|So|The)\b/.test(n) ? '' : n;
+  var cues = [CUE_INTRO_OTHER, CUE_PRAZER_AFTER, CUE_PRAZER_BEFORE, CUE_SPELL];
+  for (var k = 0; k < cues.length; k++) {
+    var c = cues[k].exec(text);
+    if (!c) continue;
+    if (THIRD_PARTY.test(text.slice(0, c.index + (c[0].indexOf(c[1]) >= 0 ? c[0].indexOf(c[1]) : 0)))) continue;   // "sua mãe, a Karin"
+    var n = cleanName(c[1]);
+    if (n) return n;
+  }
+  return '';
+}
+// "Marcus com u" fixes the spelling of a name already saved ("Marcos" → "Marcus"), keeping the surname.
+function lev(a, b) {
+  a = a.toLowerCase(); b = b.toLowerCase();
+  var d = []; for (var i = 0; i <= a.length; i++) { d[i] = [i]; }
+  for (var j = 1; j <= b.length; j++) d[0][j] = j;
+  for (i = 1; i <= a.length; i++) for (j = 1; j <= b.length; j++)
+    d[i][j] = Math.min(d[i-1][j] + 1, d[i][j-1] + 1, d[i-1][j-1] + (a[i-1] === b[j-1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+function spellingFix(text, current) {
+  var c = CUE_SPELL.exec(String(text || ''));
+  if (!c || !current) return '';
+  var w = current.split(/\s+/), spelled = c[1];
+  if (w[0] === spelled || w[0][0].toLowerCase() !== spelled[0].toLowerCase() || lev(w[0], spelled) > 2) return '';
+  w[0] = spelled;
+  return w.join(' ');
 }
 function renamePerson(p, name) {
   if (!p || !name || p.name === name) return;

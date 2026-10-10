@@ -45,6 +45,18 @@ Gravação de encontro: já está implementada no emulador.
 
 Visual: monocromático (verde e transparência sobre o preto), sem dicas de gesto e sem redundância. **Nunca fundo preto/overlay escuro** (preto é transparente nos óculos): se o card precisar de fundo, é **verde a 20% de opacidade**. Sem sombra preta no texto.
 
+## Como o nome é descoberto na conversa (10/10)
+
+No Brasil quase ninguém diz "meu nome é…". A apresentação é curta: **"Marcos, prazer"**, "Prazer, Ana", "esse é o Rafa". Regras:
+
+- **"Prazer" é o gatilho principal.** O nome colado a ele (antes ou depois) é o da pessoa na sua frente. Vale nos dois sentidos: ela diz "Ana, prazer" ou você diz "Prazer, Ana".
+- **Outros gatilhos:**
+  - "meu nome é", "me chamo", "sou o/a…";
+  - você apresentando alguém: "esse é o…", "o nome dela é…".
+- **Falar de terceiros não conta.** "O João me disse…", "Aí, Carolina, tem que conhecer", "sua mãe, a Karin": nenhum desses vira o nome de quem está na frente. Nome depois de um parentesco (mãe, irmã, amigo…) é sempre de outra pessoa.
+- **Confirmação de grafia:** "Marcus com u" corrige a grafia de um nome já salvo (Marcos → Marcus) e mantém o sobrenome.
+- **Controle do usuário:** o nome ouvido entra direto e aparece no card na hora. Se veio errado, corrige no Manager ou falando a grafia.
+
 ## Encontro em grupo = Evento (proposta, 10/10, a decidir)
 
 Com 3 ou mais rostos estáveis no quadro, ou sem um rosto dominante, o app não tenta adivinhar com quem você fala. Ele grava um **Evento**, uma lembrança coletiva, em vez de um encontro 1:1.
