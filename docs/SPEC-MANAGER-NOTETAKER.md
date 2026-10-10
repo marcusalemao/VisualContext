@@ -195,6 +195,17 @@ Por padrão, a página inicial do Manager é limpa: **um campo de texto**, como 
 
 **Fotos:** sempre **um único frame por pessoa**, para reconhecer o rosto e mostrar "visto pela última vez". Um momento (como as crianças na piscina) vira **só uma descrição da cena**, sem imagem.
 
+**Mesma memória nos óculos (10/10):** perguntar à memória é **um motor só** (`ask_memory`), chamado de dois lugares. A memória mora no celular (e na nuvem, se ativada); os óculos só perguntam e mostram.
+
+| | Óculos | Manager (celular/laptop) |
+|---|---|---|
+| Como pergunta | Voz, pelo botão de IA (via Nexus `assistant`) ou frase de ativação | Texto ou voz |
+| Contexto extra | O que está na frente: "quem é ela?" usa o rosto atual | Nenhum |
+| Resposta | **Curta**: 1–3 linhas, dentro da zona dos 70%. Se for uma pessoa, o próprio card. | Completa, com as fontes (encontro, dia) |
+| Voz de volta | Desligada por padrão (em público, só na tela) | — |
+| Resposta longa | Mostra o essencial + "mais no celular" | — |
+| Sem fonte | "Não encontrei" (nunca palpite) | Idem |
+
 **Para o Beto (backend):** ação `ask_memory` no fcProxy. Ela recebe a pergunta e busca nos encontros e nas pessoas (por texto e, depois, por embeddings). Responde com as fontes. Mesmo modelo e mesma chave do `analyze_encounter`.
 
 ## Manager · página do encontro
