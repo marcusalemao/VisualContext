@@ -12,14 +12,21 @@
 
 ## Óculos (HUD)
 
-- **O que mostra:** nome, foto, empresa e relação, cada um só se tiver sido descoberto.
-- **Origem da relação:** inferida pela IA a partir das conversas (por exemplo amigo, colega, conhecido da academia).
-- **Gravação de encontro:** já está implementada no emulador.
-  - Buffer começa no contato visual com fala.
-  - Pessoa nova: contagem "Gravando encontro: 5…0".
-  - Durante a gravação: círculo discreto no canto.
-  - 2 toques param a gravação. Toque retoma.
-- **Visual:** monocromático (verde e transparência sobre o preto), sem dicas de gesto e sem redundância.
+Card da pessoa, só leitura, ocupando a largura do display (640×480):
+
+1. **Topo:** foto, nome e uma definição curta: social ("amigo da academia") e/ou de trabalho ("CEO · Empresa"). Sem e-mail, a não ser que o usuário pergunte.
+2. **Dossiê geral** com 3–4 linhas, escrito pela IA a partir de todos os encontros. Exemplos: "Amigo seu, registrado 4 vezes no último ano…" ou "CEO da empresa tal. Vocês conversaram na feira XYZ; ele é fornecedor da empresa dos seus sócios." Enquanto o dossiê da IA não existe, o emulador monta um texto simples com o que já está salvo.
+3. **Linha do tempo:** cada encontro é um mini-card de 2 linhas (dia, hora e lugar; resumo em 1 linha) com um chevron no canto direito.
+   - Deslizar ‹ › move o destaque, que aparece como contorno no mini-card.
+   - Toque expande, 2 toques recolhem.
+
+Gravação de encontro: já está implementada no emulador.
+- O buffer começa no contato visual com fala.
+- Pessoa nova: contagem "Gravando encontro: 5…0".
+- Durante a gravação: círculo discreto no canto.
+- 2 toques param a gravação. Toque retoma.
+
+Visual: monocromático (verde e transparência sobre o preto), sem dicas de gesto e sem redundância.
 
 ## Manager · página do encontro
 
@@ -51,6 +58,7 @@ Os dados de contato lidos por OCR (crachá ou cartão de visita) viram uma açã
 - Pré-requisito: corrigir a segurança do backend. Hoje qualquer pessoa lê, altera e apaga contatos, e isso precisa estar resolvido antes de guardar transcrições.
 - Ação `analyze_encounter`, que recebe a transcrição e devolve:
   `{ summary, topics[], follow_ups[], actions[{ type: calendar|task|contact, title, when?, confidence }], person_pills[{ label, evidence }], person_facts[{ key, value, evidence }] }`
+- Campo `dossier` da pessoa: texto de 3–4 linhas, reescrito a cada encontro (o HUD lê esse campo).
 - Onde guardar ações e pílulas, e o estado de cada ação (sugerida, aceita, descartada).
 - Conectores: Google Agenda e Google Tasks.
 
@@ -61,5 +69,5 @@ Os dados de contato lidos por OCR (crachá ou cartão de visita) viram uma açã
 
 ## Em aberto
 
-1. A linha do tempo continua no card dos óculos, ou o card fica só com a identidade (nome, foto, empresa, relação)?
+1. ~~A linha do tempo fica no card dos óculos?~~ Decidido em 10/10: sim, abaixo do dossiê geral.
 2. As ações automáticas do modo Assistência total devem ser confirmadas depois no Manager, ou valem direto?
