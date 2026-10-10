@@ -75,6 +75,26 @@ O usuário só fala, por exemplo: *"Essa é a minha moto, lembra dela."* A IA en
 
 - Receitas e documentos podem ter dados de saúde e dados pessoais. Esses registros só devem ser guardados depois da correção de segurança do backend.
 
+### Skill "Registra isso" (registro livre, 10/10)
+
+Você olha pra qualquer coisa (um texto, uma folha impressa, uma receita médica, uma placa) e fala **"Registra isso"**. Os óculos fazem o seguinte:
+
+- capturam o frame e leem o texto (OCR);
+- a IA dá um título curto ("Receita · Dr. Silva", "Wi-Fi do hotel") e um resumo;
+- o resultado vira um **registro**.
+
+Onde aparece:
+- **Óculos e emulador:** na lista "Últimos registros", com foto, título e contexto.
+- **Manager:** o registro completo, com foto, texto lido e resumo, e botões de **sincronizar com** o conector que o usuário escolher.
+
+Destinos que o usuário pode escolher:
+- Google Tasks: tem API.
+- Google Keep: até onde sei, a API oficial é restrita a contas de empresa (Workspace); pra contas pessoais talvez não dê. **Verificar.**
+- Notas do Mac / Apple Notes: não tem API na nuvem; provavelmente só via Atalhos (Shortcuts) no próprio aparelho. **Verificar.**
+- Notion e Google Docs: têm API.
+
+Atenção: receita médica é dado de saúde, que a LGPD trata como dado sensível. Esses registros devem ficar privados por padrão e nunca ser sincronizados sem o usuário pedir.
+
 ### Como reconhecer o que é seu (proposta)
 
 - **Na mão = é seu.** Se a chave aparece na sua mão, ela é sua. Nesse momento a IA guarda várias vistas da chave com o chaveiro, que é o que a torna única, e monta uma assinatura visual do objeto. Depois disso, não é qualquer chave: só a que bate com essa assinatura.
