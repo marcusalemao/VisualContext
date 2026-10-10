@@ -502,7 +502,8 @@ function syncProfiles() {
 // Person leaves the view for 5s → encounter ends and is saved (text only, never audio/video).
 // ════════════════════════════════════════════════════════════════════════
 var MATCH_THRESHOLD   = 0.5;    // face distance for a confident match
-var BUFFER_MS         = 3000;   // eye contact for ~3 s starts the countdown / recording (Marcus 10/10: was 7 s, too slow)
+var BUFFER_MS         = 7000;   // when the countdown MESSAGE appears. Recording itself starts at once (pre-roll below)
+var PREROLL_MS        = 30000;  // speech heard just before a face became stable is kept — the start of a conversation is never lost
 var SILENCE_MS        = 5000;   // 5 s of silence → recording pauses (saves battery); speech resumes it
 var COUNTDOWN_S       = 5;      // 5…0
 var STABLE_FRAMES     = 3;      // ~1.2s of a stable face before the buffer starts
@@ -609,6 +610,10 @@ function openEncounter(anchor, person) {
     countdownEnd: 0, recordingSince: 0
   };
   _state = 'buffer';
+  // the conversation started before the face was stable: keep what was said in the last seconds
+  _enc.transcript = _preroll.filter(function(x){ return now - x.at < PREROLL_MS; }).map(function(x){ return x.line; });
+  if (now - _lastPrerollSpeechAt < 8000) { _enc.heardSpeech = true; _enc.lastSpeechAt = _lastPrerollSpeechAt; }
+  _preroll = [];
   if (person) checkLegacyPhoto(person);
   takeBestFrame();
   startListening();
@@ -690,7 +695,7 @@ function endEncounter(reason) {
   _enc = null;
   _state = 'idle';
   clearInterval(_tickTimer); _tickTimer = null;
-  stopListening();
+  if (!camStream) stopListening();   // camera on: keep listening (pre-roll for the next encounter)
   if (reason === 'finished' && e.kind === 'known' && e.person && e.person._legacyPhoto && e.bestFrame) replacePhoto(e.person, cropFaceCircle(e.bestFrame, e.bestBox));
   e.bestFrame = null;   // full frame dropped — only the circular face photo is ever kept
   if (reason === 'cancel') {
@@ -858,8 +863,9 @@ function speechLang() {
   if (VC_I18N.lang === 'en') return /^en/i.test(nav) ? nav : 'en-US';
   return nav;
 }
+var _lastPrerollSpeechAt = 0;
 function speechActivity() {
-  if (!_enc) return;
+  if (!_enc) { _lastPrerollSpeechAt = Date.now(); return; }
   _enc.heardSpeech = true;
   _enc.lastSpeechAt = Date.now();
   if (_state === 'quiet') { _state = 'recording'; log('● speech — recording resumed'); render(); }
@@ -875,8 +881,16 @@ function stopListening() {
   _wantListen = false;
   if (_rec && _speech === 'listening') { try { _rec.stop(); } catch(e) {} }
 }
+var _preroll = [];   // [{at, line}] — only in memory, rolling 30 s, dropped unless an encounter opens
+function stampLine(text) { var d = new Date(); return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0') + ': ' + text; }
 function onSpeech(text) {
-  if (!_enc) return;
+  if (!_enc) {
+    var now = Date.now();
+    _preroll.push({ at: now, line: stampLine(text) });
+    _preroll = _preroll.filter(function(x){ return now - x.at < PREROLL_MS; });
+    _lastPrerollSpeechAt = now;
+    return;
+  }
   speechActivity();
   if (_state === 'paused') return;   // stopped by the user: nothing is kept
   var d = new Date();
@@ -1908,6 +1922,7 @@ function startCam(auto) {
     updateBar();
     log('✓ camera on', true);
     startFaceDetection();
+    startListening();   // always listening while the camera is on: rolling pre-roll, discarded unless an encounter opens
   })
   .catch(function(e) {
     log('✗ camera: ' + e.message);
