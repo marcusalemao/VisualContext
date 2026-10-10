@@ -12,6 +12,8 @@
 
 ## Óculos (HUD)
 
+Display: **biocular**, ou seja, um único Micro-LED com guia de onda leva a mesma imagem aos dois olhos. Isso foi confirmado pelo Marcus em 10/10 e corrige o doc 02, que dizia "só olho direito". São 640×480 pixels, cerca de 30° de campo de visão na diagonal, centralizado. Na prática, o display ocupa mais ou menos o terço central da visão.
+
 Card da pessoa, só leitura, com 70% da largura do display (640×480), pra não tampar a visão nem chamar atenção de quem está na frente. O indicador "Gravando encontro" fica fora do card, numa linha própria acima dele.
 
 1. **Topo:** foto, nome e uma definição curta: social ("amigo da academia") e/ou de trabalho ("CEO · Empresa"). Sem e-mail, a não ser que o usuário pergunte.
