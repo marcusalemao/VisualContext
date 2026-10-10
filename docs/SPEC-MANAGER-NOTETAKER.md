@@ -16,7 +16,7 @@
 
 Display: **biocular**, ou seja, um único Micro-LED com guia de onda leva a mesma imagem aos dois olhos. Isso foi confirmado pelo Marcus em 10/10 e corrige o doc 02, que dizia "só olho direito". São 640×480 pixels, cerca de 30° de campo de visão na diagonal, centralizado. Na prática, o display ocupa mais ou menos o terço central da visão.
 
-Card da pessoa, só leitura, com 70% da largura do display, pra não tampar a visão nem chamar atenção de quem está na frente. O indicador "Gravando encontro" fica fora do card, numa linha própria acima dele.
+Card da pessoa, só leitura, com 70% da largura do display, pra não tampar a visão nem chamar atenção de quem está na frente. O indicador "● Gravando encontro" é texto solto à **direita** do card, sem caixa e sem fundo. Contornos do HUD com **2 px**.
 
 **Zona de visão (regra fixa):** toda informação relevante fica nos **70% de cima da altura** do display. A faixa de baixo fica embaçada, é difícil de alcançar com o olhar e exige olhar para baixo, o que quebra o "estou olhando pra você". Nada importante abaixo dessa linha.
 

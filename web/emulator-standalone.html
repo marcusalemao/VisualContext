@@ -52,22 +52,22 @@ body.guides #hud-zone{display:block}
 /* Person card — 70% of the display width, so most of the view stays clear (and less green shows
    to the person in front of you). Monochrome: green on black transparency only. */
 #hud-card{
-  position:absolute; top:52px; left:16px; width:448px; max-height:284px;   /* ends at 336px = 70% of the height */
+  position:absolute; top:16px; left:16px; width:436px; max-height:320px;   /* ends at 336px = 70% of the height */
   flex-direction:column;
   background:rgba(0,255,136,.2);   /* no black overlay: black is transparent on the glasses — 20% green only */
-  border:1px solid rgba(0,255,136,.3);
+  border:2px solid rgba(0,255,136,.45);
   border-radius:12px; padding:14px 16px;
   pointer-events:auto;
 }
 .hc-head{display:flex;gap:16px;align-items:flex-start;flex-shrink:0}
 #hud-photo{width:96px;height:96px;border-radius:6px;object-fit:cover;flex-shrink:0;display:none;
-  border:1px solid rgba(0,255,136,.5);filter:grayscale(1) sepia(1) hue-rotate(80deg) saturate(4) brightness(.85)}
+  border:2px solid rgba(0,255,136,.6);filter:grayscale(1) sepia(1) hue-rotate(80deg) saturate(4) brightness(.85)}
 .hc-id{min-width:0;flex:1}
 #hud-name{font-size:24px;font-weight:bold;color:#00ff88;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:uppercase;letter-spacing:.5px}
 /* pills: where you know the person from — what you need while talking */
 #hud-pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 #hud-pills:empty{display:none}
-.pill{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#00ff88;border:1px solid rgba(0,255,136,.6);border-radius:6px;padding:2px 8px}
+.pill{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#00ff88;border:2px solid rgba(0,255,136,.7);border-radius:6px;padding:1px 8px}
 #hud-headline{font-size:15px;line-height:1.35;color:#8fdfb5;margin-top:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 #hud-headline:empty{display:none}
 .sec-lbl{font-size:12px;color:#00aa55;letter-spacing:1.5px;margin-bottom:4px}
@@ -85,14 +85,14 @@ body.guides #hud-zone{display:block}
 /* Last encounters — a narrow column of short cards (small photo beside name + date), vertical infinite scroll.
    Small on purpose: opened over a coffee, closed with a double tap. */
 #hud-list{position:absolute;left:16px;top:16px;width:250px;height:232px;   /* opens downward from the top, ends at 248px */display:none;flex-direction:column;
-  background:rgba(0,255,136,.2);border:1px solid rgba(0,255,136,.3);border-radius:10px;padding:10px 10px 8px;pointer-events:auto}
+  background:rgba(0,255,136,.2);border:2px solid rgba(0,255,136,.45);border-radius:10px;padding:10px 10px 8px;pointer-events:auto}
 #hud-list.on{display:flex}
 #hl-items{overflow-y:auto;min-height:0;padding-right:4px;scrollbar-width:thin;scrollbar-color:#00aa55 transparent}
 #hl-items::-webkit-scrollbar{width:3px}
 #hl-items::-webkit-scrollbar-thumb{background:#00aa55;border-radius:2px}
-.hl-item{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:6px;border:1px solid transparent;cursor:pointer;margin-bottom:2px}
+.hl-item{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:6px;border:2px solid transparent;cursor:pointer;margin-bottom:2px}
 .hl-item.focus{border-color:rgba(0,255,136,.5);background:rgba(0,255,136,.06)}
-.hl-ph{width:34px;height:34px;border-radius:4px;flex-shrink:0;border:1px solid rgba(0,255,136,.4)}
+.hl-ph{width:34px;height:34px;border-radius:4px;flex-shrink:0;border:2px solid rgba(0,255,136,.5)}
 .hl-ph{object-fit:cover;filter:grayscale(1) sepia(1) hue-rotate(80deg) saturate(4) brightness(.85)}
 .hl-txt{min-width:0}
 .hl-name{font-size:13px;font-weight:bold;color:#00ff88;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -102,13 +102,13 @@ body.guides #hud-zone{display:block}
 #hud-dossier{font-size:16px;line-height:1.4;color:#8fdfb5;
   display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
 #hud-dossier:empty{display:none}
-#hud-sum-wrap{margin-top:12px;border-top:1px solid rgba(0,255,136,.15);padding-top:8px;min-height:0;flex-direction:column}
+#hud-sum-wrap{margin-top:12px;border-top:2px solid rgba(0,255,136,.25);padding-top:8px;min-height:0;flex-direction:column}
 #hud-sum-lbl{font-size:12px;color:#00aa55;letter-spacing:1.5px;margin-bottom:6px}
 #hud-sum{overflow-y:auto;min-height:0;padding-right:8px;scrollbar-width:thin;scrollbar-color:#00aa55 transparent}
 #hud-sum::-webkit-scrollbar{width:4px}
 #hud-sum::-webkit-scrollbar-thumb{background:#00aa55;border-radius:2px}
 /* each encounter is a small card: date · place on top, one-line summary below, chevron on the right */
-.tl-item{position:relative;padding:6px 36px 6px 10px;border-radius:8px;border:1px solid transparent;margin-bottom:4px;cursor:pointer}
+.tl-item{position:relative;padding:6px 36px 6px 10px;border-radius:8px;border:2px solid transparent;margin-bottom:4px;cursor:pointer}
 .tl-item.focus{border-color:rgba(0,255,136,.5);background:rgba(0,255,136,.06)}
 .tl-head{font-size:13px;color:#00aa55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tl-head b{color:#00cc66}
@@ -124,7 +124,7 @@ body.guides #hud-zone{display:block}
 /* Photo preview (manual capture) — loose on the display, like the native camera preview */
 #hud-preview{position:absolute;top:20px;left:20px;display:none;text-align:center}
 #hud-preview.on{display:block}
-#hp-img{width:110px;height:110px;border-radius:6px;border:1px solid rgba(0,255,136,.5);display:block;margin:0 auto 8px;
+#hp-img{width:110px;height:110px;border-radius:6px;border:2px solid rgba(0,255,136,.5);display:block;margin:0 auto 8px;
   filter:grayscale(1) sepia(1) hue-rotate(80deg) saturate(4) brightness(.85)}
 #hp-q{font-size:20px;color:#00ff88}
 
@@ -135,14 +135,11 @@ body.guides #hud-zone{display:block}
 #hc-num{font-weight:bold}
 #hc-hint{font-size:16px;color:#00aa55;margin-top:6px}
 
-/* Recording indicator — its own line at the top, outside the person card */
+/* Recording indicator — loose text on the RIGHT, outside the card: no box, no background */
 #hud-rec{
-  position:absolute; top:12px; left:16px;
-  display:none; align-items:center; gap:8px;
-  font-size:15px; color:#00cc6e;
-  background:rgba(0,255,136,.2);
-  border:1px solid rgba(0,255,136,.2);
-  border-radius:16px; padding:5px 12px 5px 10px;
+  position:absolute; top:18px; right:12px;
+  display:none; align-items:center; gap:6px;
+  font-size:14px; color:#00cc6e;
 }
 #hud-rec.on{display:flex}
 #hud-rec .dot{width:11px;height:11px;border-radius:50%;background:#00ff88;animation:pulse 1.6s ease-in-out infinite}
