@@ -18,6 +18,8 @@ Display: **biocular**, ou seja, um único Micro-LED com guia de onda leva a mesm
 
 Card da pessoa, só leitura, com 70% da largura do display, pra não tampar a visão nem chamar atenção de quem está na frente. Indicador de gravação: **um só**, a linha de status no canto inferior direito ("gravando"), em **verde 100%**. Nada de pílula em cima (era redundante). Todos os contornos do HUD com a **mesma espessura, 2 px**; nunca linha fina.
 
+**Início e pausa (10/10):** ~3 s de contato visual já iniciam (antes eram 7 s). **5 s de silêncio pausam a gravação** para economizar bateria. O encontro continua aberto e a gravação volta sozinha quando alguém fala de novo. No app real, quem detecta a volta da fala é um detector de voz leve, rodando com o microfone em baixo consumo. No modo "Só o olhar basta", o silêncio não pausa.
+
 **Gatilho da gravação (ajuste):** padrão = contato visual **e** fala. Nas configurações do app do celular dá para trocar para **"Só o olhar basta"**: grava mesmo sem fala (ex.: visitar alguém que quase não fala, como a mãe com Alzheimer, onde o encontro é olhar, gesto e carinho).
 
 **Zona de visão (regra fixa):** toda informação relevante fica nos **70% de cima da altura** do display. A faixa de baixo fica embaçada, é difícil de alcançar com o olhar e exige olhar para baixo, o que quebra o "estou olhando pra você". Nada importante abaixo dessa linha.

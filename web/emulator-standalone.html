@@ -340,7 +340,7 @@ VC_I18N.add({
     count_title:'Recording encounter:', count_hint:'Swipe forward to cancel',
     rec:'Recording encounter', paused:'Paused · Tap to resume',
     s_ready:'ready', s_loading:'loading AI…', s_cam:'camera on', s_buf_face:'buffering (face only)', s_buf_speech:'buffering · speech',
-    s_buf_wait:'buffering · waiting for speech', s_confirm:'new person · confirming', s_rec:'recording', s_paused:'paused',
+    s_buf_wait:'buffering · waiting for speech', s_confirm:'new person · confirming', s_rec:'recording', s_paused:'paused', s_quiet:'paused · silence',
     s_identified:'identified', s_saved:'saved', s_notrec:'not recorded', s_saving_enc:'saving encounter…', s_enc_saved:'encounter saved', s_fail:'save failed',
     b_camera:'Camera', b_stop:'Stop', b_tap:'Tap', b_swipe:'Swipe fwd', b_dtap:'Double tap', b_help:'Help',
     g_tap:'Tap', g_swipe:'Swipe forward', g_dtap:'Double tap', g_swipes:'Swipe ‹ ›',
@@ -378,7 +378,7 @@ VC_I18N.add({
     count_title:'Gravando encontro:', count_hint:'Deslize para frente para cancelar',
     rec:'Gravando encontro', paused:'Pausado · Toque para retomar',
     s_ready:'pronto', s_loading:'carregando IA…', s_cam:'câmera ativa', s_buf_face:'buffer (só rosto)', s_buf_speech:'buffer · com fala',
-    s_buf_wait:'buffer · esperando fala', s_confirm:'pessoa nova · confirmando', s_rec:'gravando', s_paused:'pausado',
+    s_buf_wait:'buffer · esperando fala', s_confirm:'pessoa nova · confirmando', s_rec:'gravando', s_paused:'pausado', s_quiet:'pausado · silêncio',
     s_identified:'identificado', s_saved:'salvo', s_notrec:'não gravado', s_saving_enc:'salvando encontro…', s_enc_saved:'encontro salvo', s_fail:'falha ao salvar',
     b_camera:'Câmera', b_stop:'Parar', b_tap:'Toque', b_swipe:'Deslizar', b_dtap:'2 toques', b_help:'Ajuda',
     g_tap:'Toque', g_swipe:'Deslizar p/ frente', g_dtap:'Toque duplo', g_swipes:'Deslizar ‹ ›',
@@ -502,7 +502,8 @@ function syncProfiles() {
 // Person leaves the view for 5s → encounter ends and is saved (text only, never audio/video).
 // ════════════════════════════════════════════════════════════════════════
 var MATCH_THRESHOLD   = 0.5;    // face distance for a confident match
-var BUFFER_MS         = 7000;   // silent buffer before the countdown / recording
+var BUFFER_MS         = 3000;   // eye contact for ~3 s starts the countdown / recording (Marcus 10/10: was 7 s, too slow)
+var SILENCE_MS        = 5000;   // 5 s of silence → recording pauses (saves battery); speech resumes it
 var COUNTDOWN_S       = 5;      // 5…0
 var STABLE_FRAMES     = 3;      // ~1.2s of a stable face before the buffer starts
 var SAME_FACE         = 0.5;    // max distance to keep treating it as the same person
@@ -637,9 +638,13 @@ function tick() {
   } else if (_state === 'countdown') {
     if (away > LEAVE_MS_PENDING) return endEncounter('left');
     if (now >= _enc.countdownEnd) return confirmNewPerson();
-  } else if (_state === 'recording' || _state === 'paused') {
+  } else if (_state === 'recording' || _state === 'paused' || _state === 'quiet') {
     describeIfNeeded();
-    if (away > LEAVE_MS_RECORD) return endEncounter(_state === 'recording' ? 'finished' : 'left');
+    if (away > LEAVE_MS_RECORD) return endEncounter((_state === 'recording' || _state === 'quiet') ? 'finished' : 'left');
+    if (_state === 'recording' && NEED_SPEECH && _speech !== 'unavailable' && now - (_enc.lastSpeechAt || _enc.recordingSince) > SILENCE_MS) {
+      _state = 'quiet';   // silence: stop recording audio (battery); the encounter stays open
+      log('❚❚ silence — recording paused, resumes with speech');
+    }
   }
   render();
 }
@@ -702,7 +707,7 @@ function endEncounter(reason) {
 
 // Double tap while recording: stop and discard this recording. The person stays saved.
 function stopRecording() {
-  if (_state !== 'recording') return;
+  if (_state !== 'recording' && _state !== 'quiet') return;
   _state = 'paused';
   _enc.transcript = [];
   _enc.recordingSince = 0;
@@ -739,7 +744,7 @@ function gestureDoubleTap() {   // native "back"
     if (_review.card) reviewBack(); else closeReview();
     return;
   }
-  if (_state === 'recording') { stopRecording(); return; }
+  if (_state === 'recording' || _state === 'quiet') { stopRecording(); return; }
   if (_state === 'buffer') { endEncounter('stop'); if (_lastMatchDescriptor) suppress(_lastMatchDescriptor); return; }
   dismissHUD();
 }
@@ -771,6 +776,7 @@ function render() {
   if (st === 'buffer') setStatus((_speech === 'unavailable' || !NEED_SPEECH) ? 's_buf_face' : (e.heardSpeech ? 's_buf_speech' : 's_buf_wait'));
   else if (st === 'countdown') setStatus('s_confirm');
   else if (st === 'recording') setStatus('s_rec');
+  else if (st === 'quiet') setStatus('s_quiet');
   else if (st === 'paused') setStatus('s_paused');
 
   updateBar();
@@ -822,10 +828,11 @@ var _rec = null, _wantListen = false;
   if (!SR) { _speech = 'unavailable'; return; }
   _rec = new SR();
   _rec.continuous = true;
-  _rec.interimResults = false;
+  _rec.interimResults = true;   // interim results only mark activity (fast start/resume); only finals are stored
   _rec.lang = speechLang();
-  _rec.onspeechstart = function(){ if (_enc) _enc.heardSpeech = true; };
+  _rec.onspeechstart = function(){ speechActivity(); };
   _rec.onresult = function(ev){
+    speechActivity();
     for (var i = ev.resultIndex; i < ev.results.length; i++) {
       if (!ev.results[i].isFinal) continue;
       var text = ev.results[i][0].transcript.trim();
@@ -851,6 +858,12 @@ function speechLang() {
   if (VC_I18N.lang === 'en') return /^en/i.test(nav) ? nav : 'en-US';
   return nav;
 }
+function speechActivity() {
+  if (!_enc) return;
+  _enc.heardSpeech = true;
+  _enc.lastSpeechAt = Date.now();
+  if (_state === 'quiet') { _state = 'recording'; log('● speech — recording resumed'); render(); }
+}
 function startListening() {
   if (!_rec || _speech === 'unavailable') return;
   _rec.lang = speechLang();
@@ -864,7 +877,7 @@ function stopListening() {
 }
 function onSpeech(text) {
   if (!_enc) return;
-  _enc.heardSpeech = true;
+  speechActivity();
   if (_state === 'paused') return;   // stopped by the user: nothing is kept
   var d = new Date();
   _enc.transcript.push(String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0') + ': ' + text);
@@ -1916,7 +1929,7 @@ document.addEventListener('visibilitychange', function() {
 // Refresh/close while recording: save the transcript right away (no summary — there's no time).
 window.addEventListener('pagehide', function(){
   var e = _enc;
-  if (!e || !e.person || !e.person.id || !(_state === 'recording') || !e.transcript.length) return;
+  if (!e || !e.person || !e.person.id || !(_state === 'recording' || _state === 'quiet') || !e.transcript.length) return;
   try {
     var start = new Date(e.recordingSince || e.startedAt);
     fetch(PROXY + '?entity=FaceContextEncounter', { method:'POST', keepalive:true, headers:{'Content-Type':'application/json'},
@@ -1927,7 +1940,7 @@ window.addEventListener('pagehide', function(){
 });
 function stopCam() {
   _lastFaceAt = 0;
-  if (_enc) endEncounter(_state === 'recording' ? 'finished' : 'stop');
+  if (_enc) endEncounter((_state === 'recording' || _state === 'quiet') ? 'finished' : 'stop');
   if (_previewOpen) discardPreview();
   if (camStream) { camStream.getTracks().forEach(function(tr){ tr.stop(); }); camStream = null; }
   document.getElementById('vid').srcObject = null;
