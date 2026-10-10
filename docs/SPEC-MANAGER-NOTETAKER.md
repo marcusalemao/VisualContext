@@ -57,6 +57,16 @@ No Brasil quase ninguém diz "meu nome é…". A apresentação é curta: **"Mar
 - **Confirmação de grafia:** "Marcus com u" corrige a grafia de um nome já salvo (Marcos → Marcus) e mantém o sobrenome.
 - **Controle do usuário:** o nome ouvido entra direto e aparece no card na hora. Se veio errado, corrige no Manager ou falando a grafia.
 
+## Pessoa sem nome = descrição acessível (10/10)
+
+Ninguém é "desconhecido" nem "não cadastrado". Enquanto não há nome, o título é uma **descrição curta**, no estilo de audiodescrição: *"Moça de ~20 anos, cabelo castanho, de preto"*. Abaixo vem onde e quando vocês se conheceram: *"conheceu ontem · no café, falaram da viagem"*. Quando você reencontra a pessoa sem lembrar o nome, o card diz exatamente isso.
+
+- **Fonte (emulador):** idade e gênero estimados pela IA de rosto, cor do cabelo (ou careca) e cor predominante da roupa. Tom de pele fica de fora por enquanto, porque a luz engana demais.
+- **Fonte (app real):** a mesma descrição, melhorada pela IA (Gemini) a partir da foto.
+- **Onde fica:** campo `nickname`, com `status = Pendente`. Quando o nome é ouvido, ele passa a ser o título e o status vira `Identificado`. A descrição continua guardada.
+- **Registros antigos sem descrição:** são descritos no próximo encontro.
+- **No Evento (grupo),** a descrição não aparece no HUD. Ela fica no registro do evento.
+
 ## Encontro em grupo = Evento (proposta, 10/10, a decidir)
 
 Com 3 ou mais rostos estáveis no quadro, ou sem um rosto dominante, o app não tenta adivinhar com quem você fala. Ele grava um **Evento**, uma lembrança coletiva, em vez de um encontro 1:1.

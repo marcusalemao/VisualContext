@@ -65,6 +65,7 @@ body.guides #hud-zone{display:block}
 .hc-id{min-width:0;flex:1}
 #hud-name{font-size:24px;font-weight:bold;color:#00ff88;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:uppercase;letter-spacing:.5px}
 /* pills: where you know the person from — what you need while talking */
+#hud-card.unnamed #hud-name{font-size:18px;white-space:normal;text-transform:none;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 #hud-pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 #hud-pills:empty{display:none}
 .pill{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#00ff88;border:2px solid rgba(0,255,136,.6);border-radius:6px;padding:1px 8px}
@@ -335,7 +336,7 @@ VC_I18N.add({
     idle_fail:'Could not access the camera', idle_fail_sub:'Check the permission in the 🔒 of the address bar',
     idle_stopped:'Camera stopped', idle_stopped_sub:'Tap Camera to turn it back on',
     idle_nosupport:'Camera not supported', idle_nosupport_sub:'Open over HTTPS in a browser with a camera',
-    about:'ABOUT', timeline:'ENCOUNTERS', list_title:'LATEST RECORDS', list_empty:'Nothing recorded yet.', hl_count:'{n} encounters · since {since}', hl_one:'Met once · {when}', dz_count:'Seen {n} times in the last year.', dz_once:'Seen once in the last year.', dz_last:'Last time {when}{where}: {what}', dz_at:' at {p}', today:'today', yesterday:'yesterday', no_summary:'(no summary)', p_preview:'Save this face?',
+    about:'ABOUT', timeline:'ENCOUNTERS', list_title:'LATEST RECORDS', list_empty:'Nothing recorded yet.', hl_count:'{n} encounters · since {since}', hl_one:'Met once · {when}', met_when:'met {when}', lk_f1:'Young woman', lk_f2:'Woman', lk_f3:'Older woman', lk_m1:'Young man', lk_m2:'Man', lk_m3:'Older man', lk_p:'Person', lk_age:', ~{a}', lk_hair:', {c} hair', lk_bald:', bald', lk_wear:', in {c}', h_black:'black', h_brown:'brown', h_blond:'blond', h_red:'red', h_grey:'grey', dz_count:'Seen {n} times in the last year.', dz_once:'Seen once in the last year.', dz_last:'Last time {when}{where}: {what}', dz_at:' at {p}', today:'today', yesterday:'yesterday', no_summary:'(no summary)', p_preview:'Save this face?',
     count_title:'Recording encounter:', count_hint:'Swipe forward to cancel',
     rec:'Recording encounter', paused:'Paused · Tap to resume',
     s_ready:'ready', s_loading:'loading AI…', s_cam:'camera on', s_buf_face:'buffering (face only)', s_buf_speech:'buffering · speech',
@@ -373,7 +374,7 @@ VC_I18N.add({
     idle_fail:'Não deu pra acessar a câmera', idle_fail_sub:'Verifique a permissão no 🔒 da barra de endereço',
     idle_stopped:'Câmera parada', idle_stopped_sub:'Toque em Câmera para religar',
     idle_nosupport:'Câmera não suportada', idle_nosupport_sub:'Abra em HTTPS num navegador com câmera',
-    about:'SOBRE', timeline:'ENCONTROS', list_title:'ÚLTIMOS REGISTROS', list_empty:'Nenhum registro ainda.', hl_count:'{n} encontros · desde {since}', hl_one:'Vocês se viram 1 vez · {when}', dz_count:'Registrado {n} vezes no último ano.', dz_once:'Registrado 1 vez no último ano.', dz_last:'Da última vez, {when}{where}: {what}', dz_at:' em {p}', today:'hoje', yesterday:'ontem', no_summary:'(sem resumo)', p_preview:'Salvar este rosto?',
+    about:'SOBRE', timeline:'ENCONTROS', list_title:'ÚLTIMOS REGISTROS', list_empty:'Nenhum registro ainda.', hl_count:'{n} encontros · desde {since}', hl_one:'Vocês se viram 1 vez · {when}', met_when:'conheceu {when}', lk_f1:'Moça', lk_f2:'Mulher', lk_f3:'Senhora', lk_m1:'Rapaz', lk_m2:'Homem', lk_m3:'Senhor', lk_p:'Pessoa', lk_age:' de ~{a} anos', lk_hair:', cabelo {c}', lk_bald:', careca', lk_wear:', de {c}', h_black:'preto', h_brown:'castanho', h_blond:'loiro', h_red:'ruivo', h_grey:'grisalho', dz_count:'Registrado {n} vezes no último ano.', dz_once:'Registrado 1 vez no último ano.', dz_last:'Da última vez, {when}{where}: {what}', dz_at:' em {p}', today:'hoje', yesterday:'ontem', no_summary:'(sem resumo)', p_preview:'Salvar este rosto?',
     count_title:'Gravando encontro:', count_hint:'Deslize para frente para cancelar',
     rec:'Gravando encontro', paused:'Pausado · Toque para retomar',
     s_ready:'pronto', s_loading:'carregando IA…', s_cam:'câmera ativa', s_buf_face:'buffer (só rosto)', s_buf_speech:'buffer · com fala',
@@ -568,8 +569,8 @@ function handleMatch(descriptor) {
   if (_previewOpen || _state === 'saving') return;
 
   if (m) {
-    if (!isUnnamed(m.profile)) showProfile(m.profile, Math.round((1 - m.dist) * 100));
-    else hideHudCard(true);   // registered face, no name yet: a card with no name helps nobody
+    if (!isUnnamed(m.profile) || m.profile.nickname) showProfile(m.profile, Math.round((1 - m.dist) * 100));
+    else hideHudCard(true);   // no name and no description yet: it gets described during this encounter
     if (isSuppressed(descriptor)) return;   // user said no to this encounter: show the card, don't record
   } else {
     hideHudCard();
@@ -636,6 +637,7 @@ function tick() {
     if (away > LEAVE_MS_PENDING) return endEncounter('left');
     if (now >= _enc.countdownEnd) return confirmNewPerson();
   } else if (_state === 'recording' || _state === 'paused') {
+    describeIfNeeded();
     if (away > LEAVE_MS_RECORD) return endEncounter(_state === 'recording' ? 'finished' : 'left');
   }
   render();
@@ -660,13 +662,17 @@ function confirmNewPerson() {
   if (!photo) { log('⚠ no face photo — nothing saved (an encounter without a photo does not exist)', true); return endEncounter('error'); }
   _enc.torso = _enc.bestFrame ? cropTorso(_enc.bestFrame, _enc.bestBox) : null;
   _enc.clothing = _enc.torso ? describeClothing(_enc.torso) : null;
-  createPerson(meanDescriptor(_enc.samples), photo, 'auto', function(p){
+  var frame = _enc.bestFrame, box = _enc.bestBox, samples = meanDescriptor(_enc.samples);
+  describeLook(frame, box, _enc.clothing).then(function(desc){
+  if (!_enc) return;
+  createPerson(samples, photo, 'auto', function(p){
     if (!_enc) return;
     if (!p) { log('⚠ could not save the person — encounter dropped', true); return endEncounter('error'); }
     _enc.person = p;
     if (_enc.pendingName) renamePerson(p, _enc.pendingName);
     else _enc.transcript.some(function(l){ var nm = detectName(l.replace(/^\d\d:\d\d: /, '')); if (nm) { renamePerson(p, nm); return true; } });
     startRecording();
+  }, desc);
   });
 }
 
@@ -790,7 +796,7 @@ function snapshotFrame() {
 }
 function takeBestFrame() {
   if (!_enc || !_lastFaceBox) return;
-  if (_enc.kind === 'known' && !(_enc.person && _enc.person._legacyPhoto)) return;   // new people, or an old round photo to replace
+  if (_enc.kind === 'known' && !(_enc.person && (_enc.person._legacyPhoto || (isUnnamed(_enc.person) && !_enc.person.nickname)))) return;   // new people, an old round photo, or someone to describe
   var area = _lastFaceBox.w * _lastFaceBox.h;
   if (area <= _enc.bestArea) return;
   var fr = snapshotFrame();
@@ -934,15 +940,78 @@ function spellingFix(text, current) {
   w[0] = spelled;
   return w.join(' ');
 }
+// Title on the display: the name, or — until there is one — a short accessible description.
+function displayName(p) { return isUnnamed(p) ? (p.nickname || t('no_name')) : (p.name || '—'); }
+
+// ── Accessible description of a face without a name ("Moça de ~20 anos, cabelo castanho, de preto") ──
+var _ageNet = null;
+function loadAgeNet() {
+  if (_ageNet) return _ageNet;
+  _ageNet = (window.faceapi ? faceapi.nets.ageGenderNet.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model') : Promise.reject())
+    .catch(function(){ _ageNet = null; throw new Error('age model unavailable'); });
+  return _ageNet;
+}
+function avgRGB(cv, x0, y0, x1, y1) {
+  x0 = Math.max(0, Math.round(x0)); y0 = Math.max(0, Math.round(y0));
+  x1 = Math.min(cv.width, Math.round(x1)); y1 = Math.min(cv.height, Math.round(y1));
+  if (x1 - x0 < 2 || y1 - y0 < 2) return null;
+  var d = cv.getContext('2d').getImageData(x0, y0, x1 - x0, y1 - y0).data, r = 0, g = 0, b = 0, n = 0;
+  for (var i = 0; i < d.length; i += 16) { r += d[i]; g += d[i+1]; b += d[i+2]; n++; }
+  return n ? [r/n, g/n, b/n] : null;
+}
+function hairWord(frame, box) {
+  try {
+    var hair = avgRGB(frame, box.x + box.w*0.3, box.y - box.h*0.18, box.x + box.w*0.7, box.y + box.h*0.02);
+    var skin = avgRGB(frame, box.x + box.w*0.3, box.y + box.h*0.5, box.x + box.w*0.7, box.y + box.h*0.7);
+    if (!hair || !skin) return '';
+    var diff = Math.abs(hair[0]-skin[0]) + Math.abs(hair[1]-skin[1]) + Math.abs(hair[2]-skin[2]);
+    if (diff < 45) return t('lk_bald');
+    var c = colorName(hair[0], hair[1], hair[2]);
+    var key = { black:'h_black', brown:'h_brown', burgundy:'h_brown', orange:'h_red', red:'h_red', yellow:'h_blond', beige:'h_blond', grey:'h_grey', white:'h_grey' }[c];
+    return key ? t('lk_hair', { c: t(key) }) : '';
+  } catch (e) { return ''; }
+}
+function describeLook(frame, box, clothing) {
+  if (!frame || !box) return Promise.resolve('');
+  var hair = hairWord(frame, box);
+  var wear = clothing ? t('lk_wear', { c: clothing }) : '';
+  return loadAgeNet().then(function(){
+    return faceapi.detectSingleFace(frame, new faceapi.TinyFaceDetectorOptions({ scoreThreshold:0.3 })).withAgeAndGender();
+  }).then(function(r){
+    var who = t('lk_p'), age = '';
+    if (r) {
+      var a = Math.round(r.age / 5) * 5, band = r.age < 25 ? 1 : (r.age < 55 ? 2 : 3);
+      if (r.genderProbability >= 0.7) who = t((r.gender === 'female' ? 'lk_f' : 'lk_m') + band);
+      age = t('lk_age', { a: a });
+    }
+    return who + age + hair + wear;
+  }).catch(function(){ return t('lk_p') + hair + wear; });
+}
+// A registered face with no name and no description yet (e.g. saved before 10/10): describe it now.
+function describeIfNeeded() {
+  var e = _enc;
+  if (!e || !e.person || !isUnnamed(e.person) || e.person.nickname || e.describing || !e.bestFrame) return;
+  e.describing = true;
+  describeLook(e.bestFrame, e.bestBox, e.clothing || (e.bestFrame ? describeClothing(cropTorso(e.bestFrame, e.bestBox) || e.bestFrame) : null)).then(function(desc){
+    if (!desc || !e.person) return;
+    var p = e.person; p.nickname = desc;
+    _profiles.forEach(function(x){ if (x.id === p.id) x.nickname = desc; });
+    if (p.id) fetch(PROXY + '?id=' + p.id + '&entity=FaceContextPerson', {
+      method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ nickname: desc, status: 'Pendente' })
+    }).catch(function(){});
+    log('✓ described: ' + desc, true);
+    if (_enc === e && !_review) showProfile(p, null, 'glance');
+  });
+}
 function renamePerson(p, name) {
   if (!p || !name || p.name === name) return;
   var old = p.name; p.name = name;
   _profiles.forEach(function(x){ if (x.id === p.id) x.name = name; });
   log('✓ name heard: ' + old + ' → ' + name, true);
-  if (_currentProfile && _currentProfile.id === p.id) document.getElementById('hud-name').textContent = name;
+  if (_currentProfile && _currentProfile.id === p.id) showProfile(p, null, /review/.test(document.getElementById('hud-card').className) ? 'review' : 'glance');
   else if (_enc && _enc.person && _enc.person.id === p.id && !_review) showProfile(p, null, 'glance');   // name just heard: the card appears now
   if (p.id) fetch(PROXY + '?id=' + p.id + '&entity=FaceContextPerson', {
-    method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ name: name })
+    method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ name: name, status: 'Identificado' })
   }).catch(function(){});
 }
 
@@ -953,7 +1022,7 @@ function nextUnknownName() {
   return t('d_unknown', { n: n });
 }
 
-function createPerson(emb, photo, mode, cb) {
+function createPerson(emb, photo, mode, cb, nickname) {
   if (!emb || !Array.isArray(emb) || emb.length !== 128 || !photo) { cb(null); return; }
   var name = nextUnknownName();
   var body = {
@@ -962,6 +1031,7 @@ function createPerson(emb, photo, mode, cb) {
     last_seen_context: t(mode === 'auto' ? 'd_first_auto' : 'd_first_manual')
   };
   if (photo) body.photo_url = photo;
+  if (nickname) { body.nickname = nickname; body.status = 'Pendente'; }   // name still to come: an accessible description in the meantime
   fetch(PROXY, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) })
   .then(function(r){ return r.json(); })
   .then(function(p){
@@ -1289,7 +1359,7 @@ function cardVisible() { var c = document.getElementById('hud-card'); return c.s
 
 // mode: 'glance' (during a conversation) | 'review' (opened from today's encounters)
 function showProfile(p, score, mode) {
-  document.getElementById('hud-card').className = mode || 'glance';
+  document.getElementById('hud-card').className = (mode || 'glance') + (isUnnamed(p) ? ' unnamed' : '');
   var fresh = !_currentProfile || _currentProfile.id !== p.id;
   _currentProfile = p;
   document.getElementById('hud-idle').style.display = 'none';
@@ -1299,7 +1369,7 @@ function showProfile(p, score, mode) {
   var photo = document.getElementById('hud-photo');
   if (p.photo_url && !/ui-avatars\.com/.test(p.photo_url)) { if (photo.getAttribute('src') !== p.photo_url) photo.src = p.photo_url; photo.style.display = 'block'; }
   else photo.style.display = 'none';
-  document.getElementById('hud-name').textContent = p.name || '—';
+  document.getElementById('hud-name').textContent = displayName(p);
   // pills: where you know them from (AI-inferred, edited in the Manager). No e-mail on the display.
   var pills = Array.isArray(p.pills) ? p.pills : (p.pills ? String(p.pills).split(',') : [p.relation_context || p.relation, p.company]);
   document.getElementById('hud-pills').innerHTML = pills.map(function(x){ return String(x || '').trim(); }).filter(Boolean).slice(0, 3)
@@ -1384,6 +1454,12 @@ function renderDossier(p, list) {
 function renderHeadline(p, list) {
   var el = document.getElementById('hud-headline');
   if (p.headline) { el.textContent = p.headline; return; }
+  if (isUnnamed(p)) {   // "Moça de ~20 anos, cabelo castanho" + "conheceu ontem · no café, falaram de …"
+    var ds = (list || []).filter(function(e){ return e.date; });
+    var firstE = ds[ds.length - 1];
+    el.textContent = firstE ? [t('met_when', { when: relDate(new Date(firstE.date))[0] }), firstE.context].filter(Boolean).join(' · ') : '';
+    return;
+  }
   var dated = (list || []).filter(function(e){ return e.date; });
   var part = '';
   if (dated.length > 1) {
@@ -1464,7 +1540,7 @@ function openReview() {
     _review.items = (Array.isArray(data) ? data : (data.records || [])).filter(function(e){ return e.date; })
       .map(function(e){
         var person = _profiles.filter(function(p){ return p.id === e.person_id || (e.person_name && p.name === e.person_name); })[0];
-        return { kind:'person', date:e.date, enc:e, person:person, photo: person && person.photo_url, title: person && (isUnnamed(person) ? t('no_name') : shortName(person.name)) };
+        return { kind:'person', date:e.date, enc:e, person:person, photo: person && person.photo_url, title: person && (isUnnamed(person) ? (person.nickname || t('no_name')) : shortName(person.name)) };
       })
       .filter(function(it){ return hasPhoto(it.person); })   // legacy records without a photo stay out
       .sort(function(a,b){ return new Date(b.date) - new Date(a.date); });
