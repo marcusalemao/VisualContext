@@ -355,7 +355,7 @@ VC_I18N.add({
     h_sec_dev:'Developer', log_btn:'On-screen log: {s}',
     h_note:'Speech uses the browser\'s speech recognition (Chrome). Without it, the emulator falls back to face-only and says so on the panel. Real display: 640×480 landscape — pure black (#000) is transparent on the waveguide.',
     // stored data (written in the user's language at the time)
-    d_unknown:'Unknown Person {n}', d_first_auto:'First encounter (auto)', d_first_manual:'First encounter (manual)',
+    d_unknown:'No name {n}', no_name:'NO NAME',  d_first_auto:'First encounter (auto)', d_first_manual:'First encounter (manual)',
     d_first_hand:'First encounter — saved by hand', d_clothing:'Clothing (dominant colour): {c}',
     d_badge:'Badge: {b}', d_conv:'Conversation · {m} min', d_nospeech:' (no speech captured)', d_mixed:'mixed ({a} and {b})',
     c_black:'black', c_white:'white', c_grey:'grey', c_burgundy:'burgundy', c_red:'red', c_brown:'brown', c_orange:'orange',
@@ -391,7 +391,7 @@ VC_I18N.add({
     h_sec_lang:'Idioma', lang_system:'Idioma do celular', h_d_lang:'Por padrão o app segue o idioma do celular — português se o celular estiver em português, inglês nos outros casos.',
     h_sec_dev:'Desenvolvedor', log_btn:'Log na tela: {s}',
     h_note:'A fala usa o reconhecimento de voz do navegador (Chrome). Sem ele, o emulador funciona só com o rosto e avisa no painel. Display real: 640×480 paisagem — preto puro (#000) é transparente no waveguide.',
-    d_unknown:'Pessoa Desconhecida {n}', d_first_auto:'Primeiro encontro (automático)', d_first_manual:'Primeiro encontro (manual)',
+    d_unknown:'Sem nome {n}', no_name:'SEM NOME',  d_first_auto:'Primeiro encontro (automático)', d_first_manual:'Primeiro encontro (manual)',
     d_first_hand:'Primeiro encontro — salvo manualmente', d_clothing:'Roupa (cor predominante): {c}',
     d_badge:'Crachá: {b}', d_conv:'Conversa · {m} min', d_nospeech:' (sem fala captada)', d_mixed:'mista ({a} e {b})',
     c_black:'preto', c_white:'branco', c_grey:'cinza', c_burgundy:'vinho', c_red:'vermelho', c_brown:'marrom', c_orange:'laranja',
@@ -553,7 +553,8 @@ function handleMatch(descriptor) {
   if (_previewOpen || _state === 'saving') return;
 
   if (m) {
-    showProfile(m.profile, Math.round((1 - m.dist) * 100));
+    if (!isUnnamed(m.profile)) showProfile(m.profile, Math.round((1 - m.dist) * 100));
+    else hideHudCard(true);   // registered face, no name yet: a card with no name helps nobody
     if (isSuppressed(descriptor)) return;   // user said no to this encounter: show the card, don't record
   } else {
     hideHudCard();
@@ -647,6 +648,8 @@ function confirmNewPerson() {
     if (!_enc) return;
     if (!p) { log('⚠ could not save the person — encounter dropped', true); return endEncounter('error'); }
     _enc.person = p;
+    if (_enc.pendingName) renamePerson(p, _enc.pendingName);
+    else _enc.transcript.some(function(l){ var nm = detectName(l.replace(/^\d\d:\d\d: /, '')); if (nm) { renamePerson(p, nm); return true; } });
     startRecording();
   });
 }
@@ -794,7 +797,7 @@ var _rec = null, _wantListen = false;
   _rec = new SR();
   _rec.continuous = true;
   _rec.interimResults = false;
-  _rec.lang = navigator.language || 'en-US';
+  _rec.lang = speechLang();
   _rec.onspeechstart = function(){ if (_enc) _enc.heardSpeech = true; };
   _rec.onresult = function(ev){
     for (var i = ev.resultIndex; i < ev.results.length; i++) {
@@ -816,8 +819,15 @@ var _rec = null, _wantListen = false;
     if (_wantListen) setTimeout(function(){ if (_wantListen) startListening(); }, 300);   // continuous mode stops on its own
   };
 })();
+function speechLang() {
+  var nav = navigator.language || 'en-US';
+  if (VC_I18N.lang === 'pt') return /^pt/i.test(nav) ? nav : 'pt-BR';
+  if (VC_I18N.lang === 'en') return /^en/i.test(nav) ? nav : 'en-US';
+  return nav;
+}
 function startListening() {
   if (!_rec || _speech === 'unavailable') return;
+  _rec.lang = speechLang();
   _wantListen = true;
   if (_speech === 'listening') return;
   try { _rec.start(); _speech = 'listening'; } catch(e) {}
@@ -833,11 +843,50 @@ function onSpeech(text) {
   var d = new Date();
   _enc.transcript.push(String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0') + ': ' + text);
   log('“' + text + '”');
+  var nm = detectName(text);
+  if (nm && _enc.person && isUnnamed(_enc.person)) renamePerson(_enc.person, nm);
+  else if (nm && !_enc.person) _enc.pendingName = nm;   // heard before the person was saved
+}
+
+// ── Names come from the conversation ("Meu nome é Marcus Magalhães", "my name is …") ──
+// A face without a name is "no name" — never "unknown": it may be your best friend, just not registered yet.
+var UNNAMED_RE = /^(?:Pessoa Desconhecida|Unknown Person|Sem nome|No name)(?: \d+)?$/i;
+function isUnnamed(p) { return !p || !p.name || UNNAMED_RE.test(p.name.trim()); }
+var NAME_WORD = "[A-ZÀ-Ý][a-zà-ÿ'’-]+";
+var NAME_RE = new RegExp(
+  "(?:[Mm]eu nome é|[Mm]e chamo|[Pp]ode me chamar de|[Ee]u sou [oa]|[Ss]ou [oa]|[Mm]y name is|[Ii]'m|[Ii] am|[Cc]all me)\\s+(" +
+  NAME_WORD + "(?:\\s+(?:(?:de|da|do|dos|das|e)\\s+)?" + NAME_WORD + "){0,3})");
+// strong cues ("meu nome é", "me chamo", "my name is") also accept lowercase speech output
+var STRONG_RE = /(?:meu nome é|me chamo|pode me chamar de|my name is|call me)\s+([a-zà-ÿ'’-]+(?:\s+(?:(?:de|da|do|dos|das)\s+)?[a-zà-ÿ'’-]+){0,3})/i;
+var NAME_STOP = /^(e|eu|trabalho|sou|tenho|moro|and|i|i'm|work|from|aqui|tudo|prazer|muito|com|na|no|em)$/i;
+function titleCase(w) { return /^(de|da|do|dos|das)$/i.test(w) ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1); }
+function detectName(text) {
+  var m = NAME_RE.exec(String(text || ''));
+  if (!m) {
+    var st = STRONG_RE.exec(String(text || ''));
+    if (!st) return '';
+    var words = [];
+    st[1].split(/\s+/).some(function(w){ if (NAME_STOP.test(w)) return true; words.push(titleCase(w)); });
+    while (words.length && /^(de|da|do|dos|das)$/.test(words[words.length-1])) words.pop();
+    return words.join(' ');
+  }
+  var n = m[1].trim();
+  return /^(Muito|Prazer|Bem|Aqui|Eu|Sure|Fine|Here|Good|Not|So|The)\b/.test(n) ? '' : n;
+}
+function renamePerson(p, name) {
+  if (!p || !name || p.name === name) return;
+  var old = p.name; p.name = name;
+  _profiles.forEach(function(x){ if (x.id === p.id) x.name = name; });
+  log('✓ name heard: ' + old + ' → ' + name, true);
+  if (_currentProfile && _currentProfile.id === p.id) document.getElementById('hud-name').textContent = name;
+  if (p.id) fetch(PROXY + '?id=' + p.id + '&entity=FaceContextPerson', {
+    method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ name: name })
+  }).catch(function(){});
 }
 
 // ── Persistence (stored text is written in the user's language) ──
 function nextUnknownName() {
-  var n = 1, re = /^(?:Pessoa Desconhecida|Unknown Person) (\d+)$/;
+  var n = 1, re = /^(?:Pessoa Desconhecida|Unknown Person|Sem nome|No name) (\d+)$/i;
   _profiles.forEach(function(p){ var m = re.exec(p.name || ''); if (m) n = Math.max(n, parseInt(m[1], 10) + 1); });
   return t('d_unknown', { n: n });
 }
@@ -1326,7 +1375,7 @@ function openReview() {
     _review.items = (Array.isArray(data) ? data : (data.records || [])).filter(function(e){ return e.date; })
       .map(function(e){
         var person = _profiles.filter(function(p){ return p.id === e.person_id || (e.person_name && p.name === e.person_name); })[0];
-        return { kind:'person', date:e.date, enc:e, person:person, photo: person && person.photo_url, title: person && shortName(person.name) };
+        return { kind:'person', date:e.date, enc:e, person:person, photo: person && person.photo_url, title: person && (isUnnamed(person) ? t('no_name') : shortName(person.name)) };
       })
       .filter(function(it){ return hasPhoto(it.person); })   // legacy records without a photo stay out
       .sort(function(a,b){ return new Date(b.date) - new Date(a.date); });
