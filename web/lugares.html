@@ -73,18 +73,17 @@ body.guides #dbg{display:block}
 </div>
 <div id="bar">
   <button id="b-mem" data-i18n="t_remember"></button>
-  <button id="b-fov"></button>
   <button id="b-on" class="on"></button>
   <button id="b-dbg" data-i18n="t_debug"></button>
 </div>
 <script>
 VC_I18N.add({
-  en:{ t_title:'Places · prototype', t_intro:'Point the phone (later: your head) around. Nearby places show up on their own (up to 3 at a time). Cards stay pinned to the building while you turn. Dashed outline = probably behind buildings. Uses GPS + compass and the map around you — no image analysis.',
+  en:{ t_title:'Places · prototype', t_intro:'Point the phone (later: your head) around. Nearby places show up on their own (up to 2 at a time). Cards stay pinned to the building while you turn. Dashed outline = probably behind buildings. Uses GPS + compass and the map around you — no image analysis.',
        t_real:'Start (camera + GPS + compass)', t_sim:'Simulate at Av. Paulista (no GPS)', t_heading:'Direction you are facing (simulation)',
        t_remember:'Remember here', t_debug:'Details', t_fov_g:'View: glasses (24°)', t_on:'Places: on', t_off:'Places: off', t_fov_p:'View: phone (60°)',
        s_wait_gps:'waiting for GPS…', s_wait_cmp:'waiting for compass…', s_places:'{n} places around', s_none:'no places around', s_map_load:'loading the map…', s_map_fail:'map unavailable — try again in a minute',
        mem_none:'', mem_here:'You were here {when}', mem_saved:'saved: you were here today', away:'{d} m', behind:'behind buildings', no_cmp:'compass unavailable — use the simulation' },
-  pt:{ t_title:'Lugares · protótipo', t_intro:'Aponte o celular (depois: a cabeça) em volta. Os lugares por perto aparecem sozinhos (até 3 de cada vez). O card fica preso ao prédio enquanto você vira. Contorno pontilhado = provavelmente atrás de prédios. Usa GPS + bússola e o mapa do entorno — sem análise de imagem.',
+  pt:{ t_title:'Lugares · protótipo', t_intro:'Aponte o celular (depois: a cabeça) em volta. Os lugares por perto aparecem sozinhos (até 2 de cada vez). O card fica preso ao prédio enquanto você vira. Contorno pontilhado = provavelmente atrás de prédios. Usa GPS + bússola e o mapa do entorno — sem análise de imagem.',
        t_real:'Começar (câmera + GPS + bússola)', t_sim:'Simular na Av. Paulista (sem GPS)', t_heading:'Para onde você está olhando (simulação)',
        t_remember:'Lembrar daqui', t_debug:'Detalhes', t_fov_g:'Visão: óculos (24°)', t_on:'Lugares: ligado', t_off:'Lugares: desligado', t_fov_p:'Visão: celular (60°)',
        s_wait_gps:'esperando GPS…', s_wait_cmp:'esperando bússola…', s_places:'{n} lugares por perto', s_none:'nenhum lugar por perto', s_map_load:'carregando o mapa…', s_map_fail:'mapa indisponível — tente de novo em 1 min',
@@ -108,8 +107,8 @@ var FALLBACK = [
 FALLBACK.forEach(function(f){ f.score = 3; });
 var SIM_POS = { lat:-23.56210, lon:-46.65630 };   // sidewalk in front of Trianon, looking at MASP to the NE
 var places = [], pos = null, heading = null, simulate = false, fov = 24;
-// No sub-settings: only the main Places switch (next to Faces, Things, Memories). Fixed: up to 3 cards, detail level 4.
-var MAX_CARDS = 3, level = 4, enabled = true, seen = {}, pinned = [], xs = {};   // seen[name] = since when it's in view
+// No sub-settings: only the main Places switch (next to Faces, Things, Memories). Fixed: up to 2 cards, 24° (the glasses' field of view), detail level 4.
+var MAX_CARDS = 2, level = 4, enabled = true, seen = {}, pinned = [], xs = {};   // seen[name] = since when it's in view
 var EYE = +((/[?&]eye=(\d+)/.exec(location.search) || [])[1] || 1.6);   // eye height in m (test: ?eye=30 for a high window)
 
 
@@ -392,8 +391,6 @@ function fit() {
 addEventListener('resize', fit);
 
 // ── controls ──
-function fovLabel(){ document.getElementById('b-fov').textContent = t(fov === 24 ? 't_fov_g' : 't_fov_p'); }
-document.getElementById('b-fov').onclick = function(){ fov = fov === 24 ? 60 : 24; fovLabel(); };
 document.getElementById('b-dbg').onclick = function(){ document.body.classList.toggle('guides'); };
 document.getElementById('b-mem').onclick = function(){
   var n = pinned[0]; var p = places.filter(function(x){ return x.name === n; })[0]; if (!p) return;
@@ -405,7 +402,7 @@ document.getElementById('go-sim').onclick = function(){ document.getElementById(
 try { enabled = localStorage.getItem('vc_places_on') !== '0'; } catch (e) {}
 function ctlLabels(){ var b = document.getElementById('b-on'); b.textContent = t(enabled ? 't_on' : 't_off'); b.className = enabled ? 'on' : ''; }
 document.getElementById('b-on').onclick = function(){ enabled = !enabled; pinned = []; try { localStorage.setItem('vc_places_on', enabled ? '1' : '0'); } catch (e) {} ctlLabels(); setStatus(); };
-ctlLabels(); fovLabel(); fit(); requestAnimationFrame(frame);
+ctlLabels(); fit(); requestAnimationFrame(frame);
 </script>
 </body>
 </html>
