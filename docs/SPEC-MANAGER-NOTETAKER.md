@@ -8,7 +8,7 @@
 2. **O Manager é um notetaker** no estilo Fathom ou Wit AI: resumo, assuntos e botões de ação. Não é formulário.
 3. **O que se sabe sobre a pessoa vira pílula.** A IA infere isso ao longo das conversas (por exemplo "amigo do bar", "conhecido da academia", "Rokid", "gosta de café"). O usuário pode corrigir, remover ou adicionar pílulas.
 4. **Formulário só para valores absolutos:** aniversário, idade, onde trabalha e contatos. Esses campos servem para corrigir o que não foi captado na conversa ou foi salvo errado.
-5. **Encontro sem foto não existe.** A pessoa é reconhecida pelo rosto, então toda pessoa salva tem foto real do rosto. Sem foto, nada é salvo, e nunca se usa um quadrado com iniciais no lugar. Registros antigos sem foto ficam fora das listas.
+5. **Encontro sem foto não existe (nos óculos).** A pessoa é reconhecida pelo rosto, então todo encontro tem foto real do rosto, e nunca se usa um quadrado com iniciais no lugar. No Manager pode existir **pré-cadastro sem foto** (contatos importados de LinkedIn ou e-mail). Esses contatos não aparecem nos óculos até ganharem foto, por importação ou no primeiro encontro de verdade.
 6. **Fonte única de verdade:** o HUD sempre mostra o último estado salvo no Manager.
 
 ## Óculos (HUD)
@@ -66,6 +66,21 @@ O usuário só fala, por exemplo: *"Essa é a minha moto, lembra dela."* A IA en
 - **Veículo, com ajuda do celular.** O Android já detecta quando você para de estar num veículo e começa a andar (é assim que o Google Maps sabe onde você estacionou). Essa troca, somada ao frame dos óculos vendo a moto, marca onde ela ficou, com GPS. Isso funciona mesmo se os óculos não "virem" a moto naquele instante.
 - **Dentro de casa o GPS não ajuda.** Pra chave vale a descrição da cena, não as coordenadas.
 - **Opcional, no futuro:** se a pessoa tiver uma tag Bluetooth no chaveiro (por exemplo SmartTag), ela serve de reforço. Nunca é obrigatória.
+
+## Fotos dos contatos importados (pré-cadastro)
+
+Ter foto antes do primeiro encontro pré-alimenta o reconhecimento, e é muito importante. Fontes:
+
+| Fonte | Dá foto? | Observação |
+|---|---|---|
+| Agenda do celular (app companion) | sim, quando o contato tem foto | lê as fotos dos contatos do próprio telefone, com permissão |
+| Google Contatos (integração Google no Base44) | sim, quando o contato tem foto | **Beto** |
+| LinkedIn: exportação oficial | **não** | traz nome, cargo, empresa, e-mail e data, sem foto |
+| LinkedIn / Facebook: API | **não** | não liberam foto da rede pra apps de terceiros |
+| LinkedIn: raspagem automática | não fazer | viola os termos e arrisca bloquear a conta |
+| **Print do perfil → Manager** | sim | o Manager acha o rosto no print, recorta e associa ao contato (spec C: pré-cadastro com foto externa) |
+
+Atenção: a foto vira assinatura facial, ou seja, dado biométrico de terceiros, que a LGPD trata como dado sensível. Pra uso pessoal está ok; antes de virar produto, é preciso definir uma regra de consentimento.
 
 ## Manager · página do encontro
 
