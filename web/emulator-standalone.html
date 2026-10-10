@@ -61,18 +61,12 @@ html,body{background:#000;height:100%;overflow:hidden;font-family:monospace;colo
 #hud-sum .sum-txt{color:#8fdfb5}
 
 /* Countdown — new person, before recording is confirmed */
-#hud-count{
-  position:absolute; top:14px; left:14px;
-  background:rgba(0,0,0,.55);
-  border:1px solid rgba(0,255,136,.35);
-  border-radius:8px; padding:10px 14px;
-  min-width:210px; max-width:270px;
-  display:none;
-}
+/* loose text on the display — no card (black is transparent on the waveguide) */
+#hud-count{position:absolute; top:16px; left:16px; display:none; text-shadow:0 0 4px #000,0 0 2px #000}
 #hud-count.on{display:block}
-#hc-title{font-size:13px;font-weight:bold;color:#00ff88;letter-spacing:.3px}
-#hc-num{font-size:44px;font-weight:bold;color:#00ff88;line-height:1;margin:6px 0 4px}
-#hc-hint{font-size:10px;color:#00aa55}
+#hc-title{font-size:13px;color:#00ff88;letter-spacing:.3px}
+#hc-num{font-weight:bold}
+#hc-hint{font-size:10px;color:#00aa55;margin-top:4px}
 
 /* Recording indicator — discreet circle, top right */
 #hud-rec{
@@ -138,7 +132,7 @@ body.debug #sync-badge{display:inline}
 #match-box.on{display:block}
 .mlbl{font-size:9px;color:#004422;letter-spacing:1px;margin-bottom:4px}
 .mcount-lbl{font-size:11px;color:#007744;text-align:center;padding-bottom:6px;line-height:1.5}
-.mcount-lbl b{color:#00ff88;font-size:14px}
+.mcount-lbl b{color:#00ff88}
 .mbtn{background:#0a2015;border:1px dashed #1a5a2a;border-radius:8px;padding:9px 10px;margin-bottom:5px;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;font-size:12px;color:#00ff88;font-weight:bold}
 .mbtn:active{background:#0f3020}
 .mbtn.no{background:#200a0a;border:1px solid #5a1a1a;color:#ff5566}
@@ -215,8 +209,7 @@ body.debug #sync-badge{display:inline}
       </div>
     </div>
     <div id="hud-count">
-      <div id="hc-title" data-i18n="count_title"></div>
-      <div id="hc-num">5</div>
+      <div id="hc-title"><span data-i18n="count_title"></span> <span id="hc-num">5</span></div>
       <div id="hc-hint" data-i18n="count_hint"></div>
     </div>
     <div id="hud-rec"><span class="dot"></span><span id="hr-txt"></span></div>
@@ -285,12 +278,12 @@ VC_I18N.add({
     idle_stopped:'Camera stopped', idle_stopped_sub:'Tap Camera to turn it back on',
     idle_nosupport:'Camera not supported', idle_nosupport_sub:'Open over HTTPS in a browser with a camera',
     encounters:'ENCOUNTERS', last_seen:'Last seen: ', no_summary:'(no summary)',
-    count_title:'Recording encounter!', count_hint:'Swipe forward to cancel',
+    count_title:'Recording encounter:', count_hint:'Swipe forward to cancel',
     rec:'Recording encounter', paused:'Paused · Tap to resume',
     s_ready:'ready', s_loading:'loading AI…', s_cam:'camera on', s_buf_face:'buffering (face only)', s_buf_speech:'buffering · speech',
     s_buf_wait:'buffering · waiting for speech', s_confirm:'new person · confirming', s_rec:'recording', s_paused:'paused',
     s_identified:'identified', s_saved:'saved', s_notrec:'not recorded', s_saving_enc:'saving encounter…', s_enc_saved:'encounter saved', s_fail:'save failed',
-    panel_lbl:'ENCOUNTER', p_count:'Recording encounter! <b id="p-num">{n}</b>', p_cancel:'— cancel',
+    panel_lbl:'ENCOUNTER', p_count:'Recording encounter: <b id="p-num">{n}</b>', p_cancel:'— cancel',
     p_rec:'● Recording encounter', p_rec_with:'● Recording encounter with {name}', p_stop:'— stop &amp; discard',
     p_paused:'Recording stopped — nothing from it was kept', p_resume:'Resume', p_tap:'— tap',
     p_newface:'New face', p_buffering:'{who} — buffering ({why})', why_nomic:'no microphone — face only', why_speech:'speech detected', why_wait:'waiting for speech',
@@ -300,7 +293,7 @@ VC_I18N.add({
     g_tap:'Tap', g_swipe:'Swipe forward', g_dtap:'Double tap',
     h_title:'REFERENCE', h_sec_rec:'Encounter recording',
     h_k_eye:'Eye contact + speech', h_d_eye:'Buffering starts right away, silently. Just looking without talking never records.',
-    h_k_new:'New person', h_d_new:'After 7s: "Recording encounter! Swipe forward to cancel" 5…0. At 0 the person is saved (face photo, clothing colour, badge text if readable) and recording continues.',
+    h_k_new:'New person', h_d_new:'After 7s: "Recording encounter: 5…0 — Swipe forward to cancel". At 0 the person is saved (face photo, clothing colour, badge text if readable) and recording continues.',
     h_k_known:'Known person', h_d_known:'After 7s recording starts on its own — no warning, no countdown.',
     h_k_rec:'● Recording', h_d_rec:'Only text is kept (transcript + summary). No audio or video is ever saved. The encounter ends when the person leaves the view for 5s.',
     h_sec_gest:'Gestures',
@@ -327,12 +320,12 @@ VC_I18N.add({
     idle_stopped:'Câmera parada', idle_stopped_sub:'Toque em Câmera para religar',
     idle_nosupport:'Câmera não suportada', idle_nosupport_sub:'Abra em HTTPS num navegador com câmera',
     encounters:'ENCONTROS', last_seen:'Último encontro: ', no_summary:'(sem resumo)',
-    count_title:'Gravando encontro!', count_hint:'Deslize para frente para cancelar',
+    count_title:'Gravando encontro:', count_hint:'Deslize para frente para cancelar',
     rec:'Gravando encontro', paused:'Pausado · Toque para retomar',
     s_ready:'pronto', s_loading:'carregando IA…', s_cam:'câmera ativa', s_buf_face:'buffer (só rosto)', s_buf_speech:'buffer · com fala',
     s_buf_wait:'buffer · esperando fala', s_confirm:'pessoa nova · confirmando', s_rec:'gravando', s_paused:'pausado',
     s_identified:'identificado', s_saved:'salvo', s_notrec:'não gravado', s_saving_enc:'salvando encontro…', s_enc_saved:'encontro salvo', s_fail:'falha ao salvar',
-    panel_lbl:'ENCONTRO', p_count:'Gravando encontro! <b id="p-num">{n}</b>', p_cancel:'— cancelar',
+    panel_lbl:'ENCONTRO', p_count:'Gravando encontro: <b id="p-num">{n}</b>', p_cancel:'— cancelar',
     p_rec:'● Gravando encontro', p_rec_with:'● Gravando encontro com {name}', p_stop:'— parar e descartar',
     p_paused:'Gravação parada — nada dela foi guardado', p_resume:'Retomar', p_tap:'— toque',
     p_newface:'Rosto novo', p_buffering:'{who} — buffer ({why})', why_nomic:'sem microfone — só rosto', why_speech:'fala detectada', why_wait:'esperando fala',
@@ -342,7 +335,7 @@ VC_I18N.add({
     g_tap:'Toque', g_swipe:'Deslizar p/ frente', g_dtap:'Toque duplo',
     h_title:'REFERÊNCIA', h_sec_rec:'Gravação de encontro',
     h_k_eye:'Olho no olho + fala', h_d_eye:'O buffer começa na hora, em silêncio. Só olhar sem falar nunca grava.',
-    h_k_new:'Pessoa nova', h_d_new:'Aos 7s: "Gravando encontro! Deslize para frente para cancelar" 5…0. No 0 a pessoa é salva (foto do rosto, cor da roupa, texto do crachá se der pra ler) e a gravação continua.',
+    h_k_new:'Pessoa nova', h_d_new:'Aos 7s: "Gravando encontro: 5…0 — Deslize para frente para cancelar". No 0 a pessoa é salva (foto do rosto, cor da roupa, texto do crachá se der pra ler) e a gravação continua.',
     h_k_known:'Pessoa conhecida', h_d_known:'Aos 7s a gravação começa sozinha — sem aviso, sem contagem.',
     h_k_rec:'● Gravando', h_d_rec:'Só texto é guardado (transcrição + resumo). Áudio e vídeo nunca. O encontro termina quando a pessoa sai da vista por 5s.',
     h_sec_gest:'Gestos',
