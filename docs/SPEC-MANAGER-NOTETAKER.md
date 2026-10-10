@@ -9,7 +9,8 @@
 3. **O que se sabe sobre a pessoa vira pílula.** A IA infere isso ao longo das conversas (por exemplo "amigo do bar", "conhecido da academia", "Rokid", "gosta de café"). O usuário pode corrigir, remover ou adicionar pílulas.
 4. **Formulário só para valores absolutos:** aniversário, idade, onde trabalha e contatos. Esses campos servem para corrigir o que não foi captado na conversa ou foi salvo errado.
 5. **Encontro sem foto não existe (nos óculos).** A pessoa é reconhecida pelo rosto, então todo encontro tem foto real do rosto, e nunca se usa um quadrado com iniciais no lugar. No Manager pode existir **pré-cadastro sem foto** (contatos importados de LinkedIn ou e-mail). Esses contatos não aparecem nos óculos até ganharem foto, por importação ou no primeiro encontro de verdade.
-6. **Fonte única de verdade:** o HUD sempre mostra o último estado salvo no Manager.
+6. **Tudo é privado e pessoal.** É uma extensão da sua memória: nada é compartilhado com outra pessoa, e ninguém mais consegue usar os seus óculos pra acessar as suas memórias (ver **Privacidade e bloqueio**).
+7. **Fonte única de verdade:** o HUD sempre mostra o último estado salvo no Manager.
 
 ## Óculos (HUD)
 
@@ -40,9 +41,35 @@ Gravação de encontro: já está implementada no emulador.
 
 Visual: monocromático (verde e transparência sobre o preto), sem dicas de gesto e sem redundância.
 
+## Privacidade e bloqueio (10/10)
+
+Os óculos gravam a sua vida, inclusive momentos íntimos. Se outra pessoa colocar os óculos, o VisualContext não pode funcionar.
+
+**Bloqueio:**
+- **Tirou dos óculos, fechou.** O app trava e para de registrar e de mostrar qualquer coisa.
+  - Hoje não temos sensor de uso confirmado. Até lá, as alternativas são:
+    - o sensor de movimento: óculos parados por N segundos contam como "tirou";
+    - a perda da conexão Bluetooth com o celular, que também trava.
+  - Se o Rokid tiver sensor de uso (detecção de "no rosto"), ele substitui as duas.
+- **Pra reativar, só pelo celular:** digital, reconhecimento facial do celular ou senha forte.
+- **Palavra mágica por voz:** opcional e só como conveniência. Quem estiver perto ouve, então ela não substitui o desbloqueio no celular.
+
+**Armazenamento:**
+- Tudo criptografado no aparelho. Nuvem ainda em aberto: se existir, só como backup criptografado com a chave no seu aparelho.
+- **Guardar pouco e leve:**
+
+| O quê | Guarda |
+|---|---|
+| Conversa | só a transcrição (texto). Nunca áudio ou vídeo |
+| Pessoa | a foto do rosto (pra comparar) |
+| Moto / chave | o frame do último lugar onde foi visto |
+| "Registra isso" | o texto lido; a imagem em baixa qualidade, preto e branco |
+
+**Consequência pro backend:** hoje tudo fica num backend aberto, sem login, que qualquer pessoa lê, altera e apaga. Isso é o oposto dessa regra. Fechar o backend é pré-requisito de tudo. A decisão "nuvem ou só no aparelho" muda a arquitetura do Beto e precisa ser tomada antes do APK.
+
 ## Skills do MVP: rosto, chave e veículo (10/10)
 
-O VisualContext não é só sobre pessoas. O MVP terá três skills de memória, e cada uma tem o seu card no HUD, sem coluna de ícones fixa na tela:
+O VisualContext não é só sobre pessoas. O MVP terá quatro skills de memória, e cada uma tem o seu card no HUD, sem coluna de ícones fixa na tela:
 
 | Skill | O que registra | Card no HUD |
 |---|---|---|
@@ -73,27 +100,7 @@ O usuário só fala, por exemplo: *"Essa é a minha moto, lembra dela."* A IA en
 | Google Keep | API só pra contas Google Workspace (empresa), não pra Gmail pessoal |
 | Notas do Mac/iPhone | sem API pública; caminho via Atalho (Shortcuts) que recebe o texto |
 
-- Receitas e documentos podem ter dados de saúde e dados pessoais. Esses registros só devem ser guardados depois da correção de segurança do backend.
-
-### Skill "Registra isso" (registro livre, 10/10)
-
-Você olha pra qualquer coisa (um texto, uma folha impressa, uma receita médica, uma placa) e fala **"Registra isso"**. Os óculos fazem o seguinte:
-
-- capturam o frame e leem o texto (OCR);
-- a IA dá um título curto ("Receita · Dr. Silva", "Wi-Fi do hotel") e um resumo;
-- o resultado vira um **registro**.
-
-Onde aparece:
-- **Óculos e emulador:** na lista "Últimos registros", com foto, título e contexto.
-- **Manager:** o registro completo, com foto, texto lido e resumo, e botões de **sincronizar com** o conector que o usuário escolher.
-
-Destinos que o usuário pode escolher:
-- Google Tasks: tem API.
-- Google Keep: até onde sei, a API oficial é restrita a contas de empresa (Workspace); pra contas pessoais talvez não dê. **Verificar.**
-- Notas do Mac / Apple Notes: não tem API na nuvem; provavelmente só via Atalhos (Shortcuts) no próprio aparelho. **Verificar.**
-- Notion e Google Docs: têm API.
-
-Atenção: receita médica é dado de saúde, que a LGPD trata como dado sensível. Esses registros devem ficar privados por padrão e nunca ser sincronizados sem o usuário pedir.
+- Receitas e documentos são privados como todo o resto; ver **Privacidade e bloqueio**.
 
 ### Como reconhecer o que é seu (proposta)
 
@@ -115,8 +122,6 @@ Ter foto antes do primeiro encontro pré-alimenta o reconhecimento, e é muito i
 | LinkedIn / Facebook: API | **não** | não liberam foto da rede pra apps de terceiros |
 | LinkedIn: raspagem automática | não fazer | viola os termos e arrisca bloquear a conta |
 | **Print do perfil → Manager** | sim | o Manager acha o rosto no print, recorta e associa ao contato (spec C: pré-cadastro com foto externa) |
-
-Atenção: a foto vira assinatura facial, ou seja, dado biométrico de terceiros, que a LGPD trata como dado sensível. Pra uso pessoal está ok; antes de virar produto, é preciso definir uma regra de consentimento.
 
 ## Manager · página do encontro
 
