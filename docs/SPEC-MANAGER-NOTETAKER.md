@@ -18,6 +18,8 @@ Display: **biocular**, ou seja, um único Micro-LED com guia de onda leva a mesm
 
 Card da pessoa, só leitura, com 70% da largura do display, pra não tampar a visão nem chamar atenção de quem está na frente. O indicador "Gravando encontro" fica fora do card, numa linha própria acima dele.
 
+**Zona de visão (regra fixa):** toda informação relevante fica nos **70% de cima da altura** do display. A faixa de baixo fica embaçada, é difícil de alcançar com o olhar e exige olhar para baixo, o que quebra o "estou olhando pra você". Nada importante abaixo dessa linha.
+
 **Dois modos (decidido em 10/10).** Numa feira, o app fica ligado e grava os encontros sozinho, sem você mexer nos óculos; o histórico fica pra quando você estiver sozinho, num café. Durante a conversa não se lê; se bate o olho. Ler e expandir fica pra fora da conversa.
 
 1. **Bater o olho (durante a conversa):**
@@ -25,7 +27,7 @@ Card da pessoa, só leitura, com 70% da largura do display, pra não tampar a vi
    - Uma frase só (`headline`), por exemplo "Colega de trabalho há 2 anos".
    - Sem dossiê, sem linha do tempo, nada pra expandir. A ideia é não parecer distraído na frente da pessoa.
 2. **Revisão (fora da conversa):**
-   - Quando o app está em repouso (ninguém na frente, nada gravando), aparece só uma linha discreta embaixo: **ÚLTIMOS REGISTROS ⌃**.
+   - Quando o app está em repouso (ninguém na frente, nada gravando), aparece só uma linha discreta no canto superior esquerdo: **ÚLTIMOS REGISTROS ⌄**, que abre a lista para baixo, sempre dentro da zona de visão.
    - O toque abre uma coluna estreita no canto (cerca de 40% da largura) com cards curtos: foto pequena ao lado do nome curto ("Marcus M.") e da data. Ocupa pouco espaço de propósito: se alguém aparecer ou você precisar pagar algo, nada atrapalha, e 2 toques fecham.
    - Entram **todos os registros, não só pessoas**: pessoas, moto, chave e o que mais as skills registrarem. Cada item tem foto, título e uma linha de contexto ("MARCUS M. · ontem 18:20", "MOTO · R. Augusta · 300 m", "CHAVE · mesa da sala · 22:10"). O VisualContext dá contexto às coisas, não só aos encontros. A lista vai do mais recente pro mais antigo, com scroll vertical infinito, carregando de 12 em 12. Depois isso vira comando de voz ("mostre meus últimos encontros").
    - Deslizar ‹ › escolhe; toque abre o card completo.
