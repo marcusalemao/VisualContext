@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>VisualContext — Emulador Rokid</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#000;height:100%;overflow:hidden;font-family:monospace;color:#00ff88}
+
+/* ══ WAVEGUIDE — 640x480 landscape, câmera como fundo ══ */
+#flip-cam-btn{
+  position:absolute; top:8px; right:8px; z-index:50;
+  width:34px; height:34px; border-radius:50%;
+  background:rgba(0,20,10,.55); border:1px solid rgba(0,255,136,.35);
+  color:#00ff88; font-size:15px; line-height:1;
+  display:none; align-items:center; justify-content:center;
+  cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent;
+  backdrop-filter:blur(2px);
+}
+#flip-cam-btn.show{display:flex}
+#flip-cam-btn:active{background:rgba(0,255,136,.18); border-color:#00ff88}
+#waveguide{
+  position:relative;
+  /* 640×480 no desktop; no celular encolhe pra caber na tela (antes vazava pela direita) */
+  width:100%; max-width:640px;
+  aspect-ratio:4/3; height:auto;
+  background:#000;
+  overflow:hidden;
+  border:1px solid #0a2a18;
+  border-radius:8px;
+  /* centralizado na tela */
+  margin:0 auto;
+  flex-shrink:0;
+}
+
+/* Câmera é o fundo do waveguide */
+#vid{
+  position:absolute;
+  inset:0;
+  width:100%; height:100%;
+  object-fit:cover;
+  display:block;
+}
+
+/* Canvas de detecção facial sobre o vídeo */
+#cnv{
+  position:absolute;
+  inset:0;
+  width:100%; height:100%;
+  pointer-events:none;
+}
+
+/* ── HUD overlay — tudo em cima da câmera ── */
+#hud{
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  display:none;
+}
+
+/* Card de perfil — canto superior esquerdo */
+#hud-card{
+  position:absolute;
+  top:14px; left:14px;
+  background:rgba(0,0,0,0.55);
+  border:1px solid rgba(0,255,136,0.35);
+  border-radius:8px;
+  padding:10px 14px;
+  min-width:200px;
+  max-width:260px;
+  backdrop-filter:blur(2px);
+}
+#hud-name{font-size:18px;font-weight:bold;color:#00ff88;line-height:1.2}
+#hud-role{font-size:11px;color:#00cc6e;margin-top:2px}
+#hud-co{font-size:11px;color:#00aa5a;margin-top:1px}
+#hud-rel{font-size:10px;color:#008844;margin-top:4px;font-style:italic}
+#hud-when{font-size:9px;color:#005533;margin-top:6px}
+#hud-ctx{font-size:9px;color:#004428;margin-top:2px;font-style:italic}
+
+/* Badge de match — canto superior direito */
+#hud-match{
+  position:absolute;
+  top:14px; right:14px;
+  font-size:10px;
+  color:#00ff88;
+  background:rgba(0,0,0,0.5);
+  border:1px solid rgba(0,255,136,0.2);
+  border-radius:6px;
+  padding:4px 8px;
+}
+
+/* Status do sistema — canto inferior esquerdo */
+#hud-sum-wrap{margin-top:8px;border-top:1px solid #123d22;padding-top:6px}
+#hud-sum-lbl{font-size:8px;color:#00aa55;letter-spacing:1px;margin-bottom:3px}
+#hud-sum{max-height:68px;overflow-y:auto;font-size:9.5px;line-height:1.55;color:#7fdfb0}
+#hud-sum .sum-item{margin-bottom:4px}
+#hud-sum .sum-when{color:#00cc66;font-weight:bold}
+#hud-sum .sum-txt{color:#8fdfb5}
+#hud-status{
+  position:absolute;
+  bottom:12px; left:14px;
+  font-size:9px;
+  color:#004422;
+  line-height:1.6;
+}
+
+/* Badge CAP piscando — canto inferior direito */
+#hud-cap{
+  position:absolute;
+  bottom:12px; right:14px;
+  font-size:9px;
+  color:#00ff88;
+  display:none;
+}
+#hud-cap.on{display:block;animation:blink .8s infinite}
+
+/* Idle state */
+#hud-idle{
+  position:absolute;
+  inset:0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  font-size:11px;
+  color:#002a14;
+  pointer-events:none;
+}
+
+/* Face rect */
+.frect{
+  position:absolute;
+  border:1.5px solid #00ff88;
+  border-radius:2px;
+  box-shadow:0 0 6px rgba(0,255,136,.4);
+  pointer-events:none;
+}
+
+/* Flash de captura */
+#flash{
+  position:absolute;
+  inset:0;
+  background:#00ff88;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .05s;
+}
+#flash.on{opacity:.35}
+
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+
+/* ══ LAYOUT GERAL ══ */
+body{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-start;
+  padding:8px 8px 170px;
+  gap:8px;
+  overflow-y:auto;
+  overflow-x:hidden;
+}
+
+#top-bar{
+  width:100%;
+  max-width:640px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  font-size:9px;
+  color:#004422;
+  letter-spacing:1px;
+}
+#sync-badge{font-size:9px;padding:2px 8px;border:1px solid #0a2a18;border-radius:10px}
+#top-bar span:first-child{font-size:9px}
+#sync-badge.ok{color:#00ff88;border-color:#00aa55}
+#sync-badge.err{color:#ff4400;border-color:#3a1000}
+
+/* Log */
+/* Log e badge só aparecem em modo debug (Ajuda → Log na tela).
+   Sem debug, tudo vai pro console do navegador — igual fluxo dos óculos. */
+#log-box,#sync-badge{display:none}
+body.debug #log-box{display:block}
+body.debug #sync-badge{display:inline}
+#log-box{
+  width:100%; max-width:640px;
+  background:#060f09;
+  border:1px solid #0a2a18;
+  border-radius:8px;
+  height:78px;
+  overflow-y:auto;
+  padding:6px 10px;
+  font-size:11px;
+}
+.log-line{color:#006633;line-height:1.85}
+#help-debug{background:none;border:1px solid #0a2a18;color:#4ade80;font-family:inherit;font-size:10px;padding:6px 12px;border-radius:6px;cursor:pointer}
+.log-line.hi{color:#00ff88}
+
+/* Perfis salvos */
+#match-box{width:100%;max-width:640px;display:none}
+#match-box.on{display:block}
+.mlbl{font-size:9px;color:#004422;letter-spacing:1px;margin-bottom:4px}
+.pcard{background:#060f09;border:1px solid #0a2a18;border-radius:8px;padding:8px 10px;margin-bottom:5px;display:flex;gap:8px;align-items:center;cursor:pointer}
+.pcard:active{background:#0a2a18}
+.pcard img{width:36px;height:36px;border-radius:50%;object-fit:cover;background:#000;border:1px solid #0a2a18;flex-shrink:0}
+.pc-info{flex:1;min-width:0}
+.pc-info .pc-name{font-size:11px;color:#00cc6e;font-weight:bold}
+.pc-info .pc-sub{font-size:9px;color:#004422;margin-top:1px}
+.pc-score{font-size:10px;color:#00ff88;flex-shrink:0}
+.mcard-new{background:#0a2015;border:1px dashed #1a5a2a;border-radius:8px;padding:9px 10px;margin-bottom:5px;display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:#00ff88;font-weight:bold}
+.mcard-new:active{background:#0f3020}
+.mnomatch{font-size:10px;color:#007744;padding:2px 0 6px}
+
+/* ══ BOTTOM BAR ══ */
+#bottom-bar{
+  position:fixed;
+  bottom:0;left:0;right:0;
+  background:#080f0a;
+  border-top:1px solid #1a4a2a;
+  padding:10px 12px 22px;
+  display:flex;
+  gap:8px;
+  z-index:200;
+}
+.bar-btn{
+  flex:1;
+  min-width:0;
+  padding:12px 2px 10px;
+  background:#0f2018;
+  border:1px solid #1a4a2a;
+  border-radius:10px;
+  color:#00aa55;
+  font-size:18px;
+  font-family:monospace;
+  text-align:center;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
+  user-select:none;
+  line-height:1.1;
+}
+.bar-btn:active,.bar-btn.on{background:#0a3020;border-color:#00ff88;color:#00ff88}
+.bar-btn:disabled{opacity:.3;pointer-events:none}
+.bar-btn .blbl{font-size:10.5px;font-weight:600;display:block;margin-top:4px;color:#00aa55;letter-spacing:.2px;white-space:nowrap}
+.bar-btn:disabled .blbl{color:#004422}
+
+/* ══ HELP OVERLAY ══ */
+#help-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;align-items:center;justify-content:center;padding:20px}
+#help-ov.on{display:flex}
+#help-card{background:#0a1a0f;border:1.5px solid #1a4a2a;border-radius:16px;padding:20px 16px;width:100%;max-width:300px;max-height:80vh;overflow-y:auto;position:relative}
+#help-x{position:absolute;top:10px;right:10px;width:30px;height:30px;background:#111;border:1px solid #1a3a22;border-radius:50%;color:#00aa55;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation}
+.h-tit{font-size:11px;color:#00ff88;letter-spacing:2px;margin-bottom:14px}
+.h-sec{font-size:8px;color:#004422;letter-spacing:2px;margin:10px 0 6px;text-transform:uppercase}
+.h-row{display:flex;gap:10px;margin-bottom:7px;align-items:flex-start}
+.h-key{min-width:70px;padding:3px 5px;background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.15);border-radius:5px;font-size:9px;color:#00ff88;text-align:center;flex-shrink:0}
+.h-desc{font-size:9px;color:#007744;line-height:1.5}
+.h-note{font-size:8px;color:#004422;line-height:1.6;margin-top:10px;border-top:1px solid #0a2a18;padding-top:8px}
+</style>
+</head>
+<body>
+
+<div id="top-bar">
+  <span>⬡ VISUALCONTEXT · EMULADOR ROKID</span>
+  <span id="sync-badge">● desconectado</span>
+</div>
+
+<!-- ══ WAVEGUIDE 640×480 — câmera + HUD overlay ══ -->
+<div id="waveguide">
+  <!-- Câmera como fundo -->
+  <video id="vid" autoplay playsinline muted></video>
+  <!-- Botão trocar câmera (só mobile/touch) -->
+  <button id="flip-cam-btn" type="button" title="Trocar câmera frontal/traseira">🔄</button>
+  <!-- Canvas para bounding boxes -->
+  <canvas id="cnv"></canvas>
+  <!-- Flash de captura -->
+  <div id="flash"></div>
+
+  <!-- Idle state (sem câmera) -->
+  <div id="hud-idle">
+    <span style="font-size:32px;color:#002a14">◉</span>
+    <span id="idle-main">Pressione Câmera para iniciar</span>
+    <span id="idle-sub" style="font-size:9px;color:#001a0c;max-width:220px;text-align:center;line-height:1.5">Simulador do HUD dos óculos — testa o reconhecimento facial em tempo real, do jeito que apareceria no visor</span>
+  </div>
+
+  <!-- HUD overlay (sobre a câmera) -->
+  <div id="hud">
+    <!-- Card de perfil -->
+    <div id="hud-card" style="display:none">
+      <div id="hud-name"></div>
+      <div id="hud-role"></div>
+      <div id="hud-co"></div>
+      <div id="hud-rel"></div>
+      <div id="hud-when"></div>
+      <div id="hud-ctx"></div>
+      <div id="hud-sum-wrap" style="display:none">
+        <div id="hud-sum-lbl">RESUMO DOS ENCONTROS</div>
+        <div id="hud-sum"></div>
+      </div>
+    </div>
+    <!-- Contagem do cadastro automático (pessoa nova) -->
+    <div id="hud-enroll">
+      <div id="he-lbl">PESSOA NOVA</div>
+      <div id="he-main">salvando em 10s</div>
+      <div id="he-bar"><div id="he-fill"></div></div>
+      <div id="he-hint">✕ Back = não salvar</div>
+    </div>
+    <!-- Match score -->
+    <div id="hud-match" style="display:none"></div>
+    <!-- Status -->
+    <div id="hud-status">⬡ pronto</div>
+    <!-- CAP badge -->
+    <div id="hud-cap">● CAP</div>
+  </div>
+</div>
+
+<!-- Log -->
+<div id="log-box"><div id="log-el"></div></div>
+
+<!-- Reconhecimento (dinâmico — só aparece quando há rosto detectado) -->
+<div id="match-box">
+  <div class="mlbl" id="mlbl">RECONHECIMENTO</div>
+  <div id="mlist"></div>
+</div>
+
+<!-- ══ BOTTOM BAR ══ -->
+<div id="bottom-bar">
+  <button class="bar-btn" id="btn-cam">⏻<span class="blbl">Câmera</span></button>
+  <button class="bar-btn" id="btn-cap" disabled>⊙<span class="blbl">Capturar</span></button>
+  <button class="bar-btn" id="btn-dismiss" disabled>✕<span class="blbl">Dispensar</span></button>
+  <button class="bar-btn" id="btn-help">?<span class="blbl">Ajuda</span></button>
+</div>
+
+<!-- ══ AUTO-ENROLL: pessoa nova → contagem cancelável (spec A) ══ -->
+<style>
+/* painel do celular (abaixo do visor) */
+.mcount-lbl{font-size:11px;color:#007744;text-align:center;padding-bottom:6px}
+.mcount-lbl #cnt-num{color:#00ff88;font-weight:bold;font-size:14px}
+.mcard-count{display:flex;align-items:center;justify-content:center;font-size:36px;font-weight:bold;color:#00ff88;background:#0a2015;border:1px solid #1a5a2a;border-radius:10px;padding:6px 0;margin-bottom:5px}
+.mcard-no{background:#200a0a;border:1px solid #5a1a1a;border-radius:8px;padding:9px 10px;margin-bottom:5px;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;font-size:12px;color:#ff5566;font-weight:bold}
+.mcard-no:active{background:#2a0e0e}
+/* card de contagem no visor — mesmo lugar e moldura do card de perfil */
+#hud-enroll{position:absolute;top:14px;left:14px;background:rgba(0,0,0,.55);border:1px solid rgba(0,255,136,.35);border-radius:8px;padding:10px 14px;min-width:200px;max-width:260px;display:none}
+#hud-enroll.on{display:block}
+#he-lbl{font-size:8px;color:#00aa55;letter-spacing:1.5px}
+#he-main{font-size:16px;font-weight:bold;color:#00ff88;margin-top:3px;line-height:1.2}
+#he-bar{height:3px;background:#0a2a18;border-radius:2px;margin-top:8px;overflow:hidden}
+#he-fill{height:100%;width:0;background:#00ff88;transition:width .2s linear}
+#he-hint{font-size:9px;color:#007744;margin-top:6px}
+#hud-enroll.cancel{border-color:rgba(255,85,102,.4)}
+#hud-enroll.cancel #he-main{color:#ff5566}
+#hud-enroll.cancel #he-bar,#hud-enroll.done #he-bar{display:none}
+</style>
+
+<!-- ══ HELP ══ -->
+<div id="help-ov">
+  <div id="help-card">
+    <button id="help-x">✕</button>
+    <div class="h-tit">REFERÊNCIA</div>
+    <div class="h-sec">Emulador (este app)</div>
+    <div class="h-row"><span class="h-key">⏻ Câmera</span><span class="h-desc">Liga câmera como fundo do waveguide</span></div>
+    <div class="h-row"><span class="h-key">Pessoa nova</span><span class="h-desc">Rosto novo na frente → contagem de 10s no visor. Terminou = salva sozinho (foto do rosto, cor da roupa e texto do crachá, se der pra ler). Se a pessoa sai da frente antes, não salva.</span></div>
+    <div class="h-row"><span class="h-key">✕ Não salvar</span><span class="h-desc">Durante a contagem: descarta tudo e não pergunta de novo sobre esse rosto nesta sessão</span></div>
+    <div class="h-row"><span class="h-key">⊙ Capturar</span><span class="h-desc">Salvar na mão (recuperação): rosto que você descartou ou que saiu da frente → preview → Salvar / Descartar</span></div>
+    <div class="h-row"><span class="h-key">✕ Dispensar</span><span class="h-desc">Fecha o card do HUD (mantém a câmera)</span></div>
+    <div class="h-sec">Teclado (desktop)</div>
+    <div class="h-row"><span class="h-key">Espaço / P</span><span class="h-desc">Liga/desliga câmera</span></div>
+    <div class="h-row"><span class="h-key">↑ / Enter</span><span class="h-desc">Capturar</span></div>
+    <div class="h-row"><span class="h-key">Esc / ↓</span><span class="h-desc">Não salvar (na contagem) · Dispensar HUD</span></div>
+    <div class="h-sec">Mapeamento Rokid</div>
+    <div class="h-row"><span class="h-key">Power (26)</span><span class="h-desc">= Capturar</span></div>
+    <div class="h-row"><span class="h-key">Back (4)</span><span class="h-desc">= Não salvar (na contagem) · Dispensar HUD</span></div>
+    <div class="h-sec">Desenvolvedor</div>
+    <div class="h-row"><button id="help-debug">Log na tela: OFF</button></div>
+    <div class="h-note">Display real: 640×480 landscape. Preto puro (#000) = transparente no waveguide — as infos flutuam sobre o mundo real.</div>
+  </div>
+</div>
+
+<script>
+var camStream = null;
+var _facingMode = 'environment';
+var _isTouchDevice = (function(){
+  try { return window.matchMedia && window.matchMedia('(pointer: coarse)').matches
+    || ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+  } catch(e){ return false; }
+})();
+var _profiles = [];
+var _currentProfile = null;
+var PROXY = 'https://base44.app/api/apps/6a11083db49430b410a8c066/functions/fcProxy';
+
+// ── Log ──
+// Padrão: log vai pro console do navegador (ferramenta de debug, fora da interface).
+// Na tela só se o usuário ligar "Log na tela" na Ajuda (fica salvo).
+var _debugMode = false;
+try { _debugMode = localStorage.getItem('fc_debug') === '1'; } catch(e) {}
+var _logBuf = [];
+
+function log(msg, hi) {
+  var d = new Date();
+  var t = d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0')+':'+d.getSeconds().toString().padStart(2,'0');
+  var txt = t + ' ' + msg;
+  try { console.log(txt); } catch(e) {}
+  _logBuf.push(txt);
+  if (_logBuf.length > 200) _logBuf.shift();
+  if (_debugMode) {
+    var el = document.getElementById('log-el');
+    var line = document.createElement('div');
+    line.className = 'log-line' + (hi ? ' hi' : '');
+    line.textContent = txt;
+    el.appendChild(line);
+    el.scrollTop = el.scrollHeight;
+  }
+}
+
+function setDebug(on) {
+  _debugMode = on;
+  try { localStorage.setItem('fc_debug', on ? '1' : '0'); } catch(e) {}
+  document.body.classList.toggle('debug', on);
+  var btn = document.getElementById('help-debug');
+  if (btn) btn.textContent = 'Log na tela: ' + (on ? 'ON' : 'OFF');
+  if (on) {
+    var el = document.getElementById('log-el');
+    el.innerHTML = '';
+    _logBuf.forEach(function(t2){
+      var line = document.createElement('div');
+      line.className = 'log-line';
+      line.textContent = t2;
+      el.appendChild(line);
+    });
+    el.scrollTop = el.scrollHeight;
+  }
+}
+
+function setIdle(main, sub) {
+  var m = document.getElementById('idle-main');
+  var s = document.getElementById('idle-sub');
+  if (m) m.textContent = main;
+  if (s) s.textContent = sub || '';
+}
+
+// ── Sync com banco ──
+function syncProfiles() {
+  fetch(PROXY, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action:'list',entity:'FaceContextPerson',limit:200})
+  })
+  .then(function(r){return r.json()})
+  .then(function(data){
+    _profiles = Array.isArray(data) ? data : (data.records || []);
+    var badge = document.getElementById('sync-badge');
+    badge.textContent = '● Base44 · ' + _profiles.length + ' perfis';
+    badge.className = 'ok';
+    log('✓ conectado ao banco Base44 — ' + _profiles.length + ' perfis carregados', true);
+    loadEmbeddings();
+  })
+  .catch(function(e){
+    var badge = document.getElementById('sync-badge');
+    badge.textContent = '● offline';
+    badge.className = 'err';
+    log('⚠ banco offline: ' + e.message);
+  });
+}
+
+// ── Painel de reconhecimento (dinâmico) ──
+// Substitui a antiga lista fixa de perfis: só aparece quando há um rosto
+// na câmera, mostrando 1) o match confiante (via HUD, showProfile) ou
+// 2) até 3 candidatos fracos + opção de cadastrar, ou 3) "não reconhecido".
+var MATCH_THRESHOLD     = 0.5;   // match confiante -> mostra card no HUD
+var _lastMatchSig = null;
+var _lastMatchDescriptor = null;
+var _lastMatchKnown = false;    // o rosto principal atual já é reconhecido?
+var _previewOpen = false;       // preview de captura aberto — usuário ainda vai decidir (salvar/descartar)
+var _lastFaceBox = null;        // último bounding box do rosto principal (coords do vídeo) — usado pra capturar foto no cadastro
+var _lastFaceAt = Date.now();
+
+function setMatchBox(sig, html) {
+  if (sig === _lastMatchSig) return; // evita flicker: só re-renderiza se mudou
+  _lastMatchSig = sig;
+  var box = document.getElementById('match-box');
+  var list = document.getElementById('mlist');
+  if (!html) { box.classList.remove('on'); list.innerHTML = ''; return; }
+  list.innerHTML = html;
+  box.classList.add('on');
+}
+
+function handleMatch(descriptor) {
+  _lastMatchDescriptor = Array.from(descriptor); // nunca guardar Float32Array crú (JSON.stringify quebra o formato)
+  var best = null;
+  if (_descriptors.length) {
+    best = _descriptors.map(function(d) {
+      return { profile: d.profile, dist: faceapi.euclideanDistance(descriptor, d.descriptor) };
+    }).sort(function(a,b){ return a.dist - b.dist; })[0];
+  }
+  if (best && best.dist < MATCH_THRESHOLD) {
+    // rosto conhecido — card no HUD; se havia contagem (pessoa reconhecida no meio), aborta em silêncio
+    _lastMatchKnown = true;
+    if (_enroll) abortEnroll('known');
+    _armCount = 0; _armSamples = [];
+    showProfile(best.profile, Math.round((1 - best.dist) * 100));
+    setMatchBox('confident:' + best.profile.id, null);
+    return;
+  }
+  _lastMatchKnown = false;
+  if (_previewOpen || _enrollSaving) return;   // preview manual aberto ou salvando: não começa outra contagem
+  if (_enroll) { feedEnroll(descriptor); return; }
+  if (isSuppressed(descriptor)) { renderSuppressed(); return; }  // ✕ já foi dado pra esse rosto: não insiste
+  // o buffer começa já no 1º quadro do contato visual (antes mesmo da contagem aparecer)
+  if (_armSamples.length && faceapi.euclideanDistance(descriptor, _armSamples[0]) > ENROLL_SAME_FACE * 1.2) {
+    _armSamples = []; _armCount = 0;   // era outro rosto — recomeça
+  }
+  _armSamples.push(Array.from(descriptor));
+  _armCount++;
+  if (_armCount >= ENROLL_ARM_FRAMES) startEnroll(descriptor);   // rosto novo estável → começa a contagem
+}
+
+// ══ AUTO-ENROLL — cadastro de pessoa nova com contagem cancelável (spec A, doc 04) ══
+// 1. o buffer começa no início do contato visual (melhor quadro, várias leituras do rosto);
+// 2. a contagem é o portão: terminou = salva; ✕ = descarta o buffer e NÃO insiste nesse rosto;
+// 3. Capturar é o caminho de recuperação (salvar na mão o que foi descartado);
+// 4. junto do rosto, registra o que der: cor predominante da roupa e texto do crachá (OCR).
+// Só a foto circular de 256px é guardada — o quadro inteiro fica na memória e é descartado.
+var AUTO_ENROLL_SECONDS   = 10;
+var ENROLL_ARM_FRAMES     = 3;     // ~1,2s de rosto novo estável antes de contar (evita disparo por oscilação)
+var ENROLL_LEAVE_DISCARDS = true;  // pessoa saiu da frente antes do fim = descarta, igual ✕ (sem marcar como recusado)
+var ENROLL_SAME_FACE      = 0.5;   // distância máx. pra considerar o mesmo rosto durante o buffer
+var ENROLL_MAX_SAMPLES    = 30;
+var _enroll = null;          // sessão de cadastro em andamento
+var _enrollSaving = false;
+var _armCount = 0;
+var _armSamples = [];        // leituras do rosto antes da contagem aparecer (entram no buffer)
+var _suppressed = [];        // rostos recusados com ✕ nesta sessão
+
+function isSuppressed(desc) {
+  return _suppressed.some(function(d){ return faceapi.euclideanDistance(desc, d) < ENROLL_SAME_FACE; });
+}
+
+function renderSuppressed() {
+  hideHudCard();
+  setMatchBox('suppressed',
+    '<div class="mcount-lbl">Você escolheu não salvar este rosto — toque em Capturar se mudar de ideia</div>' +
+    '<div class="mcard-new" id="mc-capture">⊙ Capturar</div>');
+  var btn = document.getElementById('mc-capture');
+  if (btn) bindTapDyn(btn, manualCapture);
+}
+
+function snapshotFrame() {
+  var vid = document.getElementById('vid');
+  if (!vid || vid.readyState < 2) return null;
+  var cv = document.createElement('canvas');
+  cv.width = vid.videoWidth || 640; cv.height = vid.videoHeight || 480;
+  cv.getContext('2d').drawImage(vid, 0, 0, cv.width, cv.height);
+  return cv;
+}
+
+function startEnroll(descriptor) {
+  var now = Date.now();
+  _armCount = 0;
+  _enroll = {
+    anchor: new Float32Array(_armSamples[0] || descriptor),
+    samples: _armSamples.length ? _armSamples.slice() : [Array.from(descriptor)],
+    startedAt: now,
+    deadline: now + AUTO_ENROLL_SECONDS * 1000,
+    bestArea: 0, bestFrame: null, bestBox: null,
+    timer: null
+  };
+  _armSamples = [];
+  takeBestFrame();
+  hideHudCard();
+  document.getElementById('hud').style.display = 'block';
+  setEnrollHud('count');
+  _enroll.timer = setInterval(tickEnroll, 200);
+  tickEnroll();
+  log('◔ pessoa nova — contagem de ' + AUTO_ENROLL_SECONDS + 's (✕ = não salvar)', true);
+}
+
+function takeBestFrame() {
+  if (!_enroll || !_lastFaceBox) return;
+  var area = _lastFaceBox.w * _lastFaceBox.h;
+  if (area <= _enroll.bestArea) return;
+  var fr = snapshotFrame();
+  if (!fr) return;
+  _enroll.bestArea = area;
+  _enroll.bestFrame = fr;
+  _enroll.bestBox = { x:_lastFaceBox.x, y:_lastFaceBox.y, w:_lastFaceBox.w, h:_lastFaceBox.h };
+}
+
+function feedEnroll(descriptor) {
+  if (faceapi.euclideanDistance(descriptor, _enroll.anchor) > ENROLL_SAME_FACE * 1.2) {
+    // outra pessoa entrou na frente: a contagem era de outro rosto — recomeça do zero
+    abortEnroll('swap');
+    _armCount = 1;
+    return;
+  }
+  if (_enroll.samples.length < ENROLL_MAX_SAMPLES) _enroll.samples.push(Array.from(descriptor));
+  takeBestFrame();
+}
+
+function tickEnroll() {
+  if (!_enroll) return;
+  var left = Math.max(0, _enroll.deadline - Date.now());
+  var secs = Math.ceil(left / 1000);
+  var pct = 100 - (left / (AUTO_ENROLL_SECONDS * 1000)) * 100;
+  var main = document.getElementById('he-main');
+  var fill = document.getElementById('he-fill');
+  if (main) main.textContent = 'salvando em ' + secs + 's';
+  if (fill) fill.style.width = pct.toFixed(1) + '%';
+  renderEnrollPanel(secs);
+  if (left <= 0) commitEnroll();
+}
+
+function renderEnrollPanel(secs) {
+  var sig = 'enroll:' + secs;
+  if (sig === _lastMatchSig) return;
+  var hadBtn = !!document.getElementById('mc-cancel');
+  if (hadBtn) {  // só atualiza o número — não recria o botão (não perde o toque no meio)
+    _lastMatchSig = sig;
+    var n = document.getElementById('cnt-num'); if (n) n.textContent = secs;
+    return;
+  }
+  setMatchBox(sig,
+    '<div class="mcount-lbl">Pessoa nova — salvando sozinho em <span id="cnt-num">' + secs + '</span>s</div>' +
+    '<div class="mcard-no" id="mc-cancel">✕ Não salvar</div>');
+  var b = document.getElementById('mc-cancel');
+  if (b) bindTapDyn(b, function(){ abortEnroll('cancel'); });
+}
+
+function setEnrollHud(state, text) {
+  var el = document.getElementById('hud-enroll');
+  if (!el) return;
+  el.className = 'on' + (state === 'cancel' ? ' cancel' : state === 'done' ? ' done' : '');
+  var lbl = document.getElementById('he-lbl'), main = document.getElementById('he-main'), hint = document.getElementById('he-hint');
+  if (state === 'count') { lbl.textContent = 'PESSOA NOVA'; hint.textContent = '✕ Back = não salvar'; document.getElementById('he-fill').style.width = '0%'; }
+  if (state === 'cancel') { lbl.textContent = 'PESSOA NOVA'; main.textContent = text || 'não salvo'; hint.textContent = 'Capturar = salvar mesmo assim'; }
+  if (state === 'done') { lbl.textContent = 'CADASTRO'; main.textContent = text || 'salvando…'; hint.textContent = ''; }
+  if (state === 'off') el.className = '';
+}
+
+var _enrollHudTimer = null;
+function flashEnrollHud(state, text) {
+  clearTimeout(_enrollHudTimer);
+  setEnrollHud(state, text);
+  _enrollHudTimer = setTimeout(function(){ setEnrollHud('off'); }, 1600);
+}
+
+// reason: 'cancel' (✕) | 'left' (saiu da frente) | 'known' | 'swap' | 'stop'
+function abortEnroll(reason) {
+  if (!_enroll) return;
+  clearInterval(_enroll.timer);
+  var anchor = _enroll.anchor;
+  _enroll = null;   // descarta o buffer inteiro (quadros e leituras) — nada é salvo
+  _armCount = 0; _armSamples = [];
+  clearMatchBox();
+  if (reason === 'cancel') {
+    _suppressed.push(anchor);   // não insiste: esse rosto não dispara contagem de novo nesta sessão
+    flashEnrollHud('cancel', 'não salvo');
+    log('✗ não salvo — não vou perguntar de novo sobre esse rosto (Capturar salva mesmo assim)', true);
+  } else if (reason === 'left') {
+    flashEnrollHud('cancel', 'saiu da frente — não salvo');
+    log('✗ pessoa saiu da frente antes do fim — nada salvo');
+  } else {
+    setEnrollHud('off');
+  }
+}
+
+function meanDescriptor(samples) {
+  var out = new Array(128).fill(0);
+  samples.forEach(function(s){ for (var i = 0; i < 128; i++) out[i] += s[i]; });
+  return out.map(function(v){ return v / samples.length; });
+}
+
+function commitEnroll() {
+  var s = _enroll;
+  if (!s) return;
+  clearInterval(s.timer);
+  _enroll = null;
+  _armCount = 0; _armSamples = [];
+  _enrollSaving = true;
+  setEnrollHud('done', 'salvando…');
+  var photo = s.bestFrame ? cropFaceCircle(s.bestFrame, s.bestBox) : captureFacePhoto();
+  var torso = s.bestFrame ? cropTorso(s.bestFrame, s.bestBox) : null;
+  var clothing = torso ? describeClothing(torso) : null;
+  s.bestFrame = null;   // quadro inteiro descartado — só a foto circular segue
+  saveProfile({
+    emb: meanDescriptor(s.samples),
+    photo: photo,
+    clothing: clothing,
+    mode: 'auto'
+  }, function(person, encounterId){
+    _enrollSaving = false;
+    if (!person) { flashEnrollHud('cancel', 'erro ao salvar'); return; }
+    setEnrollHud('off');   // o card de perfil assume o lugar; o selo confirma
+    var m = document.getElementById('hud-match');
+    m.style.display = 'block'; m.textContent = '✓ salvo agora';
+    if (torso && encounterId) readBadge(torso, encounterId);   // OCR do crachá em segundo plano
+  });
+}
+
+// ── Captura manual (caminho de recuperação) ──
+// Capturar (barra, painel, ↑/Enter, Power nos óculos): salva na mão o rosto novo que está na frente.
+// Se havia contagem, ela é interrompida e vira o preview manual.
+var _captureBusy = false;
+function manualCapture() {
+  if (_captureBusy || !camStream || _previewOpen || _enrollSaving) return;
+  if (!_lastMatchDescriptor) { log('⊙ sem rosto no frame pra capturar'); return; }
+  if (_lastMatchKnown) { log('⊙ ' + (_currentProfile ? _currentProfile.name : 'já conheço esse rosto') + ' — já cadastrado'); return; }
+  if (_enroll) abortEnroll('stop');
+  _captureBusy = true;
+  setTimeout(function(){ _captureBusy = false; }, 1000);
+  var fl = document.getElementById('flash');
+  if (fl) { fl.classList.add('on'); setTimeout(function(){ fl.classList.remove('on'); }, 100); }
+  openCapturePreview();
+}
+
+// Preview da captura — mesmo comportamento da câmera nativa do Rokid:
+// foto tirada aparece em preview; DESCARTAR (= swipe forward na haste) joga fora sem salvar.
+function openCapturePreview() {
+  var frame = snapshotFrame();
+  var box = _lastFaceBox ? { x:_lastFaceBox.x, y:_lastFaceBox.y, w:_lastFaceBox.w, h:_lastFaceBox.h } : null;
+  var emb = _lastMatchDescriptor;
+  var photoUrl = (frame && box) ? cropFaceCircle(frame, box) : null;
+  var torso = (frame && box) ? cropTorso(frame, box) : null;
+  frame = null;
+  _previewOpen = true;
+  setMatchBox('preview',
+    '<div class="mcount-lbl">Cadastrar este rosto?</div>' +
+    (photoUrl
+      ? '<div style="display:flex;justify-content:center;margin:6px 0"><img src="' + photoUrl + '" style="width:96px;height:96px;border-radius:48px;border:1px solid #1a5a2a"></div>'
+      : '<div class="mcount-lbl">preview indisponível</div>') +
+    '<div class="mcard-new" id="mc-save">Salvar</div>' +
+    '<div class="mcard-new" id="mc-discard" style="color:#ff5566;border-color:#5a1a1a;background:#200a0a">Descartar</div>');
+  var bSave = document.getElementById('mc-save');
+  var bDisc = document.getElementById('mc-discard');
+  if (bSave) bindTapDyn(bSave, function(){
+    _previewOpen = false;
+    _enrollSaving = true;
+    saveProfile({ emb: emb, photo: photoUrl, clothing: torso ? describeClothing(torso) : null, mode: 'manual' },
+      function(person, encounterId){
+        _enrollSaving = false;
+        if (person && torso && encounterId) readBadge(torso, encounterId);
+      });
+  });
+  if (bDisc) bindTapDyn(bDisc, function(){
+    _previewOpen = false;
+    clearMatchBox();
+    document.getElementById('hud-status').textContent = '⬡ pronto';
+    log('✗ foto descartada — não salva (nos óculos: swipe forward na haste)');
+  });
+  log('⊙ preview — Salvar ou Descartar (swipe forward)', true);
+}
+
+// Cria a pessoa + o primeiro encontro (com a descrição visual). cb(person|null, encounterId|null)
+function saveProfile(opts, cb) {
+  cb = cb || function(){};
+  var emb = opts.emb;
+  if (!emb || !Array.isArray(emb) || emb.length !== 128) { clearMatchBox(); cb(null, null); return; }
+  var n = 1, re = /^Pessoa Desconhecida (\d+)$/;
+  _profiles.forEach(function(p){
+    var m = re.exec(p.name || '');
+    if (m) n = Math.max(n, parseInt(m[1], 10) + 1);
+  });
+  var name = 'Pessoa Desconhecida ' + n;
+  var nowIso = new Date().toISOString();
+  var how = opts.mode === 'auto' ? 'cadastro automático' : 'captura manual';
+  setMatchBox('saving:' + name, '<div class="mnomatch">Salvando ' + name + '…</div>');
+  var bodyData = {
+    name: name, status: 'Identificado', face_embedding: JSON.stringify(emb),
+    last_seen_date: nowIso, last_seen_context: 'Primeiro encontro (' + how + ')'
+  };
+  if (opts.photo) bodyData.photo_url = opts.photo;
+  fetch(PROXY, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(bodyData)
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(p){
+    if (!p || !p.id) throw new Error(p && p.error || 'resposta sem id');
+    _profiles.push(p);
+    loadEmbeddings();
+    clearMatchBox();
+    showProfile(p, null);
+    document.getElementById('hud-status').textContent = '⬡ salvo';
+    log('✓ ' + name + ' criado (' + how + ') — dá pra completar os detalhes depois no manager', true);
+    // primeiro encontro: guarda o que foi visto (texto apenas, nada de imagem do corpo)
+    var notes = opts.clothing ? 'Roupa (cor predominante): ' + opts.clothing : '';
+    return fetch(PROXY + '?entity=FaceContextEncounter', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        person_id: p.id, person_name: name, date: nowIso,
+        context: 'Primeiro encontro — ' + how + ' pelos óculos',
+        capture_mode: 'presencial', notes: notes, ocr_captured: ''
+      })
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(enc){
+      if (opts.clothing) log('✓ roupa: ' + opts.clothing);
+      delete _encCache[p.id];
+      loadEncounterSummary(p);
+      cb(p, enc && enc.id ? enc.id : null);
+    })
+    .catch(function(e){ log('⚠ encontro não salvo: ' + e.message); cb(p, null); });
+  })
+  .catch(function(e){ log('⚠ Erro ao salvar: ' + e.message, true); clearMatchBox(); cb(null, null); });
+}
+
+// ── Recortes do quadro ──
+// Foto circular 256px — único dado visual guardado (spec B5).
+function cropFaceCircle(src, b) {
+  try {
+    if (!src || !b) return null;
+    var m = Math.max(b.w, b.h) * 0.25;   // margem 25% em volta do rosto (não corta queixo/testa)
+    var side = Math.max(b.w, b.h) + m * 2;
+    var sx = b.x - (side - b.w) / 2;
+    var sy = b.y - (side - b.h) / 2;
+    var vw = src.videoWidth || src.width || 640, vh = src.videoHeight || src.height || 480;
+    if (sx < 0) sx = 0; if (sy < 0) sy = 0;
+    if (sx + side > vw) side = Math.min(side, vw - sx);
+    if (sy + side > vh) side = Math.min(side, vh - sy);
+    if (side < 10) return null;
+    var cv = document.createElement('canvas');
+    cv.width = 256; cv.height = 256;
+    var ctx = cv.getContext('2d');
+    ctx.beginPath(); ctx.arc(128, 128, 128, 0, Math.PI * 2); ctx.clip();
+    ctx.drawImage(src, sx, sy, side, side, 0, 0, 256, 256);
+    return cv.toDataURL('image/jpeg', 0.8);
+  } catch (e) { return null; }  // sem foto é melhor que falhar o save
+}
+
+function captureFacePhoto() {
+  return cropFaceCircle(document.getElementById('vid'), _lastFaceBox);
+}
+
+// Região do peito/tronco logo abaixo do rosto (roupa e crachá). Fica só na memória.
+function cropTorso(src, b) {
+  try {
+    if (!src || !b) return null;
+    var W = src.width, H = src.height;
+    var x0 = Math.max(0, b.x - b.w * 0.8), x1 = Math.min(W, b.x + b.w * 1.8);
+    var y0 = Math.max(0, b.y + b.h * 1.15), y1 = Math.min(H, b.y + b.h * 3.2);
+    if (x1 - x0 < 20 || y1 - y0 < b.h * 0.5) return null;   // tronco fora do quadro
+    var cv = document.createElement('canvas');
+    cv.width = Math.round(x1 - x0); cv.height = Math.round(y1 - y0);
+    cv.getContext('2d').drawImage(src, x0, y0, x1 - x0, y1 - y0, 0, 0, cv.width, cv.height);
+    return cv;
+  } catch (e) { return null; }
+}
+
+// Cor predominante da roupa — estimativa simples, sem IA (nome de cor em pt-BR).
+function colorName(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  var mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+  var s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  if (l < 0.16) return 'preto';
+  if (l > 0.86 && s < 0.25) return 'branco';
+  if (s < 0.16) return 'cinza';
+  var h = mx === r ? 60 * (((g - b) / d) % 6) : mx === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4);
+  if (h < 0) h += 360;
+  if (h < 15 || h >= 345) return l < 0.3 ? 'vinho' : 'vermelho';
+  if (h < 40) return l < 0.45 ? 'marrom' : 'laranja';
+  if (h < 65) return l < 0.38 ? 'marrom' : (s < 0.4 && l > 0.6 ? 'bege' : 'amarelo');
+  if (h < 165) return 'verde';
+  if (h < 255) return l < 0.3 ? 'azul-marinho' : 'azul';
+  if (h < 290) return 'roxo';
+  return 'rosa';
+}
+
+function describeClothing(torso) {
+  try {
+    var ctx = torso.getContext('2d');
+    var data = ctx.getImageData(0, 0, torso.width, torso.height).data;
+    var count = {}, total = 0;
+    for (var i = 0; i < data.length; i += 16) {   // amostra 1 a cada 4 pixels
+      var c = colorName(data[i], data[i + 1], data[i + 2]);
+      count[c] = (count[c] || 0) + 1; total++;
+    }
+    if (!total) return null;
+    var ranked = Object.keys(count).sort(function(a, b){ return count[b] - count[a]; });
+    var top = ranked[0], share = count[top] / total;
+    if (share < 0.35 && ranked[1]) return 'mista (' + top + ' e ' + ranked[1] + ')';
+    return top;
+  } catch (e) { return null; }
+}
+
+// OCR do crachá — roda depois do save, em segundo plano, e só grava se achar texto legível.
+var _tessLoading = null;
+function loadTesseract() {
+  if (window.Tesseract) return Promise.resolve();
+  if (_tessLoading) return _tessLoading;
+  _tessLoading = new Promise(function(res, rej){
+    var sc = document.createElement('script');
+    sc.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+    sc.onload = res; sc.onerror = function(){ _tessLoading = null; rej(new Error('OCR indisponível')); };
+    document.head.appendChild(sc);
+  });
+  return _tessLoading;
+}
+
+function readBadge(torso, encounterId) {
+  // ampliado e em tons de cinza: crachá é texto pequeno
+  var cv = document.createElement('canvas');
+  cv.width = torso.width * 2; cv.height = torso.height * 2;
+  var ctx = cv.getContext('2d');
+  ctx.filter = 'grayscale(1) contrast(1.4)';
+  ctx.drawImage(torso, 0, 0, cv.width, cv.height);
+  var timeout = new Promise(function(_, rej){ setTimeout(function(){ rej(new Error('tempo esgotado')); }, 30000); });
+  Promise.race([
+    loadTesseract().then(function(){ return Tesseract.recognize(cv, 'por+eng'); }),
+    timeout
+  ])
+  .then(function(res){
+    var words = (res && res.data && res.data.words) || [];
+    var txt = words
+      .filter(function(w){ return w.confidence >= 70 && /[A-Za-zÀ-ú]{2,}/.test(w.text); })
+      .map(function(w){ return w.text; }).join(' ').trim();
+    if (txt.replace(/[^A-Za-zÀ-ú]/g, '').length < 3) { log('◌ crachá: nenhum texto legível'); return; }
+    log('✓ crachá: ' + txt, true);
+    return fetch(PROXY + '?id=' + encounterId + '&entity=FaceContextEncounter', {
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ ocr_captured: txt })
+    });
+  })
+  .catch(function(e){ log('◌ crachá não lido: ' + e.message); });
+}
+
+function hideHudCard() {
+  document.getElementById('hud-card').style.display = 'none';
+  document.getElementById('hud-match').style.display = 'none';
+  document.getElementById('hud-status').textContent = '⬡ pronto';
+  document.getElementById('btn-dismiss').disabled = true;
+  _currentProfile = null;
+}
+
+function clearMatchBox() {
+  _lastMatchSig = null;
+  document.getElementById('match-box').classList.remove('on');
+  document.getElementById('mlist').innerHTML = '';
+}
+
+// ── Face recognition (face-api.js) ──
+var _faceApiLoaded = false;
+var _descriptors = [];
+var _detectTimer = null;
+
+function loadEmbeddings() {
+  if (!_faceApiLoaded) return;
+  _descriptors = [];
+  var bad = 0;
+  _profiles.forEach(function(p) {
+    if (p.face_embedding) {
+      try {
+        var arr = JSON.parse(p.face_embedding);
+        if (Array.isArray(arr) && arr.length === 128) {
+          _descriptors.push({ profile: p, descriptor: new Float32Array(arr) });
+        } else {
+          bad++;
+        }
+      } catch(e) { bad++; }
+    }
+  });
+  log('✓ ' + _descriptors.length + ' rostos reconhecíveis' + (bad ? ' (' + bad + ' embedding inválido — recadastrar)' : ''), true);
+}
+
+// loop auto-encadeado: a próxima detecção só roda quando a atual termina
+// (nunca empilha detecções — era o que travava o botão e derrubava a câmera no celular)
+var _detectRunning = false;
+function _detectChain() {
+  if (!_faceApiLoaded || !camStream || _detectTimer === null) return;
+  if (_detectRunning) { _detectTimer = setTimeout(_detectChain, 300); return; }
+  _detectRunning = true;
+  detectFaces()
+    .then(function(){ _detectRunning = false; })
+    .catch(function(){ _detectRunning = false; })
+    .then(function(){ if (_detectTimer !== null) _detectTimer = setTimeout(_detectChain, 400); });
+}
+
+function startFaceDetection() {
+  if (!_faceApiLoaded || !camStream) return;
+  clearTimeout(_detectTimer);
+  _detectTimer = setTimeout(_detectChain, 0);
+}
+
+function stopFaceDetection() {
+  clearTimeout(_detectTimer);
+  _detectTimer = null;
+  _detectRunning = false;
+}
+
+function detectFaces() {
+  var vid = document.getElementById('vid');
+  var cnv = document.getElementById('cnv');
+  if (!vid || vid.readyState < 2 || !camStream) return Promise.resolve();
+  cnv.width = vid.videoWidth || 640;
+  cnv.height = vid.videoHeight || 480;
+  return faceapi.detectAllFaces(vid, new faceapi.TinyFaceDetectorOptions({scoreThreshold:0.4}))
+    .withFaceLandmarks(true)
+    .withFaceDescriptors()
+    .then(function(results) {
+      var ctx = cnv.getContext('2d');
+      ctx.clearRect(0, 0, cnv.width, cnv.height);
+      if (!results || results.length === 0) {
+        _armCount = 0; _armSamples = [];
+        // rosto saiu da frente: após 2.5s limpa card/painel e descarta a contagem pendente
+        if (Date.now() - _lastFaceAt > 2500 && !_previewOpen) {
+          if (_enroll && ENROLL_LEAVE_DISCARDS) abortEnroll('left');
+          if (!_enroll) { clearMatchBox(); hideHudCard(); }
+        }
+        return;
+      }
+      _lastFaceAt = Date.now();
+      // "quem olha primeiro": o MAIOR rosto do frame alimenta o reconhecimento.
+      // Com várias faces na cena (ex.: você + foto de outra pessoa), a maior área vence — regra previsível.
+      var main = null, mainArea = 0;
+      results.forEach(function(r) {
+        var box = r.detection.box;
+        var area = box.width * box.height;
+        if (area > mainArea) { mainArea = area; main = r; }
+      });
+      results.forEach(function(r) {
+        var box = r.detection.box;
+        // Bounding box verde (mais forte no rosto principal)
+        ctx.strokeStyle = (r === main) ? '#00ff88' : 'rgba(0,255,136,.35)';
+        ctx.lineWidth = (r === main) ? 1.5 : 1;
+        ctx.shadowColor = '#00ff88';
+        ctx.shadowBlur = (r === main) ? 4 : 0;
+        ctx.strokeRect(box.x, box.y, box.width, box.height);
+        ctx.shadowBlur = 0;
+      });
+      if (main && main.descriptor) {
+        var b = main.detection.box;
+        _lastFaceBox = { x: b.x, y: b.y, w: b.width, h: b.height };
+        handleMatch(main.descriptor);
+      }
+    })
+    .catch(function(e) { log('⚠ falha na detecção — tenta de novo', true); console.error('detectFaces:', e); });
+}
+
+// ── HUD ──
+function showProfile(p, score) {
+  _currentProfile = p;
+  document.getElementById('hud-idle').style.display = 'none';
+  document.getElementById('hud').style.display = 'block';
+  document.getElementById('hud-card').style.display = 'block';
+  document.getElementById('hud-name').textContent = p.name || '—';
+  document.getElementById('hud-role').textContent = p.role || '';
+  document.getElementById('hud-co').textContent = p.company || '';
+  document.getElementById('hud-rel').textContent = p.relation_context || p.relation || '';
+  var when = p.last_seen_date ? 'Último encontro: ' + new Date(p.last_seen_date).toLocaleDateString('pt-BR') : '';
+  document.getElementById('hud-when').textContent = when;
+  document.getElementById('hud-ctx').textContent = p.last_seen_context || '';
+  if (score) {
+    var m = document.getElementById('hud-match');
+    m.style.display = 'block';
+    m.textContent = '⬡ ' + score + '% match';
+  }
+  document.getElementById('btn-dismiss').disabled = false;
+  document.getElementById('hud-status').textContent = '⬡ identificado';
+  log('✓ HUD: ' + p.name + (score ? ' (' + score + '%)' : ''), true);
+  loadEncounterSummary(p);
+}
+
+// ── Resumo cronológico dos encontros (estilo ReadIt/tl;dv): condensado, com scroll.
+// Fonte: FaceContextEncounter (contexto do encontro). Transcrição completa fica só no manager.
+var _encCache = {};
+function loadEncounterSummary(p) {
+  var wrap = document.getElementById('hud-sum-wrap');
+  var box = document.getElementById('hud-sum');
+  if (!wrap || !box || !p.id) return;
+  if (_encCache[p.id]) { renderSummary(p, _encCache[p.id]); return; }
+  wrap.style.display = 'block';
+  box.textContent = '…';
+  fetch(PROXY, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action:'list',entity:'FaceContextEncounter',limit:200})
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    var list = (Array.isArray(data) ? data : (data.records || []))
+      .filter(function(e){ return e.person_id === p.id || e.person_name === p.name; })
+      .sort(function(a,b){ return new Date(a.date||0) - new Date(b.date||0); })  // cronológico
+      .slice(-4);  // últimos 4 encontros (o card é pequeno)
+    _encCache[p.id] = list;
+    renderSummary(p, list);
+  })
+  .catch(function(){ wrap.style.display = 'none'; });
+}
+
+function renderSummary(p, list) {
+  var wrap = document.getElementById('hud-sum-wrap');
+  var box = document.getElementById('hud-sum');
+  if (!wrap || !box) return;
+  if (!list || !list.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  var html = '';
+  list.forEach(function(e){
+    var d = e.date ? new Date(e.date) : null;
+    var when = d ? (d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}) + ' ' +
+                     d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})) : '';
+    var txt = (e.context || e.notes || '').split('\n')[0];  // condensado: 1ª linha do resumo
+    if (txt.length > 90) txt = txt.slice(0, 88) + '…';
+    html += '<div class="sum-item"><span class="sum-when">' + when + (e.location ? ' · ' + esc(e.location) : '') + '</span>' +
+            '<br><span class="sum-txt">' + esc(txt || '(sem resumo)') + '</span></div>';
+  });
+  box.innerHTML = html;
+  box.scrollTop = box.scrollHeight;  // scroll começa no mais recente
+}
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function dismissHUD() {
+  document.getElementById('hud').style.display = 'none';
+  document.getElementById('hud-card').style.display = 'none';
+  document.getElementById('hud-match').style.display = 'none';
+  document.getElementById('hud-idle').style.display = camStream ? 'none' : 'flex';
+  document.getElementById('hud-status').textContent = '⬡ pronto';
+  document.getElementById('btn-dismiss').disabled = true;
+  _currentProfile = null;
+  log('HUD dispensado');
+}
+
+// ── Câmera ──
+function toggleCam() {
+  if (camStream) stopCam(); else startCam();
+}
+
+function toggleFlipCam() {
+  _facingMode = (_facingMode === 'environment') ? 'user' : 'environment';
+  log('Trocando câmera: ' + (_facingMode === 'user' ? 'frontal' : 'traseira'));
+  if (camStream) {
+    // reinicia o stream já com a nova câmera
+    camStream.getTracks().forEach(function(t){ t.stop(); });
+    camStream = null;
+    startCam(true);
+  }
+}
+
+var _flipBusy = false;
+function flipCamTap() {
+  if (_flipBusy) return;           // troca de câmera em andamento — ignora toques extra
+  _flipBusy = true;
+  toggleFlipCam();
+  setTimeout(function(){ _flipBusy = false; }, 800);  // libera depois que o stream assenta
+}
+(function initFlipCamBtn(){
+  var btn = document.getElementById('flip-cam-btn');
+  if (!btn) return;
+  if (_isTouchDevice) btn.classList.add('show');
+  var touched = false;
+  btn.addEventListener('touchstart', function(e){ e.preventDefault(); touched = true; }, {passive:false});
+  btn.addEventListener('touchend', function(e){ e.preventDefault(); if (touched){ touched = false; flipCamTap(); } }, {passive:false});
+  btn.addEventListener('click', function(e){ e.preventDefault(); if (!touched) flipCamTap(); }); // desktop
+})();
+
+function startCam(auto) {
+  var btn = document.getElementById('btn-cam');
+  btn.textContent = '⏳'; btn.disabled = true;
+  // estado na tela ANTES de pedir permissão (no Knox/OneUI o popup pode ser suprimido)
+  setIdle('Solicitando câmera...', 'O navegador vai pedir permissão de câmera — o mesmo fluxo dos óculos');
+  log('Solicitando câmera...');
+  navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:_facingMode},width:{ideal:640},height:{ideal:480}},audio:false})
+  .then(function(stream) {
+    camStream = stream;
+    var vid = document.getElementById('vid');
+    vid.srcObject = stream;
+    vid.onloadedmetadata = function(){ vid.play(); };
+    document.getElementById('hud-idle').style.display = 'none';
+    document.getElementById('hud-status').textContent = '⬡ câmera ativa';
+    btn.innerHTML = '■<span class="blbl">Parar</span>';
+    btn.className = 'bar-btn on';
+    btn.disabled = false;
+    document.getElementById('btn-cap').disabled = false;
+    log('✓ câmera ativa', true);
+    startFaceDetection();
+  })
+  .catch(function(e) {
+    log('✗ câmera: ' + e.message);
+    if (auto) {
+      setIdle('Câmera bloqueada', e && e.name === 'NotAllowedError'
+        ? 'Permita no 🔒 da barra de endereço → Câmera → e toque em Câmera'
+        : 'Toque em Câmera para tentar de novo');
+    } else {
+      setIdle('Não deu pra acessar a câmera', 'Verifique a permissão no 🔒 da barra de endereço');
+    }
+    btn.innerHTML = '⏻<span class="blbl">Câmera</span>';
+    btn.disabled = false;
+  });
+}
+
+// câmera caiu (troca de app / economia de energia) → religa sozinha quando a página volta
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState !== 'visible' || !camStream) return;
+  var dead = camStream.getTracks().length === 0 ||
+             camStream.getTracks().every(function(t){ return t.readyState === 'ended'; });
+  if (dead) {
+    log('câmera caiu em background — religando...');
+    camStream = null;
+    startCam(true);
+  }
+});
+
+function stopCam() {
+  _lastFaceAt = Date.now();
+  if (_enroll) abortEnroll('stop');
+  if (camStream) { camStream.getTracks().forEach(function(t){t.stop()}); camStream = null; }
+  var vid = document.getElementById('vid');
+  vid.srcObject = null;
+  stopFaceDetection();
+  clearMatchBox();
+  var ctx = document.getElementById('cnv').getContext('2d');
+  ctx.clearRect(0,0,640,480);
+  document.getElementById('hud-idle').style.display = 'flex';
+  document.getElementById('hud').style.display = 'none';
+  document.getElementById('btn-cam').innerHTML = '⏻<span class="blbl">Câmera</span>';
+  document.getElementById('btn-cam').className = 'bar-btn';
+  document.getElementById('btn-dismiss').disabled = true;
+  document.getElementById('btn-cap').disabled = true;
+  setIdle('Câmera parada', 'Toque em Câmera para religar');
+  log('câmera parada');
+}
+
+// ── Keyboard (desktop) ──
+document.addEventListener('keydown', function(e) {
+  if (e.key === ' ' || e.key === 'p') { e.preventDefault(); toggleCam(); }
+  if (e.key === 'ArrowUp' || e.key === 'Enter') { e.preventDefault(); manualCapture(); }
+  if (e.key === 'Escape' || e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (_enroll) { abortEnroll('cancel'); return; }   // Back nos óculos = não salvar
+    if (_previewOpen) { _previewOpen = false; clearMatchBox(); log('✗ foto descartada'); return; }
+    dismissHUD();
+  }
+});
+
+// ── Buttons (touch) ──
+// Tap binding para elementos criados dinamicamente (Android 16/Knox nao propaga
+// 'click' em alguns elementos — mesmo padrao do bindBtn, via elemento direto)
+function bindTapDyn(el, fn) {
+  if (!el) return;
+  var touched = false;
+  el.addEventListener('touchstart', function(e){ e.preventDefault(); touched=true; el.style.opacity='0.7'; }, {passive:false});
+  el.addEventListener('touchend', function(e){ e.preventDefault(); el.style.opacity=''; if(touched){touched=false;fn();} }, {passive:false});
+  el.addEventListener('touchcancel', function(){ touched=false; el.style.opacity=''; });
+  el.addEventListener('click', function(){ if(!touched) fn(); });
+}
+
+function bindBtn(id, fn) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  var touched = false;
+  el.addEventListener('touchstart', function(e){ e.preventDefault(); touched=true; el.style.opacity='0.7'; }, {passive:false});
+  el.addEventListener('touchend', function(e){ e.preventDefault(); el.style.opacity=''; if(touched){touched=false;fn();} }, {passive:false});
+  el.addEventListener('touchcancel', function(){ touched=false; el.style.opacity=''; });
+  el.addEventListener('click', function(){ if(!touched) fn(); });
+}
+
+bindBtn('btn-cam', toggleCam);
+bindBtn('btn-cap', manualCapture);
+bindBtn('btn-dismiss', dismissHUD);
+bindBtn('btn-help', function(){ document.getElementById('help-ov').classList.add('on'); });
+bindTapDyn(document.getElementById('help-debug'), function(){ setDebug(!_debugMode); });
+bindBtn('help-x', function(){ document.getElementById('help-ov').classList.remove('on'); });
+
+// ── Carrega face-api ──
+document.getElementById('hud-status').textContent = '⬡ carregando IA...';
+var script = document.createElement('script');
+script.src = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js';
+script.onload = function() {
+  Promise.all([
+    faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model'),
+    faceapi.nets.faceLandmark68TinyNet.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model'),
+    faceapi.nets.faceRecognitionNet.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model')
+  ]).then(function() {
+    _faceApiLoaded = true;
+    document.getElementById('hud-status').textContent = '⬡ pronto';
+    log('✓ IA pronta', true);
+    loadEmbeddings();
+    if (camStream) startFaceDetection();
+  }).catch(function(e){ log('⚠ IA: ' + e.message); document.getElementById('hud-status').textContent = '⬡ pronto'; });
+};
+document.head.appendChild(script);
+
+// ── Init ──
+syncProfiles();
+if (_debugMode) setDebug(true);
+// câmera pedida no carregamento — como será nos óculos (fallback: botão Câmera)
+if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+  startCam(true);
+} else {
+  setIdle('Câmera não suportada', 'Abra em HTTPS num navegador com câmera');
+}
+</script>
+</body>
+</html>

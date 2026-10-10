@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>VisualContext — HUD Editor</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--g:#00ff88;--bg:#0a0e1a;--card:#111827;--border:rgba(255,255,255,0.08);--text:rgba(255,255,255,0.85);--muted:rgba(255,255,255,0.38)}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overscroll-behavior:none}
+
+/* ── TOP BAR ── */
+.topbar{padding:10px 12px;display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;background:var(--bg)}
+.topbar h2{font-size:15px;font-weight:700;flex:1;white-space:nowrap}
+.btn-icon{width:38px;height:38px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,0.05);color:var(--text);font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;flex-shrink:0}
+.btn-icon:active{background:rgba(255,255,255,0.12)}
+.btn-icon:disabled{opacity:.25;pointer-events:none}
+.btn-icon.on{border-color:var(--g);color:var(--g);background:rgba(0,255,136,0.08)}
+.btn-save{padding:8px 14px;border-radius:10px;background:var(--g);color:#0a0e1a;border:none;font-size:13px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;white-space:nowrap}
+
+/* ── STATUS BAR ── */
+.sbar{padding:4px 14px;font-size:11px;display:flex;align-items:center;gap:5px}
+.sbar.ok{color:var(--g);background:rgba(0,255,136,0.04);border-bottom:1px solid rgba(0,255,136,0.12)}
+.sbar.off{color:#f59e0b;background:rgba(245,158,11,0.04);border-bottom:1px solid rgba(245,158,11,0.12)}
+.sdot{width:5px;height:5px;border-radius:50%;background:currentColor}
+
+/* ── LAYOUT BAR ── */
+.lbar{display:flex;gap:6px;padding:10px 12px;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--border)}
+.lbar::-webkit-scrollbar{display:none}
+.lchip{flex-shrink:0;padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;white-space:nowrap}
+.lchip.active{background:var(--g);color:#0a0e1a;border-color:var(--g);font-weight:700}
+.lchip.new{border-color:rgba(0,255,136,0.3);color:var(--g)}
+
+/* ── PREVIEW ── */
+.prev-wrap{display:flex;justify-content:center;padding:14px 12px 4px}
+/* 480×640 portrait escalado → cabe em tela estreita: scale baseado na largura 480 */
+.prev-outer{position:relative}
+.prev-label{text-align:center;font-size:10px;color:var(--muted);margin-bottom:6px;display:flex;align-items:center;justify-content:center;gap:6px}
+.prev-label span{background:rgba(0,255,136,0.1);color:var(--g);border:1px solid rgba(0,255,136,0.15);border-radius:8px;padding:1px 7px;font-size:10px}
+/* Container visível no viewport */
+.prev-box{position:relative;overflow:hidden;border:2px solid rgba(0,255,136,0.3);border-radius:6px;background:#000;cursor:crosshair}
+/* Canvas real 480×640 portrait, transform-origin top-left */
+.hud-canvas{position:absolute;top:0;left:0;width:480px;height:640px;transform-origin:top left}
+/* Grid overlay */
+.grid-overlay{position:absolute;top:0;left:0;width:480px;height:640px;pointer-events:none;display:none}
+.grid-overlay.show{display:block}
+
+/* ── WIDGETS ── */
+.widget{position:absolute;cursor:default}
+.widget.sel .wlabel{outline:1px dashed rgba(255,255,255,0.6);outline-offset:1px}
+.widget .wlabel{font-family:monospace;white-space:nowrap;overflow:hidden;max-width:100%;display:block}
+.widget .sep-line{width:100%}
+.sel-handles{display:none}
+.widget.sel .sel-handles{display:block}
+.sh{position:absolute;width:10px;height:10px;background:var(--g);border-radius:2px;cursor:pointer}
+.sh.br{bottom:-5px;right:-5px}
+.sh.bl{bottom:-5px;left:-5px}
+.sh.tr{top:-5px;right:-5px}
+.sh.tl{top:-5px;left:-5px}
+
+/* ── TOOLBAR ── */
+.toolbar{display:flex;gap:5px;flex-wrap:wrap;padding:10px 12px;border-bottom:1px solid var(--border)}
+.tbtn{padding:5px 9px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,0.04);color:var(--text);font-size:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;white-space:nowrap}
+.tbtn:active{background:rgba(255,255,255,0.1)}
+
+/* ── MAIN PANEL ── */
+.panel{padding:12px}
+
+/* ── GENERAL SETTINGS ── */
+.section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:12px}
+.sec-title{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px}
+.pr{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+.pr:last-child{margin-bottom:0}
+.pl{font-size:12px;color:var(--muted);width:64px;flex-shrink:0}
+.pr input[type=range]{flex:1;accent-color:var(--g);height:4px}
+.pr input[type=number]{width:52px;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:6px;padding:5px 7px;color:var(--text);font-size:13px;outline:none;text-align:center}
+.pr input[type=number]:focus{border-color:var(--g)}
+.pr input[type=color]{width:42px;height:30px;border-radius:6px;border:1px solid var(--border);background:none;cursor:pointer}
+.pr select{flex:1;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:8px;padding:6px 9px;color:var(--text);font-size:13px;outline:none}
+.pr select option{background:#141824}
+.pr .chk{font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer}
+.pr input[type=text]{flex:1;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-size:13px;outline:none}
+.pr input[type=text]:focus{border-color:var(--g)}
+
+/* ── WIDGET LIST ── */
+.witem{background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:10px 11px;margin-bottom:7px;display:flex;align-items:center;gap:9px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.witem.active{border-color:var(--g);background:rgba(0,255,136,0.06)}
+.witem:active,.witem:not(.active):hover{background:rgba(255,255,255,0.05)}
+.wicon{font-size:17px;width:26px;text-align:center;flex-shrink:0}
+.wi{flex:1;min-width:0}
+.wn{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ws{font-size:10px;color:var(--muted);margin-top:1px}
+.wact{display:flex;gap:4px}
+.wact button{width:28px;height:28px;border-radius:7px;border:1px solid var(--border);background:rgba(255,255,255,0.04);color:var(--text);font-size:13px;cursor:pointer;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center}
+.wact button:active{background:rgba(255,255,255,0.1)}
+
+/* ── NUDGE PAD ── */
+.nudge-pad{display:grid;grid-template-columns:repeat(3,38px);grid-template-rows:repeat(3,38px);gap:4px;justify-content:center;margin:10px 0}
+.nudge-pad button{width:38px;height:38px;border-radius:9px;border:1px solid var(--border);background:rgba(255,255,255,0.05);color:var(--text);font-size:16px;cursor:pointer;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center}
+.nudge-pad button:active{background:rgba(0,255,136,0.15);border-color:var(--g);color:var(--g)}
+.nudge-pad .center{background:rgba(0,255,136,0.05);border-color:rgba(0,255,136,0.2);color:var(--g);font-size:11px}
+.nudge-step{display:flex;align-items:center;gap:6px;justify-content:center;margin-bottom:6px;font-size:12px;color:var(--muted)}
+.nudge-step select{background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:6px;padding:3px 8px;color:var(--text);font-size:12px;outline:none}
+
+/* ── DELETE ── */
+.btn-del{width:100%;padding:9px;border-radius:8px;border:1px solid rgba(255,80,80,0.3);background:transparent;color:#ff6b6b;font-size:13px;cursor:pointer;margin-top:4px;-webkit-tap-highlight-color:transparent}
+.btn-del:active{background:rgba(255,80,80,0.08)}
+
+/* ── MODAL ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:200;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.overlay.open{opacity:1;pointer-events:all}
+.modal{background:#141824;border-radius:20px 20px 0 0;width:100%;max-width:600px;max-height:88vh;overflow-y:auto;padding-bottom:36px;transform:translateY(100%);transition:transform .3s ease}
+.overlay.open .modal{transform:translateY(0)}
+.mhandle{width:36px;height:4px;background:rgba(255,255,255,0.15);border-radius:2px;margin:12px auto 0}
+.mhead{display:flex;align-items:center;justify-content:space-between;padding:13px 18px 10px}
+.mtitle{font-size:16px;font-weight:700}
+.btn-x{background:rgba(255,255,255,0.08);border:none;color:var(--text);width:30px;height:30px;border-radius:50%;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.mbody{padding:0 18px}
+.field{margin-bottom:11px}
+.field label{display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.field input,.field select{width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:9px;padding:9px 12px;color:var(--text);font-size:14px;outline:none;font-family:inherit}
+.field input:focus{border-color:var(--g)}
+.btn-prim{width:100%;padding:12px;background:var(--g);color:#0a0e1a;border:none;border-radius:11px;font-size:15px;font-weight:700;cursor:pointer;margin-top:6px}
+
+/* ── LAYOUT CARDS ── */
+.lcard{background:var(--card);border:1px solid var(--border);border-radius:11px;padding:11px;display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:7px;-webkit-tap-highlight-color:transparent}
+.lcard:active{background:rgba(255,255,255,0.05)}
+.lcard.active{border-color:var(--g);background:rgba(0,255,136,0.05)}
+.lci{flex:1}.lcn{font-size:14px;font-weight:600}.lcs{font-size:11px;color:var(--muted);margin-top:2px}
+.btn-ldel{padding:5px 9px;border-radius:7px;border:1px solid rgba(255,80,80,0.3);background:transparent;color:#ff6b6b;font-size:11px;cursor:pointer}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(60px);background:#1e293b;color:var(--text);border:1px solid var(--border);border-radius:11px;padding:9px 18px;font-size:14px;z-index:999;transition:transform .3s;pointer-events:none;white-space:nowrap}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.ok{border-color:rgba(0,255,136,0.4);color:var(--g)}
+.toast.err{border-color:rgba(255,80,80,0.4);color:#ff6b6b}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <button class="btn-icon" onclick="window.location.href='webapp.html'" title="Voltar">←</button>
+  <h2>🥽 HUD Editor</h2>
+  <button class="btn-icon" id="btnUndo" onclick="undo()" title="Desfazer" disabled>↩</button>
+  <button class="btn-icon" id="btnRedo" onclick="redo()" title="Refazer" disabled>↪</button>
+  <button class="btn-icon" id="btnGrid" onclick="toggleGrid()" title="Grid">⊞</button>
+  <button class="btn-icon" onclick="openLayouts()" title="Layouts">📋</button>
+  <button class="btn-save" onclick="saveLayout()">💾</button>
+</div>
+
+<div id="sbar" class="sbar off"><div class="sdot"></div><span id="smsg">Conectando…</span></div>
+
+<!-- LAYOUT CHIPS -->
+<div class="lbar" id="layoutBar">
+  <button class="lchip new" onclick="newLayout()">+ Novo</button>
+</div>
+
+<!-- PREVIEW -->
+<div class="prev-wrap">
+  <div>
+    <div class="prev-label">Waveguide Rokid · 480×640 portrait <span id="scaleLabel">×0.5</span>
+      <span id="bgOpLabel">BG 0%</span>
+      <button onclick="toggleSimBG()" id="btnSimBG" style="background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.25);border-radius:8px;padding:1px 7px;font-size:10px;color:var(--g);cursor:pointer">🌍 Simular</button>
+    </div>
+    <div class="prev-outer">
+      <div class="prev-box" id="prevBox">
+        <div class="hud-canvas" id="hudCanvas"></div>
+        <canvas class="grid-overlay" id="gridCanvas"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+<div style="text-align:center;font-size:10px;color:var(--muted);padding:4px 0 2px">
+  ⚫ pixels pretos = sem emissão = <b style="color:rgba(255,255,255,0.5)">totalmente transparentes</b> no prisma
+</div>
+<div style="text-align:center;font-size:10px;color:#f59e0b;padding:0 0 10px">
+  ⚠ Display é <b>verde monocromático</b> — vermelho e azul não aparecem nos óculos
+</div>
+
+<!-- ADD WIDGETS TOOLBAR -->
+<div class="toolbar">
+  <button class="tbtn" onclick="addWidget('name')">👤 Nome</button>
+  <button class="tbtn" onclick="addWidget('company')">🏢 Empresa</button>
+  <button class="tbtn" onclick="addWidget('role')">💼 Cargo</button>
+  <button class="tbtn" onclick="addWidget('relation')">🤝 Relação</button>
+  <button class="tbtn" onclick="addWidget('notes')">📝 Notas</button>
+  <button class="tbtn" onclick="addWidget('lastSeen')">📅 Visto</button>
+  <button class="tbtn" onclick="addWidget('tags')">🏷 Tags</button>
+  <button class="tbtn" onclick="addWidget('photo')">🖼 Foto</button>
+  <button class="tbtn" onclick="addWidget('separator')">─ Linha</button>
+  <button class="tbtn" onclick="addWidget('text')">✏ Texto</button>
+</div>
+
+<div class="panel">
+
+  <!-- GENERAL SETTINGS -->
+  <div class="section">
+    <div class="sec-title">Configurações do Layout</div>
+    <div class="pr"><span class="pl">Nome</span><input type="text" id="layoutName" placeholder="Nome do layout" oninput="markDirty()"></div>
+    <div class="pr"><span class="pl">Padrão</span><label class="chk"><input type="checkbox" id="isDefault"> Layout padrão nos óculos</label></div>
+    <div class="pr">
+      <span class="pl">Opacidade BG</span>
+      <input type="range" id="bgOp" min="0" max="100" value="0" oninput="updateBG(this.value)">
+      <input type="number" id="bgOpN" min="0" max="100" value="0" style="width:44px" oninput="updateBG(this.value);document.getElementById('bgOp').value=this.value">
+      <span style="font-size:11px;color:var(--muted)">%</span>
+    </div>
+  </div>
+
+  <!-- SELECTED WIDGET PROPS -->
+  <div class="section" id="propsSection" style="display:none">
+    <div class="sec-title" id="propsTitle">⚙ Widget</div>
+
+    <!-- NUDGE PAD -->
+    <div class="nudge-step">
+      Passo:
+      <select id="nudgeStep">
+        <option value="1">1 px</option>
+        <option value="5">5 px</option>
+        <option value="10" selected>10 px</option>
+        <option value="20">20 px</option>
+        <option value="40">40 px</option>
+      </select>
+    </div>
+    <div class="nudge-pad">
+      <div></div>
+      <button onclick="nudge(0,-1)">▲</button>
+      <div></div>
+      <button onclick="nudge(-1,0)">◀</button>
+      <button class="center" onclick="centerWidget()">⊙</button>
+      <button onclick="nudge(1,0)">▶</button>
+      <div></div>
+      <button onclick="nudge(0,1)">▼</button>
+      <div></div>
+    </div>
+
+    <div class="pr"><span class="pl">X</span><input type="number" id="pX" min="0" max="480" oninput="applyProp('x',+this.value)"><span style="font-size:11px;color:var(--muted)">px</span></div>
+    <div class="pr"><span class="pl">Y</span><input type="number" id="pY" min="0" max="640" oninput="applyProp('y',+this.value)"><span style="font-size:11px;color:var(--muted)">px</span></div>
+    <div class="pr"><span class="pl">Largura</span><input type="number" id="pW" min="20" max="480" oninput="applyProp('width',+this.value)"><span style="font-size:11px;color:var(--muted)">px</span></div>
+    <div class="pr"><span class="pl">Altura</span><input type="number" id="pH" min="4" max="640" oninput="applyProp('height',+this.value)"><span style="font-size:11px;color:var(--muted)">px</span></div>
+    <div class="pr">
+      <span class="pl">Fonte</span>
+      <input type="range" id="pFs" min="8" max="72" value="18" oninput="applyProp('font_size',+this.value);document.getElementById('pFsN').value=this.value">
+      <input type="number" id="pFsN" min="8" max="72" value="18" style="width:44px" oninput="applyProp('font_size',+this.value);document.getElementById('pFs').value=this.value">
+    </div>
+    <div class="pr"><span class="pl">Cor</span><input type="color" id="pColor" value="#00ff88" oninput="applyProp('color',this.value)"></div>
+    <div class="pr"><span class="pl">Negrito</span><label class="chk"><input type="checkbox" id="pBold" onchange="applyProp('bold',this.checked)"> Bold</label></div>
+    <div class="pr"><span class="pl">Texto</span><input type="text" id="pText" placeholder="(campo automático)" oninput="applyProp('custom_text',this.value)"></div>
+    <div class="pr"><span class="pl">Visível</span><label class="chk"><input type="checkbox" id="pVis" checked onchange="applyProp('visible',this.checked)"> Mostrar</label></div>
+    <button class="btn-del" onclick="deleteSelected()">🗑 Remover widget</button>
+  </div>
+
+  <!-- WIDGET LIST -->
+  <div class="sec-title" style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Widgets (toque para selecionar)</div>
+  <div id="widgetList"></div>
+
+</div>
+
+<!-- MODAL: LAYOUTS -->
+<div class="overlay" id="layoutsOv">
+  <div class="modal">
+    <div class="mhandle"></div>
+    <div class="mhead"><span class="mtitle">📋 Layouts</span><button class="btn-x" onclick="closeOv('layoutsOv')">✕</button></div>
+    <div class="mbody">
+      <div id="lcards"></div>
+      <button class="btn-prim" style="margin-top:10px" onclick="newLayout();closeOv('layoutsOv')">+ Novo layout</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const PROXY = "https://base44.app/api/apps/6a11083db49430b410a8c066/functions/fcProxy";
+
+// ── State ──────────────────────────────────────────────────────
+var layouts=[], currentId=null, widgets=[], selectedId=null;
+var bgOpacity=0, showGrid=false, dirty=false;
+var undoStack=[], redoStack=[], MAX_HISTORY=50;
+var SCALE=0.5; // será recalculado
+var dragState=null;
+
+// ── Sample data para preview ──────────────────────────────────
+var SAMPLE={name:"João Silva",company:"Ironhack",role:"UX Designer",relation:"Colega de trabalho",
+  notes:"Bootcamp 2024. Especialista em design systems.",
+  last_seen_date:new Date().toISOString(),tags:["design","UX"]};
+
+var DEFS={
+  name:    {icon:"👤",label:"Nome",     dW:440,dH:40,dFs:28,prev:()=>SAMPLE.name},
+  company: {icon:"🏢",label:"Empresa",  dW:340,dH:26,dFs:17,prev:()=>SAMPLE.company},
+  role:    {icon:"💼",label:"Cargo",    dW:300,dH:22,dFs:14,prev:()=>SAMPLE.role},
+  relation:{icon:"🤝",label:"Relação",  dW:260,dH:22,dFs:14,prev:()=>SAMPLE.relation},
+  notes:   {icon:"📝",label:"Notas",    dW:440,dH:72,dFs:12,prev:()=>SAMPLE.notes},
+  lastSeen:{icon:"📅",label:"Visto",    dW:440,dH:20,dFs:12,prev:()=>"Visto: "+fmtD(SAMPLE.last_seen_date)},
+  tags:    {icon:"🏷",label:"Tags",     dW:440,dH:20,dFs:12,prev:()=>(SAMPLE.tags||[]).join("  ·  ")},
+  photo:   {icon:"🖼",label:"Foto",     dW:72, dH:72,dFs:0, prev:()=>"👤"},
+  text:    {icon:"✏",label:"Texto",     dW:240,dH:28,dFs:16,prev:()=>"Texto livre"},
+  separator:{icon:"─",label:"Linha",   dW:440,dH:3, dFs:0, prev:()=>""},
+};
+
+function fmtD(d){try{return new Date(d).toLocaleDateString("pt-BR",{day:"2-digit",month:"short"})}catch{return"—"}}
+function uid(){return"w"+Math.random().toString(36).slice(2,9)}
+function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+
+// ── Toast ──────────────────────────────────────────────────────
+function toast(msg,type){
+  var el=document.getElementById("toast");
+  el.textContent=msg;el.className="toast "+(type||"");
+  el.classList.add("show");setTimeout(()=>el.classList.remove("show"),3000);
+}
+function setStatus(ok,msg){
+  var b=document.getElementById("sbar");b.className="sbar "+(ok?"ok":"off");
+  document.getElementById("smsg").textContent=msg;
+}
+
+// ── Scale ──────────────────────────────────────────────────────
+function calcScale(){
+  var avail=Math.min(window.innerWidth-24,400);
+  SCALE=avail/480;
+  var box=document.getElementById("prevBox");
+  box.style.width=Math.round(480*SCALE)+"px";
+  box.style.height=Math.round(640*SCALE)+"px";
+  document.getElementById("hudCanvas").style.transform="scale("+SCALE+")";
+  var gc=document.getElementById("gridCanvas");
+  gc.style.transform="scale("+SCALE+")";
+  document.getElementById("scaleLabel").textContent="×"+SCALE.toFixed(2);
+  drawGrid();
+}
+window.addEventListener("resize",calcScale);
+
+// ── Grid ──────────────────────────────────────────────────────
+function toggleGrid(){
+  showGrid=!showGrid;
+  document.getElementById("btnGrid").classList.toggle("on",showGrid);
+  document.getElementById("gridCanvas").classList.toggle("show",showGrid);
+  drawGrid();
+}
+function drawGrid(){
+  var gc=document.getElementById("gridCanvas");
+  gc.width=480;gc.height=640;
+  if(!showGrid)return;
+  var ctx=gc.getContext("2d");
+  ctx.clearRect(0,0,480,640);
+  ctx.strokeStyle="rgba(0,255,136,0.12)";
+  ctx.lineWidth=1;
+  var step=20;
+  for(var x=0;x<=480;x+=step){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,640);ctx.stroke();}
+  for(var y=0;y<=640;y+=step){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(480,y);ctx.stroke();}
+  // Major lines every 80px
+  ctx.strokeStyle="rgba(0,255,136,0.22)";
+  ctx.lineWidth=1;
+  for(var x=0;x<=480;x+=80){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,640);ctx.stroke();}
+  for(var y=0;y<=640;y+=80){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(480,y);ctx.stroke();}
+}
+
+// ── Undo / Redo ───────────────────────────────────────────────
+function snapshot(){
+  undoStack.push(JSON.stringify(widgets));
+  if(undoStack.length>MAX_HISTORY) undoStack.shift();
+  redoStack=[];
+  updateUndoButtons();
+}
+function undo(){
+  if(!undoStack.length)return;
+  redoStack.push(JSON.stringify(widgets));
+  widgets=JSON.parse(undoStack.pop());
+  selectedId=null;
+  renderCanvas();renderList();hideProps();updateUndoButtons();
+}
+function redo(){
+  if(!redoStack.length)return;
+  undoStack.push(JSON.stringify(widgets));
+  widgets=JSON.parse(redoStack.pop());
+  selectedId=null;
+  renderCanvas();renderList();hideProps();updateUndoButtons();
+}
+function updateUndoButtons(){
+  document.getElementById("btnUndo").disabled=!undoStack.length;
+  document.getElementById("btnRedo").disabled=!redoStack.length;
+}
+function markDirty(){dirty=true;}
+
+// ── BG Opacity ────────────────────────────────────────────────
+function updateBG(v){
+  bgOpacity=+v;
+  var a=Math.round(v*2.55).toString(16).padStart(2,"0");
+  document.getElementById("hudCanvas").style.background="#000000"+a;
+  document.getElementById("bgOpLabel").textContent="BG "+v+"%";
+  document.getElementById("bgOp").value=v;
+  document.getElementById("bgOpN").value=v;
+  markDirty();
+}
+
+// ── Load layouts ──────────────────────────────────────────────
+async function loadLayouts(){
+  try{
+    var r=await fetch(PROXY+"?entity=FaceContextHUDLayout");
+    if(!r.ok)throw new Error();
+    layouts=await r.json();
+    setStatus(true,"☁ "+layouts.length+" layouts");
+    localStorage.setItem("fc_hl",JSON.stringify(layouts));
+  }catch{
+    var c=localStorage.getItem("fc_hl");
+    layouts=c?JSON.parse(c):[];
+    setStatus(false,"⚠ Offline");
+  }
+  renderLayoutBar();
+  if(layouts.length){var def=layouts.find(l=>l.is_default)||layouts[0];loadLayout(def);}
+  else newLayout();
+}
+function renderLayoutBar(){
+  var bar=document.getElementById("layoutBar");
+  bar.innerHTML='<button class="lchip new" onclick="newLayout()">+ Novo</button>';
+  layouts.forEach(l=>{
+    var c=document.createElement("button");
+    c.className="lchip"+(currentId===l.id?" active":"");
+    c.textContent=(l.is_default?"★ ":"")+l.name;
+    c.onclick=()=>loadLayout(l);
+    bar.appendChild(c);
+  });
+}
+function loadLayout(l){
+  currentId=l.id;
+  document.getElementById("layoutName").value=l.name||"";
+  document.getElementById("isDefault").checked=!!l.is_default;
+  updateBG(l.background_opacity||0);
+  widgets=(l.widgets||[]).map(w=>({...w,id:w.id||uid()}));
+  undoStack=[];redoStack=[];selectedId=null;
+  renderCanvas();renderList();hideProps();renderLayoutBar();updateUndoButtons();
+  dirty=false;
+}
+function newLayout(){
+  currentId=null;
+  document.getElementById("layoutName").value="Novo Layout";
+  document.getElementById("isDefault").checked=false;
+  updateBG(0);
+  widgets=[
+    {id:uid(),type:"name",     x:16,y:20,  width:440,height:44,font_size:28,color:"#00ff88",bold:true, visible:true},
+    {id:uid(),type:"company",  x:16,y:70,  width:340,height:26,font_size:17,color:"#00cc66",bold:false,visible:true},
+    {id:uid(),type:"role",     x:16,y:100, width:300,height:22,font_size:14,color:"#009944",bold:false,visible:true},
+    {id:uid(),type:"separator",x:16,y:128, width:440,height:3, font_size:0, color:"#004422",bold:false,visible:true},
+    {id:uid(),type:"relation", x:16,y:136, width:260,height:24,font_size:14,color:"#00ff88",bold:false,visible:true},
+    {id:uid(),type:"notes",    x:16,y:166, width:440,height:72,font_size:12,color:"#00aa55",bold:false,visible:true},
+    {id:uid(),type:"lastSeen", x:16,y:600, width:440,height:22,font_size:12,color:"#006633",bold:false,visible:true},
+  ];
+  undoStack=[];redoStack=[];selectedId=null;
+  renderCanvas();renderList();hideProps();renderLayoutBar();updateUndoButtons();
+  dirty=false;
+}
+
+// ── Render Canvas ─────────────────────────────────────────────
+function renderCanvas(){
+  var canvas=document.getElementById("hudCanvas");
+  canvas.innerHTML="";
+  widgets.forEach(w=>{
+    var el=document.createElement("div");
+    el.className="widget"+(selectedId===w.id?" sel":"");
+    el.dataset.id=w.id;
+    el.style.cssText=`left:${w.x}px;top:${w.y}px;width:${w.width}px;height:${w.height}px;opacity:${w.visible===false?.3:1}`;
+
+    if(w.type==="separator"){
+      var line=document.createElement("div");
+      line.className="sep-line";
+      line.style.cssText=`height:${w.height||3}px;background:${w.color||"#004422"}`;
+      el.appendChild(line);
+    } else if(w.type==="photo"){
+      var ph=document.createElement("div");
+      var dim=Math.min(w.width,w.height);
+      ph.style.cssText=`width:${dim}px;height:${dim}px;border-radius:50%;border:2px solid ${w.color||"#00ff88"};display:flex;align-items:center;justify-content:center;font-size:${dim*0.4}px;background:rgba(0,255,136,0.1)`;
+      ph.textContent="👤";
+      el.appendChild(ph);
+    } else {
+      var def=DEFS[w.type]||DEFS.text;
+      var lbl=document.createElement("span");
+      lbl.className="wlabel";
+      lbl.style.cssText=`font-size:${w.font_size||16}px;color:${w.color||"#00ff88"};font-weight:${w.bold?"700":"400"};font-family:monospace;line-height:1.3;width:${w.width}px;display:block`;
+      lbl.textContent=w.custom_text||def.prev();
+      el.appendChild(lbl);
+    }
+
+    // Selection handles (corner dots)
+    var handles=document.createElement("div");
+    handles.className="sel-handles";
+    ["tl","tr","bl","br"].forEach(pos=>{
+      var sh=document.createElement("div");
+      sh.className="sh "+pos;
+      handles.appendChild(sh);
+    });
+    el.appendChild(handles);
+
+    // TAP to select (mobile-friendly, no drag needed)
+    el.addEventListener("click",e=>{e.stopPropagation();selectWidget(w.id);});
+    el.addEventListener("touchend",e=>{e.stopPropagation();selectWidget(w.id);},{passive:true});
+
+    canvas.appendChild(el);
+  });
+
+  // Click outside to deselect
+  canvas.onclick=()=>{selectedId=null;renderCanvas();renderList();hideProps();};
+}
+
+// ── Widget List ───────────────────────────────────────────────
+function renderList(){
+  var list=document.getElementById("widgetList");
+  if(!widgets.length){
+    list.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">Nenhum widget. Use os botões acima para adicionar.</div>';
+    return;
+  }
+  list.innerHTML=widgets.map((w,i)=>{
+    var def=DEFS[w.type]||DEFS.text;
+    return `<div class="witem${selectedId===w.id?" active":""}" onclick="selectWidget('${w.id}')">
+      <span class="wicon">${def.icon}</span>
+      <div class="wi">
+        <div class="wn">${def.label}${w.custom_text?' "'+esc(w.custom_text.slice(0,18))+'"':""}</div>
+        <div class="ws">${w.x}×${w.y} · ${w.width}×${w.height}px${w.visible===false?" · 🚫":""}</div>
+      </div>
+      <div class="wact">
+        <button onclick="event.stopPropagation();toggleVis('${w.id}')" title="${w.visible!==false?"Ocultar":"Mostrar"}">${w.visible!==false?"👁":"🚫"}</button>
+        <button onclick="event.stopPropagation();moveW('${w.id}',-1)" title="Subir">▲</button>
+        <button onclick="event.stopPropagation();moveW('${w.id}',1)" title="Descer">▼</button>
+        <button onclick="event.stopPropagation();dupW('${w.id}')" title="Duplicar">⧉</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+// ── Select / Props ────────────────────────────────────────────
+function selectWidget(id){
+  selectedId=id;
+  var w=widgets.find(x=>x.id===id);
+  if(!w){hideProps();return;}
+  var def=DEFS[w.type]||DEFS.text;
+  document.getElementById("propsSection").style.display="block";
+  document.getElementById("propsTitle").textContent="⚙ "+def.label;
+  document.getElementById("pX").value=w.x;
+  document.getElementById("pY").value=w.y;
+  document.getElementById("pW").value=w.width;
+  document.getElementById("pH").value=w.height;
+  document.getElementById("pFs").value=w.font_size||16;
+  document.getElementById("pFsN").value=w.font_size||16;
+  document.getElementById("pColor").value=w.color||"#00ff88";
+  document.getElementById("pBold").checked=!!w.bold;
+  document.getElementById("pText").value=w.custom_text||"";
+  document.getElementById("pVis").checked=w.visible!==false;
+  renderCanvas();renderList();
+  // Scroll to props
+  document.getElementById("propsSection").scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+function hideProps(){document.getElementById("propsSection").style.display="none";}
+
+function applyProp(key,val){
+  var w=widgets.find(x=>x.id===selectedId);if(!w)return;
+  snapshot();
+  w[key]=val;
+  renderCanvas();renderList();markDirty();
+}
+
+// ── Nudge ─────────────────────────────────────────────────────
+function nudge(dx,dy){
+  var w=widgets.find(x=>x.id===selectedId);if(!w)return;
+  var step=+document.getElementById("nudgeStep").value;
+  snapshot();
+  if(dx!==0){
+    w.x=Math.max(0,Math.min(480-w.width,w.x+dx*step));
+    document.getElementById("pX").value=w.x;
+  }
+  if(dy!==0){
+    w.y=Math.max(0,Math.min(640-w.height,w.y+dy*step));
+    document.getElementById("pY").value=w.y;
+  }
+  // Snap to grid if grid is on
+  if(showGrid){
+    var gs=20;
+    w.x=Math.round(w.x/gs)*gs;
+    w.y=Math.round(w.y/gs)*gs;
+    document.getElementById("pX").value=w.x;
+    document.getElementById("pY").value=w.y;
+  }
+  renderCanvas();renderList();markDirty();
+}
+function centerWidget(){
+  var w=widgets.find(x=>x.id===selectedId);if(!w)return;
+  snapshot();
+  w.x=Math.round((480-w.width)/2);
+  document.getElementById("pX").value=w.x;
+  renderCanvas();renderList();markDirty();
+}
+
+// ── Add Widget ────────────────────────────────────────────────
+function addWidget(type){
+  var def=DEFS[type]||DEFS.text;
+  var maxY=widgets.length?Math.max(...widgets.map(w=>w.y+w.height)):16;
+  snapshot();
+  var w={id:uid(),type,x:20,y:Math.min(maxY+8,460-def.dH),width:def.dW,height:def.dH,
+         font_size:def.dFs,color:"#00ff88",bold:type==="name",visible:true};
+  widgets.push(w);
+  selectWidget(w.id);
+  renderCanvas();renderList();markDirty();
+  document.getElementById("propsSection").scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+
+// ── Toggle Vis / Move / Dup ───────────────────────────────────
+function toggleVis(id){
+  var w=widgets.find(x=>x.id===id);if(!w)return;
+  snapshot();w.visible=w.visible===false;
+  renderCanvas();renderList();markDirty();
+}
+function moveW(id,dir){
+  var i=widgets.findIndex(x=>x.id===id);if(i<0)return;
+  var ni=i+dir;if(ni<0||ni>=widgets.length)return;
+  snapshot();[widgets[i],widgets[ni]]=[widgets[ni],widgets[i]];
+  renderCanvas();renderList();markDirty();
+}
+function dupW(id){
+  var w=widgets.find(x=>x.id===id);if(!w)return;
+  snapshot();
+  var nw={...w,id:uid(),x:w.x+20,y:w.y+20};
+  widgets.push(nw);
+  selectWidget(nw.id);
+  renderCanvas();renderList();markDirty();
+}
+function deleteSelected(){
+  if(!selectedId)return;
+  snapshot();
+  widgets=widgets.filter(x=>x.id!==selectedId);
+  selectedId=null;hideProps();renderCanvas();renderList();markDirty();
+}
+
+// ── Drag on Desktop ───────────────────────────────────────────
+(function(){
+  var canvas=document.getElementById("hudCanvas");
+  var ds=null;
+  function startDrag(e,id){
+    var el=e.target.closest(".widget");if(!el)return;
+    if(e.target.classList.contains("sh"))return; // resize handle — skip for now
+    selectWidget(id||el.dataset.id);
+    var w=widgets.find(x=>x.id===el.dataset.id);if(!w)return;
+    var rect=canvas.getBoundingClientRect();
+    var src=e.touches?e.touches[0]:e;
+    ds={id:w.id,ox:src.clientX/SCALE-w.x,oy:src.clientY/SCALE-w.y};
+    snapshot();
+    e.preventDefault();
+  }
+  function onMove(e){
+    if(!ds)return;
+    var src=e.touches?e.touches[0]:e;
+    var w=widgets.find(x=>x.id===ds.id);if(!w)return;
+    var nx=Math.round(src.clientX/SCALE-ds.ox);
+    var ny=Math.round(src.clientY/SCALE-ds.oy);
+    var gs=showGrid?20:1;
+    w.x=Math.max(0,Math.min(480-w.width,Math.round(nx/gs)*gs));
+    w.y=Math.max(0,Math.min(640-w.height,Math.round(ny/gs)*gs));
+    document.getElementById("pX").value=w.x;
+    document.getElementById("pY").value=w.y;
+    renderCanvas();
+    e.preventDefault();
+  }
+  function endDrag(){if(ds){renderList();markDirty();}ds=null;}
+  canvas.addEventListener("mousedown",startDrag);
+  window.addEventListener("mousemove",onMove);
+  window.addEventListener("mouseup",endDrag);
+  // Touch drag only on desktop-sized screens (>= 600px)
+  canvas.addEventListener("touchstart",e=>{
+    if(window.innerWidth>=600) startDrag(e);
+  },{passive:false});
+  canvas.addEventListener("touchmove",e=>{
+    if(window.innerWidth>=600) onMove(e);
+  },{passive:false});
+  canvas.addEventListener("touchend",endDrag);
+})();
+
+// ── Save ──────────────────────────────────────────────────────
+async function saveLayout(){
+  var name=document.getElementById("layoutName").value.trim()||"Layout";
+  var payload={name,is_default:document.getElementById("isDefault").checked,
+               background_opacity:bgOpacity,theme:"Dark",widgets:[...widgets]};
+  var btn=document.querySelector(".btn-save");btn.textContent="💾…";
+  try{
+    var r;
+    if(currentId){
+      r=await fetch(PROXY+"?id="+currentId+"&entity=FaceContextHUDLayout",
+        {method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    } else {
+      r=await fetch(PROXY+"?entity=FaceContextHUDLayout",
+        {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    }
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    var saved=await r.json();
+    currentId=saved.id;
+    var idx=layouts.findIndex(l=>l.id===saved.id);
+    if(idx>=0)layouts[idx]=saved;else layouts.push(saved);
+    localStorage.setItem("fc_hl",JSON.stringify(layouts));
+    renderLayoutBar();dirty=false;
+    toast("Layout salvo! ✅","ok");
+  }catch(e){toast("Erro: "+e.message,"err");}
+  finally{btn.textContent="💾";}
+}
+
+// ── Layouts modal ─────────────────────────────────────────────
+function openLayouts(){
+  var el=document.getElementById("lcards");
+  if(!layouts.length){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">Nenhum layout ainda.</div>';}
+  else el.innerHTML=layouts.map((l,i)=>`
+    <div class="lcard${currentId===l.id?" active":""}" onclick="loadLayout(layouts[${i}]);closeOv('layoutsOv')">
+      <div class="lci"><div class="lcn">${esc(l.name)}${l.is_default?" ★":""}</div>
+        <div class="lcs">${(l.widgets||[]).length} widgets · BG ${l.background_opacity||0}%</div></div>
+      <button class="btn-ldel" onclick="event.stopPropagation();deleteLayout('${l.id}')">🗑</button>
+    </div>`).join("");
+  document.getElementById("layoutsOv").classList.add("open");
+}
+async function deleteLayout(id){
+  if(!confirm("Excluir este layout?"))return;
+  try{
+    await fetch(PROXY+"?id="+id+"&entity=FaceContextHUDLayout",{method:"DELETE"});
+    layouts=layouts.filter(l=>l.id!==id);
+    if(currentId===id){currentId=null;newLayout();}
+    localStorage.setItem("fc_hl",JSON.stringify(layouts));
+    openLayouts();renderLayoutBar();toast("Excluído","");
+  }catch(e){toast("Erro","err");}
+}
+function closeOv(id){document.getElementById(id).classList.remove("open");}
+document.querySelectorAll(".overlay").forEach(o=>{
+  o.addEventListener("click",e=>{if(e.target===o)o.classList.remove("open");});
+});
+
+// ── Keyboard shortcuts ────────────────────────────────────────
+document.addEventListener("keydown",e=>{
+  if(e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA")return;
+  if((e.metaKey||e.ctrlKey)&&e.key==="z"&&!e.shiftKey){e.preventDefault();undo();}
+  else if((e.metaKey||e.ctrlKey)&&(e.key==="y"||(e.key==="z"&&e.shiftKey))){e.preventDefault();redo();}
+  else if(e.key==="ArrowLeft") nudge(-1,0);
+  else if(e.key==="ArrowRight")nudge(1,0);
+  else if(e.key==="ArrowUp")   nudge(0,-1);
+  else if(e.key==="ArrowDown") nudge(0,1);
+  else if(e.key==="Delete"||e.key==="Backspace") deleteSelected();
+});
+
+// ── Warn before leave ─────────────────────────────────────────
+window.addEventListener("beforeunload",e=>{if(dirty){e.preventDefault();e.returnValue="";}});
+
+// ── Simulate real-world BG ─────────────────────────────────────
+var simBG = false;
+function toggleSimBG(){
+  simBG=!simBG;
+  var btn=document.getElementById("btnSimBG");
+  var wrap=document.getElementById("prevBox");
+  btn.style.background=simBG?"rgba(0,255,136,0.25)":"rgba(0,255,136,0.1)";
+  // Fundo simulando "mundo real" — pessoas numa sala
+  wrap.style.backgroundImage=simBG
+    ? "url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22480%22 height=%22640%22><rect width=%22480%22 height=%22640%22 fill=%22%23334155%22/><rect x=%220%22 y=%22400%22 width=%22480%22 height=%22240%22 fill=%22%231e293b%22/><circle cx=%22240%22 cy=%22280%22 r=%22120%22 fill=%22%2264748b%22 opacity=%220.4%22/><text x=%22120%22 y=%22620%22 fill=%22%2394a3b8%22 font-size=%2214%22>mundo real simulado</text></svg>')"
+    : "none";
+  wrap.style.backgroundSize="cover";
+}
+
+// ── Init ──────────────────────────────────────────────────────
+calcScale();
+loadLayouts();
+</script>
+</body>
+</html>
