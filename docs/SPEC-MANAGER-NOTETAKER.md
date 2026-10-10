@@ -98,6 +98,8 @@ Com 3 ou mais rostos estáveis no quadro, ou sem um rosto dominante, o app não 
 
 ## Privacidade e bloqueio (10/10)
 
+> Capítulo completo (manifesto, ameaças, criptografia, retenção, autodestruição, situações sensíveis, ajustes): `docs/PRIVACIDADE-E-SEGURANCA.md`.
+
 Os óculos gravam a sua vida, inclusive momentos íntimos. Se outra pessoa colocar os óculos, o VisualContext não pode funcionar.
 
 **Bloqueio:**
