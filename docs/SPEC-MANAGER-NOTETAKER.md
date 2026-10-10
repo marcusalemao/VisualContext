@@ -49,6 +49,7 @@ O VisualContext não é só sobre pessoas. O MVP terá três skills de memória,
 | **Rosto** | encontros com pessoas | identidade, dossiê e linha do tempo (acima) |
 | **Chave** (de casa) | onde a chave foi vista por último | foto do último frame em que apareceu, descrição ("em cima da mesa da sala") e quando |
 | **Veículo** (moto, carro) | onde ficou estacionado | foto do último frame, rua, distância e quando, mais a ação **mostrar no mapa / navegar** |
+| **"Registra isso"** (qualquer coisa) | papel, receita, cardápio, documento, placa: o que você estiver olhando quando falar | foto, título dado pela IA ("RECEITA · Dr. Silva") e hora; texto completo lido por OCR |
 
 - **Pergunta por voz:** "Onde deixei minha moto?" faz o HUD mostrar o card do veículo.
 - **Navegação delegada:** o VisualContext não navega. "Mostrar no mapa" entrega o destino pra navegação nativa ou pro Rokid-GMaps do Anezium, conforme o princípio de registro, não executor.
@@ -58,6 +59,21 @@ O VisualContext não é só sobre pessoas. O MVP terá três skills de memória,
 ### Skills criadas por frase natural (sem prompt)
 
 O usuário só fala, por exemplo: *"Essa é a minha moto, lembra dela."* A IA entende sozinha a intenção ("lembrar onde foi visto por último") e cria a skill: a assinatura visual do objeto e o que guardar (frame, GPS, descrição do lugar). No app do celular, uma página de configurações lista as skills aprendidas, com frases de exemplo. A chave e a moto já vêm prontas no MVP.
+
+### "Registra isso" (10/10)
+
+- Você olha pra algo e fala **"Registra isso"**. Os óculos tiram a foto, leem o texto (OCR) e a IA dá um título e um resumo curto.
+- O resultado vira um registro na lista ÚLTIMOS REGISTROS, nos óculos e no emulador.
+- **No Manager:** foto e texto completo, mais as ações de enviar pro destino que o usuário escolher nos conectores:
+
+| Destino | Situação (até onde sabemos) |
+|---|---|
+| Google Tasks | API aberta: funciona |
+| Notion / Google Docs | funcionam |
+| Google Keep | API só pra contas Google Workspace (empresa), não pra Gmail pessoal |
+| Notas do Mac/iPhone | sem API pública; caminho via Atalho (Shortcuts) que recebe o texto |
+
+- Receitas e documentos podem ter dados de saúde e dados pessoais. Esses registros só devem ser guardados depois da correção de segurança do backend.
 
 ### Como reconhecer o que é seu (proposta)
 
