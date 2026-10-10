@@ -871,7 +871,7 @@ function onSpeech(text) {
   log('“' + text + '”');
   var found = detectNameFull(text, { bare: Date.now() - _enc.startedAt < 30000 });
   var nm = found ? found.name : '';
-  var fix = (_enc.person && !isUnnamed(_enc.person) && !_enc.namedHere) ? spellingFix(text, _enc.person.name) : '';
+  var fix = (_enc.person && !isUnnamed(_enc.person)) ? spellingFix(text, _enc.person.name) : '';
   if (fix) renamePerson(_enc.person, fix);                      // "Marcus com u": spelling confirmed
   else if (nm && _enc.person && (isUnnamed(_enc.person) || _enc.namedHere)) {   // a later correction in the same encounter wins
     renamePerson(_enc.person, nm, found.alias);
@@ -992,12 +992,29 @@ function lev(a, b) {
     d[i][j] = Math.min(d[i-1][j] + 1, d[i][j-1] + 1, d[i-1][j-1] + (a[i-1] === b[j-1] ? 0 : 1));
   return d[a.length][b.length];
 }
+// "é Marcos, com U" / "Marcus com u" / "Luiz com S": fix the spelling of the current first name.
+// Speech output is often lowercase, and the spoken word may still be the OLD spelling — then the letter decides.
+var SWAPS = { u:['o'], o:['u'], y:['i'], i:['y','e'], e:['i'], z:['s'], s:['z','ç'], k:['c'], c:['k','s'], w:['v','u'], h:[''], l:[''], n:[''], t:[''] };
 function spellingFix(text, current) {
-  var c = CUE_SPELL.exec(String(text || ''));
-  if (!c || !current) return '';
-  var w = current.split(/\s+/), spelled = c[1];
-  if (w[0] === spelled || w[0][0].toLowerCase() !== spelled[0].toLowerCase() || lev(w[0], spelled) > 2) return '';
-  w[0] = spelled;
+  if (!current) return '';
+  var w = current.split(/\s+/), first = w[0], re = /([A-Za-zÀ-ÿ'’-]{2,})\s*,?\s+com\s+(?:(dois|duas|two)\s+)?([A-Za-zÀ-ú])(?![\wÀ-ÿ])/gi, m, best = '';
+  while ((m = re.exec(String(text || '')))) {
+    var word = titleCase(m[1].toLowerCase()), L = m[3].toLowerCase(), dbl = !!m[2];
+    if (word[0].toLowerCase() !== first[0].toLowerCase() || lev(word, first) > 2) continue;
+    var has = dbl ? word.toLowerCase().indexOf(L + L) >= 0 : word.toLowerCase().indexOf(L) >= 0;
+    if (has) { best = word; continue; }
+    // the spoken word lacks the letter: change the current spelling so it has it (Marcos + u → Marcus)
+    var low = first.toLowerCase(), cand = '';
+    if (dbl && low.indexOf(L) >= 0) { var k = low.lastIndexOf(L); cand = first.slice(0, k) + L + first.slice(k); }
+    else (SWAPS[L] || []).some(function(from){
+      if (from === '') return false;
+      var k = low.lastIndexOf(from);
+      if (k > 0) { cand = first.slice(0, k) + L + first.slice(k + from.length); return true; }
+    });
+    if (cand) best = cand;
+  }
+  if (!best || best === first) return '';
+  w[0] = best;
   return w.join(' ');
 }
 // Title on the display: the name, or — until there is one — a short accessible description.
@@ -1177,7 +1194,10 @@ function summarize(transcript, personName) {
     method:'POST', headers:{'Content-Type':'application/json'},
     body:JSON.stringify({ action:'ai_summary', transcript: transcript, person_name: personName, lang: VC_I18N.lang })
   }).then(function(r){ return r.json(); })
-    .then(function(d){ return (d && d.summary) || ''; })
+    .then(function(d){
+      if (!d || !d.summary || d.error || d.model === 'fallback') { if (d && d.error) log('⚠ AI summary unavailable: ' + String(d.error).slice(0, 80), true); return ''; }
+      return d.summary;
+    })
     .catch(function(){ return ''; });
 }
 
@@ -1893,6 +1913,18 @@ document.addEventListener('visibilitychange', function() {
   if (dead) { log('camera died in background — restarting…'); camStream = null; startCam(true); }
 });
 
+// Refresh/close while recording: save the transcript right away (no summary — there's no time).
+window.addEventListener('pagehide', function(){
+  var e = _enc;
+  if (!e || !e.person || !e.person.id || !(_state === 'recording') || !e.transcript.length) return;
+  try {
+    var start = new Date(e.recordingSince || e.startedAt);
+    fetch(PROXY + '?entity=FaceContextEncounter', { method:'POST', keepalive:true, headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ person_id:e.person.id, person_name:e.person.name, date:start.toISOString(),
+        context: t('d_conv', { m: Math.max(1, Math.round((Date.now() - start.getTime()) / 60000)) }), capture_mode:'presencial',
+        speech_captured: e.transcript.join('\n'), notes:'', ocr_captured:'' }) });
+  } catch (err) {}
+});
 function stopCam() {
   _lastFaceAt = 0;
   if (_enc) endEncounter(_state === 'recording' ? 'finished' : 'stop');
