@@ -152,6 +152,13 @@ O VisualContext não é só sobre pessoas. O MVP terá quatro skills de memória
 - **Não é standalone (decidido em 10/10).** Os óculos precisam estar conectados ao celular por Bluetooth, como a maioria dos apps. É do celular que vêm o GPS e o processamento pesado.
 - **A foto do objeto é guardada.** Isso faz parte do cadastro do objeto: guarda-se o recorte do objeto, e só o último.
 
+### Trajeto e localização: o que dá para pegar do Google Maps (10/10)
+
+- **O histórico do Google Maps (Linha do tempo) não tem API.** Desde 2024–2025 ele fica **só no celular** (com backup criptografado opcional), e não há acesso programático nem em tempo real.
+- **Passado:** importação **manual, uma vez**. O usuário vai em Ajustes → Local → Serviços de localização → Linha do tempo → *Exportar dados da Linha do tempo*, gera um **.json** e importa no Manager. O VisualContext lê as visitas e os trajetos e cruza com encontros ("com quem você estava no dia 12/03 no MASP").
+- **Tempo real:** o **nosso app** registra a própria localização no celular (Fused Location) e reconhece atividades (veículo → caminhando = **moto estacionada**, que é o que o próprio Google Maps faz para "lugar onde estacionou"). Fica tudo no aparelho, criptografado, com a mesma retenção do capítulo de privacidade.
+- **Navegar até a moto:** o app abre o **Google Maps** já com o destino (link `google.navigation:q=lat,lng&mode=w`), e o plugin **Navigation do Nexus** mostra as curvas no HUD. Não reinventamos navegação.
+
 ### Skills criadas por frase natural (sem prompt)
 
 O usuário só fala, por exemplo: *"Essa é a minha moto, lembra dela."* A IA entende sozinha a intenção ("lembrar onde foi visto por último") e cria a skill: a assinatura visual do objeto e o que guardar (frame, GPS, descrição do lugar). No app do celular, uma página de configurações lista as skills aprendidas, com frases de exemplo. A chave e a moto já vêm prontas no MVP.
