@@ -61,15 +61,16 @@ Status: proposal (10/10). Decided: privacy by default; the most sensitive guards
 
 **Privacy by default (decided 10/10):** everything starts on.
 - **Lighter guards** (health, chosen places, card masking) can be turned off in normal Settings.
-- **The most sensitive guards** (bathroom, nudity/intimacy, children) can only be turned off in **Developer mode**, following the Rokid Nexus pattern: a hidden switch that reveals advanced details. They exist there for testing.
+- **The most sensitive guards** (bathroom, sexual intimacy, automatic enrollment of children) can only be turned off in **Developer mode**, following the Rokid Nexus pattern: a hidden switch that reveals advanced details. They exist there for testing.
   - A guard turned off in Developer mode **turns itself back on after 1 hour**.
   - While any guard is off, the status line shows **DEV**, so you never forget.
 
 | Situation | What happens | How it's detected |
 |---|---|---|
 | Bathroom, locker room, shower | Camera and microphone pause, pre-roll discarded | On-device image labels (toilet, urinal, shower) |
-| Nudity / intimacy | Immediate pause, pre-roll discarded, nothing goes to the cloud | On-device nudity classifier |
-| Children | Never enrolled automatically. A child's face is only saved by hand. | Age estimate under 18 |
+| Nudity (a child at the pool, the beach) | The moment is kept **as text only**: a neutral scene description ("the kids running around the pool"), with no body or sexual detail. **No image of that moment is ever saved.** | On-device nudity classifier |
+| Sexual intimacy | Immediate pause, pre-roll discarded, nothing recorded | Same classifier + context |
+| Children | Moments with children are recorded like any other. Only **automatic face enrollment** of a child is blocked: your own children you add once by hand ("esse é o meu filho"), and a stranger's child at the park never becomes a record. | Age estimate under 18 |
 | Cards, passwords, documents on screen or paper | Numbers are masked before saving ("Registra isso", OCR) | Card/password/ID patterns |
 | Health, clinic, therapy | Option: keep only locally, never send to cloud AI | Place (calendar/GPS) or topic in the conversation |
 | Places you choose | Never record at home, at the doctor's, in a temple, etc. | Your geofences |
@@ -86,7 +87,7 @@ Status: proposal (10/10). Decided: privacy by default; the most sensitive guards
 
 ### 8. Settings (Privacy page in the app)
 
-- **Sensitive situations:** all on by default. Light ones toggle here; bathroom, nudity and children only in Developer mode (they return after 1 h).
+- **Sensitive situations:** all on by default. Light ones toggle here; bathroom, sexual intimacy and automatic enrollment of children only in Developer mode (they return after 1 h).
 - **Retention:** transcript (7 / 30 / 90 days / forever), people without a name (7 / 14 / 30 days).
 - **Cloud:** off / encrypted backup only / Pro.
 - **AI:** on the phone (Gemini Nano) / my key / Pro.
@@ -157,15 +158,16 @@ Status: proposta (10/10). Decidido: privacidade por padrão; as proteções mais
 
 **Privacidade por padrão (decidido em 10/10):** tudo começa ligado.
 - **Proteções mais leves** (saúde, lugares escolhidos, máscara de cartão) se desligam nos Ajustes normais.
-- **As proteções mais sensíveis** (banheiro, nudez/intimidade, crianças) só se desligam no **modo desenvolvedor**, no padrão do Rokid Nexus: uma chave escondida que revela detalhes avançados. Elas ficam lá para testes.
+- **As proteções mais sensíveis** (banheiro, intimidade sexual, cadastro automático de crianças) só se desligam no **modo desenvolvedor**, no padrão do Rokid Nexus: uma chave escondida que revela detalhes avançados. Elas ficam lá para testes.
   - Uma proteção desligada no modo desenvolvedor **volta a ligar sozinha depois de 1 hora**.
   - Enquanto alguma estiver desligada, a linha de status mostra **DEV**, para ninguém esquecer.
 
 | Situação | O que acontece | Como é detectado |
 |---|---|---|
 | Banheiro, vestiário, chuveiro | Câmera e microfone pausam; a pré-gravação é descartada | Rótulos de imagem no aparelho (vaso, mictório, chuveiro) |
-| Nudez / intimidade | Pausa imediata; pré-gravação descartada; nada vai para a nuvem | Classificador de nudez no aparelho |
-| Crianças | Nunca cadastradas automaticamente. O rosto de uma criança só entra por cadastro manual. | Idade estimada abaixo de 18 |
+| Nudez (criança na piscina, na praia) | O momento fica **só como texto**: uma descrição neutra da cena ("as crianças correndo em volta da piscina"), sem nenhum detalhe de corpo ou sexual. **Nenhuma imagem desse momento é guardada.** | Classificador de nudez no aparelho |
+| Intimidade sexual | Pausa imediata, pré-gravação descartada, nada é registrado | Mesmo classificador + contexto |
+| Crianças | Momentos com crianças são registrados como qualquer outro. Só o **cadastro automático do rosto** de uma criança é bloqueado: os seus filhos você cadastra uma vez, à mão ("esse é o meu filho"), e o filho de um estranho no parque nunca vira registro. | Idade estimada abaixo de 18 |
 | Cartões, senhas, documentos na tela ou no papel | Os números são mascarados antes de salvar ("Registra isso", OCR) | Padrões de cartão, senha e documento |
 | Saúde, clínica, terapia | Opção: guardar só no aparelho, nunca mandar para a IA na nuvem | Local (agenda/GPS) ou assunto da conversa |
 | Lugares que você escolher | Nunca grava em casa, no médico, no templo etc. | As suas cercas geográficas |
@@ -182,7 +184,7 @@ Status: proposta (10/10). Decidido: privacidade por padrão; as proteções mais
 
 ### 8. Ajustes (página Privacidade no app)
 
-- **Situações sensíveis:** todas ligadas por padrão. As leves se desligam aqui; banheiro, nudez e crianças só no modo desenvolvedor (voltam depois de 1 h).
+- **Situações sensíveis:** todas ligadas por padrão. As leves se desligam aqui; banheiro, intimidade sexual e cadastro automático de crianças só no modo desenvolvedor (voltam depois de 1 h).
 - **Retenção:** transcrição (7 / 30 / 90 dias / sempre), pessoas sem nome (7 / 14 / 30 dias).
 - **Nuvem:** desligada / só backup criptografado / Pro.
 - **IA:** no celular (Gemini Nano) / minha chave / Pro.

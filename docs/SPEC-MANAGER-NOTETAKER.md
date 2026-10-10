@@ -180,6 +180,23 @@ Ter foto antes do primeiro encontro pré-alimenta o reconhecimento, e é muito i
 | LinkedIn: raspagem automática | não fazer | viola os termos e arrisca bloquear a conta |
 | **Print do perfil → Manager** | sim | o Manager acha o rosto no print, recorta e associa ao contato (spec C: pré-cadastro com foto externa) |
 
+## Manager · página inicial = "Pergunte qualquer coisa" (10/10)
+
+Por padrão, a página inicial do Manager é limpa: **um campo de texto**, como no Claude ou no Gemini. Você pergunta em linguagem natural e a IA responde com base na sua memória, mostrando de onde tirou cada resposta (qual encontro, qual dia). Exemplos:
+
+- "Com quem eu almocei ontem?"
+- "Quais amigos eu não vejo há mais de 3 meses?"
+- "O que a Carla me contou do emprego novo?"
+- "Onde deixei a moto?"
+
+**Catálogo opcional:** para quem prefere navegar, existe a lista de pessoas, encontros e registros, com campos fechados e filtros. Ele fica um clique abaixo, não na frente.
+
+**Invocar, não vigiar:** a memória aparece quando você pede (pergunta no Manager, "mostre os últimos encontros") ou quando reencontra alguém. Fora isso, fica quieta.
+
+**Fotos:** sempre **um único frame por pessoa**, para reconhecer o rosto e mostrar "visto pela última vez". Um momento (como as crianças na piscina) vira **só uma descrição da cena**, sem imagem.
+
+**Para o Beto (backend):** ação `ask_memory` no fcProxy. Ela recebe a pergunta e busca nos encontros e nas pessoas (por texto e, depois, por embeddings). Responde com as fontes. Mesmo modelo e mesma chave do `analyze_encounter`.
+
 ## Manager · página do encontro
 
 | Bloco | Conteúdo |
