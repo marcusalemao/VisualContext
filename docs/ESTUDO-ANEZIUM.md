@@ -40,7 +40,8 @@ How each VisualContext need maps onto Nexus:
 
 - **Glance card (name, photo, relation, headline)**
   - **Nexus primitive:** card surface (≤64 rows, title ≤120) or a compiled **Ink** page (view/text/scroll-view, data binding, tap actions); photo through the **image surface**.
-  - **Note:** Ink `image` is still a placeholder (no asset transfer), so a photo plus Ink in one page is not possible yet.
+  - **Note:** photos on the HUD work today. Marcus sees them daily in Relay: the **notice band** carries text plus a photo (full width under the title, ≤150 px tall), and the **image surface** shows a full picture. Any image turns green automatically. Only the *Ink* page format cannot embed a photo yet.
+  - **Best path (Marcus's insight):** the phone **draws the whole card as one monochrome image**, with the same component as the emulator and dashboard, and sends it through the image surface (≤512×512, ≤64 KiB, at 480 px wide it is 1:1 and crisp). That gives a pixel-exact HUD = dashboard preview, which is one of our fixed rules. Swipe and tap still arrive as input events, so the plugin redraws the image on each move (≥150 ms apart, fine for a timeline).
 - **"RECORDING" pill**
   - **Nexus primitive:** **Live activity**: primary ≤12 chars, secondary ≤28, ≤3 actions (e.g. "Cancel"); survives the surface closing.
   - **Note:** this is exactly our pill-outside-the-card idea, in native form.
@@ -104,7 +105,7 @@ His roadmap literally says some features are deferred "until a consumer needs it
 1. **Continuous speech** (his deferred item): a held lease with streaming partials. We bring the use case and the test plan.
 2. **Headless camera snapshot**: a `camera.snapshot` capability that returns one still *without* opening the viewfinder session. That turns the ~5 s cold open into a sub-second glance, and every visual plugin (FoodFacts, visual assistant) gains from it.
 3. **Low-fps sentinel**: an opt-in hub-side "face present" event (on-glasses ML Kit detection, no pixels leave), so plugins can react without streaming video. Privacy-preserving by design: only a boolean and a bounding box cross the bus.
-4. **Ink image assets**: real photos inside Ink pages, so our card (photo + text + timeline) is one native page.
+4. **Ink image assets**: real photos inside Ink pages. Nice to have only, because the rendered-image card (§3) already works without it.
 5. **Worn-state lock as a platform policy**: "plugin data sealed while the glasses are off-face". We already need it; others (OTPs, Relay) benefit too.
 6. **People as a shared skill**: once his "Skills for Assistant" (Next #1) ships, VisualContext exposes `who_is_this` / `last_seen(person)` so the Assistant can answer "who is she?" without becoming a face app.
 
@@ -158,7 +159,8 @@ Como cada necessidade do VisualContext se encaixa no Nexus:
 
 - **Card de relance (nome, foto, relação, headline)**
   - **Primitiva Nexus:** card (≤64 linhas, título ≤120) ou página **Ink** compilada (view/text/scroll-view, data binding, ações de toque); a foto vai pela **superfície de imagem**.
-  - **Observação:** `image` no Ink ainda é placeholder (sem envio de arquivo), então foto e Ink na mesma página ainda não dá.
+  - **Observação:** foto no HUD já funciona hoje. O Marcus vê isso todo dia no Relay: a **faixa de notificação** leva texto mais foto (largura toda, embaixo do título, até 150 px de altura), e a **superfície de imagem** mostra a figura inteira. Qualquer imagem vira verde sozinha. Só o formato de página *Ink* ainda não aceita foto embutida.
+  - **Melhor caminho (sacada do Marcus):** o celular **desenha o card inteiro como uma imagem monocromática**, com o mesmo componente do emulador e do dashboard, e manda pela superfície de imagem (≤512×512, ≤64 KiB; com 480 px de largura fica 1:1 e nítido). Assim o HUD fica idêntico, pixel a pixel, ao preview do dashboard, que é uma das nossas regras fixas. Deslizar e tocar continuam chegando como eventos, e o plugin redesenha a imagem a cada movimento (com 150 ms de intervalo mínimo, suficiente para uma linha do tempo).
 - **Pílula "GRAVANDO"**
   - **Primitiva Nexus:** **Live activity**: primário ≤12 caracteres, secundário ≤28, até 3 ações (ex.: "Cancelar"); sobrevive ao fechamento da superfície.
   - **Observação:** é exatamente nossa ideia da pílula fora do card, em versão nativa.
@@ -222,7 +224,7 @@ O roadmap dele diz literalmente que algumas coisas estão adiadas "até um consu
 1. **Fala contínua** (item adiado dele): lease mantido com resultados parciais em streaming. Nós trazemos o caso de uso e o plano de teste.
 2. **Foto da câmera sem visor**: uma capacidade `camera.snapshot` que devolve uma foto *sem* abrir a sessão com visor. Transforma a abertura a frio de ~5 s num relance de menos de 1 s, e todo plugin visual (FoodFacts, assistente visual) ganha.
 3. **Sentinela de baixa taxa**: evento opcional "tem rosto na frente" gerado no hub (ML Kit nos óculos, nenhum pixel sai), para plugins reagirem sem transmitir vídeo. Privado por design: só um booleano e uma caixa delimitadora passam pelo barramento.
-4. **Imagens no Ink**: fotos reais dentro de páginas Ink, para nosso card (foto + texto + linha do tempo) ser uma página nativa só.
+4. **Imagens no Ink**: fotos reais dentro de páginas Ink. É só um extra, porque o card desenhado como imagem (§3) já funciona sem isso.
 5. **Trava por "óculos no rosto" como política da plataforma**: "dados do plugin lacrados com os óculos fora do rosto". Nós já precisamos disso; outros plugins (OTPs, Relay) ganham também.
 6. **Pessoas como skill compartilhada**: quando o "Skills for Assistant" dele (item 1 do Next) sair, o VisualContext expõe `quem_é` / `última_vez(pessoa)` e o Assistant responde "quem é ela?" sem virar um app de rosto.
 
