@@ -513,7 +513,17 @@ var _lastFaceAt = 0;
 var _tickTimer = null;
 
 function dist(a, b) { return faceapi.euclideanDistance(a, b); }
-function isSuppressed(desc) { return _suppressed.some(function(d){ return dist(desc, d) < SAME_FACE; }); }
+// A "no" lasts while the person stays in front of you. Once the face has been gone for
+// SUPPRESS_GONE_MS, the next time you see them is a new encounter (no page reload needed).
+var SUPPRESS_GONE_MS = 10000;
+function suppress(desc) { var d = new Float32Array(desc); d._seen = Date.now(); _suppressed.push(d); }
+function isSuppressed(desc) {
+  var now = Date.now();
+  _suppressed = _suppressed.filter(function(d){ return now - (d._seen || 0) < SUPPRESS_GONE_MS; });
+  var hit = false;
+  _suppressed.forEach(function(d){ if (dist(desc, d) < SAME_FACE) { d._seen = now; hit = true; } });
+  return hit;
+}
 
 function bestMatch(descriptor) {
   if (!_descriptors.length) return null;
@@ -663,7 +673,7 @@ function endEncounter(reason) {
   if (reason === 'finished' && e.kind === 'known' && e.person && e.person._legacyPhoto && e.bestFrame) replacePhoto(e.person, cropFaceCircle(e.bestFrame, e.bestBox));
   e.bestFrame = null;   // full frame dropped — only the circular face photo is ever kept
   if (reason === 'cancel') {
-    _suppressed.push(e.anchor);
+    suppress(e.anchor);
     log('✗ cancelled — nothing saved, won\'t ask about this face again (Tap saves it anyway)', true);
     setStatus('s_notrec');
   } else if (reason === 'finished') {
@@ -714,7 +724,7 @@ function gestureDoubleTap() {   // native "back"
     return;
   }
   if (_state === 'recording') { stopRecording(); return; }
-  if (_state === 'buffer') { endEncounter('stop'); if (_lastMatchDescriptor) _suppressed.push(new Float32Array(_lastMatchDescriptor)); return; }
+  if (_state === 'buffer') { endEncounter('stop'); if (_lastMatchDescriptor) suppress(_lastMatchDescriptor); return; }
   dismissHUD();
 }
 
@@ -879,6 +889,7 @@ function renamePerson(p, name) {
   _profiles.forEach(function(x){ if (x.id === p.id) x.name = name; });
   log('✓ name heard: ' + old + ' → ' + name, true);
   if (_currentProfile && _currentProfile.id === p.id) document.getElementById('hud-name').textContent = name;
+  else if (_enc && _enc.person && _enc.person.id === p.id && !_review) showProfile(p, null, 'glance');   // name just heard: the card appears now
   if (p.id) fetch(PROXY + '?id=' + p.id + '&entity=FaceContextPerson', {
     method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ name: name })
   }).catch(function(){});
