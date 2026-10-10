@@ -85,9 +85,8 @@ html,body{background:#000;height:100%;overflow:hidden;font-family:monospace;colo
 #hl-items::-webkit-scrollbar-thumb{background:#00aa55;border-radius:2px}
 .hl-item{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:6px;border:1px solid transparent;cursor:pointer;margin-bottom:2px}
 .hl-item.focus{border-color:rgba(0,255,136,.5);background:rgba(0,255,136,.06)}
-.hl-ph,.hl-ini{width:34px;height:34px;border-radius:4px;flex-shrink:0;border:1px solid rgba(0,255,136,.4)}
+.hl-ph{width:34px;height:34px;border-radius:4px;flex-shrink:0;border:1px solid rgba(0,255,136,.4)}
 .hl-ph{object-fit:cover;filter:grayscale(1) sepia(1) hue-rotate(80deg) saturate(4) brightness(.85)}
-.hl-ini{display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:bold;color:#00aa55}
 .hl-txt{min-width:0}
 .hl-name{font-size:13px;font-weight:bold;color:#00ff88;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hl-when{font-size:10px;color:#00aa55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -602,11 +601,16 @@ function startRecording() {
   render();
 }
 
+// Rule (Marcus, 10/10): an encounter without a photo does not exist. People are recognised by
+// their face, so every saved person carries a real face photo — never a placeholder.
+function hasPhoto(p) { return !!(p && p.photo_url && !/ui-avatars\.com/.test(p.photo_url)); }
+
 // Countdown reached 0: save the new person, keep recording
 function confirmNewPerson() {
   _state = 'saving';
   render();
-  var photo = _enc.bestFrame ? cropFaceCircle(_enc.bestFrame, _enc.bestBox) : captureFacePhoto();
+  var photo = (_enc.bestFrame ? cropFaceCircle(_enc.bestFrame, _enc.bestBox) : null) || captureFacePhoto();
+  if (!photo) { log('⚠ no face photo — nothing saved (an encounter without a photo does not exist)', true); return endEncounter('error'); }
   _enc.torso = _enc.bestFrame ? cropTorso(_enc.bestFrame, _enc.bestBox) : null;
   _enc.clothing = _enc.torso ? describeClothing(_enc.torso) : null;
   createPerson(meanDescriptor(_enc.samples), photo, 'auto', function(p){
@@ -809,7 +813,7 @@ function nextUnknownName() {
 }
 
 function createPerson(emb, photo, mode, cb) {
-  if (!emb || !Array.isArray(emb) || emb.length !== 128) { cb(null); return; }
+  if (!emb || !Array.isArray(emb) || emb.length !== 128 || !photo) { cb(null); return; }
   var name = nextUnknownName();
   var body = {
     name: name, status: 'Identificado', face_embedding: JSON.stringify(emb),
@@ -888,6 +892,7 @@ function manualCapture() {
     photo: (frame && box) ? cropFaceCircle(frame, box) : null,
     torso: (frame && box) ? cropTorso(frame, box) : null
   };
+  if (!_preview.photo) { _preview = null; log('● no usable face photo — try again', true); return; }
   _previewOpen = true;
   renderPreview();
   log('● photo preview — Tap to save, Swipe forward to discard', true);
@@ -1290,7 +1295,7 @@ function openReview() {
       .map(function(e){
         var person = _profiles.filter(function(p){ return p.id === e.person_id || (e.person_name && p.name === e.person_name); })[0];
         return { enc:e, person:person };
-      }).filter(function(it){ return it.person; });
+      }).filter(function(it){ return hasPhoto(it.person); });   // legacy records without a photo stay out
     _review.loading = false;
     renderReview();
   })
@@ -1304,9 +1309,6 @@ function shortName(name) {
   if (w.length < 2) return w[0] || '';
   return w[0] + ' ' + w[w.length - 1][0] + '.';
 }
-function initials(name) {
-  return String(name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(function(w){ return w[0]; }).join('').toUpperCase();
-}
 
 function renderReview() {
   var box = document.getElementById('hud-list');
@@ -1317,9 +1319,7 @@ function renderReview() {
   if (!_review.loading && !_review.items.length) html = '<div class="hl-empty">' + t('list_empty') + '</div>';
   _review.items.slice(0, _review.shown).forEach(function(it, i){
     var d = relDate(new Date(it.enc.date));
-    var ph = it.person.photo_url && !/ui-avatars\.com/.test(it.person.photo_url)
-      ? '<img class="hl-ph" src="' + esc(it.person.photo_url) + '" alt="">'
-      : '<div class="hl-ini">' + esc(initials(it.person.name)) + '</div>';
+    var ph = '<img class="hl-ph" src="' + esc(it.person.photo_url) + '" alt="">';
     html += '<div class="hl-item' + (i === _review.focus ? ' focus' : '') + '" data-i="' + i + '">' + ph +
       '<div class="hl-txt"><div class="hl-name">' + esc(shortName(it.person.name)) + '</div>' +
       '<div class="hl-when">' + esc(d[0] + (d[1] ? ' ' + d[1] : '')) + '</div></div></div>';
