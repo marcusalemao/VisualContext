@@ -38,27 +38,47 @@ html,body{background:#000;height:100%;overflow:hidden;font-family:monospace;colo
 /* ── HUD overlay — everything on top of the camera ── */
 #hud{position:absolute;inset:0;pointer-events:none;display:none}
 
-/* Profile card — top left */
+/* Person card — top left. Monochrome: green on black transparency only. */
 #hud-card{
-  position:absolute; top:14px; left:14px;
-  background:rgba(0,0,0,0.55);
-  border:1px solid rgba(0,255,136,0.35);
-  border-radius:8px; padding:10px 14px;
-  min-width:200px; max-width:260px;
-  backdrop-filter:blur(2px);
+  position:absolute; top:12px; left:12px; width:248px;
+  max-height:calc(100% - 24px);
+  flex-direction:column;
+  background:rgba(0,0,0,.6);
+  border:1px solid rgba(0,255,136,.3);
+  border-radius:8px; padding:8px 10px;
+  pointer-events:auto;
 }
-#hud-name{font-size:18px;font-weight:bold;color:#00ff88;line-height:1.2}
-#hud-role{font-size:11px;color:#00cc6e;margin-top:2px}
-#hud-co{font-size:11px;color:#00aa5a;margin-top:1px}
-#hud-rel{font-size:10px;color:#008844;margin-top:4px;font-style:italic}
-#hud-when{font-size:9px;color:#005533;margin-top:6px}
-#hud-ctx{font-size:9px;color:#004428;margin-top:2px;font-style:italic}
-#hud-sum-wrap{margin-top:8px;border-top:1px solid #123d22;padding-top:6px}
+.hc-head{display:flex;gap:8px;align-items:center}
+#hud-photo{width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0;display:none;
+  border:1px solid rgba(0,255,136,.5);filter:grayscale(1) sepia(1) hue-rotate(80deg) saturate(4) brightness(.85)}
+.hc-id{min-width:0}
+#hud-name{font-size:14px;font-weight:bold;color:#00ff88;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#hud-sub{font-size:9px;color:#00aa55;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#hud-meta{font-size:9px;color:#007a40;margin-top:5px}
+#hud-meta:empty{display:none}
+#hud-sum-wrap{margin-top:6px;border-top:1px solid rgba(0,255,136,.15);padding-top:5px;min-height:0;display:flex;flex-direction:column}
 #hud-sum-lbl{font-size:8px;color:#00aa55;letter-spacing:1px;margin-bottom:3px}
-#hud-sum{max-height:68px;overflow-y:auto;font-size:9.5px;line-height:1.55;color:#7fdfb0}
-#hud-sum .sum-item{margin-bottom:4px}
-#hud-sum .sum-when{color:#00cc66;font-weight:bold}
-#hud-sum .sum-txt{color:#8fdfb5}
+#hud-sum{overflow-y:auto;max-height:150px;padding-right:5px;scrollbar-width:thin;scrollbar-color:#00aa55 transparent}
+#hud-sum::-webkit-scrollbar{width:3px}
+#hud-sum::-webkit-scrollbar-thumb{background:#00aa55;border-radius:2px}
+.tl-item{display:grid;grid-template-columns:70px 1fr;gap:6px;padding:4px;border-radius:4px;cursor:pointer;border:1px solid transparent}
+.tl-item.focus{background:rgba(0,255,136,.07);border-color:rgba(0,255,136,.25)}
+.tl-when{font-size:9px;color:#00cc66;font-weight:bold;line-height:1.3;white-space:nowrap}
+.tl-when span{font-weight:normal;color:#00aa55}
+.tl-where{font-size:8px;color:#007a40;line-height:1.3;overflow-wrap:anywhere}
+.tl-txt{font-size:9.5px;color:#8fdfb5;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tl-item.open .tl-txt{display:block}
+.tl-more{font-size:8px;color:#00aa55;margin-top:2px;display:none}
+.tl-item.focus.has-more .tl-more{display:block}
+.tl-detail{display:none;font-size:9px;color:#7fdfb0;line-height:1.45;margin-top:4px;white-space:pre-wrap}
+.tl-item.open .tl-detail{display:block}
+
+/* Photo preview (manual capture) — loose on the display, like the native camera preview */
+#hud-preview{position:absolute;top:16px;left:16px;display:none;text-align:center;text-shadow:0 0 4px #000}
+#hud-preview.on{display:block}
+#hp-img{width:72px;height:72px;border-radius:50%;border:1px solid rgba(0,255,136,.5);display:block;margin:0 auto 6px;
+  filter:grayscale(1) sepia(1) hue-rotate(80deg) saturate(4) brightness(.85)}
+#hp-q{font-size:12px;color:#00ff88}
 
 /* Countdown — new person, before recording is confirmed */
 /* loose text on the display — no card (black is transparent on the waveguide) */
@@ -111,7 +131,7 @@ body{
 }
 #sync-badge{font-size:9px;padding:2px 8px;border:1px solid #0a2a18;border-radius:10px}
 #sync-badge.ok{color:#00ff88;border-color:#00aa55}
-#sync-badge.err{color:#ff4400;border-color:#3a1000}
+#sync-badge.err{color:#007a40;border-color:#0a2a18}
 
 /* Log and badge only in debug mode (Help → On-screen log).
    Otherwise everything goes to the browser console — like on the glasses. */
@@ -126,19 +146,6 @@ body.debug #sync-badge{display:inline}
 .log-line{color:#006633;line-height:1.85}
 .log-line.hi{color:#00ff88}
 #help-debug{background:none;border:1px solid #0a2a18;color:#4ade80;font-family:inherit;font-size:10px;padding:6px 12px;border-radius:6px;cursor:pointer}
-
-/* Phone panel (below the viewfinder) — mirrors the HUD state with buttons */
-#match-box{width:100%;max-width:640px;display:none}
-#match-box.on{display:block}
-.mlbl{font-size:9px;color:#004422;letter-spacing:1px;margin-bottom:4px}
-.mcount-lbl{font-size:11px;color:#007744;text-align:center;padding-bottom:6px;line-height:1.5}
-.mcount-lbl b{color:#00ff88}
-.mbtn{background:#0a2015;border:1px dashed #1a5a2a;border-radius:8px;padding:9px 10px;margin-bottom:5px;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;font-size:12px;color:#00ff88;font-weight:bold}
-.mbtn:active{background:#0f3020}
-.mbtn.no{background:#200a0a;border:1px solid #5a1a1a;color:#ff5566}
-.mbtn.no:active{background:#2a0e0e}
-.mbtn small{font-weight:normal;color:#007744;font-size:10px}
-.mnomatch{font-size:10px;color:#007744;padding:2px 0 6px;text-align:center}
 
 /* ══ BOTTOM BAR — temple gestures ══ */
 #bottom-bar{
@@ -197,14 +204,13 @@ body.debug #sync-badge{display:inline}
 
   <div id="hud">
     <div id="hud-card" style="display:none">
-      <div id="hud-name"></div>
-      <div id="hud-role"></div>
-      <div id="hud-co"></div>
-      <div id="hud-rel"></div>
-      <div id="hud-when"></div>
-      <div id="hud-ctx"></div>
+      <div class="hc-head">
+        <img id="hud-photo" alt="">
+        <div class="hc-id"><div id="hud-name"></div><div id="hud-sub"></div></div>
+      </div>
+      <div id="hud-meta"></div>
       <div id="hud-sum-wrap" style="display:none">
-        <div id="hud-sum-lbl" data-i18n="encounters"></div>
+        <div id="hud-sum-lbl" data-i18n="timeline"></div>
         <div id="hud-sum"></div>
       </div>
     </div>
@@ -212,6 +218,7 @@ body.debug #sync-badge{display:inline}
       <div id="hc-title"><span data-i18n="count_title"></span> <span id="hc-num">5</span></div>
       <div id="hc-hint" data-i18n="count_hint"></div>
     </div>
+    <div id="hud-preview"><img id="hp-img" alt=""><div id="hp-q" data-i18n="p_preview"></div></div>
     <div id="hud-rec"><span class="dot"></span><span id="hr-txt"></span></div>
     <div id="hud-status"></div>
   </div>
@@ -219,15 +226,10 @@ body.debug #sync-badge{display:inline}
 
 <div id="log-box"><div id="log-el"></div></div>
 
-<!-- Phone panel — only shows when there is something to act on -->
-<div id="match-box">
-  <div class="mlbl" data-i18n="panel_lbl"></div>
-  <div id="mlist"></div>
-</div>
-
 <!-- ══ BOTTOM BAR — Rokid temple gestures ══ -->
 <div id="bottom-bar">
   <button class="bar-btn" id="btn-cam">⏻<span class="blbl" data-i18n="b_camera"></span></button>
+  <button class="bar-btn" id="btn-swipe-b" disabled>‹<span class="blbl" data-i18n="b_swipe"></span></button>
   <button class="bar-btn" id="btn-tap" disabled>●<span class="blbl" data-i18n="b_tap"></span></button>
   <button class="bar-btn" id="btn-swipe" disabled>›<span class="blbl" data-i18n="b_swipe"></span></button>
   <button class="bar-btn" id="btn-dtap" disabled>●●<span class="blbl" data-i18n="b_dtap"></span></button>
@@ -248,10 +250,11 @@ body.debug #sync-badge{display:inline}
     <div class="h-row"><span class="h-key" data-i18n="g_swipe"></span><span class="h-desc" data-i18n="h_d_swipe"></span></div>
     <div class="h-row"><span class="h-key" data-i18n="g_dtap"></span><span class="h-desc" data-i18n="h_d_dtap"></span></div>
     <div class="h-row"><span class="h-key" data-i18n="g_tap"></span><span class="h-desc" data-i18n="h_d_tap"></span></div>
+    <div class="h-row"><span class="h-key" data-i18n="g_swipes"></span><span class="h-desc" data-i18n="h_d_swipes"></span></div>
     <div class="h-sec" data-i18n="h_sec_kbd"></div>
     <div class="h-row"><span class="h-key">Space / P</span><span class="h-desc" data-i18n="h_d_space"></span></div>
     <div class="h-row"><span class="h-key">Enter / ↑</span><span class="h-desc" data-i18n="g_tap"></span></div>
-    <div class="h-row"><span class="h-key">→</span><span class="h-desc" data-i18n="g_swipe"></span></div>
+    <div class="h-row"><span class="h-key">← / →</span><span class="h-desc" data-i18n="g_swipes"></span></div>
     <div class="h-row"><span class="h-key">Esc / ↓</span><span class="h-desc" data-i18n="g_dtap"></span></div>
     <div class="h-sec" data-i18n="h_sec_lang"></div>
     <div class="h-lang" id="lang-btns">
@@ -277,20 +280,14 @@ VC_I18N.add({
     idle_fail:'Could not access the camera', idle_fail_sub:'Check the permission in the 🔒 of the address bar',
     idle_stopped:'Camera stopped', idle_stopped_sub:'Tap Camera to turn it back on',
     idle_nosupport:'Camera not supported', idle_nosupport_sub:'Open over HTTPS in a browser with a camera',
-    encounters:'ENCOUNTERS', last_seen:'Last seen: ', no_summary:'(no summary)',
+    timeline:'TIMELINE', today:'today', yesterday:'yesterday', no_summary:'(no summary)', more:'+ more', less:'− less', p_preview:'Save this face?',
     count_title:'Recording encounter:', count_hint:'Swipe forward to cancel',
     rec:'Recording encounter', paused:'Paused · Tap to resume',
     s_ready:'ready', s_loading:'loading AI…', s_cam:'camera on', s_buf_face:'buffering (face only)', s_buf_speech:'buffering · speech',
     s_buf_wait:'buffering · waiting for speech', s_confirm:'new person · confirming', s_rec:'recording', s_paused:'paused',
     s_identified:'identified', s_saved:'saved', s_notrec:'not recorded', s_saving_enc:'saving encounter…', s_enc_saved:'encounter saved', s_fail:'save failed',
-    panel_lbl:'ENCOUNTER', p_count:'Recording encounter: <b id="p-num">{n}</b>', p_cancel:'— cancel',
-    p_rec:'● Recording encounter', p_rec_with:'● Recording encounter with {name}', p_stop:'— stop &amp; discard',
-    p_paused:'Recording stopped — nothing from it was kept', p_resume:'Resume', p_tap:'— tap',
-    p_newface:'New face', p_buffering:'{who} — buffering ({why})', why_nomic:'no microphone — face only', why_speech:'speech detected', why_wait:'waiting for speech',
-    p_saving:'Saving…', p_suppressed:'You chose not to record this face', p_anyway:'— save it anyway',
-    p_preview:'Save this face?', p_nopreview:'preview unavailable', p_save:'— save', p_discard:'— discard',
     b_camera:'Camera', b_stop:'Stop', b_tap:'Tap', b_swipe:'Swipe fwd', b_dtap:'Double tap', b_help:'Help',
-    g_tap:'Tap', g_swipe:'Swipe forward', g_dtap:'Double tap',
+    g_tap:'Tap', g_swipe:'Swipe forward', g_dtap:'Double tap', g_swipes:'Swipe ‹ ›',
     h_title:'REFERENCE', h_sec_rec:'Encounter recording',
     h_k_eye:'Eye contact + speech', h_d_eye:'Buffering starts right away, silently. Just looking without talking never records.',
     h_k_new:'New person', h_d_new:'After 7s: "Recording encounter: 5…0 — Swipe forward to cancel". At 0 the person is saved (face photo, clothing colour, badge text if readable) and recording continues.',
@@ -298,8 +295,9 @@ VC_I18N.add({
     h_k_rec:'● Recording', h_d_rec:'Only text is kept (transcript + summary). No audio or video is ever saved. The encounter ends when the person leaves the view for 5s.',
     h_sec_gest:'Gestures',
     h_d_swipe:'During the countdown: cancel — nothing saved, won\'t ask about this face again this session. In the photo preview: discard.',
-    h_d_dtap:'While recording: stop and discard this encounter (the person stays saved). Otherwise: dismiss the HUD (back).',
-    h_d_tap:'Paused: resume recording. Unknown face: take a photo to save it by hand → preview → Tap save / Swipe forward discard.',
+    h_d_dtap:'Back: closes an expanded encounter; while recording, stops and discards it (the person stays saved); otherwise dismisses the HUD.',
+    h_d_tap:'Paused: resume recording. Person card: expand the highlighted encounter. Unknown face: take a photo to save it by hand → preview → Tap save / Swipe forward discard.',
+    h_d_swipes:'Person card: move between encounters in the timeline.',
     h_sec_kbd:'Keyboard (desktop)', h_d_space:'Camera on/off',
     h_sec_lang:'Language', lang_system:'Phone language', h_d_lang:'By default the app follows the phone\'s language — Portuguese if the phone is in Portuguese, English otherwise.',
     h_sec_dev:'Developer', log_btn:'On-screen log: {s}',
@@ -307,7 +305,7 @@ VC_I18N.add({
     // stored data (written in the user's language at the time)
     d_unknown:'Unknown Person {n}', d_first_auto:'First encounter (auto)', d_first_manual:'First encounter (manual)',
     d_first_hand:'First encounter — saved by hand', d_clothing:'Clothing (dominant colour): {c}',
-    d_conv:'Conversation · {m} min', d_nospeech:' (no speech captured)', d_mixed:'mixed ({a} and {b})',
+    d_badge:'Badge: {b}', d_conv:'Conversation · {m} min', d_nospeech:' (no speech captured)', d_mixed:'mixed ({a} and {b})',
     c_black:'black', c_white:'white', c_grey:'grey', c_burgundy:'burgundy', c_red:'red', c_brown:'brown', c_orange:'orange',
     c_beige:'beige', c_yellow:'yellow', c_green:'green', c_navy:'navy', c_blue:'blue', c_purple:'purple', c_pink:'pink'
   },
@@ -319,20 +317,14 @@ VC_I18N.add({
     idle_fail:'Não deu pra acessar a câmera', idle_fail_sub:'Verifique a permissão no 🔒 da barra de endereço',
     idle_stopped:'Câmera parada', idle_stopped_sub:'Toque em Câmera para religar',
     idle_nosupport:'Câmera não suportada', idle_nosupport_sub:'Abra em HTTPS num navegador com câmera',
-    encounters:'ENCONTROS', last_seen:'Último encontro: ', no_summary:'(sem resumo)',
+    timeline:'LINHA DO TEMPO', today:'hoje', yesterday:'ontem', no_summary:'(sem resumo)', more:'+ mais', less:'− menos', p_preview:'Salvar este rosto?',
     count_title:'Gravando encontro:', count_hint:'Deslize para frente para cancelar',
     rec:'Gravando encontro', paused:'Pausado · Toque para retomar',
     s_ready:'pronto', s_loading:'carregando IA…', s_cam:'câmera ativa', s_buf_face:'buffer (só rosto)', s_buf_speech:'buffer · com fala',
     s_buf_wait:'buffer · esperando fala', s_confirm:'pessoa nova · confirmando', s_rec:'gravando', s_paused:'pausado',
     s_identified:'identificado', s_saved:'salvo', s_notrec:'não gravado', s_saving_enc:'salvando encontro…', s_enc_saved:'encontro salvo', s_fail:'falha ao salvar',
-    panel_lbl:'ENCONTRO', p_count:'Gravando encontro: <b id="p-num">{n}</b>', p_cancel:'— cancelar',
-    p_rec:'● Gravando encontro', p_rec_with:'● Gravando encontro com {name}', p_stop:'— parar e descartar',
-    p_paused:'Gravação parada — nada dela foi guardado', p_resume:'Retomar', p_tap:'— toque',
-    p_newface:'Rosto novo', p_buffering:'{who} — buffer ({why})', why_nomic:'sem microfone — só rosto', why_speech:'fala detectada', why_wait:'esperando fala',
-    p_saving:'Salvando…', p_suppressed:'Você escolheu não gravar este rosto', p_anyway:'— salvar mesmo assim',
-    p_preview:'Salvar este rosto?', p_nopreview:'prévia indisponível', p_save:'— salvar', p_discard:'— descartar',
     b_camera:'Câmera', b_stop:'Parar', b_tap:'Toque', b_swipe:'Deslizar', b_dtap:'2 toques', b_help:'Ajuda',
-    g_tap:'Toque', g_swipe:'Deslizar p/ frente', g_dtap:'Toque duplo',
+    g_tap:'Toque', g_swipe:'Deslizar p/ frente', g_dtap:'Toque duplo', g_swipes:'Deslizar ‹ ›',
     h_title:'REFERÊNCIA', h_sec_rec:'Gravação de encontro',
     h_k_eye:'Olho no olho + fala', h_d_eye:'O buffer começa na hora, em silêncio. Só olhar sem falar nunca grava.',
     h_k_new:'Pessoa nova', h_d_new:'Aos 7s: "Gravando encontro: 5…0 — Deslize para frente para cancelar". No 0 a pessoa é salva (foto do rosto, cor da roupa, texto do crachá se der pra ler) e a gravação continua.',
@@ -340,15 +332,16 @@ VC_I18N.add({
     h_k_rec:'● Gravando', h_d_rec:'Só texto é guardado (transcrição + resumo). Áudio e vídeo nunca. O encontro termina quando a pessoa sai da vista por 5s.',
     h_sec_gest:'Gestos',
     h_d_swipe:'Na contagem: cancela — nada é salvo e não pergunta de novo sobre esse rosto nesta sessão. Na prévia da foto: descarta.',
-    h_d_dtap:'Gravando: para e descarta este encontro (a pessoa continua salva). Fora disso: fecha o HUD (voltar).',
-    h_d_tap:'Pausado: retoma a gravação. Rosto desconhecido: tira foto pra salvar na mão → prévia → Toque salva / Deslizar descarta.',
+    h_d_dtap:'Voltar: fecha um encontro expandido; gravando, para e descarta (a pessoa continua salva); fora disso, fecha o HUD.',
+    h_d_tap:'Pausado: retoma a gravação. Card da pessoa: expande o encontro destacado. Rosto desconhecido: tira foto pra salvar na mão → prévia → Toque salva / Deslizar descarta.',
+    h_d_swipes:'Card da pessoa: passa pelos encontros da linha do tempo.',
     h_sec_kbd:'Teclado (desktop)', h_d_space:'Liga/desliga a câmera',
     h_sec_lang:'Idioma', lang_system:'Idioma do celular', h_d_lang:'Por padrão o app segue o idioma do celular — português se o celular estiver em português, inglês nos outros casos.',
     h_sec_dev:'Desenvolvedor', log_btn:'Log na tela: {s}',
     h_note:'A fala usa o reconhecimento de voz do navegador (Chrome). Sem ele, o emulador funciona só com o rosto e avisa no painel. Display real: 640×480 paisagem — preto puro (#000) é transparente no waveguide.',
     d_unknown:'Pessoa Desconhecida {n}', d_first_auto:'Primeiro encontro (automático)', d_first_manual:'Primeiro encontro (manual)',
     d_first_hand:'Primeiro encontro — salvo manualmente', d_clothing:'Roupa (cor predominante): {c}',
-    d_conv:'Conversa · {m} min', d_nospeech:' (sem fala captada)', d_mixed:'mista ({a} e {b})',
+    d_badge:'Crachá: {b}', d_conv:'Conversa · {m} min', d_nospeech:' (sem fala captada)', d_mixed:'mista ({a} e {b})',
     c_black:'preto', c_white:'branco', c_grey:'cinza', c_burgundy:'vinho', c_red:'vermelho', c_brown:'marrom', c_orange:'laranja',
     c_beige:'bege', c_yellow:'amarelo', c_green:'verde', c_navy:'azul-marinho', c_blue:'azul', c_purple:'roxo', c_pink:'rosa'
   }
@@ -442,19 +435,6 @@ function syncProfiles() {
   });
 }
 
-// ── Phone panel (signature-based so buttons are not recreated mid-touch) ──
-var _lastMatchSig = null;
-function setMatchBox(sig, html) {
-  if (sig === _lastMatchSig) return;
-  _lastMatchSig = sig;
-  var box = document.getElementById('match-box');
-  var list = document.getElementById('mlist');
-  if (!html) { box.classList.remove('on'); list.innerHTML = ''; return; }
-  list.innerHTML = html;
-  box.classList.add('on');
-}
-function clearMatchBox() { setMatchBox(null, null); }
-
 // ════════════════════════════════════════════════════════════════════════
 // ENCOUNTER ENGINE
 // Eye contact + speech → silent buffer (from the first frame) → after 7s:
@@ -523,7 +503,7 @@ function handleMatch(descriptor) {
     if (isSuppressed(descriptor)) return;   // user said no to this encounter: show the card, don't record
   } else {
     hideHudCard();
-    if (isSuppressed(descriptor)) { renderSuppressed(); return; }
+    if (isSuppressed(descriptor)) return;   // user said no: nothing on screen
   }
 
   // wait for a stable face before opening an encounter
@@ -531,14 +511,14 @@ function handleMatch(descriptor) {
   if (!_stable.first) _stable.first = Array.from(descriptor);
   _stable.count++;
   if (_stable.count >= STABLE_FRAMES) openEncounter(_stable.first, m ? m.profile : null);
-  else if (!m) renderPanel();
+
 }
 
 function noFace() {
   _stable = { count:0, first:null };
   if (_enc) return;   // the tick decides when an open encounter ends
   if (Date.now() - _lastFaceAt > LEAVE_MS_PENDING && !_previewOpen && _state !== 'saving') {
-    clearMatchBox(); hideHudCard();
+    hideHudCard();
   }
 }
 
@@ -651,15 +631,19 @@ function resumeRecording() {
 function gestureTap() {
   if (_previewOpen) { savePreview(); return; }
   if (_state === 'paused') { resumeRecording(); return; }
+  if (tlToggle()) return;                 // person card: expand / collapse the highlighted encounter
   if (_state === 'idle') manualCapture();
 }
 function gestureSwipeForward() {
   if (_previewOpen) { discardPreview(); return; }
   if (_state === 'countdown') { endEncounter('cancel'); return; }
+  tlMove(1);
 }
+function gestureSwipeBack() { tlMove(-1); }
 function gestureDoubleTap() {   // native "back"
   if (_previewOpen) { discardPreview(); return; }
   if (_state === 'countdown') { endEncounter('cancel'); return; }
+  if (tlCollapse()) return;               // back one level first
   if (_state === 'recording') { stopRecording(); return; }
   if (_state === 'buffer') { endEncounter('stop'); if (_lastMatchDescriptor) _suppressed.push(new Float32Array(_lastMatchDescriptor)); return; }
   dismissHUD();
@@ -693,60 +677,13 @@ function render() {
   else if (st === 'recording') setStatus('s_rec');
   else if (st === 'paused') setStatus('s_paused');
 
-  renderPanel();
   updateBar();
-}
-
-function btn(id, cls, main, sub) {
-  return '<div class="mbtn' + (cls ? ' ' + cls : '') + '" id="' + id + '">' + main + ' <small>' + sub + '</small></div>';
-}
-
-function renderPanel() {
-  var st = _state, e = _enc, L = VC_I18N.lang;
-  if (_previewOpen) return;   // the preview owns the panel
-  if (st === 'countdown') {
-    var secs = Math.max(0, Math.ceil((e.countdownEnd - Date.now()) / 1000));
-    if (_lastMatchSig && _lastMatchSig.indexOf('count:' + L + ':') === 0 && document.getElementById('p-num')) {
-      _lastMatchSig = 'count:' + L + ':' + secs; document.getElementById('p-num').textContent = secs; return;
-    }
-    setMatchBox('count:' + L + ':' + secs,
-      '<div class="mcount-lbl">' + t('p_count', { n: secs }) + '</div>' + btn('p-cancel', 'no', t('g_swipe'), t('p_cancel')));
-    bindTapDyn(document.getElementById('p-cancel'), gestureSwipeForward);
-    return;
-  }
-  if (st === 'recording') {
-    setMatchBox('rec:' + L,
-      '<div class="mcount-lbl">' + (e.person ? t('p_rec_with', { name: esc(e.person.name) }) : t('p_rec')) + '</div>' +
-      btn('p-stop', 'no', t('g_dtap'), t('p_stop')));
-    bindTapDyn(document.getElementById('p-stop'), gestureDoubleTap);
-    return;
-  }
-  if (st === 'paused') {
-    setMatchBox('paused:' + L, '<div class="mcount-lbl">' + t('p_paused') + '</div>' + btn('p-resume', '', t('p_resume'), t('p_tap')));
-    bindTapDyn(document.getElementById('p-resume'), gestureTap);
-    return;
-  }
-  if (st === 'buffer') {
-    var why = _speech === 'unavailable' ? 'why_nomic' : (e.heardSpeech ? 'why_speech' : 'why_wait');
-    setMatchBox('buffer:' + L + ':' + why,
-      '<div class="mnomatch">' + t('p_buffering', { who: e.kind === 'new' ? t('p_newface') : esc(e.person.name), why: t(why) }) + '</div>');
-    return;
-  }
-  if (st === 'saving') { setMatchBox('saving:' + L, '<div class="mnomatch">' + t('p_saving') + '</div>'); return; }
-  if (st === 'idle' && !_lastMatchKnown && _lastMatchDescriptor && Date.now() - _lastFaceAt < LEAVE_MS_PENDING) {
-    setMatchBox('unknown:' + L, '<div class="mnomatch">' + t('p_newface') + '</div>');
-  }
-}
-
-function renderSuppressed() {
-  setMatchBox('suppressed:' + VC_I18N.lang,
-    '<div class="mcount-lbl">' + t('p_suppressed') + '</div>' + btn('p-capture', '', t('g_tap'), t('p_anyway')));
-  bindTapDyn(document.getElementById('p-capture'), manualCapture);
 }
 
 function updateBar() {
   var on = !!camStream;
   document.getElementById('btn-tap').disabled = !on;
+  document.getElementById('btn-swipe-b').disabled = !on;
   document.getElementById('btn-swipe').disabled = !on;
   document.getElementById('btn-dtap').disabled = !on;
   var cam = document.getElementById('btn-cam');
@@ -922,23 +859,17 @@ function manualCapture() {
   log('● photo preview — Tap to save, Swipe forward to discard', true);
 }
 function renderPreview() {
-  _lastMatchSig = null;
-  setMatchBox('preview:' + VC_I18N.lang,
-    '<div class="mcount-lbl">' + t('p_preview') + '</div>' +
-    (_preview.photo
-      ? '<div style="display:flex;justify-content:center;margin:6px 0"><img src="' + _preview.photo + '" style="width:96px;height:96px;border-radius:48px;border:1px solid #1a5a2a"></div>'
-      : '<div class="mnomatch">' + t('p_nopreview') + '</div>') +
-    btn('p-save', '', t('g_tap'), t('p_save')) + btn('p-discard', 'no', t('g_swipe'), t('p_discard')));
-  bindTapDyn(document.getElementById('p-save'), savePreview);
-  bindTapDyn(document.getElementById('p-discard'), discardPreview);
+  var img = document.getElementById('hp-img');
+  if (_preview && _preview.photo) { img.src = _preview.photo; img.style.display = 'block'; } else img.style.display = 'none';
+  hideHudCard(true);
+  document.getElementById('hud-preview').className = _previewOpen ? 'on' : '';
 }
 function savePreview() {
   if (!_previewOpen) return;
   var pv = _preview; _previewOpen = false; _preview = null;
-  _state = 'saving'; setMatchBox('saving:' + VC_I18N.lang, '<div class="mnomatch">' + t('p_saving') + '</div>');
+  _state = 'saving'; renderPreview();
   createPerson(pv.emb, pv.photo, 'manual', function(p){
     _state = 'idle';
-    clearMatchBox();
     if (!p) return;
     _suppressed = _suppressed.filter(function(d){ return dist(d, pv.emb) >= SAME_FACE; });
     showProfile(p, null);
@@ -957,7 +888,7 @@ function savePreview() {
 function discardPreview() {
   if (!_previewOpen) return;
   _previewOpen = false; _preview = null;
-  clearMatchBox();
+  renderPreview();
   setStatus('s_ready');
   log('✗ photo discarded');
 }
@@ -1144,35 +1075,38 @@ function detectFaces() {
     .catch(function(e) { log('⚠ detection failed — retrying', true); console.error('detectFaces:', e); });
 }
 
-// ── HUD card ──
+// ── HUD card: identity + timeline (newest first), scrollable, expandable ──
+var _tl = { pid:null, items:[], focus:0, open:-1 };
+function cardVisible() { return document.getElementById('hud-card').style.display !== 'none'; }
+
 function showProfile(p, score) {
+  var fresh = !_currentProfile || _currentProfile.id !== p.id;
   _currentProfile = p;
   document.getElementById('hud-idle').style.display = 'none';
   document.getElementById('hud').style.display = 'block';
-  document.getElementById('hud-card').style.display = 'block';
+  document.getElementById('hud-card').style.display = 'flex';
+  var photo = document.getElementById('hud-photo');
+  if (p.photo_url && !/ui-avatars\.com/.test(p.photo_url)) { if (photo.getAttribute('src') !== p.photo_url) photo.src = p.photo_url; photo.style.display = 'block'; }
+  else photo.style.display = 'none';
   document.getElementById('hud-name').textContent = p.name || '—';
-  document.getElementById('hud-role').textContent = p.role || '';
-  document.getElementById('hud-co').textContent = p.company || '';
-  document.getElementById('hud-rel').textContent = p.relation_context || p.relation || '';
-  document.getElementById('hud-when').textContent = p.last_seen_date ? t('last_seen') + new Date(p.last_seen_date).toLocaleDateString(VC_I18N.locale()) : '';
-  document.getElementById('hud-ctx').textContent = p.last_seen_context || '';
+  document.getElementById('hud-sub').textContent = [p.company, p.role].filter(Boolean).join(' · ');
+  var tags = Array.isArray(p.tags) ? p.tags : String(p.tags || '').split(',');
+  tags = tags.map(function(x){ return String(x).trim(); }).filter(Boolean).slice(0, 3);
+  document.getElementById('hud-meta').textContent = [p.relation_context || p.relation].concat(tags).filter(Boolean).join(' · ');
   setStatus('s_identified', score ? ' · ' + score + '%' : '');
-  loadEncounterSummary(p);
+  if (fresh) loadEncounterSummary(p);
 }
 function hideHudCard(keepProfile) {
   document.getElementById('hud-card').style.display = 'none';
   if (!keepProfile) _currentProfile = null;
 }
 
-// Chronological encounter summary (ReadIt/tl;dv style), scrollable in the card.
 var _encCache = {};
 function loadEncounterSummary(p) {
   var wrap = document.getElementById('hud-sum-wrap');
-  var box = document.getElementById('hud-sum');
-  if (!wrap || !box || !p.id) return;
-  if (_encCache[p.id]) { renderSummary(_encCache[p.id]); return; }
-  wrap.style.display = 'block';
-  box.textContent = '…';
+  if (!p.id) return;
+  if (_encCache[p.id]) { renderTimeline(p.id, _encCache[p.id]); return; }
+  wrap.style.display = 'none';
   fetch(PROXY, {
     method:'POST', headers:{'Content-Type':'application/json'},
     body:JSON.stringify({action:'list',entity:'FaceContextEncounter',limit:200})
@@ -1181,36 +1115,102 @@ function loadEncounterSummary(p) {
   .then(function(data){
     var list = (Array.isArray(data) ? data : (data.records || []))
       .filter(function(e){ return e.person_id === p.id || e.person_name === p.name; })
-      .sort(function(a,b){ return new Date(a.date||0) - new Date(b.date||0); })
-      .slice(-4);
+      .sort(function(a,b){ return new Date(b.date||0) - new Date(a.date||0); })   // newest first
+      .slice(0, 12);
     _encCache[p.id] = list;
-    renderSummary(list);
+    if (_currentProfile && _currentProfile.id === p.id) renderTimeline(p.id, list);
   })
   .catch(function(){ wrap.style.display = 'none'; });
 }
-function renderSummary(list) {
+
+// [day, time]: ["today","18:20"] · ["yesterday","18:20"] · ["Tue","14:00"] · ["12 Sep",""]
+function relDate(d) {
+  var loc = VC_I18N.locale(), now = new Date();
+  var day0 = function(x){ return new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime(); };
+  var days = Math.round((day0(now) - day0(d)) / 864e5);
+  var hm = d.toLocaleTimeString(loc, { hour:'2-digit', minute:'2-digit' });
+  if (days === 0) return [t('today'), hm];
+  if (days === 1) return [t('yesterday'), hm];
+  if (days > 1 && days < 7) return [d.toLocaleDateString(loc, { weekday:'short' }), hm];
+  return [d.toLocaleDateString(loc, { day:'2-digit', month:'short' }), ''];
+}
+
+function encDetail(e) {
+  var parts = [];
+  var ctx = (e.context || '').split('\n').slice(1).join('\n').trim();   // the first line is already shown
+  if (ctx) parts.push(ctx);
+  if (e.notes) parts.push(e.notes);
+  if (e.ocr_captured) parts.push(t('d_badge', { b: e.ocr_captured }));
+  if (e.speech_captured) {
+    var lines = String(e.speech_captured).split('\n').filter(Boolean);
+    parts.push(lines.slice(0, 4).join('\n') + (lines.length > 4 ? '\n…' : ''));
+  }
+  return parts.join('\n');
+}
+
+function renderTimeline(pid, list) {
   var wrap = document.getElementById('hud-sum-wrap');
   var box = document.getElementById('hud-sum');
-  if (!wrap || !box) return;
-  if (!list || !list.length) { wrap.style.display = 'none'; return; }
-  wrap.style.display = 'block';
-  var loc = VC_I18N.locale(), html = '';
-  list.forEach(function(e){
-    var d = e.date ? new Date(e.date) : null;
-    var when = d ? (d.toLocaleDateString(loc,{day:'2-digit',month:'short'}) + ' ' +
-                    d.toLocaleTimeString(loc,{hour:'2-digit',minute:'2-digit'})) : '';
-    var txt = (e.context || e.notes || '').split('\n')[0];
-    if (txt.length > 90) txt = txt.slice(0, 88) + '…';
-    html += '<div class="sum-item"><span class="sum-when">' + when + (e.location ? ' · ' + esc(e.location) : '') + '</span>' +
-            '<br><span class="sum-txt">' + esc(txt || t('no_summary')) + '</span></div>';
+  if (!list || !list.length) { wrap.style.display = 'none'; _tl = { pid:pid, items:[], focus:0, open:-1 }; return; }
+  if (_tl.pid !== pid) _tl = { pid:pid, items:[], focus:0, open:-1 };
+  _tl.items = list;
+  if (_tl.focus >= list.length) _tl.focus = 0;
+  wrap.style.display = 'flex';
+  var html = '';
+  list.forEach(function(e, i){
+    var d = e.date ? relDate(new Date(e.date)) : ['', ''];
+    var first = (e.context || '').split('\n')[0] || t('no_summary');
+    var detail = encDetail(e);
+    html += '<div class="tl-item' + (detail || first.length > 60 ? ' has-more' : '') + '" data-i="' + i + '">' +
+      '<div><div class="tl-when">' + esc(d[0]) + (d[1] ? ' <span>' + esc(d[1]) + '</span>' : '') + '</div><div class="tl-where">' + esc(e.location || '') + '</div></div>' +
+      '<div><div class="tl-txt">' + esc(first) + '</div><div class="tl-more"></div><div class="tl-detail">' + esc(detail) + '</div></div>' +
+      '</div>';
   });
   box.innerHTML = html;
-  box.scrollTop = box.scrollHeight;
+  box.querySelectorAll('.tl-item').forEach(function(el){
+    bindTapDyn(el, function(){
+      var i = +el.getAttribute('data-i');
+      _tl.open = (_tl.focus === i && _tl.open === i) ? -1 : i;
+      _tl.focus = i;
+      applyTimeline();
+    });
+  });
+  applyTimeline();
+}
+
+function applyTimeline() {
+  var box = document.getElementById('hud-sum');
+  box.querySelectorAll('.tl-item').forEach(function(el){
+    var i = +el.getAttribute('data-i');
+    el.classList.toggle('focus', i === _tl.focus);
+    el.classList.toggle('open', i === _tl.open);
+    var more = el.querySelector('.tl-more');
+    if (more) more.textContent = i === _tl.open ? t('less') : t('more');
+    if (i === _tl.focus && el.scrollIntoView) el.scrollIntoView({ block:'nearest' });
+  });
+}
+
+// Gesture helpers — return true when the card handled the gesture
+function tlMove(d) {
+  if (!cardVisible() || !_tl.items.length) return false;
+  var n = Math.max(0, Math.min(_tl.items.length - 1, _tl.focus + d));
+  if (n !== _tl.focus) { _tl.focus = n; if (_tl.open !== n) _tl.open = -1; applyTimeline(); }
+  return true;
+}
+function tlToggle() {
+  if (!cardVisible() || !_tl.items.length) return false;
+  _tl.open = _tl.open === _tl.focus ? -1 : _tl.focus;
+  applyTimeline();
+  return true;
+}
+function tlCollapse() {
+  if (!cardVisible() || _tl.open < 0) return false;
+  _tl.open = -1; applyTimeline();
+  return true;
 }
 
 function dismissHUD() {
   hideHudCard();
-  clearMatchBox();
   setStatus('s_ready');
   log('HUD dismissed');
 }
@@ -1286,7 +1286,6 @@ function stopCam() {
   if (camStream) { camStream.getTracks().forEach(function(tr){ tr.stop(); }); camStream = null; }
   document.getElementById('vid').srcObject = null;
   stopFaceDetection();
-  clearMatchBox();
   document.getElementById('cnv').getContext('2d').clearRect(0,0,640,480);
   document.getElementById('hud-idle').style.display = 'flex';
   document.getElementById('hud').style.display = 'none';
@@ -1300,6 +1299,7 @@ document.addEventListener('keydown', function(e) {
   if (e.key === ' ' || e.key === 'p') { e.preventDefault(); toggleCam(); }
   else if (e.key === 'Enter' || e.key === 'ArrowUp') { e.preventDefault(); gestureTap(); }
   else if (e.key === 'ArrowRight') { e.preventDefault(); gestureSwipeForward(); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); gestureSwipeBack(); }
   else if (e.key === 'Escape' || e.key === 'ArrowDown') { e.preventDefault(); gestureDoubleTap(); }
 });
 
@@ -1316,6 +1316,7 @@ function bindBtn(id, fn) { bindTapDyn(document.getElementById(id), fn); }
 
 bindBtn('btn-cam', toggleCam);
 bindBtn('btn-tap', gestureTap);
+bindBtn('btn-swipe-b', gestureSwipeBack);
 bindBtn('btn-swipe', gestureSwipeForward);
 bindBtn('btn-dtap', gestureDoubleTap);
 bindBtn('btn-help', function(){ document.getElementById('help-ov').classList.add('on'); });
@@ -1342,12 +1343,8 @@ function applyLanguage() {
   var dbg = document.getElementById('help-debug');
   if (dbg) dbg.textContent = t('log_btn', { s: _debugMode ? 'ON' : 'OFF' });
   markLangButtons();
-  _lastMatchSig = null;
-  if (_previewOpen) renderPreview(); else if (_state === 'idle' && isSuppressedNow()) renderSuppressed(); else render();
-  if (_currentProfile) showProfile(_currentProfile, null);
-}
-function isSuppressedNow() {
-  return !!(_lastMatchDescriptor && !_lastMatchKnown && window.faceapi && isSuppressed(_lastMatchDescriptor));
+  if (_previewOpen) renderPreview(); else render();
+  if (_currentProfile && _encCache[_currentProfile.id]) renderTimeline(_currentProfile.id, _encCache[_currentProfile.id]);
 }
 window.addEventListener('vc-lang', applyLanguage);
 
