@@ -28,6 +28,25 @@ Gravação de encontro: já está implementada no emulador.
 
 Visual: monocromático (verde e transparência sobre o preto), sem dicas de gesto e sem redundância.
 
+## Skills do MVP: rosto, chave e veículo (10/10)
+
+O VisualContext não é só sobre pessoas. O MVP terá três skills de memória, e cada uma tem o seu card no HUD, sem coluna de ícones fixa na tela:
+
+| Skill | O que registra | Card no HUD |
+|---|---|---|
+| **Rosto** | encontros com pessoas | identidade, dossiê e linha do tempo (acima) |
+| **Chave** (de casa) | onde a chave foi vista por último | foto do último frame em que apareceu, descrição ("em cima da mesa da sala") e quando |
+| **Veículo** (moto, carro) | onde ficou estacionado | foto do último frame, rua, distância e quando, mais a ação **mostrar no mapa / navegar** |
+
+- **Pergunta por voz:** "Onde deixei minha moto?" faz o HUD mostrar o card do veículo.
+- **Navegação delegada:** o VisualContext não navega. "Mostrar no mapa" entrega o destino pra navegação nativa ou pro Rokid-GMaps do Anezium, conforme o princípio de registro, não executor.
+- **Localização vem do celular ou do relógio,** porque os óculos não têm GPS próprio.
+
+Decisões em aberto pra essas skills:
+1. **Foto do objeto:** a spec de transcrição dizia que a única imagem guardada era o recorte do rosto. Pra chave e veículo, guardar o último frame é uma exceção. A proposta é guardar só o recorte do objeto (sem pessoas e com placas de terceiros borradas), e só o último, sobrescrevendo o anterior.
+2. **Como a pessoa ensina o que é dela** ("esta é a minha moto"): por uma captura nos óculos ou por foto no Manager.
+3. **Quem atende a pergunta por voz:** o próprio VisualContext ou o assistente Nexus, que repassa pro VisualContext. Isso tem a ver com o formato de integração entre plugins do Rokid-Nexus, ainda a verificar.
+
 ## Manager · página do encontro
 
 | Bloco | Conteúdo |
