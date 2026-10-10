@@ -75,23 +75,23 @@ html,body{background:#000;height:100%;overflow:hidden;font-family:monospace;colo
 #hud-recent-bar.on{display:block}
 #hud-recent-bar::after{content:'';display:inline-block;width:6px;height:6px;margin-left:8px;vertical-align:1px;
   border-left:2px solid #00aa55;border-top:2px solid #00aa55;transform:rotate(45deg)}
-/* Grid of encounters — photo + name + small date, vertical infinite scroll */
-#hud-list{position:absolute;left:16px;bottom:16px;width:448px;height:340px;display:none;flex-direction:column;
-  background:rgba(0,0,0,.62);border:1px solid rgba(0,255,136,.3);border-radius:12px;padding:12px 14px;pointer-events:auto}
+/* Last encounters — a narrow column of short cards (small photo beside name + date), vertical infinite scroll.
+   Small on purpose: opened over a coffee, closed with a double tap. */
+#hud-list{position:absolute;left:16px;bottom:16px;width:250px;height:232px;display:none;flex-direction:column;
+  background:rgba(0,0,0,.62);border:1px solid rgba(0,255,136,.3);border-radius:10px;padding:10px 10px 8px;pointer-events:auto}
 #hud-list.on{display:flex}
-#hl-items{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;align-content:start;overflow-y:auto;min-height:0;padding-right:6px;
-  scrollbar-width:thin;scrollbar-color:#00aa55 transparent}
-#hl-items::-webkit-scrollbar{width:4px}
+#hl-items{overflow-y:auto;min-height:0;padding-right:4px;scrollbar-width:thin;scrollbar-color:#00aa55 transparent}
+#hl-items::-webkit-scrollbar{width:3px}
 #hl-items::-webkit-scrollbar-thumb{background:#00aa55;border-radius:2px}
-.hl-item{display:flex;flex-direction:column;align-items:center;text-align:center;padding:6px 4px;border-radius:8px;border:1px solid transparent;cursor:pointer;min-width:0}
+.hl-item{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:6px;border:1px solid transparent;cursor:pointer;margin-bottom:2px}
 .hl-item.focus{border-color:rgba(0,255,136,.5);background:rgba(0,255,136,.06)}
-.hl-ph{width:64px;height:64px;border-radius:6px;object-fit:cover;border:1px solid rgba(0,255,136,.4);
-  filter:grayscale(1) sepia(1) hue-rotate(80deg) saturate(4) brightness(.85)}
-.hl-ini{width:64px;height:64px;border-radius:6px;border:1px solid rgba(0,255,136,.4);display:flex;align-items:center;justify-content:center;
-  font-size:22px;font-weight:bold;color:#00aa55}
-.hl-name{font-size:12px;font-weight:bold;color:#00ff88;text-transform:uppercase;margin-top:4px;width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hl-when{font-size:10px;color:#00aa55;width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hl-empty{font-size:15px;color:#8fdfb5;grid-column:1 / -1}
+.hl-ph,.hl-ini{width:34px;height:34px;border-radius:4px;flex-shrink:0;border:1px solid rgba(0,255,136,.4)}
+.hl-ph{object-fit:cover;filter:grayscale(1) sepia(1) hue-rotate(80deg) saturate(4) brightness(.85)}
+.hl-ini{display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:bold;color:#00aa55}
+.hl-txt{min-width:0}
+.hl-name{font-size:13px;font-weight:bold;color:#00ff88;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hl-when{font-size:10px;color:#00aa55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hl-empty{font-size:13px;color:#8fdfb5}
 
 /* Photo preview (manual capture) — loose on the display, like the native camera preview */
 #hud-preview{position:absolute;top:20px;left:20px;display:none;text-align:center;text-shadow:0 0 4px #000}
@@ -1321,8 +1321,8 @@ function renderReview() {
       ? '<img class="hl-ph" src="' + esc(it.person.photo_url) + '" alt="">'
       : '<div class="hl-ini">' + esc(initials(it.person.name)) + '</div>';
     html += '<div class="hl-item' + (i === _review.focus ? ' focus' : '') + '" data-i="' + i + '">' + ph +
-      '<div class="hl-name">' + esc(shortName(it.person.name)) + '</div>' +
-      '<div class="hl-when">' + esc(d[0] + (d[1] ? ' ' + d[1] : '')) + '</div></div>';
+      '<div class="hl-txt"><div class="hl-name">' + esc(shortName(it.person.name)) + '</div>' +
+      '<div class="hl-when">' + esc(d[0] + (d[1] ? ' ' + d[1] : '')) + '</div></div></div>';
   });
   var keep = items.scrollTop;
   items.innerHTML = html;

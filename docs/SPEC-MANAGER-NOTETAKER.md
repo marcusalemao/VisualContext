@@ -16,7 +16,7 @@ Display: **biocular**, ou seja, um único Micro-LED com guia de onda leva a mesm
 
 Card da pessoa, só leitura, com 70% da largura do display, pra não tampar a visão nem chamar atenção de quem está na frente. O indicador "Gravando encontro" fica fora do card, numa linha própria acima dele.
 
-**Dois modos (decidido em 10/10).** Durante a conversa não se lê; se bate o olho. Ler e expandir fica pra fora da conversa.
+**Dois modos (decidido em 10/10).** Numa feira, o app fica ligado e grava os encontros sozinho, sem você mexer nos óculos; o histórico fica pra quando você estiver sozinho, num café. Durante a conversa não se lê; se bate o olho. Ler e expandir fica pra fora da conversa.
 
 1. **Bater o olho (durante a conversa):**
    - Foto quadrada média, NOME em caixa alta e as pílulas de onde você conhece a pessoa (TRABALHO, AMIGO, ACADEMIA).
@@ -24,7 +24,7 @@ Card da pessoa, só leitura, com 70% da largura do display, pra não tampar a vi
    - Sem dossiê, sem linha do tempo, nada pra expandir. A ideia é não parecer distraído na frente da pessoa.
 2. **Revisão (fora da conversa):**
    - Quando o app está em repouso (ninguém na frente, nada gravando), aparece só uma linha discreta embaixo: **ÚLTIMOS ENCONTROS ⌃**.
-   - O toque abre uma grade de mini-cards com foto, nome curto ("Marcus M.") e data pequena, lado a lado.
+   - O toque abre uma coluna estreita no canto (cerca de 40% da largura) com cards curtos: foto pequena ao lado do nome curto ("Marcus M.") e da data. Ocupa pouco espaço de propósito: se alguém aparecer ou você precisar pagar algo, nada atrapalha, e 2 toques fecham.
    - Entram **todos** os encontros, do mais recente pro mais antigo, com scroll vertical infinito, carregando de 12 em 12. Depois isso vira comando de voz ("mostre meus últimos encontros").
    - Deslizar ‹ › escolhe; toque abre o card completo.
    - O card completo tem foto, nome e pílulas, **SOBRE** (dossiê de 3–4 linhas) e **ENCONTROS** (mini-cards de 2 linhas com chevron: toque expande, 2 toques recolhem).
