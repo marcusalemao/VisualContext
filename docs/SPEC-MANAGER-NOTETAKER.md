@@ -77,17 +77,18 @@ Ninguém é "desconhecido" nem "não cadastrado". Enquanto não há nome, o tít
 
 ## Lugares: card preso ao prédio (proposta, 10/10, pode ser desligado)
 
-Você anda pela Paulista, olha para o MASP por ~1,5 s e aparece o card **MASP**. Se você virar a cabeça, o card fica preso ao prédio. O espírito é Minority Report, sem poluir.
+Você anda pela Paulista, olha na direção do MASP e aparece o card **MASP**. Se você virar a cabeça, o card fica preso ao prédio. O espírito é Minority Report, sem poluir.
 
 - **Reconhecer o lugar sem câmera:** GPS do celular + direção da cabeça (bússola/IMU dos óculos) + uma lista de pontos do entorno (OpenStreetMap/Wikidata) baixada por bairro. Custa poucos KB, não precisa de vídeo nem de IA de imagem. A câmera entra só para confirmar quando a bússola estiver em dúvida (fase 2).
 - **O card mistura o público e o pessoal:** "MASP · museu, 1968" + **a sua memória ali**: "você esteve aqui em 12/03 com a Carla". O diferencial do VisualContext é lembrar, não fazer turismo.
 - **Preso ao prédio (3 graus de liberdade):** a posição do card na tela = direção do prédio − direção da cabeça, recalculada ~60×/s com a IMU. Saiu do campo de visão → some (ou vira uma setinha na borda). Na altura, fica sempre dentro da zona dos 70%.
 - **Onde precisa rodar:** **nos óculos**, porque 60 quadros/s não atravessam o Bluetooth. Como plugin Nexus puro não dá (a imagem atualiza no máximo a cada 150 ms e os plugins não rodam código nos óculos). Precisa de app nativo nos óculos (a Opção B do estudo do Anezium) ou de uma capacidade nova no Nexus ("card ancorado por direção"), boa proposta para ele.
 - **Limite honesto:** a bússola erra 10–20° perto de prédios e de metal. O card pode "escorregar" do prédio. Confirmar pela câmera de vez em quando resolve.
-- **Controle:** liga/desliga em Ajustes; só aparece depois de ~1,5 s olhando (nada de chuva de cards).
-- **Ajustes do usuário (10/10):** **Cards ao mesmo tempo: 1, 2 ou 3** (padrão 2); com mais de um, os cards ficam menores e nunca se sobrepõem. **Detalhe de 1 a 5:** 1 = nome · 2 = + distância · 3 = + tipo/endereço · 4 = + a sua memória ali · 5 = + uma linha da Wikipédia.
+- **Controle (decisão do Marcus, 10/10):** Ajustes tem só **4 chaves principais: Lugares, Rostos, Coisas e Memórias**. **Não há subconfiguração** dentro de Lugares (nem quantidade de cards, nem nível de detalhe). Quem não gostar desliga a chave Lugares. *(Substitui os ajustes "cards 1–3" e "detalhe 1–5" de antes.)*
+- **Comportamento fixo:** qualquer lugar por perto que esteja no campo de visão aparece sozinho, sem precisar mirar (até 3 cards ao mesmo tempo; com mais de um, ficam menores e nunca se sobrepõem). Se houver mais lugares do que espaço, vencem os mais centrais, com vantagem para os marcos (Wikipédia/Wikidata, museus, teatros, monumentos). O card mostra nome · tipo/endereço · distância · a sua memória ali.
+- **Atrás de prédios = contorno pontilhado:** o lugar continua aparecendo, mas com contorno pontilhado e o texto "atrás de prédios" ao lado da distância. O cálculo usa os contornos e as alturas dos prédios do OpenStreetMap (ou ~3 andares quando a altura não está no mapa). Se um prédio no caminho passa da linha entre os olhos e o topo do lugar, o lugar está escondido. O prédio onde você está e o próprio prédio do lugar não contam. Altura dos olhos: 1,6 m (rua). Numa janela alta o cálculo exagera e marca coisas que você vê por cima dos prédios. Isso fica para depois.
 - **Protótipo:** `web/lugares.html` (celular: GPS + bússola; ou simulação na Paulista). Lugares do OpenStreetMap: museus, teatros, cinemas, centros culturais, bibliotecas, templos, parques, monumentos.
-- **Dados e bateria:** dados quase zero (só a lista de pontos). A bateria pesa mais pela IMU e pela tela acesa do que pela rede.
+- **Dados e bateria:** dados quase zero: a lista de pontos (poucos KB) e os prédios num raio de 400 m (algumas centenas de KB numa região densa, baixados uma vez e guardados no celular). A bateria pesa mais pela IMU e pela tela acesa do que pela rede.
 
 ## Encontro em grupo = Evento (proposta, 10/10, a decidir)
 

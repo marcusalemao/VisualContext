@@ -18,6 +18,9 @@ body.guides #zone{display:block}
 .pc{position:absolute;top:40px;width:300px;display:none;padding:10px 12px;border-radius:12px;
   background:rgba(0,255,136,.2);border:2px solid rgba(0,255,136,.6);transform:translateX(-50%)}
 .pc.on{display:block}
+/* dashed outline = probably hidden behind buildings */
+.pc.hid{border-style:dashed}
+.pc.hid:after{background:none;width:0;border-left:2px dashed rgba(0,255,136,.6)}
 .pc.small{width:200px;padding:8px 10px}
 .pc.small .n{font-size:17px}
 .pc:after{content:'';position:absolute;left:50%;bottom:-14px;width:2px;height:12px;background:rgba(0,255,136,.6)}
@@ -27,9 +30,6 @@ body.guides #zone{display:block}
 .pc .m{font-size:14px;color:#00ff88;margin-top:6px;border-top:2px solid rgba(0,255,136,.3);padding-top:5px}
 .pc .d{font-size:12px;color:#00ff88;margin-top:5px;letter-spacing:1px}
 .pc .s:empty,.pc .w:empty,.pc .m:empty,.pc .d:empty{display:none}
-/* dwell ring: the card appears only after ~1.5 s looking at the place */
-#dwell{position:absolute;top:150px;width:28px;height:28px;border-radius:50%;border:2px solid rgba(0,255,136,.6);transform:translateX(-50%);display:none}
-#dwell.on{display:block}
 #edge{position:absolute;top:60px;font-size:26px;display:none}
 #edge.on{display:block}
 #status{position:absolute;right:16px;bottom:14px;font-size:14px;color:#00ff88;text-align:right;line-height:1.5}
@@ -62,7 +62,6 @@ body.guides #dbg{display:block}
   <div id="stage">
     <div id="zone"></div>
     <div id="edge"></div>
-    <div id="dwell"></div>
     <div class="pc" id="pc0"></div><div class="pc" id="pc1"></div><div class="pc" id="pc2"></div>
     <div id="status"></div>
   </div>
@@ -75,22 +74,21 @@ body.guides #dbg{display:block}
 <div id="bar">
   <button id="b-mem" data-i18n="t_remember"></button>
   <button id="b-fov"></button>
-  <button id="b-max"></button>
-  <button id="b-lvl"></button>
+  <button id="b-on" class="on"></button>
   <button id="b-dbg" data-i18n="t_debug"></button>
 </div>
 <script>
 VC_I18N.add({
-  en:{ t_title:'Places · prototype', t_intro:'Point the phone (later: your head) at a building. After ~1.5 s its card appears and stays pinned to it while you turn. Uses GPS + compass and the map around you — no image analysis.',
+  en:{ t_title:'Places · prototype', t_intro:'Point the phone (later: your head) around. Nearby places show up on their own (up to 3 at a time). Cards stay pinned to the building while you turn. Dashed outline = probably behind buildings. Uses GPS + compass and the map around you — no image analysis.',
        t_real:'Start (camera + GPS + compass)', t_sim:'Simulate at Av. Paulista (no GPS)', t_heading:'Direction you are facing (simulation)',
-       t_remember:'Remember here', t_debug:'Details', t_fov_g:'View: glasses (24°)', t_max:'Cards: {n}', t_lvl:'Detail: {n}/5', t_fov_p:'View: phone (60°)',
+       t_remember:'Remember here', t_debug:'Details', t_fov_g:'View: glasses (24°)', t_on:'Places: on', t_off:'Places: off', t_fov_p:'View: phone (60°)',
        s_wait_gps:'waiting for GPS…', s_wait_cmp:'waiting for compass…', s_places:'{n} places around', s_none:'no places around', s_map_load:'loading the map…', s_map_fail:'map unavailable — try again in a minute',
-       mem_none:'', mem_here:'You were here {when}', mem_saved:'saved: you were here today', away:'{d} m', no_cmp:'compass unavailable — use the simulation' },
-  pt:{ t_title:'Lugares · protótipo', t_intro:'Aponte o celular (depois: a cabeça) para um prédio. Depois de ~1,5 s aparece o card dele, que fica preso ao prédio enquanto você vira. Usa GPS + bússola e o mapa do entorno — sem análise de imagem.',
+       mem_none:'', mem_here:'You were here {when}', mem_saved:'saved: you were here today', away:'{d} m', behind:'behind buildings', no_cmp:'compass unavailable — use the simulation' },
+  pt:{ t_title:'Lugares · protótipo', t_intro:'Aponte o celular (depois: a cabeça) em volta. Os lugares por perto aparecem sozinhos (até 3 de cada vez). O card fica preso ao prédio enquanto você vira. Contorno pontilhado = provavelmente atrás de prédios. Usa GPS + bússola e o mapa do entorno — sem análise de imagem.',
        t_real:'Começar (câmera + GPS + bússola)', t_sim:'Simular na Av. Paulista (sem GPS)', t_heading:'Para onde você está olhando (simulação)',
-       t_remember:'Lembrar daqui', t_debug:'Detalhes', t_fov_g:'Visão: óculos (24°)', t_max:'Cards: {n}', t_lvl:'Detalhe: {n}/5', t_fov_p:'Visão: celular (60°)',
+       t_remember:'Lembrar daqui', t_debug:'Detalhes', t_fov_g:'Visão: óculos (24°)', t_on:'Lugares: ligado', t_off:'Lugares: desligado', t_fov_p:'Visão: celular (60°)',
        s_wait_gps:'esperando GPS…', s_wait_cmp:'esperando bússola…', s_places:'{n} lugares por perto', s_none:'nenhum lugar por perto', s_map_load:'carregando o mapa…', s_map_fail:'mapa indisponível — tente de novo em 1 min',
-       mem_none:'', mem_here:'Você esteve aqui {when}', mem_saved:'salvo: você esteve aqui hoje', away:'{d} m', no_cmp:'sem bússola — use a simulação' }
+       mem_none:'', mem_here:'Você esteve aqui {when}', mem_saved:'salvo: você esteve aqui hoje', away:'{d} m', behind:'atrás de prédios', no_cmp:'sem bússola — use a simulação' }
 });
 var t = VC_I18N.t;
 VC_I18N.apply();
@@ -107,9 +105,12 @@ var FALLBACK = [
   { name:'Japan House', sub:'Centro cultural japonês · Kengo Kuma', lat:-23.57030, lon:-46.64520 },
   { name:'Casa das Rosas', sub:'Casarão de 1935 · poesia e literatura', lat:-23.57130, lon:-46.64470 }
 ];
+FALLBACK.forEach(function(f){ f.score = 3; });
 var SIM_POS = { lat:-23.56210, lon:-46.65630 };   // sidewalk in front of Trianon, looking at MASP to the NE
 var places = [], pos = null, heading = null, simulate = false, fov = 24;
-var maxCards = 2, level = 3, seen = {}, pinned = [], xs = {};   // seen[name] = since when it's in the centre band
+// No sub-settings: only the main Places switch (next to Faces, Things, Memories). Fixed: up to 3 cards, detail level 4.
+var MAX_CARDS = 3, level = 4, enabled = true, seen = {}, pinned = [], xs = {};   // seen[name] = since when it's in view
+var EYE = +((/[?&]eye=(\d+)/.exec(location.search) || [])[1] || 1.6);   // eye height in m (test: ?eye=30 for a high window)
 
 
 function rad(d){ return d * Math.PI / 180; }
@@ -145,7 +146,7 @@ function loadPlaces(p) {
   loadedAt = { lat:p.lat, lon:p.lon };
   // instant: last map we got near here (this phone only)
   try { var c = JSON.parse(localStorage.getItem('vc_places_cache') || 'null');
-    if (c && dist(c.at, p) < 600) { mergePlaces(c.items); mapState = 'cache'; } else if (!places.length) places = FALLBACK.slice(); } catch (e) { places = FALLBACK.slice(); }
+    if (c && dist(c.at, p) < 600) { mergePlaces(c.items); mapState = 'cache'; computeHidden(true); } else if (!places.length) places = FALLBACK.slice(); } catch (e) { places = FALLBACK.slice(); }
   var a = 'nwr(around:600,' + p.lat + ',' + p.lon + ')';
   var q = '[out:json][timeout:20];(' +
     a + '[tourism~"museum|attraction|gallery|artwork"][name];' +
@@ -162,14 +163,101 @@ function loadPlaces(p) {
         var got = (d.elements || []).map(function(e){
           var c = e.center || e; var tg = e.tags || {};
           return { name: tg.name, sub: [kindName(tg.amenity || tg.tourism || tg.historic || tg.leisure || tg.building), tg['addr:street']].filter(function(x){ return x && x !== 'yes'; }).join(' · '),
-                   lat: c.lat, lon: c.lon, wiki: tg.wikipedia || '' };
+                   lat: c.lat, lon: c.lon, wiki: tg.wikipedia || '', score: importance(tg) };
         }).filter(function(x){ return x.name && x.lat; });
-        mergePlaces(got); mapState = 'ok';
+        mergePlaces(got); mapState = 'ok'; computeHidden(true);
+        setTimeout(function(){ loadBuildings(loadedAt, k); }, 800);
         try { localStorage.setItem('vc_places_cache', JSON.stringify({ at: loadedAt, items: got })); } catch (e) {}
         setStatus();
       })
       .catch(function(){ tryMirror(k + 1); });
   })(0);
+}
+// landmark score: landmarks (score ≥ 2) get a head start when there are more places than card slots
+function importance(tg) {
+  var s = 0;
+  if (tg.wikidata || tg.wikipedia) s += 2;
+  if (/museum|attraction/.test(tg.tourism || '') || tg.historic) s += 2;
+  if (/theatre|arts_centre/.test(tg.amenity || '')) s += 2;
+  if (/cinema|library|university|place_of_worship/.test(tg.amenity || '') || tg.leisure === 'park' || /gallery|artwork/.test(tg.tourism || '')) s += 1;
+  return s;
+}
+// ── buildings: is the place probably hidden behind one? (OSM footprints + heights) ──
+var bld = [], bOrigin = null, hidAt = null;
+function toXY(p){ return [(p.lon - bOrigin.lon) * Math.cos(rad(bOrigin.lat)) * 111320, (p.lat - bOrigin.lat) * 110540]; }
+function bHeight(tg) {
+  var h = parseFloat(tg.height); if (h > 0) return h;
+  var l = parseFloat(tg['building:levels']); if (l > 0) return l * 3;
+  return tg.building === 'house' ? 7 : 10;   // unknown: ~3 floors
+}
+function loadBuildings(p, k0) {
+  try { var c = JSON.parse(localStorage.getItem('vc_bldg_cache') || 'null');
+    if (c && dist(c.o, p) < 150) { bOrigin = c.o; bld = c.items; computeHidden(true); } } catch (e) {}
+  var q = '[out:json][timeout:25];way["building"](around:400,' + p.lat + ',' + p.lon + ');out geom qt;';
+  (function tryMirror(k, n) {
+    if (n >= MIRRORS.length) return;   // no buildings → cards just stay solid
+    fetch(MIRRORS[k % MIRRORS.length] + '?data=' + encodeURIComponent(q))
+      .then(function(r){ if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function(d){
+        bOrigin = { lat:p.lat, lon:p.lon };
+        bld = (d.elements || []).filter(function(e){ return e.geometry && e.geometry.length > 2; }).map(function(e){
+          var pts = [], b = [1e9, 1e9, -1e9, -1e9];
+          e.geometry.forEach(function(g){ var xy = toXY(g); pts.push(Math.round(xy[0] * 10) / 10, Math.round(xy[1] * 10) / 10);
+            b = [Math.min(b[0], xy[0]), Math.min(b[1], xy[1]), Math.max(b[2], xy[0]), Math.max(b[3], xy[1])]; });
+          return { h: bHeight(e.tags || {}), pts: pts, bb: b.map(Math.round) };
+        });
+        try { localStorage.setItem('vc_bldg_cache', JSON.stringify({ o: bOrigin, items: bld })); } catch (e) {}
+        computeHidden(true);
+      })
+      .catch(function(){ tryMirror(k + 1, n + 1); });
+  })(k0 || 0, 0);
+}
+function inPoly(x, y, pts) {
+  var c = false;
+  for (var i = 0, j = pts.length - 2; i < pts.length; j = i, i += 2) {
+    var xi = pts[i], yi = pts[i+1], xj = pts[j], yj = pts[j+1];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c;
+  }
+  return c;
+}
+function nearPoly(x, y, b, r) {   // is the point within r metres of the footprint's outline?
+  if (x < b.bb[0] - r || x > b.bb[2] + r || y < b.bb[1] - r || y > b.bb[3] + r) return false;
+  for (var i = 0, j = b.pts.length - 2; i < b.pts.length; j = i, i += 2) {
+    var ax = b.pts[j], ay = b.pts[j+1], dx = b.pts[i] - ax, dy = b.pts[i+1] - ay, L = dx*dx + dy*dy;
+    var k = L ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / L)) : 0;
+    var ex = ax + k * dx - x, ey = ay + k * dy - y; if (ex*ex + ey*ey < r*r) return true;
+  }
+  return false;
+}
+function crossAt(ax, ay, bx, by, cx, cy, dx, dy) {   // where segment AB crosses CD, as a fraction of AB (−1 = no)
+  var rx = bx - ax, ry = by - ay, sx = dx - cx, sy = dy - cy, den = rx * sy - ry * sx;
+  if (!den) return -1;
+  var t = ((cx - ax) * sy - (cy - ay) * sx) / den, u = ((cx - ax) * ry - (cy - ay) * rx) / den;
+  return t > 0 && t < 1 && u >= 0 && u <= 1 ? t : -1;
+}
+// line of sight from your eyes to the top of the place; a building that rises above that line hides it
+function computeHidden(force) {
+  if (!pos || !bld.length) return;
+  if (!force && hidAt && dist(hidAt, pos) < 8) return;
+  hidAt = { lat:pos.lat, lon:pos.lon };
+  var u = toXY(pos);
+  var mine = bld.filter(function(b){ return inPoly(u[0], u[1], b.pts); });   // the building you are in
+  places.forEach(function(p){
+    p.hidden = false;
+    var D = dist(pos, p); if (D > 500 || D < 5) return;
+    var tp = toXY(p), ht = 10, own = [];
+    bld.forEach(function(b){ if (inPoly(tp[0], tp[1], b.pts) || nearPoly(tp[0], tp[1], b, 12)) { own.push(b); ht = Math.max(ht, b.h); } });
+    var minX = Math.min(u[0], tp[0]), maxX = Math.max(u[0], tp[0]), minY = Math.min(u[1], tp[1]), maxY = Math.max(u[1], tp[1]);
+    for (var n = 0; n < bld.length && !p.hidden; n++) {
+      var b = bld[n];
+      if (b.bb[2] < minX || b.bb[0] > maxX || b.bb[3] < minY || b.bb[1] > maxY) continue;
+      if (mine.indexOf(b) >= 0 || own.indexOf(b) >= 0) continue;
+      for (var i = 0, j = b.pts.length - 2; i < b.pts.length; j = i, i += 2) {
+        var s = crossAt(u[0], u[1], tp[0], tp[1], b.pts[j], b.pts[j+1], b.pts[i], b.pts[i+1]);
+        if (s > 0 && b.h > EYE + (ht - EYE) * s) { p.hidden = true; break; }
+      }
+    }
+  });
 }
 // ── personal memory per place (prototype: this phone only) ──
 function memKey(p){ return 'vc_place_' + p.name; }
@@ -189,7 +277,8 @@ function startReal() {
   if (navigator.geolocation) navigator.geolocation.watchPosition(function(p){
     var first = !pos;
     pos = { lat:p.coords.latitude, lon:p.coords.longitude, acc:p.coords.accuracy };
-    if (first || (loadedAt && dist(loadedAt, pos) > 300 && p.coords.accuracy < 100)) loadPlaces(pos);
+    if (first || (loadedAt && dist(loadedAt, pos) > 250 && p.coords.accuracy < 100)) loadPlaces(pos);
+    else computeHidden();
   }, function(){ setStatus(); }, { enableHighAccuracy:true, maximumAge:2000 });
   var ask = window.DeviceOrientationEvent && DeviceOrientationEvent.requestPermission;
   (ask ? DeviceOrientationEvent.requestPermission() : Promise.resolve('granted')).then(function(){
@@ -221,11 +310,11 @@ function startSim() {
   });
 }
 
-// ── frame loop: places in view, each needs ~1.5 s in view before its card appears; up to maxCards pinned ──
+// ── frame loop: every place in view shows on its own (up to MAX_CARDS), pinned to its direction ──
 function frame() {
   requestAnimationFrame(frame);
-  var dw = document.getElementById('dwell'), now = performance.now();
-  if (!pos || heading === null || !places.length) { hideAll(); dw.className = ''; dbg(); return; }
+  var now = performance.now();
+  if (!enabled || !pos || heading === null || !places.length) { hideAll(); dbg(); return; }
   var inView = [];
   places.forEach(function(p){
     var d = dist(pos, p); if (d > 500 || d < 5) return;
@@ -236,17 +325,14 @@ function frame() {
   var names = {};
   inView.forEach(function(x){ names[x.p.name] = true; if (!seen[x.p.name]) seen[x.p.name] = now; });
   Object.keys(seen).forEach(function(n){ if (!names[n]) { delete seen[n]; } });
-  // keep pinned cards while their place is still in view; fill free slots with the most central ripe ones
+  // keep pinned cards while their place is still in view
   pinned = pinned.filter(function(n){ return names[n]; });
-  inView.forEach(function(x){
-    if (pinned.length >= maxCards || pinned.indexOf(x.p.name) >= 0) return;
-    if (now - seen[x.p.name] > 1500) pinned.push(x.p.name);
+  // every place in view shows on its own (after 0.3 s, so a fast sweep doesn't flicker).
+  // Free slots go to the best-ranked: closest to the centre, with a head start for landmarks.
+  inView.slice().sort(function(a, b){ return rank(a) - rank(b); }).forEach(function(x){
+    if (pinned.length >= MAX_CARDS || pinned.indexOf(x.p.name) >= 0) return;
+    if (now - seen[x.p.name] > 300) pinned.push(x.p.name);
   });
-  // dwell ring on the most central place that is not shown yet
-  var next = inView.filter(function(x){ return pinned.indexOf(x.p.name) < 0; })[0];
-  if (next && pinned.length < maxCards) { var k = Math.min(1, (now - seen[next.p.name]) / 1500);
-    dw.className = 'on'; dw.style.left = toX(next.off) + 'px'; dw.style.borderColor = 'rgba(0,255,136,' + (0.2 + 0.8 * k) + ')'; }
-  else dw.className = '';
   // layout: each card at its building's direction, pushed apart so they never overlap
   var shownNow = inView.filter(function(x){ return pinned.indexOf(x.p.name) >= 0; }).sort(function(a, b){ return a.off - b.off; });
   var small = shownNow.length > 1, w = small ? 200 : 300, gap = 8;
@@ -257,12 +343,13 @@ function frame() {
   for (i = 0; i < 3; i++) {
     var el = document.getElementById('pc' + i), x = shownNow[i];
     if (!x) { el.className = 'pc'; continue; }
-    el.className = 'pc on' + (small ? ' small' : '');
+    el.className = 'pc on' + (small ? ' small' : '') + (x.p.hidden ? ' hid' : '');
     el.style.left = Math.max(w / 2, xsNow[i]) + 'px';
     el.innerHTML = cardHTML(x.p, x.d);
   }
   dbg(inView[0]);
 }
+function rank(x){ return Math.abs(x.off) - ((x.p.score || 0) >= 2 ? 6 : 0); }
 function hideAll(){ for (var i = 0; i < 3; i++) document.getElementById('pc' + i).className = 'pc'; }
 function esc(v){ return String(v || '').replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); }
 // detail 1 name · 2 + distance · 3 + kind/address · 4 + your memory here · 5 + Wikipedia line
@@ -271,11 +358,12 @@ function cardHTML(p, d) {
     '<div class="s">' + (level >= 3 ? esc(p.sub) : '') + '</div>' +
     '<div class="w">' + (level >= 5 ? esc(wikiLine(p)) : '') + '</div>' +
     '<div class="m">' + (level >= 4 ? esc(memLine(p)) : '') + '</div>' +
-    '<div class="d">' + (level >= 2 ? esc(t('away', { d: Math.round(d) })) : '') + '</div>';
+    '<div class="d">' + (level >= 2 ? esc(t('away', { d: Math.round(d) }) + (p.hidden && level >= 3 ? ' · ' + t('behind') : '')) : '') + '</div>';
 }
 function toX(off) { return 320 + (off / (fov / 2)) * 320; }
 function setStatus() {
   var s = document.getElementById('status');
+  if (!enabled) { s.textContent = ''; return; }
   if (!pos) { s.textContent = t('s_wait_gps'); return; }
   if (heading === null) { s.textContent = t('s_wait_cmp'); return; }
   var n = places.filter(function(p){ return dist(pos, p) <= 500; }).length;
@@ -287,9 +375,10 @@ function dbg(best) {
   if (!document.body.classList.contains('guides')) return;
   var lines = ['pos ' + (pos ? pos.lat.toFixed(5) + ',' + pos.lon.toFixed(5) + ' ±' + Math.round(pos.acc) + 'm' : '—'),
                'heading ' + (heading === null ? '—' : Math.round(heading) + '°') + ' · fov ' + fov + '°' + (simulate ? ' · SIM' : '')];
-  if (pos && heading !== null) places.map(function(p){ return { n:p.name, d:dist(pos, p), o:diff(bearing(pos, p), heading) }; })
+  if (pos && heading !== null) places.map(function(p){ return { n:p.name, d:dist(pos, p), o:diff(bearing(pos, p), heading), s:p.score || 0, h:p.hidden }; })
     .filter(function(x){ return x.d <= 500; }).sort(function(a, b){ return Math.abs(a.o) - Math.abs(b.o); }).slice(0, 6)
-    .forEach(function(x){ lines.push((Math.abs(x.o) < 20 ? '▶ ' : '  ') + x.n.slice(0, 22) + '  ' + Math.round(x.d) + 'm  ' + Math.round(x.o) + '°'); });
+    .forEach(function(x){ lines.push((Math.abs(x.o) < 20 ? '▶ ' : '  ') + x.n.slice(0, 22) + '  ' + Math.round(x.d) + 'm  ' + Math.round(x.o) + '°  ' + (x.s >= 2 ? '★' : '·') + (x.h ? ' ┄' : '')); });
+  lines.push('prédios ' + bld.length + ' · olhos ' + EYE + ' m');
   document.getElementById('dbg').textContent = lines.join('\n');
 }
 
@@ -312,10 +401,10 @@ document.getElementById('b-mem').onclick = function(){
 };
 document.getElementById('go-real').onclick = function(){ document.getElementById('intro').style.display = 'none'; fit(); startReal(); };
 document.getElementById('go-sim').onclick = function(){ document.getElementById('intro').style.display = 'none'; fit(); startSim(); };
-try { maxCards = +(localStorage.getItem('vc_places_max') || 2); level = +(localStorage.getItem('vc_places_lvl') || 3); } catch (e) {}
-function ctlLabels(){ document.getElementById('b-max').textContent = t('t_max', { n: maxCards }); document.getElementById('b-lvl').textContent = t('t_lvl', { n: level }); }
-document.getElementById('b-max').onclick = function(){ maxCards = maxCards % 3 + 1; pinned = pinned.slice(0, maxCards); try { localStorage.setItem('vc_places_max', maxCards); } catch (e) {} ctlLabels(); };
-document.getElementById('b-lvl').onclick = function(){ level = level % 5 + 1; try { localStorage.setItem('vc_places_lvl', level); } catch (e) {} ctlLabels(); };
+// the main Places switch (in the app it sits with Faces, Things and Memories)
+try { enabled = localStorage.getItem('vc_places_on') !== '0'; } catch (e) {}
+function ctlLabels(){ var b = document.getElementById('b-on'); b.textContent = t(enabled ? 't_on' : 't_off'); b.className = enabled ? 'on' : ''; }
+document.getElementById('b-on').onclick = function(){ enabled = !enabled; pinned = []; try { localStorage.setItem('vc_places_on', enabled ? '1' : '0'); } catch (e) {} ctlLabels(); setStatus(); };
 ctlLabels(); fovLabel(); fit(); requestAnimationFrame(frame);
 </script>
 </body>
