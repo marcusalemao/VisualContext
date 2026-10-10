@@ -305,6 +305,12 @@ body.debug #sync-badge{display:inline}
     <div class="h-row"><span class="h-key">Enter / ↑</span><span class="h-desc" data-i18n="g_tap"></span></div>
     <div class="h-row"><span class="h-key">← / →</span><span class="h-desc" data-i18n="g_swipes"></span></div>
     <div class="h-row"><span class="h-key">Esc / ↓</span><span class="h-desc" data-i18n="g_dtap"></span></div>
+    <div class="h-sec" data-i18n="h_sec_rec"></div>
+    <div class="h-lang" id="rec-btns">
+      <button data-need="1" data-i18n="rec_speech"></button>
+      <button data-need="0" data-i18n="rec_look"></button>
+    </div>
+    <div class="h-desc" style="margin-top:6px" data-i18n="h_d_rec"></div>
     <div class="h-sec" data-i18n="h_sec_lang"></div>
     <div class="h-lang" id="lang-btns">
       <button data-lang="system" data-i18n="lang_system"></button>
@@ -348,6 +354,7 @@ VC_I18N.add({
     h_d_tap:'Paused: resume recording. Nobody in front: open your last encounters; then open a person and expand an encounter. Unknown face: take a photo to save it by hand → preview → Tap save / Swipe forward discard.',
     h_d_swipes:'Outside a conversation: move through your last encounters and the timeline.',
     h_sec_kbd:'Keyboard (desktop)', h_d_space:'Camera on/off',
+    h_sec_rec:'Recording', rec_speech:'Needs speech', rec_look:'Eye contact is enough', h_d_rec:'Default: an encounter starts after eye contact AND speech. "Eye contact is enough" records even when nobody talks — e.g. visiting someone who barely speaks.',
     h_sec_lang:'Language', lang_system:'Phone language', h_d_lang:'By default the app follows the phone\'s language — Portuguese if the phone is in Portuguese, English otherwise.',
     h_sec_dev:'Developer', log_btn:'On-screen log: {s}',
     h_note:'Speech uses the browser\'s speech recognition (Chrome). Without it, the emulator falls back to face-only and says so on the panel. Real display: 640×480 landscape — pure black (#000) is transparent on the waveguide.',
@@ -385,6 +392,7 @@ VC_I18N.add({
     h_d_tap:'Pausado: retoma a gravação. Ninguém na frente: abre os últimos encontros; depois abre a pessoa e expande um encontro. Rosto desconhecido: tira foto pra salvar na mão → prévia → Toque salva / Deslizar descarta.',
     h_d_swipes:'Fora de uma conversa: passa pelos últimos encontros e pela linha do tempo.',
     h_sec_kbd:'Teclado (desktop)', h_d_space:'Liga/desliga a câmera',
+    h_sec_rec:'Gravação', rec_speech:'Precisa de fala', rec_look:'Só o olhar basta', h_d_rec:'Padrão: o encontro começa com contato visual E fala. "Só o olhar basta" grava mesmo sem ninguém falar — por exemplo, visitar alguém que quase não fala.',
     h_sec_lang:'Idioma', lang_system:'Idioma do celular', h_d_lang:'Por padrão o app segue o idioma do celular — português se o celular estiver em português, inglês nos outros casos.',
     h_sec_dev:'Desenvolvedor', log_btn:'Log na tela: {s}',
     h_note:'A fala usa o reconhecimento de voz do navegador (Chrome). Sem ele, o emulador funciona só com o rosto e avisa no painel. Display real: 640×480 paisagem — preto puro (#000) é transparente no waveguide.',
@@ -614,7 +622,7 @@ function tick() {
 
   if (_state === 'buffer') {
     if (away > LEAVE_MS_PENDING) return endEncounter('left');
-    var speechOk = _enc.heardSpeech || _speech === 'unavailable';
+    var speechOk = _enc.heardSpeech || _speech === 'unavailable' || !NEED_SPEECH;
     if (now - _enc.startedAt >= BUFFER_MS && speechOk) {
       if (_enc.kind === 'new') {
         _state = 'countdown';
@@ -752,7 +760,7 @@ function render() {
 
   updateRecentBar();
   // status line
-  if (st === 'buffer') setStatus(_speech === 'unavailable' ? 's_buf_face' : (e.heardSpeech ? 's_buf_speech' : 's_buf_wait'));
+  if (st === 'buffer') setStatus((_speech === 'unavailable' || !NEED_SPEECH) ? 's_buf_face' : (e.heardSpeech ? 's_buf_speech' : 's_buf_wait'));
   else if (st === 'countdown') setStatus('s_confirm');
   else if (st === 'recording') setStatus('s_rec');
   else if (st === 'paused') setStatus('s_paused');
@@ -1636,6 +1644,24 @@ bindBtn('help-x', function(){ document.getElementById('help-ov').classList.remov
   fit();
   if (window.ResizeObserver) new ResizeObserver(fit).observe(wg); else window.addEventListener('resize', fit);
 })();
+
+// ── Setting: does an encounter need speech? (default yes; the real app keeps it in the phone settings) ──
+var NEED_SPEECH = true;
+try { NEED_SPEECH = localStorage.getItem('vc_need_speech') !== '0'; } catch (e) {}
+function markRecButtons() {
+  document.querySelectorAll('#rec-btns button').forEach(function(b){
+    b.classList.toggle('on', (b.getAttribute('data-need') === '1') === NEED_SPEECH);
+  });
+}
+document.querySelectorAll('#rec-btns button').forEach(function(b){
+  bindTapDyn(b, function(){
+    NEED_SPEECH = b.getAttribute('data-need') === '1';
+    try { localStorage.setItem('vc_need_speech', NEED_SPEECH ? '1' : '0'); } catch (e) {}
+    markRecButtons();
+    log(NEED_SPEECH ? '⚙ encounter needs eye contact + speech' : '⚙ eye contact is enough to record', true);
+  });
+});
+markRecButtons();
 
 // ── Language ──
 function markLangButtons() {
