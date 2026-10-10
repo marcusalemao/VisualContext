@@ -84,12 +84,12 @@ VC_I18N.add({
   en:{ t_title:'Places · prototype', t_intro:'Point the phone (later: your head) at a building. After ~1.5 s its card appears and stays pinned to it while you turn. Uses GPS + compass and the map around you — no image analysis.',
        t_real:'Start (camera + GPS + compass)', t_sim:'Simulate at Av. Paulista (no GPS)', t_heading:'Direction you are facing (simulation)',
        t_remember:'Remember here', t_debug:'Details', t_fov_g:'View: glasses (24°)', t_max:'Cards: {n}', t_lvl:'Detail: {n}/5', t_fov_p:'View: phone (60°)',
-       s_wait_gps:'waiting for GPS…', s_wait_cmp:'waiting for compass…', s_places:'{n} places around', s_none:'no places around',
+       s_wait_gps:'waiting for GPS…', s_wait_cmp:'waiting for compass…', s_places:'{n} places around', s_none:'no places around', s_map_load:'loading the map…', s_map_fail:'map unavailable — try again in a minute',
        mem_none:'', mem_here:'You were here {when}', mem_saved:'saved: you were here today', away:'{d} m', no_cmp:'compass unavailable — use the simulation' },
   pt:{ t_title:'Lugares · protótipo', t_intro:'Aponte o celular (depois: a cabeça) para um prédio. Depois de ~1,5 s aparece o card dele, que fica preso ao prédio enquanto você vira. Usa GPS + bússola e o mapa do entorno — sem análise de imagem.',
        t_real:'Começar (câmera + GPS + bússola)', t_sim:'Simular na Av. Paulista (sem GPS)', t_heading:'Para onde você está olhando (simulação)',
        t_remember:'Lembrar daqui', t_debug:'Detalhes', t_fov_g:'Visão: óculos (24°)', t_max:'Cards: {n}', t_lvl:'Detalhe: {n}/5', t_fov_p:'Visão: celular (60°)',
-       s_wait_gps:'esperando GPS…', s_wait_cmp:'esperando bússola…', s_places:'{n} lugares por perto', s_none:'nenhum lugar por perto',
+       s_wait_gps:'esperando GPS…', s_wait_cmp:'esperando bússola…', s_places:'{n} lugares por perto', s_none:'nenhum lugar por perto', s_map_load:'carregando o mapa…', s_map_fail:'mapa indisponível — tente de novo em 1 min',
        mem_none:'', mem_here:'Você esteve aqui {when}', mem_saved:'salvo: você esteve aqui hoje', away:'{d} m', no_cmp:'sem bússola — use a simulação' }
 });
 var t = VC_I18N.t;
@@ -132,32 +132,45 @@ function wikiLine(p) {
   _wiki[p.wiki] = '';
   var m = /^([a-z\-]+):(.+)$/.exec(p.wiki); if (!m) return '';
   fetch('https://' + m[1] + '.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(m[2].replace(/ /g, '_')))
-    .then(function(r){ return r.json(); }).then(function(d){ _wiki[p.wiki] = ((d && d.extract) || '').split(/(?<=\.)\s/)[0].slice(0, 180); }).catch(function(){});
+    .then(function(r){ return r.json(); }).then(function(d){ var ex = (d && d.extract) || ''; var k = ex.indexOf('. '); _wiki[p.wiki] = (k > 0 ? ex.slice(0, k + 1) : ex).slice(0, 180); }).catch(function(){});
   return '';
 }
-function loadPlaces(p) {
+var MIRRORS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter'];
+var mapState = 'loading', loadedAt = null;
+function mergePlaces(got) {
   places = FALLBACK.slice();
-  var q = '[out:json][timeout:15];(' +
-    'nwr(around:500,' + p.lat + ',' + p.lon + ')[tourism~"museum|attraction|gallery|artwork"][name];' +
-    'nwr(around:500,' + p.lat + ',' + p.lon + ')[historic][name];' +
-    'nwr(around:500,' + p.lat + ',' + p.lon + ')[building][name][wikidata];' +
-    'nwr(around:500,' + p.lat + ',' + p.lon + ')[leisure=park][name];' +
-    'nwr(around:500,' + p.lat + ',' + p.lon + ')[amenity~"theatre|cinema|arts_centre|library|place_of_worship|university"][name];' +
-    ');out center 60;';
-  fetch('https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(q))
-    .then(function(r){ return r.json(); })
-    .then(function(d){
-      var got = (d.elements || []).map(function(e){
-        var c = e.center || e; var tg = e.tags || {};
-        return { name: tg.name, sub: [kindName(tg.amenity || tg.tourism || tg.historic || tg.leisure || tg.building), tg['addr:street']].filter(function(x){ return x && x !== 'yes'; }).join(' · '),
-                 lat: c.lat, lon: c.lon, wiki: tg.wikipedia || '' };
-      }).filter(function(x){ return x.name && x.lat; });
-      // keep fallback descriptions for well-known names, add the rest
-      got.forEach(function(g){ if (!places.some(function(f){ return f.name.toLowerCase() === g.name.toLowerCase() || dist(f, g) < 40; })) places.push(g); });
-      setStatus();
-    }).catch(function(){ setStatus(); });
+  got.forEach(function(g){ if (!places.some(function(f){ return f.name.toLowerCase() === g.name.toLowerCase() || dist(f, g) < 40; })) places.push(g); });
 }
-
+function loadPlaces(p) {
+  loadedAt = { lat:p.lat, lon:p.lon };
+  // instant: last map we got near here (this phone only)
+  try { var c = JSON.parse(localStorage.getItem('vc_places_cache') || 'null');
+    if (c && dist(c.at, p) < 600) { mergePlaces(c.items); mapState = 'cache'; } else if (!places.length) places = FALLBACK.slice(); } catch (e) { places = FALLBACK.slice(); }
+  var a = 'nwr(around:600,' + p.lat + ',' + p.lon + ')';
+  var q = '[out:json][timeout:20];(' +
+    a + '[tourism~"museum|attraction|gallery|artwork"][name];' +
+    a + '[historic][name];' +
+    a + '[building][name][wikidata];' +
+    a + '[leisure=park][name];' +
+    a + '[amenity~"theatre|cinema|arts_centre|library|place_of_worship|university"][name];' +
+    ');out center 80;';
+  (function tryMirror(k) {
+    if (k >= MIRRORS.length) { if (mapState !== 'cache') mapState = 'fail'; setStatus(); return; }
+    fetch(MIRRORS[k] + '?data=' + encodeURIComponent(q))
+      .then(function(r){ if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function(d){
+        var got = (d.elements || []).map(function(e){
+          var c = e.center || e; var tg = e.tags || {};
+          return { name: tg.name, sub: [kindName(tg.amenity || tg.tourism || tg.historic || tg.leisure || tg.building), tg['addr:street']].filter(function(x){ return x && x !== 'yes'; }).join(' · '),
+                   lat: c.lat, lon: c.lon, wiki: tg.wikipedia || '' };
+        }).filter(function(x){ return x.name && x.lat; });
+        mergePlaces(got); mapState = 'ok';
+        try { localStorage.setItem('vc_places_cache', JSON.stringify({ at: loadedAt, items: got })); } catch (e) {}
+        setStatus();
+      })
+      .catch(function(){ tryMirror(k + 1); });
+  })(0);
+}
 // ── personal memory per place (prototype: this phone only) ──
 function memKey(p){ return 'vc_place_' + p.name; }
 function memLine(p) {
@@ -176,7 +189,7 @@ function startReal() {
   if (navigator.geolocation) navigator.geolocation.watchPosition(function(p){
     var first = !pos;
     pos = { lat:p.coords.latitude, lon:p.coords.longitude, acc:p.coords.accuracy };
-    if (first) loadPlaces(pos);
+    if (first || (loadedAt && dist(loadedAt, pos) > 300 && p.coords.accuracy < 100)) loadPlaces(pos);
   }, function(){ setStatus(); }, { enableHighAccuracy:true, maximumAge:2000 });
   var ask = window.DeviceOrientationEvent && DeviceOrientationEvent.requestPermission;
   (ask ? DeviceOrientationEvent.requestPermission() : Promise.resolve('granted')).then(function(){
@@ -266,7 +279,8 @@ function setStatus() {
   if (!pos) { s.textContent = t('s_wait_gps'); return; }
   if (heading === null) { s.textContent = t('s_wait_cmp'); return; }
   var n = places.filter(function(p){ return dist(pos, p) <= 500; }).length;
-  s.textContent = n ? t('s_places', { n: n }) : t('s_none');
+  s.textContent = n ? t('s_places', { n: n }) : (mapState === 'loading' ? t('s_map_load') : mapState === 'fail' ? t('s_map_fail') : t('s_none'));
+  if (pos.acc > 60) s.textContent += ' · GPS ±' + Math.round(pos.acc) + ' m';
 }
 setInterval(setStatus, 2000);
 function dbg(best) {
