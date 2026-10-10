@@ -1414,18 +1414,12 @@ function flipCamTap() {
   toggleFlipCam();
   setTimeout(function(){ _flipBusy = false; }, 800);
 }
-// Device labels/count are only reliable after permission, so this runs once the camera is on.
-function showFlipIfManyCameras() {
-  if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
-  navigator.mediaDevices.enumerateDevices().then(function(list){
-    var cams = list.filter(function(d){ return d.kind === 'videoinput'; }).length;
-    if (cams > 1) document.getElementById('flip-cam-btn').classList.add('show');
-  }).catch(function(){});
-}
 (function initFlipCamBtn(){
   var b = document.getElementById('flip-cam-btn');
   if (!b) return;
-  if (_isTouchDevice) b.classList.add('show');   // phones always have front + rear
+  // Phones only: front/rear is a phone concept. On a computer the OS/browser picks the camera
+  // (e.g. the macOS menu bar), and a flip button would do nothing there.
+  if (_isTouchDevice) b.classList.add('show');
   var touched = false;
   b.addEventListener('touchstart', function(e){ e.preventDefault(); touched = true; }, {passive:false});
   b.addEventListener('touchend', function(e){ e.preventDefault(); if (touched){ touched = false; flipCamTap(); } }, {passive:false});
@@ -1449,7 +1443,6 @@ function startCam(auto) {
     b.textContent = ''; b.disabled = false;
     updateBar();
     log('✓ camera on', true);
-    showFlipIfManyCameras();
     startFaceDetection();
   })
   .catch(function(e) {
