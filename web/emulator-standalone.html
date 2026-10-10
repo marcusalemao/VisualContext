@@ -41,11 +41,18 @@ html,body{background:#000;height:100%;overflow:hidden;font-family:monospace;colo
    Type sizes are chosen for the glasses (readable at arm's length on the waveguide). */
 #stage{position:absolute;left:0;top:0;width:640px;height:480px;transform-origin:0 0;pointer-events:none}
 #hud{position:absolute;inset:0;pointer-events:none;display:none}
+/* VIEW ZONE — everything relevant lives in the top 70% of the display height (0–336px).
+   The lower band is blurry/out of reach for the wearer and can't be read without looking down,
+   which breaks "looking at the person". Nothing important goes below 336px.
+   Dev guide: add ?guides=1 to the URL to see the limit. */
+#hud-zone{position:absolute;left:0;right:0;top:336px;border-top:1px dashed rgba(0,255,136,.35);display:none}
+#hud-zone span{position:absolute;right:8px;top:2px;font-size:10px;color:rgba(0,255,136,.5);letter-spacing:1px}
+body.guides #hud-zone{display:block}
 
 /* Person card — 70% of the display width, so most of the view stays clear (and less green shows
    to the person in front of you). Monochrome: green on black transparency only. */
 #hud-card{
-  position:absolute; top:52px; left:16px; width:448px; max-height:380px;
+  position:absolute; top:52px; left:16px; width:448px; max-height:284px;   /* ends at 336px = 70% of the height */
   flex-direction:column;
   background:rgba(0,0,0,.62);
   border:1px solid rgba(0,255,136,.3);
@@ -69,15 +76,15 @@ html,body{background:#000;height:100%;overflow:hidden;font-family:monospace;colo
    REVIEW (outside a conversation): + ABOUT (dossier) + ENCOUNTERS (timeline). */
 #hud-card.glance #hud-about,#hud-card.glance #hud-sum-wrap{display:none !important}
 #hud-card.review #hud-headline{display:none}
-/* Idle: one discreet line at the bottom. Tap opens the grid of everyone you met. */
-#hud-recent-bar{position:absolute;left:16px;bottom:16px;font-size:12px;letter-spacing:1.5px;color:#00aa55;display:none;
+/* Idle: one discreet line at the top-left (inside the view zone). Tap opens the list below it. */
+#hud-recent-bar{position:absolute;left:16px;top:16px;font-size:12px;letter-spacing:1.5px;color:#00aa55;display:none;
   pointer-events:auto;cursor:pointer;text-shadow:0 0 4px #000}
 #hud-recent-bar.on{display:block}
 #hud-recent-bar::after{content:'';display:inline-block;width:6px;height:6px;margin-left:8px;vertical-align:1px;
-  border-left:2px solid #00aa55;border-top:2px solid #00aa55;transform:rotate(45deg)}
+  border-right:2px solid #00aa55;border-bottom:2px solid #00aa55;transform:rotate(45deg);vertical-align:3px}
 /* Last encounters — a narrow column of short cards (small photo beside name + date), vertical infinite scroll.
    Small on purpose: opened over a coffee, closed with a double tap. */
-#hud-list{position:absolute;left:16px;bottom:16px;width:250px;height:232px;display:none;flex-direction:column;
+#hud-list{position:absolute;left:16px;top:16px;width:250px;height:232px;   /* opens downward from the top, ends at 248px */display:none;flex-direction:column;
   background:rgba(0,0,0,.62);border:1px solid rgba(0,255,136,.3);border-radius:10px;padding:10px 10px 8px;pointer-events:auto}
 #hud-list.on{display:flex}
 #hl-items{overflow-y:auto;min-height:0;padding-right:4px;scrollbar-width:thin;scrollbar-color:#00aa55 transparent}
@@ -91,6 +98,28 @@ html,body{background:#000;height:100%;overflow:hidden;font-family:monospace;colo
 .hl-name{font-size:13px;font-weight:bold;color:#00ff88;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hl-when{font-size:10px;color:#00aa55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hl-empty{font-size:13px;color:#8fdfb5}
+/* Card body (review): dossier + encounter timeline */
+#hud-dossier{font-size:16px;line-height:1.4;color:#8fdfb5;
+  display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+#hud-dossier:empty{display:none}
+#hud-sum-wrap{margin-top:12px;border-top:1px solid rgba(0,255,136,.15);padding-top:8px;min-height:0;flex-direction:column}
+#hud-sum-lbl{font-size:12px;color:#00aa55;letter-spacing:1.5px;margin-bottom:6px}
+#hud-sum{overflow-y:auto;min-height:0;padding-right:8px;scrollbar-width:thin;scrollbar-color:#00aa55 transparent}
+#hud-sum::-webkit-scrollbar{width:4px}
+#hud-sum::-webkit-scrollbar-thumb{background:#00aa55;border-radius:2px}
+/* each encounter is a small card: date · place on top, one-line summary below, chevron on the right */
+.tl-item{position:relative;padding:6px 36px 6px 10px;border-radius:8px;border:1px solid transparent;margin-bottom:4px;cursor:pointer}
+.tl-item.focus{border-color:rgba(0,255,136,.5);background:rgba(0,255,136,.06)}
+.tl-head{font-size:13px;color:#00aa55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tl-head b{color:#00cc66}
+.tl-txt{font-size:16px;color:#8fdfb5;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tl-item.open .tl-txt{white-space:normal}
+.tl-chev{position:absolute;right:14px;top:50%;width:8px;height:8px;margin-top:-7px;
+  border-right:2px solid #00aa55;border-bottom:2px solid #00aa55;transform:rotate(45deg);display:none}
+.tl-item.has-more .tl-chev{display:block}
+.tl-item.open .tl-chev{top:16px;margin-top:0;transform:rotate(-135deg)}
+.tl-detail{display:none;font-size:14px;color:#7fdfb0;line-height:1.45;margin-top:6px;white-space:pre-wrap}
+.tl-item.open .tl-detail{display:block}
 
 /* Photo preview (manual capture) — loose on the display, like the native camera preview */
 #hud-preview{position:absolute;top:20px;left:20px;display:none;text-align:center;text-shadow:0 0 4px #000}
@@ -242,6 +271,7 @@ body.debug #sync-badge{display:inline}
     <div id="hud-preview"><img id="hp-img" alt=""><div id="hp-q" data-i18n="p_preview"></div></div>
     <div id="hud-rec"><span class="dot"></span><span id="hr-txt"></span></div>
     <div id="hud-status"></div>
+    <div id="hud-zone"><span>70%</span></div>
   </div>
   </div>
 </div>
@@ -1127,6 +1157,7 @@ function showProfile(p, score, mode) {
   document.getElementById('hud-idle').style.display = 'none';
   document.getElementById('hud').style.display = 'block';
   document.getElementById('hud-card').style.display = 'flex';
+  document.getElementById('hud-recent-bar').className = '';   // the card owns the view zone
   var photo = document.getElementById('hud-photo');
   if (p.photo_url && !/ui-avatars\.com/.test(p.photo_url)) { if (photo.getAttribute('src') !== p.photo_url) photo.src = p.photo_url; photo.style.display = 'block'; }
   else photo.style.display = 'none';
@@ -1267,7 +1298,7 @@ function applyTimeline() {
 }
 
 // ── REVIEW: latest records — people now; vehicles and keys next (outside a conversation) ──
-// Idle (nobody in front, nothing recording): one discreet line "LAST ENCOUNTERS" at the bottom.
+// Idle (nobody in front, nothing recording): one discreet line "LAST ENCOUNTERS" at the top-left (view zone = top 70%).
 // Tap → grid of mini cards (photo, name, date), all encounters, newest first, vertical infinite scroll.
 // Later: also by voice ("show my last encounters").
 var _review = null;   // { items:[{enc, person}], focus, shown, card:boolean }
@@ -1571,6 +1602,8 @@ if (_speech === 'unavailable') log('⚠ no speech recognition in this browser �
 log('language: ' + VC_I18N.lang + (VC_I18N.isUserChoice() ? ' (user choice)' : ' (phone: ' + (navigator.language || '?') + ')'));
 if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) startCam(true);
 else setIdle('idle_nosupport', 'idle_nosupport_sub');
+
+if (/[?&]guides=1\b/.test(location.search)) document.body.classList.add('guides');
 </script>
 </body>
 </html>
