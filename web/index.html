@@ -36,6 +36,10 @@ a.primary{border-color:rgba(0,255,136,.25);background:rgba(0,255,136,.07)}
     <div class="ic">🛠</div>
     <div class="info"><h2>HUD Editor</h2><p data-i18n="editor"></p></div>
   </a>
+  <a href="lugares.html">
+    <div class="ic">🏛</div>
+    <div class="info"><h2 data-i18n="places_t"></h2><p data-i18n="places"></p></div>
+  </a>
   <a href="/emulator-standalone">
     <div class="ic">📟</div>
     <div class="info"><h2 data-i18n="emulator_t"></h2><p data-i18n="emulator"></p></div>
@@ -49,9 +53,9 @@ a.primary{border-color:rgba(0,255,136,.25);background:rgba(0,255,136,.07)}
 <script>
 VC_I18N.add({
   en: { pitch:'The glasses already see. VisualContext makes them remember.', manager:'People, encounters and memories',
-        editor:'Glasses display layout — dev', emulator_t:'Emulator', emulator:'Simulates the glasses display with your camera — dev', system:'Phone language' },
+        editor:'Glasses display layout — dev', emulator_t:'Emulator', places_t:'Places (prototype)', places:'Point at a building, its card stays pinned to it', emulator:'Simulates the glasses display with your camera — dev', system:'Phone language' },
   pt: { pitch:'Os óculos já veem. O VisualContext faz eles lembrarem.', manager:'Pessoas, encontros e memórias',
-        editor:'Layout do visor dos óculos — dev', emulator_t:'Emulador', emulator:'Simula o visor dos óculos com a câmera — dev', system:'Idioma do celular' }
+        editor:'Layout do visor dos óculos — dev', emulator_t:'Emulador', places_t:'Lugares (protótipo)', places:'Aponte para um prédio, o card fica preso a ele', emulator:'Simula o visor dos óculos com a câmera — dev', system:'Idioma do celular' }
 });
 function mark(){ var c = VC_I18N.isUserChoice() ? VC_I18N.lang : 'system';
   document.querySelectorAll('#lang-btns button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-lang') === c); }); }

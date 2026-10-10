@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>VisualContext — Lugares (protótipo)</title>
+<script src="i18n.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#000;height:100%;overflow:hidden;font-family:monospace;color:#00ff88}
+#view{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+#vid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.55}
+/* HUD stage: same 640×480 as the emulator, scaled to fit */
+#stage{position:absolute;left:0;top:0;width:640px;height:480px;transform-origin:0 0;pointer-events:none}
+#zone{position:absolute;left:0;right:0;top:336px;border-top:2px dashed rgba(0,255,136,.35);display:none}
+body.guides #zone{display:block}
+/* Place card: anchored horizontally to the building's direction, always inside the top 70% */
+#card{position:absolute;top:40px;width:300px;display:none;padding:12px 14px;border-radius:12px;
+  background:rgba(0,255,136,.2);border:2px solid rgba(0,255,136,.6);transform:translateX(-50%)}
+#card.on{display:block}
+#card:after{content:'';position:absolute;left:50%;bottom:-14px;width:2px;height:12px;background:rgba(0,255,136,.6)}
+#c-name{font-size:22px;font-weight:bold;text-transform:uppercase;line-height:1.15}
+#c-sub{font-size:13px;color:#8fdfb5;margin-top:4px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+#c-mem{font-size:14px;color:#00ff88;margin-top:8px;border-top:2px solid rgba(0,255,136,.3);padding-top:6px}
+#c-mem:empty{display:none}
+#c-dist{font-size:12px;color:#00ff88;margin-top:6px;letter-spacing:1px}
+/* dwell ring: the card appears only after ~1.5 s looking at the place */
+#dwell{position:absolute;top:150px;width:28px;height:28px;border-radius:50%;border:2px solid rgba(0,255,136,.6);transform:translateX(-50%);display:none}
+#dwell.on{display:block}
+#edge{position:absolute;top:60px;font-size:26px;display:none}
+#edge.on{display:block}
+#status{position:absolute;right:16px;bottom:14px;font-size:14px;color:#00ff88;text-align:right;line-height:1.5}
+/* phone controls (not part of the HUD) */
+#bar{position:fixed;left:0;right:0;bottom:0;display:flex;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));
+  background:#0a1a0f;border-top:1px solid #1a3a22;flex-wrap:wrap;z-index:5}
+#bar button{flex:1;min-width:90px;background:#0f2216;border:1px solid #1a4a2a;color:#00ff88;font-family:inherit;font-size:13px;padding:10px 6px;border-radius:10px}
+#bar button.on{border-color:#00ff88}
+#sim{position:fixed;left:12px;right:12px;bottom:118px;display:none;background:#0a1a0f;border:1px solid #1a4a2a;border-radius:10px;padding:10px;z-index:5;font-size:12px}
+#sim.on{display:block}
+#sim input{width:100%}
+#dbg{position:fixed;left:8px;top:8px;font-size:11px;color:#00aa55;z-index:5;white-space:pre;display:none;background:rgba(0,0,0,.6);padding:6px;border-radius:6px;max-width:94vw;overflow:hidden}
+body.guides #dbg{display:block}
+#intro{position:fixed;inset:0;z-index:9;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;gap:14px}
+#intro h1{font-size:20px}
+#intro p{font-size:13px;color:#8fdfb5;max-width:340px;line-height:1.5}
+#intro button{background:#0f2216;border:2px solid #00ff88;color:#00ff88;font-family:inherit;font-size:15px;padding:12px 20px;border-radius:12px;min-width:240px}
+#intro .alt{border-color:#1a4a2a;font-size:13px}
+</style>
+</head>
+<body>
+<div id="intro">
+  <h1 data-i18n="t_title"></h1>
+  <p data-i18n="t_intro"></p>
+  <button id="go-real" data-i18n="t_real"></button>
+  <button id="go-sim" class="alt" data-i18n="t_sim"></button>
+</div>
+<div id="view">
+  <video id="vid" autoplay playsinline muted></video>
+  <div id="stage">
+    <div id="zone"></div>
+    <div id="edge"></div>
+    <div id="dwell"></div>
+    <div id="card"><div id="c-name"></div><div id="c-sub"></div><div id="c-mem"></div><div id="c-dist"></div></div>
+    <div id="status"></div>
+  </div>
+</div>
+<div id="dbg"></div>
+<div id="sim">
+  <div data-i18n="t_heading"></div>
+  <input id="sim-h" type="range" min="0" max="359" value="20">
+</div>
+<div id="bar">
+  <button id="b-mem" data-i18n="t_remember"></button>
+  <button id="b-fov"></button>
+  <button id="b-dbg" data-i18n="t_debug"></button>
+</div>
+<script>
+VC_I18N.add({
+  en:{ t_title:'Places · prototype', t_intro:'Point the phone (later: your head) at a building. After ~1.5 s its card appears and stays pinned to it while you turn. Uses GPS + compass and the map around you — no image analysis.',
+       t_real:'Start (camera + GPS + compass)', t_sim:'Simulate at Av. Paulista (no GPS)', t_heading:'Direction you are facing (simulation)',
+       t_remember:'Remember here', t_debug:'Details', t_fov_g:'View: glasses (24°)', t_fov_p:'View: phone (60°)',
+       s_wait_gps:'waiting for GPS…', s_wait_cmp:'waiting for compass…', s_places:'{n} places around', s_none:'no places around',
+       mem_none:'', mem_here:'You were here {when}', mem_saved:'saved: you were here today', away:'{d} m', no_cmp:'compass unavailable — use the simulation' },
+  pt:{ t_title:'Lugares · protótipo', t_intro:'Aponte o celular (depois: a cabeça) para um prédio. Depois de ~1,5 s aparece o card dele, que fica preso ao prédio enquanto você vira. Usa GPS + bússola e o mapa do entorno — sem análise de imagem.',
+       t_real:'Começar (câmera + GPS + bússola)', t_sim:'Simular na Av. Paulista (sem GPS)', t_heading:'Para onde você está olhando (simulação)',
+       t_remember:'Lembrar daqui', t_debug:'Detalhes', t_fov_g:'Visão: óculos (24°)', t_fov_p:'Visão: celular (60°)',
+       s_wait_gps:'esperando GPS…', s_wait_cmp:'esperando bússola…', s_places:'{n} lugares por perto', s_none:'nenhum lugar por perto',
+       mem_none:'', mem_here:'Você esteve aqui {when}', mem_saved:'salvo: você esteve aqui hoje', away:'{d} m', no_cmp:'sem bússola — use a simulação' }
+});
+var t = VC_I18N.t;
+VC_I18N.apply();
+if (/[?&]guides=1\b/.test(location.search)) document.body.classList.add('guides');
+
+// ── Places: OpenStreetMap around you; fallback list for Av. Paulista (approximate coordinates) ──
+var FALLBACK = [
+  { name:'MASP', sub:'Museu de Arte de São Paulo · Lina Bo Bardi, 1968', lat:-23.56135, lon:-46.65588 },
+  { name:'Parque Trianon', sub:'Parque Tenente Siqueira Campos · Mata Atlântica', lat:-23.56205, lon:-46.65745 },
+  { name:'FIESP', sub:'Edifício da FIESP · a "pirâmide" da Paulista', lat:-23.56262, lon:-46.65460 },
+  { name:'Conjunto Nacional', sub:'Edifício de 1958 · Livraria Cultura', lat:-23.55810, lon:-46.66090 },
+  { name:'IMS Paulista', sub:'Instituto Moreira Salles · fotografia', lat:-23.55600, lon:-46.66240 },
+  { name:'Itaú Cultural', sub:'Centro cultural · Av. Paulista, 149', lat:-23.57020, lon:-46.64640 },
+  { name:'Japan House', sub:'Centro cultural japonês · Kengo Kuma', lat:-23.57030, lon:-46.64520 },
+  { name:'Casa das Rosas', sub:'Casarão de 1935 · poesia e literatura', lat:-23.57130, lon:-46.64470 }
+];
+var SIM_POS = { lat:-23.56210, lon:-46.65630 };   // sidewalk in front of Trianon, looking at MASP to the NE
+var places = [], pos = null, heading = null, simulate = false, fov = 24;
+var target = null, dwellStart = 0, shown = null, xSmooth = 320;
+
+function rad(d){ return d * Math.PI / 180; }
+function dist(a, b){ var R = 6371000, dLat = rad(b.lat - a.lat), dLon = rad(b.lon - a.lon);
+  var h = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dLon/2)*Math.sin(dLon/2);
+  return 2 * R * Math.asin(Math.sqrt(h)); }
+function bearing(a, b){ var y = Math.sin(rad(b.lon - a.lon)) * Math.cos(rad(b.lat));
+  var x = Math.cos(rad(a.lat))*Math.sin(rad(b.lat)) - Math.sin(rad(a.lat))*Math.cos(rad(b.lat))*Math.cos(rad(b.lon - a.lon));
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360; }
+function diff(a, b){ var d = (a - b + 540) % 360 - 180; return d; }   // signed −180…180
+
+function loadPlaces(p) {
+  places = FALLBACK.slice();
+  var q = '[out:json][timeout:15];(' +
+    'nwr(around:500,' + p.lat + ',' + p.lon + ')[tourism~"museum|attraction|gallery|artwork"][name];' +
+    'nwr(around:500,' + p.lat + ',' + p.lon + ')[historic][name];' +
+    'nwr(around:500,' + p.lat + ',' + p.lon + ')[building][name][wikidata];' +
+    'nwr(around:500,' + p.lat + ',' + p.lon + ')[leisure=park][name];' +
+    ');out center 60;';
+  fetch('https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(q))
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      var got = (d.elements || []).map(function(e){
+        var c = e.center || e; var tg = e.tags || {};
+        return { name: tg.name, sub: [tg.tourism || tg.historic || tg.leisure || tg.building, tg['addr:street']].filter(function(x){ return x && x !== 'yes'; }).join(' · '),
+                 lat: c.lat, lon: c.lon };
+      }).filter(function(x){ return x.name && x.lat; });
+      // keep fallback descriptions for well-known names, add the rest
+      got.forEach(function(g){ if (!places.some(function(f){ return f.name.toLowerCase() === g.name.toLowerCase() || dist(f, g) < 40; })) places.push(g); });
+      setStatus();
+    }).catch(function(){ setStatus(); });
+}
+
+// ── personal memory per place (prototype: this phone only) ──
+function memKey(p){ return 'vc_place_' + p.name; }
+function memLine(p) {
+  var v = null; try { v = localStorage.getItem(memKey(p)); } catch (e) {}
+  if (!v) return '';
+  var d = new Date(+v), days = Math.round((Date.now() - d) / 864e5);
+  var when = days < 1 ? (VC_I18N.lang === 'pt' ? 'hoje' : 'today') : d.toLocaleDateString(VC_I18N.locale(), { day:'2-digit', month:'2-digit' });
+  return t('mem_here', { when: when });
+}
+
+// ── sensors ──
+function startReal() {
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+    navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment' }, audio:false })
+      .then(function(s){ document.getElementById('vid').srcObject = s; }).catch(function(){});
+  if (navigator.geolocation) navigator.geolocation.watchPosition(function(p){
+    var first = !pos;
+    pos = { lat:p.coords.latitude, lon:p.coords.longitude, acc:p.coords.accuracy };
+    if (first) loadPlaces(pos);
+  }, function(){ setStatus(); }, { enableHighAccuracy:true, maximumAge:2000 });
+  var ask = window.DeviceOrientationEvent && DeviceOrientationEvent.requestPermission;
+  (ask ? DeviceOrientationEvent.requestPermission() : Promise.resolve('granted')).then(function(){
+    window.addEventListener('deviceorientationabsolute', onOrient, true);
+    window.addEventListener('deviceorientation', onOrient, true);
+  }).catch(function(){});
+  setTimeout(function(){ if (heading === null) { document.getElementById('status').textContent = t('no_cmp'); } }, 4000);
+}
+function onOrient(e) {
+  var h = null;
+  if (typeof e.webkitCompassHeading === 'number') h = e.webkitCompassHeading;          // iOS
+  else if (e.absolute && typeof e.alpha === 'number') h = (360 - e.alpha) % 360;      // Android (absolute)
+  if (h === null) return;
+  var so = (screen.orientation && screen.orientation.angle) || window.orientation || 0;
+  h = (h + so + 360) % 360;
+  heading = heading === null ? h : (heading + diff(h, heading) * 0.25 + 360) % 360;   // smooth the jitter
+}
+function startSim() {
+  simulate = true;
+  pos = { lat:SIM_POS.lat, lon:SIM_POS.lon, acc:5 };
+  loadPlaces(pos);
+  var s = document.getElementById('sim'); s.className = 'on';
+  var r = document.getElementById('sim-h');
+  heading = +r.value;
+  r.addEventListener('input', function(){ heading = +r.value; });
+  window.addEventListener('keydown', function(e){
+    if (e.key === 'ArrowLeft') { r.value = (+r.value + 359) % 360; heading = +r.value; }
+    if (e.key === 'ArrowRight') { r.value = (+r.value + 1) % 360; heading = +r.value; }
+  });
+}
+
+// ── frame loop: pick the place in front, dwell, anchor the card to its direction ──
+function frame() {
+  requestAnimationFrame(frame);
+  var card = document.getElementById('card'), dw = document.getElementById('dwell'), edge = document.getElementById('edge');
+  if (!pos || heading === null || !places.length) { card.className = ''; dw.className = ''; edge.className = ''; dbg(); return; }
+  var best = null;
+  places.forEach(function(p){
+    var d = dist(pos, p); if (d > 500 || d < 5) return;
+    var off = diff(bearing(pos, p), heading);
+    var tol = Math.max(4, Math.min(14, Math.atan(40 / d) * 180 / Math.PI));   // bigger when closer
+    if (Math.abs(off) <= tol && (!best || Math.abs(off) < Math.abs(best.off))) best = { p:p, off:off, d:d };
+  });
+  var now = performance.now();
+  if (best && (!target || target.p !== best.p)) { target = best; dwellStart = now; }
+  else if (best) target = best;
+  else target = null;
+
+  // the card stays pinned to the shown place while it's in view, even if you look a bit away
+  if (shown) {
+    var offS = diff(bearing(pos, shown), heading);
+    if (Math.abs(offS) > fov / 2 + 6) { shown = null; }
+    else place(card, offS, shown);
+    edge.className = '';
+  }
+  if (!shown && target && now - dwellStart > 1500) { shown = target.p; xSmooth = toX(target.off); }
+  if (!shown && target) { dw.className = 'on'; dw.style.left = toX(target.off) + 'px';
+    var k = Math.min(1, (now - dwellStart) / 1500); dw.style.borderColor = 'rgba(0,255,136,' + (0.2 + 0.8 * k) + ')'; }
+  else dw.className = '';
+  if (!shown) card.className = '';
+  dbg(best);
+}
+function toX(off) { return 320 + (off / (fov / 2)) * 320; }
+function place(card, off, p) {
+  xSmooth += (toX(off) - xSmooth) * 0.35;
+  card.style.left = Math.max(150, Math.min(490, xSmooth)) + 'px';
+  card.className = 'on';
+  document.getElementById('c-name').textContent = p.name;
+  document.getElementById('c-sub').textContent = p.sub || '';
+  document.getElementById('c-mem').textContent = memLine(p);
+  document.getElementById('c-dist').textContent = t('away', { d: Math.round(dist(pos, p)) });
+}
+function setStatus() {
+  var s = document.getElementById('status');
+  if (!pos) { s.textContent = t('s_wait_gps'); return; }
+  if (heading === null) { s.textContent = t('s_wait_cmp'); return; }
+  var n = places.filter(function(p){ return dist(pos, p) <= 500; }).length;
+  s.textContent = n ? t('s_places', { n: n }) : t('s_none');
+}
+setInterval(setStatus, 2000);
+function dbg(best) {
+  if (!document.body.classList.contains('guides')) return;
+  var lines = ['pos ' + (pos ? pos.lat.toFixed(5) + ',' + pos.lon.toFixed(5) + ' ±' + Math.round(pos.acc) + 'm' : '—'),
+               'heading ' + (heading === null ? '—' : Math.round(heading) + '°') + ' · fov ' + fov + '°' + (simulate ? ' · SIM' : '')];
+  if (pos && heading !== null) places.map(function(p){ return { n:p.name, d:dist(pos, p), o:diff(bearing(pos, p), heading) }; })
+    .filter(function(x){ return x.d <= 500; }).sort(function(a, b){ return Math.abs(a.o) - Math.abs(b.o); }).slice(0, 6)
+    .forEach(function(x){ lines.push((Math.abs(x.o) < 20 ? '▶ ' : '  ') + x.n.slice(0, 22) + '  ' + Math.round(x.d) + 'm  ' + Math.round(x.o) + '°'); });
+  document.getElementById('dbg').textContent = lines.join('\n');
+}
+
+// ── fit stage ──
+function fit() {
+  var s = document.getElementById('stage'), w = innerWidth, h = innerHeight - document.getElementById('bar').offsetHeight;
+  var k = Math.min(w / 640, h / 480);
+  s.style.transform = 'scale(' + k + ')';
+  s.style.left = ((w - 640 * k) / 2) + 'px'; s.style.top = ((h - 480 * k) / 2) + 'px';
+}
+addEventListener('resize', fit);
+
+// ── controls ──
+function fovLabel(){ document.getElementById('b-fov').textContent = t(fov === 24 ? 't_fov_g' : 't_fov_p'); }
+document.getElementById('b-fov').onclick = function(){ fov = fov === 24 ? 60 : 24; fovLabel(); };
+document.getElementById('b-dbg').onclick = function(){ document.body.classList.toggle('guides'); };
+document.getElementById('b-mem').onclick = function(){
+  var p = shown || (target && target.p); if (!p) return;
+  try { localStorage.setItem(memKey(p), String(Date.now())); } catch (e) {}
+  document.getElementById('c-mem').textContent = t('mem_saved');
+};
+document.getElementById('go-real').onclick = function(){ document.getElementById('intro').style.display = 'none'; fit(); startReal(); };
+document.getElementById('go-sim').onclick = function(){ document.getElementById('intro').style.display = 'none'; fit(); startSim(); };
+fovLabel(); fit(); requestAnimationFrame(frame);
+</script>
+</body>
+</html>
