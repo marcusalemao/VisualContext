@@ -52,14 +52,34 @@ html,body{background:#000;height:100%;overflow:hidden;font-family:monospace;colo
   border-radius:12px; padding:14px 16px;
   pointer-events:auto;
 }
-.hc-head{display:flex;gap:14px;align-items:center;flex-shrink:0}
-#hud-photo{width:56px;height:56px;border-radius:50%;object-fit:cover;flex-shrink:0;display:none;
+.hc-head{display:flex;gap:16px;align-items:flex-start;flex-shrink:0}
+#hud-photo{width:96px;height:96px;border-radius:6px;object-fit:cover;flex-shrink:0;display:none;
   border:1px solid rgba(0,255,136,.5);filter:grayscale(1) sepia(1) hue-rotate(80deg) saturate(4) brightness(.85)}
 .hc-id{min-width:0;flex:1}
-#hud-name{font-size:24px;font-weight:bold;color:#00ff88;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#hud-sub{font-size:16px;color:#00aa55;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#hud-sub:empty{display:none}
-#hud-dossier{font-size:16px;line-height:1.4;color:#8fdfb5;margin-top:12px;flex-shrink:0;
+#hud-name{font-size:24px;font-weight:bold;color:#00ff88;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:uppercase;letter-spacing:.5px}
+/* pills: where you know the person from — what you need while talking */
+#hud-pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+#hud-pills:empty{display:none}
+.pill{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#00ff88;border:1px solid rgba(0,255,136,.6);border-radius:6px;padding:2px 8px}
+#hud-headline{font-size:15px;line-height:1.35;color:#8fdfb5;margin-top:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+#hud-headline:empty{display:none}
+.sec-lbl{font-size:12px;color:#00aa55;letter-spacing:1.5px;margin-bottom:4px}
+#hud-about{margin-top:12px;flex-shrink:0}
+/* GLANCE (during a conversation): photo, name, pills, one line. Nothing to read or expand.
+   REVIEW (outside a conversation): + ABOUT (dossier) + ENCOUNTERS (timeline). */
+#hud-card.glance #hud-about,#hud-card.glance #hud-sum-wrap{display:none !important}
+#hud-card.review #hud-headline{display:none}
+/* Review list — "today's encounters" */
+#hud-list{position:absolute;top:52px;left:16px;width:448px;max-height:380px;display:none;flex-direction:column;
+  background:rgba(0,0,0,.62);border:1px solid rgba(0,255,136,.3);border-radius:12px;padding:14px 16px;pointer-events:auto}
+#hud-list.on{display:flex}
+#hl-items{overflow-y:auto;min-height:0;padding-right:8px;scrollbar-width:thin;scrollbar-color:#00aa55 transparent}
+.hl-item{padding:6px 10px;border-radius:8px;border:1px solid transparent;margin-bottom:4px;cursor:pointer}
+.hl-item.focus{border-color:rgba(0,255,136,.5);background:rgba(0,255,136,.06)}
+.hl-name{font-size:17px;font-weight:bold;color:#00ff88;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hl-meta{font-size:13px;color:#00aa55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hl-empty{font-size:15px;color:#8fdfb5}
+#hud-dossier{font-size:16px;line-height:1.4;color:#8fdfb5;
   display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
 #hud-dossier:empty{display:none}
 #hud-sum-wrap{margin-top:12px;border-top:1px solid rgba(0,255,136,.15);padding-top:8px;min-height:0;flex-direction:column}
@@ -214,14 +234,15 @@ body.debug #sync-badge{display:inline}
     <div id="hud-card" style="display:none">
       <div class="hc-head">
         <img id="hud-photo" alt="">
-        <div class="hc-id"><div id="hud-name"></div><div id="hud-sub"></div></div>
+        <div class="hc-id"><div id="hud-name"></div><div id="hud-pills"></div><div id="hud-headline"></div></div>
       </div>
-      <div id="hud-dossier"></div>
+      <div id="hud-about"><div class="sec-lbl" data-i18n="about"></div><div id="hud-dossier"></div></div>
       <div id="hud-sum-wrap" style="display:none">
-        <div id="hud-sum-lbl" data-i18n="timeline"></div>
+        <div id="hud-sum-lbl" class="sec-lbl" data-i18n="timeline"></div>
         <div id="hud-sum"></div>
       </div>
     </div>
+    <div id="hud-list"><div class="sec-lbl" id="hl-title"></div><div id="hl-items"></div></div>
     <div id="hud-count">
       <div id="hc-title"><span data-i18n="count_title"></span> <span id="hc-num">5</span></div>
       <div id="hc-hint" data-i18n="count_hint"></div>
@@ -289,7 +310,7 @@ VC_I18N.add({
     idle_fail:'Could not access the camera', idle_fail_sub:'Check the permission in the 🔒 of the address bar',
     idle_stopped:'Camera stopped', idle_stopped_sub:'Tap Camera to turn it back on',
     idle_nosupport:'Camera not supported', idle_nosupport_sub:'Open over HTTPS in a browser with a camera',
-    timeline:'TIMELINE', dz_count:'Seen {n} times in the last year.', dz_once:'Seen once in the last year.', dz_last:'Last time {when}{where}: {what}', dz_at:' at {p}', today:'today', yesterday:'yesterday', no_summary:'(no summary)', p_preview:'Save this face?',
+    about:'ABOUT', timeline:'ENCOUNTERS', list_today:'TODAY', list_recent:'RECENT', list_empty:'No encounters yet.', hl_count:'{n} encounters · since {since}', hl_one:'Met once · {when}', dz_count:'Seen {n} times in the last year.', dz_once:'Seen once in the last year.', dz_last:'Last time {when}{where}: {what}', dz_at:' at {p}', today:'today', yesterday:'yesterday', no_summary:'(no summary)', p_preview:'Save this face?',
     count_title:'Recording encounter:', count_hint:'Swipe forward to cancel',
     rec:'Recording encounter', paused:'Paused · Tap to resume',
     s_ready:'ready', s_loading:'loading AI…', s_cam:'camera on', s_buf_face:'buffering (face only)', s_buf_speech:'buffering · speech',
@@ -305,8 +326,8 @@ VC_I18N.add({
     h_sec_gest:'Gestures',
     h_d_swipe:'During the countdown: cancel — nothing saved, won\'t ask about this face again this session. In the photo preview: discard.',
     h_d_dtap:'Back: closes an expanded encounter; while recording, stops and discards it (the person stays saved); otherwise dismisses the HUD.',
-    h_d_tap:'Paused: resume recording. Person card: expand the highlighted encounter. Unknown face: take a photo to save it by hand → preview → Tap save / Swipe forward discard.',
-    h_d_swipes:'Person card: move between encounters in the timeline.',
+    h_d_tap:'Paused: resume recording. Nobody in front: open today\'s encounters; then open a person and expand an encounter. Unknown face: take a photo to save it by hand → preview → Tap save / Swipe forward discard.',
+    h_d_swipes:'Outside a conversation: move through today\'s encounters and the timeline.',
     h_sec_kbd:'Keyboard (desktop)', h_d_space:'Camera on/off',
     h_sec_lang:'Language', lang_system:'Phone language', h_d_lang:'By default the app follows the phone\'s language — Portuguese if the phone is in Portuguese, English otherwise.',
     h_sec_dev:'Developer', log_btn:'On-screen log: {s}',
@@ -326,7 +347,7 @@ VC_I18N.add({
     idle_fail:'Não deu pra acessar a câmera', idle_fail_sub:'Verifique a permissão no 🔒 da barra de endereço',
     idle_stopped:'Câmera parada', idle_stopped_sub:'Toque em Câmera para religar',
     idle_nosupport:'Câmera não suportada', idle_nosupport_sub:'Abra em HTTPS num navegador com câmera',
-    timeline:'LINHA DO TEMPO', dz_count:'Registrado {n} vezes no último ano.', dz_once:'Registrado 1 vez no último ano.', dz_last:'Da última vez, {when}{where}: {what}', dz_at:' em {p}', today:'hoje', yesterday:'ontem', no_summary:'(sem resumo)', p_preview:'Salvar este rosto?',
+    about:'SOBRE', timeline:'ENCONTROS', list_today:'HOJE', list_recent:'RECENTES', list_empty:'Nenhum encontro ainda.', hl_count:'{n} encontros · desde {since}', hl_one:'Vocês se viram 1 vez · {when}', dz_count:'Registrado {n} vezes no último ano.', dz_once:'Registrado 1 vez no último ano.', dz_last:'Da última vez, {when}{where}: {what}', dz_at:' em {p}', today:'hoje', yesterday:'ontem', no_summary:'(sem resumo)', p_preview:'Salvar este rosto?',
     count_title:'Gravando encontro:', count_hint:'Deslize para frente para cancelar',
     rec:'Gravando encontro', paused:'Pausado · Toque para retomar',
     s_ready:'pronto', s_loading:'carregando IA…', s_cam:'câmera ativa', s_buf_face:'buffer (só rosto)', s_buf_speech:'buffer · com fala',
@@ -342,8 +363,8 @@ VC_I18N.add({
     h_sec_gest:'Gestos',
     h_d_swipe:'Na contagem: cancela — nada é salvo e não pergunta de novo sobre esse rosto nesta sessão. Na prévia da foto: descarta.',
     h_d_dtap:'Voltar: fecha um encontro expandido; gravando, para e descarta (a pessoa continua salva); fora disso, fecha o HUD.',
-    h_d_tap:'Pausado: retoma a gravação. Card da pessoa: expande o encontro destacado. Rosto desconhecido: tira foto pra salvar na mão → prévia → Toque salva / Deslizar descarta.',
-    h_d_swipes:'Card da pessoa: passa pelos encontros da linha do tempo.',
+    h_d_tap:'Pausado: retoma a gravação. Ninguém na frente: abre os encontros de hoje; depois abre a pessoa e expande um encontro. Rosto desconhecido: tira foto pra salvar na mão → prévia → Toque salva / Deslizar descarta.',
+    h_d_swipes:'Fora de uma conversa: passa pelos encontros de hoje e pela linha do tempo.',
     h_sec_kbd:'Teclado (desktop)', h_d_space:'Liga/desliga a câmera',
     h_sec_lang:'Idioma', lang_system:'Idioma do celular', h_d_lang:'Por padrão o app segue o idioma do celular — português se o celular estiver em português, inglês nos outros casos.',
     h_sec_dev:'Desenvolvedor', log_btn:'Log na tela: {s}',
@@ -484,6 +505,7 @@ function bestMatch(descriptor) {
 
 // Called for the main face on every detection
 function handleMatch(descriptor) {
+  if (_review) closeReview();   // someone in front of you: the live conversation wins
   _lastMatchDescriptor = Array.from(descriptor);
   var m = bestMatch(descriptor);
   _lastMatchKnown = !!m;
@@ -640,19 +662,26 @@ function resumeRecording() {
 function gestureTap() {
   if (_previewOpen) { savePreview(); return; }
   if (_state === 'paused') { resumeRecording(); return; }
-  if (tlToggle()) return;                 // person card: expand / collapse the highlighted encounter
+  if (_review) { if (_review.card) tlToggle(); else reviewOpenCard(); return; }
+  if (_state === 'idle' && noFaceNow()) { openReview(); return; }   // nobody in front: today's encounters
   if (_state === 'idle') manualCapture();
 }
 function gestureSwipeForward() {
   if (_previewOpen) { discardPreview(); return; }
   if (_state === 'countdown') { endEncounter('cancel'); return; }
-  tlMove(1);
+  if (_review) { if (_review.card) tlMove(1); else reviewMove(1); }
 }
-function gestureSwipeBack() { tlMove(-1); }
+function gestureSwipeBack() {
+  if (_review) { if (_review.card) tlMove(-1); else reviewMove(-1); }
+}
 function gestureDoubleTap() {   // native "back"
   if (_previewOpen) { discardPreview(); return; }
   if (_state === 'countdown') { endEncounter('cancel'); return; }
-  if (tlCollapse()) return;               // back one level first
+  if (_review) {                          // back one level: expanded → card → list → closed
+    if (tlCollapse()) return;
+    if (_review.card) reviewBack(); else closeReview();
+    return;
+  }
   if (_state === 'recording') { stopRecording(); return; }
   if (_state === 'buffer') { endEncounter('stop'); if (_lastMatchDescriptor) _suppressed.push(new Float32Array(_lastMatchDescriptor)); return; }
   dismissHUD();
@@ -1086,9 +1115,12 @@ function detectFaces() {
 
 // ── HUD card: identity + timeline (newest first), scrollable, expandable ──
 var _tl = { pid:null, items:[], focus:0, open:-1 };
-function cardVisible() { return document.getElementById('hud-card').style.display !== 'none'; }
+// The timeline is only interactive in REVIEW mode (never while talking to someone)
+function cardVisible() { var c = document.getElementById('hud-card'); return c.style.display !== 'none' && c.classList.contains('review'); }
 
-function showProfile(p, score) {
+// mode: 'glance' (during a conversation) | 'review' (opened from today's encounters)
+function showProfile(p, score, mode) {
+  document.getElementById('hud-card').className = mode || 'glance';
   var fresh = !_currentProfile || _currentProfile.id !== p.id;
   _currentProfile = p;
   document.getElementById('hud-idle').style.display = 'none';
@@ -1098,9 +1130,11 @@ function showProfile(p, score) {
   if (p.photo_url && !/ui-avatars\.com/.test(p.photo_url)) { if (photo.getAttribute('src') !== p.photo_url) photo.src = p.photo_url; photo.style.display = 'block'; }
   else photo.style.display = 'none';
   document.getElementById('hud-name').textContent = p.name || '—';
-  // one short definition: social ("gym friend") and/or work ("CEO · Acme"). No e-mail on the display.
-  document.getElementById('hud-sub').textContent =
-    [p.relation_context || p.relation, [p.role, p.company].filter(Boolean).join(' · ')].filter(Boolean).join(' · ');
+  // pills: where you know them from (AI-inferred, edited in the Manager). No e-mail on the display.
+  var pills = Array.isArray(p.pills) ? p.pills : (p.pills ? String(p.pills).split(',') : [p.relation_context || p.relation, p.company]);
+  document.getElementById('hud-pills').innerHTML = pills.map(function(x){ return String(x || '').trim(); }).filter(Boolean).slice(0, 3)
+    .map(function(x){ return '<span class="pill">' + esc(x) + '</span>'; }).join('');
+  renderHeadline(p, _encCache[p.id] || []);
   renderDossier(p, _encCache[p.id] || []);
   setStatus('s_identified', score ? ' · ' + score + '%' : '');
   if (fresh) loadEncounterSummary(p);
@@ -1175,10 +1209,24 @@ function renderDossier(p, list) {
   el.textContent = lines.join(' ');
 }
 
+// One line to glance at while talking. The AI headline (p.headline, e.g. "Work colleague for 2 years")
+// wins; until it exists: role + how many times you met and since when.
+function renderHeadline(p, list) {
+  var el = document.getElementById('hud-headline');
+  if (p.headline) { el.textContent = p.headline; return; }
+  var dated = (list || []).filter(function(e){ return e.date; });
+  var part = '';
+  if (dated.length > 1) {
+    var first = new Date(dated[dated.length - 1].date);
+    part = t('hl_count', { n: dated.length, since: first.toLocaleDateString(VC_I18N.locale(), { month:'short', year:'numeric' }) });
+  } else if (dated.length === 1) part = t('hl_one', { when: relDate(new Date(dated[0].date))[0] });
+  el.textContent = [p.role, part].filter(Boolean).join(' · ');
+}
+
 function renderTimeline(pid, list) {
   var wrap = document.getElementById('hud-sum-wrap');
   var box = document.getElementById('hud-sum');
-  if (_currentProfile && _currentProfile.id === pid) renderDossier(_currentProfile, list);
+  if (_currentProfile && _currentProfile.id === pid) { renderDossier(_currentProfile, list); renderHeadline(_currentProfile, list); }
   if (!list || !list.length) { wrap.style.display = 'none'; _tl = { pid:pid, items:[], focus:0, open:-1 }; return; }
   if (_tl.pid !== pid) _tl = { pid:pid, items:[], focus:0, open:-1 };
   _tl.items = list;
@@ -1215,6 +1263,78 @@ function applyTimeline() {
     el.classList.toggle('open', i === _tl.open);
     if (i === _tl.focus && el.scrollIntoView) el.scrollIntoView({ block:'nearest' });
   });
+}
+
+// ── REVIEW: today's encounters (outside a conversation) ──
+// Opened with a tap when nobody is in front of you (later: by voice, "show today's encounters").
+var _review = null;   // { items:[{enc, person}], focus, title, card:boolean }
+function noFaceNow() { return !_enc && Date.now() - _lastFaceAt > LEAVE_MS_PENDING; }
+function openReview() {
+  _review = { items:[], focus:0, title:'', card:false };
+  document.getElementById('hud').style.display = 'block';
+  renderReview();
+  fetch(PROXY, { method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ action:'list', entity:'FaceContextEncounter', limit:200 }) })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if (!_review) return;
+    var all = (Array.isArray(data) ? data : (data.records || [])).filter(function(e){ return e.date; })
+      .sort(function(a,b){ return new Date(b.date) - new Date(a.date); });
+    var today = new Date().toDateString();
+    var todays = all.filter(function(e){ return new Date(e.date).toDateString() === today; });
+    var pick = todays.length ? todays : all.slice(0, 8);
+    _review.title = todays.length ? 'list_today' : 'list_recent';
+    _review.items = pick.map(function(e){
+      var person = _profiles.filter(function(p){ return p.id === e.person_id || (e.person_name && p.name === e.person_name); })[0];
+      return { enc:e, person:person };
+    }).filter(function(it){ return it.person; });
+    renderReview();
+  })
+  .catch(function(){ if (_review) renderReview(); });
+  log('☰ review: today\'s encounters');
+}
+function renderReview() {
+  var box = document.getElementById('hud-list');
+  if (!_review || _review.card) { box.className = ''; return; }
+  box.className = 'on';
+  document.getElementById('hl-title').textContent = t(_review.title || 'list_today');
+  var html = '';
+  if (!_review.items.length) html = '<div class="hl-empty">' + t('list_empty') + '</div>';
+  _review.items.forEach(function(it, i){
+    var d = relDate(new Date(it.enc.date));
+    html += '<div class="hl-item' + (i === _review.focus ? ' focus' : '') + '" data-i="' + i + '">' +
+      '<div class="hl-name">' + esc(it.person.name) + '</div>' +
+      '<div class="hl-meta">' + esc([d[0] + (d[1] ? ' ' + d[1] : ''), it.enc.location, (it.enc.context || '').split('\n')[0]].filter(Boolean).join(' · ')) + '</div></div>';
+  });
+  var items = document.getElementById('hl-items');
+  items.innerHTML = html;
+  items.querySelectorAll('.hl-item').forEach(function(el){
+    bindTapDyn(el, function(){ _review.focus = +el.getAttribute('data-i'); reviewOpenCard(); });
+  });
+  var f = items.querySelector('.hl-item.focus'); if (f && f.scrollIntoView) f.scrollIntoView({ block:'nearest' });
+}
+function reviewMove(d) {
+  if (!_review || _review.card || !_review.items.length) return;
+  _review.focus = Math.max(0, Math.min(_review.items.length - 1, _review.focus + d));
+  renderReview();
+}
+function reviewOpenCard() {
+  var it = _review && _review.items[_review.focus];
+  if (!it) return;
+  _review.card = true;
+  renderReview();
+  showProfile(it.person, null, 'review');
+}
+function reviewBack() {   // card → list
+  _review.card = false;
+  hideHudCard();
+  renderReview();
+}
+function closeReview() {
+  if (!_review) return;
+  _review = null;
+  renderReview();
+  hideHudCard();
 }
 
 // Gesture helpers — return true when the card handled the gesture

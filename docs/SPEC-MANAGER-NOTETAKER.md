@@ -14,13 +14,20 @@
 
 Display: **biocular**, ou seja, um único Micro-LED com guia de onda leva a mesma imagem aos dois olhos. Isso foi confirmado pelo Marcus em 10/10 e corrige o doc 02, que dizia "só olho direito". São 640×480 pixels, cerca de 30° de campo de visão na diagonal, centralizado. Na prática, o display ocupa mais ou menos o terço central da visão.
 
-Card da pessoa, só leitura, com 70% da largura do display (640×480), pra não tampar a visão nem chamar atenção de quem está na frente. O indicador "Gravando encontro" fica fora do card, numa linha própria acima dele.
+Card da pessoa, só leitura, com 70% da largura do display, pra não tampar a visão nem chamar atenção de quem está na frente. O indicador "Gravando encontro" fica fora do card, numa linha própria acima dele.
 
-1. **Topo:** foto, nome e uma definição curta: social ("amigo da academia") e/ou de trabalho ("CEO · Empresa"). Sem e-mail, a não ser que o usuário pergunte.
-2. **Dossiê geral** com 3–4 linhas, escrito pela IA a partir de todos os encontros. Exemplos: "Amigo seu, registrado 4 vezes no último ano…" ou "CEO da empresa tal. Vocês conversaram na feira XYZ; ele é fornecedor da empresa dos seus sócios." Enquanto o dossiê da IA não existe, o emulador monta um texto simples com o que já está salvo.
-3. **Linha do tempo:** cada encontro é um mini-card de 2 linhas (dia, hora e lugar; resumo em 1 linha) com um chevron no canto direito.
-   - Deslizar ‹ › move o destaque, que aparece como contorno no mini-card.
-   - Toque expande, 2 toques recolhem.
+**Dois modos (decidido em 10/10).** Durante a conversa não se lê; se bate o olho. Ler e expandir fica pra fora da conversa.
+
+1. **Bater o olho (durante a conversa):**
+   - Foto quadrada média, NOME em caixa alta e as pílulas de onde você conhece a pessoa (TRABALHO, AMIGO, ACADEMIA).
+   - Uma frase só (`headline`), por exemplo "Colega de trabalho há 2 anos".
+   - Sem dossiê, sem linha do tempo, nada pra expandir. A ideia é não parecer distraído na frente da pessoa.
+2. **Revisão (fora da conversa):**
+   - Com ninguém na frente, o toque abre **"Hoje"**, a lista dos encontros do dia (ou **"Recentes"**, se não houve nenhum hoje). Depois isso vira comando de voz ("mostre os encontros de hoje").
+   - Deslizar ‹ › escolhe; toque abre o card completo.
+   - O card completo tem foto, nome e pílulas, **SOBRE** (dossiê de 3–4 linhas) e **ENCONTROS** (mini-cards de 2 linhas com chevron: toque expande, 2 toques recolhem).
+   - 2 toques voltam um nível: encontro expandido → card → lista → fecha.
+   - Se alguém aparecer na frente, a revisão fecha: a conversa ao vivo tem prioridade.
 
 Gravação de encontro: já está implementada no emulador.
 - O buffer começa no contato visual com fala.
@@ -87,7 +94,11 @@ Os dados de contato lidos por OCR (crachá ou cartão de visita) viram uma açã
 - Pré-requisito: corrigir a segurança do backend. Hoje qualquer pessoa lê, altera e apaga contatos, e isso precisa estar resolvido antes de guardar transcrições.
 - Ação `analyze_encounter`, que recebe a transcrição e devolve:
   `{ summary, topics[], follow_ups[], actions[{ type: calendar|task|contact, title, when?, confidence }], person_pills[{ label, evidence }], person_facts[{ key, value, evidence }] }`
-- Campo `dossier` da pessoa: texto de 3–4 linhas, reescrito a cada encontro (o HUD lê esse campo).
+- Campos da pessoa que o HUD lê:
+  - `headline`: 1 frase curta pro modo bater o olho, até ~40 caracteres.
+  - `pills`: até 3, por exemplo trabalho, amigo, academia.
+  - `dossier`: 3–4 linhas, até ~45 palavras, pra revisão.
+  - Todos são reescritos a cada encontro.
 - Onde guardar ações e pílulas, e o estado de cada ação (sugerida, aceita, descartada).
 - Conectores: Google Agenda e Google Tasks.
 
