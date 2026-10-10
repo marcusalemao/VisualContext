@@ -45,6 +45,27 @@ Gravação de encontro: já está implementada no emulador.
 
 Visual: monocromático (verde e transparência sobre o preto), sem dicas de gesto e sem redundância. **Nunca fundo preto/overlay escuro** (preto é transparente nos óculos): se o card precisar de fundo, é **verde a 20% de opacidade**. Sem sombra preta no texto.
 
+## Encontro em grupo = Evento (proposta, 10/10, a decidir)
+
+Com 3 ou mais rostos estáveis no quadro, ou sem um rosto dominante, o app não tenta adivinhar com quem você fala. Ele grava um **Evento**, uma lembrança coletiva, em vez de um encontro 1:1.
+
+- **O registro:** hora, lugar (GPS do celular), duração, transcrição com falantes separados (Pessoa 1, 2, 3…), resumo e lista de participantes.
+- **Rostos:** nada de vídeo contínuo. Uma foto parada a cada ~10 s; o **celular** detecta e compara todos os rostos dessa foto (barato: ~20 ms por rosto).
+  - Conhecidos entram como participantes ("Ana, Rafael + 4 pessoas").
+  - Desconhecidos **não** são cadastrados sozinhos. Ficam como rostos anônimos do evento; você nomeia no Manager se quiser, e eles somem depois de X dias se não forem nomeados.
+- **Com quem você está falando:** a câmera acompanha a cabeça, então "olhar" ≈ rosto **central + maior + estável por ~2 s**. Só ele ganha um **rótulo pequeno com o nome** (sem card) no HUD. O resto não aparece.
+- **Nome dos falantes, estilo Fathom:** a IA separa os falantes no áudio e depois dá nome a cada um por:
+  - apresentações ("meu nome é…");
+  - nomes ditos por outros ("Ana, o que você acha?");
+  - quem estava no centro do quadro quando aquela voz falava (fase 2).
+- **Divisão de trabalho:**
+  - óculos: só detectam se há rosto e capturam as fotos;
+  - celular: comparação dos rostos e gravação;
+  - nuvem: separação de falantes e resumo.
+- **Banda:** o Bluetooth leva só metadados e áudio (16 kHz mono ≈ 32 KB/s, cabe). As fotos vão pelo Wi‑Fi Direct, como no Nexus. Vídeo contínuo pelo Bluetooth não dá.
+- **Microfone:** o dos óculos foca na boca de quem usa. Em grupo, o **celular na mesa** capta melhor a conversa.
+- **HUD:** status "evento · 5 pessoas" no canto. Sem cards.
+
 ## Privacidade e bloqueio (10/10)
 
 Os óculos gravam a sua vida, inclusive momentos íntimos. Se outra pessoa colocar os óculos, o VisualContext não pode funcionar.
