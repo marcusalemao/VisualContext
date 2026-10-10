@@ -46,6 +46,16 @@
 - **Same prompt and contract in both modes.** With your own key, the phone calls the provider directly and the key stays on the phone (Android Keystore), never on our server. With Pro, the phone calls our backend, which holds the keys and logs usage.
 - **Pro is cheap for us:** one encounter analysis costs about US$0.0003 on Gemini Flash. A few dollars a month covers heavy use with a large margin.
 
+### Update 10/10 (20:52) — Nexus now, our own channel later
+
+**Marcus's direction:** connect to Rokid Nexus now (it's popular and evolving; its apps now talk to each other through Skills). If VisualContext turns out to be really good and can make money, evaluate publishing it outside Nexus as well. Not to compete with it, but in parallel.
+
+**Claude's notes:**
+- **Build so we can leave without rewriting.** The core (faces, memory, AI, Manager) depends on three things that come from Nexus today: the HUD display, the camera and the microphone. Put each behind a small adapter with two possible implementations: Nexus now, our own glasses app later. It costs little now and avoids a rewrite.
+- **The glasses app for Lugares is already independent of Nexus.** It reads the head motion and draws on the glasses itself. The same app can later also take over camera, mic and display, which is the standalone version.
+- **Installing without Nexus is possible:** the Hi Rokid "Install a new app" button, or our own phone app pairing wireless ADB the same way Nexus does (Kadb, Apache-2.0).
+- **Stay in Nexus as a distribution channel even after going standalone.** Skills (who_is_here, ask_memory, last_encounter) let other Nexus apps and the Nexus assistant use VisualContext's memory. That's visibility we would not get alone.
+- **Money:** nothing in the ecosystem forbids a commercial plugin (see above). Charging works through an external license key, same as before.
 
 ---
 
@@ -93,3 +103,13 @@
 - **Mesmo prompt e mesmo contrato nos dois modos.** Com chave própria, o celular chama o provedor direto e a chave fica no celular (Android Keystore), nunca no nosso servidor. No Pro, o celular chama o nosso backend, que guarda as chaves e registra o uso.
 - **O Pro custa pouco para nós:** a análise de um encontro sai por cerca de US$0,0003 no Gemini Flash. Alguns dólares por mês cobrem uso pesado com folga.
 
+### Atualização 10/10 (20:52) — Nexus agora, canal próprio depois
+
+**Direção do Marcus:** conectar ao Rokid Nexus agora (é famoso e está evoluindo; os apps dele agora conversam entre si pelas Skills). Se o VisualContext ficar muito bom e der para ganhar dinheiro, avaliar publicar também fora do Nexus. Não para concorrer com ele, e sim em paralelo.
+
+**Notas do Claude:**
+- **Construir de um jeito que dê para sair sem reescrever.** O núcleo (rostos, memória, IA, Manager) depende de três coisas que hoje vêm do Nexus: a tela do HUD, a câmera e o microfone. Cada uma fica atrás de um adaptador pequeno, com duas implementações possíveis: Nexus agora, nosso próprio app nos óculos depois. Custa pouco agora e evita reescrever tudo.
+- **O app dos óculos para Lugares já é independente do Nexus.** Ele lê o movimento da cabeça e desenha nos óculos. O mesmo app pode depois assumir também câmera, microfone e tela, e essa é a versão independente.
+- **Dá para instalar sem o Nexus:** pelo botão "Instalar um novo app" do Hi Rokid, ou pelo nosso próprio app no celular pareando o ADB por Wi-Fi do mesmo jeito que o Nexus faz (Kadb, Apache-2.0).
+- **Ficar no Nexus como canal de distribuição mesmo depois de ser independente.** As Skills (quem está aqui, perguntar à memória, último encontro) deixam outros apps do Nexus e o assistente dele usarem a memória do VisualContext. É visibilidade que sozinhos não teríamos.
+- **Dinheiro:** nada no ecossistema proíbe um plugin comercial (ver acima). A cobrança funciona por chave de licença externa, como já estava previsto.
