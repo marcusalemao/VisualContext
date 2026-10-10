@@ -42,12 +42,20 @@ O VisualContext não é só sobre pessoas. O MVP terá três skills de memória,
 
 - **Pergunta por voz:** "Onde deixei minha moto?" faz o HUD mostrar o card do veículo.
 - **Navegação delegada:** o VisualContext não navega. "Mostrar no mapa" entrega o destino pra navegação nativa ou pro Rokid-GMaps do Anezium, conforme o princípio de registro, não executor.
-- **Localização vem do celular ou do relógio,** porque os óculos não têm GPS próprio.
+- **Não é standalone (decidido em 10/10).** Os óculos precisam estar conectados ao celular por Bluetooth, como a maioria dos apps. É do celular que vêm o GPS e o processamento pesado.
+- **A foto do objeto é guardada.** Isso faz parte do cadastro do objeto: guarda-se o recorte do objeto, e só o último.
 
-Decisões em aberto pra essas skills:
-1. **Foto do objeto:** a spec de transcrição dizia que a única imagem guardada era o recorte do rosto. Pra chave e veículo, guardar o último frame é uma exceção. A proposta é guardar só o recorte do objeto (sem pessoas e com placas de terceiros borradas), e só o último, sobrescrevendo o anterior.
-2. **Como a pessoa ensina o que é dela** ("esta é a minha moto"): por uma captura nos óculos ou por foto no Manager.
-3. **Quem atende a pergunta por voz:** o próprio VisualContext ou o assistente Nexus, que repassa pro VisualContext. Isso tem a ver com o formato de integração entre plugins do Rokid-Nexus, ainda a verificar.
+### Skills criadas por frase natural (sem prompt)
+
+O usuário só fala, por exemplo: *"Essa é a minha moto, lembra dela."* A IA entende sozinha a intenção ("lembrar onde foi visto por último") e cria a skill: a assinatura visual do objeto e o que guardar (frame, GPS, descrição do lugar). No app do celular, uma página de configurações lista as skills aprendidas, com frases de exemplo. A chave e a moto já vêm prontas no MVP.
+
+### Como reconhecer o que é seu (proposta)
+
+- **Na mão = é seu.** Se a chave aparece na sua mão, ela é sua. Nesse momento a IA guarda várias vistas da chave com o chaveiro, que é o que a torna única, e monta uma assinatura visual do objeto. Depois disso, não é qualquer chave: só a que bate com essa assinatura.
+- **Registrar o momento que importa, não vigiar o tempo todo.** O "visto por último" que interessa é quando o objeto **sai da sua mão** (mão com chave → mão vazia). Só aí se guarda o frame, a descrição do lugar ("mesa da sala, ao lado do notebook") e a hora. Isso gasta muito menos bateria e processamento.
+- **Veículo, com ajuda do celular.** O Android já detecta quando você para de estar num veículo e começa a andar (é assim que o Google Maps sabe onde você estacionou). Essa troca, somada ao frame dos óculos vendo a moto, marca onde ela ficou, com GPS. Isso funciona mesmo se os óculos não "virem" a moto naquele instante.
+- **Dentro de casa o GPS não ajuda.** Pra chave vale a descrição da cena, não as coordenadas.
+- **Opcional, no futuro:** se a pessoa tiver uma tag Bluetooth no chaveiro (por exemplo SmartTag), ela serve de reforço. Nunca é obrigatória.
 
 ## Manager · página do encontro
 
