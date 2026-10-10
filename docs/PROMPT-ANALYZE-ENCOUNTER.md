@@ -84,7 +84,8 @@ The rules must not be Brazil-only, but they also don't need a version per countr
    - **East Asia:** family name first; "Tanaka desu", 我叫/我是, 저는 … 입니다.
    - **Honorifics:** -san, -ssi, 先生, which are not part of the name.
    - **Titles instead of names:** "Manager Kim".
-3. **Business cards (Japan, Korea, China, business everywhere):** often the name is never said, it is handed over on a card. The existing badge OCR also reads business cards. The printed name has the highest confidence of all sources.
+3. **QR codes (implemented in the emulator):** vCard/MeCard on a card or phone, a LinkedIn or WhatsApp QR. Name, company, phone, e-mail and LinkedIn are filled in directly. A LinkedIn link alone gives only a name hint.
+4. **Business cards (Japan, Korea, China, business everywhere):** often the name is never said, it is handed over on a card. The existing badge OCR also reads business cards. The printed name has the highest confidence of all sources.
 
 Speech recognition follows the phone language. The AI receives `lang` and answers in that language.
 
@@ -182,7 +183,8 @@ As regras não podem ser só do Brasil, mas também não precisam de uma versão
    - **Ásia oriental:** sobrenome primeiro; "Tanaka desu", 我叫/我是, 저는 … 입니다.
    - **Honoríficos:** -san, -ssi, 先生, que não fazem parte do nome.
    - **Cargo no lugar do nome:** "Gerente Kim".
-3. **Cartão de visita (Japão, Coreia, China e negócios em geral):** muitas vezes o nome nem é falado, é entregue num cartão. O OCR de crachá que já existe lê também cartões de visita. O nome impresso tem a maior confiança de todas as fontes.
+3. **QR code (já no emulador):** vCard/MeCard no cartão ou no celular, QR do LinkedIn ou do WhatsApp. Nome, empresa, telefone, e-mail e LinkedIn entram direto. Só o link do LinkedIn dá apenas uma pista do nome.
+4. **Cartão de visita (Japão, Coreia, China e negócios em geral):** muitas vezes o nome nem é falado, é entregue num cartão. O OCR de crachá que já existe lê também cartões de visita. O nome impresso tem a maior confiança de todas as fontes.
 
 O reconhecimento de voz segue o idioma do celular. A IA recebe `lang` e responde nesse idioma.
 

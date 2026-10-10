@@ -618,6 +618,7 @@ function openEncounter(anchor, person) {
 
 function tick() {
   if (!_enc) { clearInterval(_tickTimer); _tickTimer = null; return; }
+  qrTick();
   var now = Date.now();
   var away = now - _enc.lastSeen;
 
@@ -669,7 +670,8 @@ function confirmNewPerson() {
     if (!_enc) return;
     if (!p) { log('⚠ could not save the person — encounter dropped', true); return endEncounter('error'); }
     _enc.person = p;
-    if (_enc.pendingName) { renamePerson(p, _enc.pendingName, _enc.pendingAlias); _enc.namedHere = true; }
+    if (_enc.pendingQR) applyQR(p, _enc.pendingQR, _enc);
+    else if (_enc.pendingName) { renamePerson(p, _enc.pendingName, _enc.pendingAlias); _enc.namedHere = true; }
     else _enc.transcript.some(function(l){ var nm = detectName(l.replace(/^\d\d:\d\d: /, '')); if (nm) { renamePerson(p, nm); return true; } });
     startRecording();
   }, desc);
@@ -1366,6 +1368,88 @@ function readBadge(torso, encounterId) {
     });
   })
   .catch(function(e){ log('◌ badge not read: ' + e.message); });
+}
+
+// ── QR codes during an encounter (business card, LinkedIn/WhatsApp QR on a phone, vCard) ──
+// The strongest source of all: the name is written, not guessed. Scanned ~1×/s only while an encounter is open.
+var _qrDetector = null, _qrLib = null, _qrLastAt = 0, _qrSeen = {};
+function qrInit() {
+  if (_qrDetector || _qrLib) return Promise.resolve();
+  try {
+    if ('BarcodeDetector' in window) { _qrDetector = new BarcodeDetector({ formats: ['qr_code'] }); return Promise.resolve(); }
+  } catch (e) {}
+  return new Promise(function(res){
+    var sc = document.createElement('script');
+    sc.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
+    sc.onload = function(){ _qrLib = window.jsQR; res(); }; sc.onerror = function(){ res(); };
+    document.head.appendChild(sc);
+  });
+}
+function scanQR(frame) {
+  if (!frame) return Promise.resolve(null);
+  return qrInit().then(function(){
+    if (_qrDetector) return _qrDetector.detect(frame).then(function(r){ return r && r[0] ? r[0].rawValue : null; }).catch(function(){ return null; });
+    if (_qrLib) {
+      var d = frame.getContext('2d').getImageData(0, 0, frame.width, frame.height);
+      var r = _qrLib(d.data, d.width, d.height, { inversionAttempts: 'dontInvert' });
+      return r ? r.data : null;
+    }
+    return null;
+  });
+}
+// vCard / MeCard / profile links → {name, company, role, phone, email, linkedin, whatsapp, url}
+function parseQR(raw) {
+  raw = String(raw || '').trim();
+  var out = {};
+  function vfield(k) { var m = new RegExp('^' + k + '(?:;[^:\\n]*)?:(.*)$', 'mi').exec(raw); return m ? m[1].trim() : ''; }
+  if (/^BEGIN:VCARD/i.test(raw)) {
+    out.name = vfield('FN');
+    if (!out.name) { var n = vfield('N').split(';'); out.name = [n[1], n[0]].filter(Boolean).join(' ').trim(); }
+    out.company = vfield('ORG').replace(/;+$/, ''); out.role = vfield('TITLE');
+    out.phone = vfield('TEL'); out.email = vfield('EMAIL'); out.url = vfield('URL');
+  } else if (/^MECARD:/i.test(raw)) {
+    var mf = function(k){ var m = new RegExp('[:;]' + k + ':([^;]*)', 'i').exec(raw); return m ? m[1].trim() : ''; };
+    var nn = mf('N').split(','); out.name = [nn[1], nn[0]].filter(Boolean).join(' ').trim();
+    out.phone = mf('TEL'); out.email = mf('EMAIL'); out.url = mf('URL'); out.company = mf('ORG');
+  } else if (/^https?:\/\//i.test(raw)) {
+    out.url = raw;
+  } else if (/^mailto:/i.test(raw)) out.email = raw.replace(/^mailto:/i, '');
+  else if (/^tel:/i.test(raw)) out.phone = raw.replace(/^tel:/i, '');
+  var u = out.url || '';
+  if (/linkedin\.com\/in\//i.test(u)) out.linkedin = u;
+  if (/wa\.me\/|whatsapp\.com/i.test(u)) { out.whatsapp = u; var ph = /wa\.me\/(\d+)/.exec(u); if (ph && !out.phone) out.phone = '+' + ph[1]; }
+  if (!out.name && out.linkedin) {   // linkedin.com/in/marcus-de-magalhaes-1a2b → a hint, not a certainty
+    var slug = /linkedin\.com\/in\/([^/?#]+)/i.exec(out.linkedin)[1].replace(/-[0-9a-f]{4,}$/i, '').split('-').filter(function(w){ return !/\d/.test(w); });
+    if (slug.length) out.nameHint = slug.map(titleCase).join(' ');
+  }
+  return out;
+}
+function qrTick() {
+  var e = _enc;
+  if (!e || Date.now() - _qrLastAt < 1000) return;
+  _qrLastAt = Date.now();
+  scanQR(snapshotFrame()).then(function(raw){
+    if (!raw || !_enc || _enc !== e || _qrSeen[raw]) return;
+    _qrSeen[raw] = true;
+    var q = parseQR(raw);
+    log('▣ QR: ' + [q.name || q.nameHint, q.company, q.linkedin || q.whatsapp || q.email || q.url].filter(Boolean).join(' · '), true);
+    if (e.person) applyQR(e.person, q, e); else e.pendingQR = q;
+  });
+}
+function applyQR(p, q, e) {
+  var name = q.name || '';
+  if (name && (isUnnamed(p) || (e && e.namedHere))) { renamePerson(p, name); if (e) e.namedHere = true; }
+  else if (!name && q.nameHint && isUnnamed(p)) { renamePerson(p, q.nameHint); if (e) e.namedHere = true; }
+  var upd = {};
+  if (q.company && !p.company) upd.company = p.company = q.company;
+  if (q.role && !p.role) upd.role = p.role = q.role;
+  if (q.linkedin) upd.contact_linkedin = p.contact_linkedin = q.linkedin;
+  if (q.whatsapp) upd.contact_whatsapp = p.contact_whatsapp = q.whatsapp;
+  if (q.phone && !p.contact_phone) upd.contact_phone = p.contact_phone = q.phone;
+  if (q.email && !p.contact_email) upd.contact_email = p.contact_email = q.email;
+  if (p.id && Object.keys(upd).length) fetch(PROXY + '?id=' + p.id + '&entity=FaceContextPerson', {
+    method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(upd)
+  }).catch(function(){});
 }
 
 // ── Face recognition (face-api.js) ──
