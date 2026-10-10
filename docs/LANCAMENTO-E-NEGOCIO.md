@@ -33,6 +33,20 @@
   - or a time-limited full trial.
 - **Payment:** a Nexus plugin cannot use Google Play Billing outside the Play Store. Use an external license key (Stripe, Ko-fi or Lemon Squeezy) checked by the Manager backend.
 
+### Update 10/10 (04:59) — AI keys: free = bring your own key, Pro = everything included
+
+**Marcus's decision:**
+- Online demo: Marcus's keys, rate-limited (fake test in the emulator).
+- Installed app: free users enter their own API keys and choose the provider.
+- **Pro plan:** keys included and pre-configured, nothing to set up.
+
+**Claude's notes:**
+- **Providers to offer:** Gemini (free key, the easiest), OpenRouter (one key, many models), OpenAI. The Nexus Assistant from Anezium already does this, and also offers "sign in with your ChatGPT plan". Check the terms of use before copying that sign-in.
+- **A free option without any key:** on recent Android phones (Pixel, Galaxy), the phone's own on-device AI (Gemini Nano) can summarize locally, free and private. It's weaker than the cloud models but good enough for summary and hook.
+- **Same prompt and contract in both modes.** With your own key, the phone calls the provider directly and the key stays on the phone (Android Keystore), never on our server. With Pro, the phone calls our backend, which holds the keys and logs usage.
+- **Pro is cheap for us:** one encounter analysis costs about US$0.0003 on Gemini Flash. A few dollars a month covers heavy use with a large margin.
+
+
 ---
 
 ## PT — Português
@@ -65,3 +79,17 @@
   - limitar o que nos custa dinheiro (resumos de IA, minutos de transcrição em nuvem) e deixar a memória local ilimitada;
   - ou um teste completo por tempo limitado.
 - **Pagamento:** um plugin Nexus não consegue usar o Google Play Billing fora da Play Store. Usar uma chave de licença externa (Stripe, Ko-fi ou Lemon Squeezy) validada pelo backend do Manager.
+
+### Atualização 10/10 (04:59) — chaves de IA: grátis = sua própria chave, Pro = tudo incluso
+
+**Decisão do Marcus:**
+- Demo online: chaves do Marcus, com limite de uso (teste fake no emulador).
+- App instalado: quem usa de graça coloca as próprias chaves de API e escolhe o provedor.
+- **Plano Pro:** chaves incluídas e pré-configuradas, nada para configurar.
+
+**Notas do Claude:**
+- **Provedores a oferecer:** Gemini (chave grátis, o mais fácil), OpenRouter (uma chave, vários modelos), OpenAI. O Assistant do Nexus, do Anezium, já faz isso e ainda oferece "entrar com o seu plano do ChatGPT". Vale checar os termos de uso antes de copiar esse login.
+- **Opção grátis sem chave nenhuma:** em celulares Android recentes (Pixel, Galaxy), a IA do próprio celular (Gemini Nano) resume localmente, de graça e com privacidade. É mais fraca que os modelos na nuvem, mas dá conta de resumo e gancho.
+- **Mesmo prompt e mesmo contrato nos dois modos.** Com chave própria, o celular chama o provedor direto e a chave fica no celular (Android Keystore), nunca no nosso servidor. No Pro, o celular chama o nosso backend, que guarda as chaves e registra o uso.
+- **O Pro custa pouco para nós:** a análise de um encontro sai por cerca de US$0,0003 no Gemini Flash. Alguns dólares por mês cobrem uso pesado com folga.
+
