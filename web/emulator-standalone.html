@@ -124,7 +124,7 @@ body.guides #hud-zone{display:block}
 /* Photo preview (manual capture) — loose on the display, like the native camera preview */
 #hud-preview{position:absolute;top:20px;left:20px;display:none;text-align:center}
 #hud-preview.on{display:block}
-#hp-img{width:110px;height:110px;border-radius:50%;border:1px solid rgba(0,255,136,.5);display:block;margin:0 auto 8px;
+#hp-img{width:110px;height:110px;border-radius:6px;border:1px solid rgba(0,255,136,.5);display:block;margin:0 auto 8px;
   filter:grayscale(1) sepia(1) hue-rotate(80deg) saturate(4) brightness(.85)}
 #hp-q{font-size:20px;color:#00ff88}
 
@@ -592,6 +592,7 @@ function openEncounter(anchor, person) {
     countdownEnd: 0, recordingSince: 0
   };
   _state = 'buffer';
+  if (person) checkLegacyPhoto(person);
   takeBestFrame();
   startListening();
   if (!_tickTimer) _tickTimer = setInterval(tick, 200);
@@ -662,6 +663,7 @@ function endEncounter(reason) {
   _state = 'idle';
   clearInterval(_tickTimer); _tickTimer = null;
   stopListening();
+  if (reason === 'finished' && e.kind === 'known' && e.person && e.person._legacyPhoto && e.bestFrame) replacePhoto(e.person, cropFaceCircle(e.bestFrame, e.bestBox));
   e.bestFrame = null;   // full frame dropped — only the circular face photo is ever kept
   if (reason === 'cancel') {
     _suppressed.push(e.anchor);
@@ -772,7 +774,8 @@ function snapshotFrame() {
   return cv;
 }
 function takeBestFrame() {
-  if (!_enc || !_lastFaceBox || _enc.kind === 'known') return;   // only new people need a photo
+  if (!_enc || !_lastFaceBox) return;
+  if (_enc.kind === 'known' && !(_enc.person && _enc.person._legacyPhoto)) return;   // new people, or an old round photo to replace
   var area = _lastFaceBox.w * _lastFaceBox.h;
   if (area <= _enc.bestArea) return;
   var fr = snapshotFrame();
@@ -1027,10 +1030,37 @@ function cropFaceCircle(src, b) {
     var cv = document.createElement('canvas');
     cv.width = 256; cv.height = 256;
     var ctx = cv.getContext('2d');
-    ctx.beginPath(); ctx.arc(128, 128, 128, 0, Math.PI * 2); ctx.clip();
+    // SQUARE photo, no mask: a circle leaves black corners, and black has no place on the display
     ctx.drawImage(src, sx, sy, side, side, 0, 0, 256, 256);
     return cv.toDataURL('image/jpeg', 0.8);
   } catch (e) { return null; }
+}
+// Photos saved before 10/10 were round (black corners). Detect them by a dark corner pixel and
+// replace them with a square one the next time the person is seen.
+function checkLegacyPhoto(p) {
+  if (!hasPhoto(p) || p._legacyChecked) return;
+  p._legacyChecked = true;
+  try {
+    var img = new Image();
+    img.onload = function(){
+      try {
+        var c = document.createElement('canvas'); c.width = c.height = 8;
+        var x = c.getContext('2d'); x.drawImage(img, 0, 0, 8, 8);
+        var d = x.getImageData(0, 0, 1, 1).data, d2 = x.getImageData(7, 7, 1, 1).data;
+        if (d[0] + d[1] + d[2] < 30 && d2[0] + d2[1] + d2[2] < 30) p._legacyPhoto = true;
+      } catch (e) {}
+    };
+    img.src = p.photo_url;
+  } catch (e) {}
+}
+function replacePhoto(p, photo) {
+  if (!p || !p.id || !photo) return;
+  p.photo_url = photo; p._legacyPhoto = false;
+  _profiles.forEach(function(x){ if (x.id === p.id) x.photo_url = photo; });
+  fetch(PROXY + '?id=' + p.id + '&entity=FaceContextPerson', {
+    method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ photo_url: photo })
+  }).catch(function(){});
+  log('✓ round photo replaced by a square one — ' + p.name, true);
 }
 function captureFacePhoto() { return cropFaceCircle(document.getElementById('vid'), _lastFaceBox); }
 
