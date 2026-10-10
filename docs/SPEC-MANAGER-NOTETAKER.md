@@ -41,7 +41,7 @@ Gravação de encontro: já está implementada no emulador.
 - Durante a gravação: indicador discreto acima do card.
 - 2 toques param a gravação. Toque retoma.
 
-Visual: monocromático (verde e transparência sobre o preto), sem dicas de gesto e sem redundância.
+Visual: monocromático (verde e transparência sobre o preto), sem dicas de gesto e sem redundância. **Nunca fundo preto/overlay escuro** (preto é transparente nos óculos): se o card precisar de fundo, é **verde a 20% de opacidade**. Sem sombra preta no texto.
 
 ## Privacidade e bloqueio (10/10)
 

@@ -54,7 +54,7 @@ body.guides #hud-zone{display:block}
 #hud-card{
   position:absolute; top:52px; left:16px; width:448px; max-height:284px;   /* ends at 336px = 70% of the height */
   flex-direction:column;
-  background:rgba(0,0,0,.62);
+  background:rgba(0,255,136,.2);   /* no black overlay: black is transparent on the glasses — 20% green only */
   border:1px solid rgba(0,255,136,.3);
   border-radius:12px; padding:14px 16px;
   pointer-events:auto;
@@ -78,14 +78,14 @@ body.guides #hud-zone{display:block}
 #hud-card.review #hud-headline{display:none}
 /* Idle: one discreet line at the top-left (inside the view zone). Tap opens the list below it. */
 #hud-recent-bar{position:absolute;left:16px;top:16px;font-size:12px;letter-spacing:1.5px;color:#00aa55;display:none;
-  pointer-events:auto;cursor:pointer;text-shadow:0 0 4px #000}
+  pointer-events:auto;cursor:pointer}
 #hud-recent-bar.on{display:block}
 #hud-recent-bar::after{content:'';display:inline-block;width:6px;height:6px;margin-left:8px;vertical-align:1px;
   border-right:2px solid #00aa55;border-bottom:2px solid #00aa55;transform:rotate(45deg);vertical-align:3px}
 /* Last encounters — a narrow column of short cards (small photo beside name + date), vertical infinite scroll.
    Small on purpose: opened over a coffee, closed with a double tap. */
 #hud-list{position:absolute;left:16px;top:16px;width:250px;height:232px;   /* opens downward from the top, ends at 248px */display:none;flex-direction:column;
-  background:rgba(0,0,0,.62);border:1px solid rgba(0,255,136,.3);border-radius:10px;padding:10px 10px 8px;pointer-events:auto}
+  background:rgba(0,255,136,.2);border:1px solid rgba(0,255,136,.3);border-radius:10px;padding:10px 10px 8px;pointer-events:auto}
 #hud-list.on{display:flex}
 #hl-items{overflow-y:auto;min-height:0;padding-right:4px;scrollbar-width:thin;scrollbar-color:#00aa55 transparent}
 #hl-items::-webkit-scrollbar{width:3px}
@@ -122,14 +122,14 @@ body.guides #hud-zone{display:block}
 .tl-item.open .tl-detail{display:block}
 
 /* Photo preview (manual capture) — loose on the display, like the native camera preview */
-#hud-preview{position:absolute;top:20px;left:20px;display:none;text-align:center;text-shadow:0 0 4px #000}
+#hud-preview{position:absolute;top:20px;left:20px;display:none;text-align:center}
 #hud-preview.on{display:block}
 #hp-img{width:110px;height:110px;border-radius:50%;border:1px solid rgba(0,255,136,.5);display:block;margin:0 auto 8px;
   filter:grayscale(1) sepia(1) hue-rotate(80deg) saturate(4) brightness(.85)}
 #hp-q{font-size:20px;color:#00ff88}
 
 /* Countdown — new person: loose text, no card (black is transparent on the waveguide) */
-#hud-count{position:absolute; top:20px; left:20px; display:none; text-shadow:0 0 4px #000,0 0 2px #000}
+#hud-count{position:absolute; top:20px; left:20px; display:none;}
 #hud-count.on{display:block}
 #hc-title{font-size:20px;color:#00ff88;letter-spacing:.3px}
 #hc-num{font-weight:bold}
@@ -140,7 +140,7 @@ body.guides #hud-zone{display:block}
   position:absolute; top:12px; left:16px;
   display:none; align-items:center; gap:8px;
   font-size:15px; color:#00cc6e;
-  background:rgba(0,0,0,.55);
+  background:rgba(0,255,136,.2);
   border:1px solid rgba(0,255,136,.2);
   border-radius:16px; padding:5px 12px 5px 10px;
 }
