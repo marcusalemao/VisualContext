@@ -336,7 +336,7 @@ VC_I18N.add({
     idle_fail:'Could not access the camera', idle_fail_sub:'Check the permission in the 🔒 of the address bar',
     idle_stopped:'Camera stopped', idle_stopped_sub:'Tap Camera to turn it back on',
     idle_nosupport:'Camera not supported', idle_nosupport_sub:'Open over HTTPS in a browser with a camera',
-    about:'ABOUT', timeline:'ENCOUNTERS', list_title:'LATEST RECORDS', list_empty:'Nothing recorded yet.', hl_count:'{n} encounters · since {since}', hl_one:'Met once · {when}', met_when:'met {when}', lk_f1:'Young woman', lk_f2:'Woman', lk_f3:'Older woman', lk_m1:'Young man', lk_m2:'Man', lk_m3:'Older man', lk_p:'Person', lk_age:', ~{a}', lk_hair:', {c} hair', lk_bald:', bald', lk_wear:', in {c}', h_black:'black', h_brown:'brown', h_blond:'blond', h_red:'red', h_grey:'grey', dz_count:'Seen {n} times in the last year.', dz_once:'Seen once in the last year.', dz_last:'Last time {when}{where}: {what}', dz_at:' at {p}', today:'today', yesterday:'yesterday', no_summary:'(no summary)', p_preview:'Save this face?',
+    about:'ABOUT', timeline:'ENCOUNTERS', list_title:'LATEST RECORDS', list_empty:'Nothing recorded yet.', hl_count:'{n} encounters · since {since}', hl_one:'Met once · {when}', met_when:'met {when}', lk_f1:'Young woman', lk_f2:'Woman', lk_f3:'Older woman', lk_m1:'Young man', lk_m2:'Man', lk_m3:'Older man', lk_p:'Person', lk_age:', ~{a}', lk_hair:', {c} hair', lk_bald:', bald', lk_wear:', in {c}', h_black:'black', h_brown:'brown', h_blond:'blond', h_red:'red', h_grey:'grey', h_purple:'purple', h_pink:'pink', h_blue:'blue', h_green:'green', dz_count:'Seen {n} times in the last year.', dz_once:'Seen once in the last year.', dz_last:'Last time {when}{where}: {what}', dz_at:' at {p}', today:'today', yesterday:'yesterday', no_summary:'(no summary)', p_preview:'Save this face?',
     count_title:'Recording encounter:', count_hint:'Swipe forward to cancel',
     rec:'Recording encounter', paused:'Paused · Tap to resume',
     s_ready:'ready', s_loading:'loading AI…', s_cam:'camera on', s_buf_face:'buffering (face only)', s_buf_speech:'buffering · speech',
@@ -374,7 +374,7 @@ VC_I18N.add({
     idle_fail:'Não deu pra acessar a câmera', idle_fail_sub:'Verifique a permissão no 🔒 da barra de endereço',
     idle_stopped:'Câmera parada', idle_stopped_sub:'Toque em Câmera para religar',
     idle_nosupport:'Câmera não suportada', idle_nosupport_sub:'Abra em HTTPS num navegador com câmera',
-    about:'SOBRE', timeline:'ENCONTROS', list_title:'ÚLTIMOS REGISTROS', list_empty:'Nenhum registro ainda.', hl_count:'{n} encontros · desde {since}', hl_one:'Vocês se viram 1 vez · {when}', met_when:'conheceu {when}', lk_f1:'Moça', lk_f2:'Mulher', lk_f3:'Senhora', lk_m1:'Rapaz', lk_m2:'Homem', lk_m3:'Senhor', lk_p:'Pessoa', lk_age:' de ~{a} anos', lk_hair:', cabelo {c}', lk_bald:', careca', lk_wear:', de {c}', h_black:'preto', h_brown:'castanho', h_blond:'loiro', h_red:'ruivo', h_grey:'grisalho', dz_count:'Registrado {n} vezes no último ano.', dz_once:'Registrado 1 vez no último ano.', dz_last:'Da última vez, {when}{where}: {what}', dz_at:' em {p}', today:'hoje', yesterday:'ontem', no_summary:'(sem resumo)', p_preview:'Salvar este rosto?',
+    about:'SOBRE', timeline:'ENCONTROS', list_title:'ÚLTIMOS REGISTROS', list_empty:'Nenhum registro ainda.', hl_count:'{n} encontros · desde {since}', hl_one:'Vocês se viram 1 vez · {when}', met_when:'conheceu {when}', lk_f1:'Moça', lk_f2:'Mulher', lk_f3:'Senhora', lk_m1:'Rapaz', lk_m2:'Homem', lk_m3:'Senhor', lk_p:'Pessoa', lk_age:' de ~{a} anos', lk_hair:', cabelo {c}', lk_bald:', careca', lk_wear:', de {c}', h_black:'preto', h_brown:'castanho', h_blond:'loiro', h_red:'ruivo', h_grey:'grisalho', h_purple:'roxo', h_pink:'rosa', h_blue:'azul', h_green:'verde', dz_count:'Registrado {n} vezes no último ano.', dz_once:'Registrado 1 vez no último ano.', dz_last:'Da última vez, {when}{where}: {what}', dz_at:' em {p}', today:'hoje', yesterday:'ontem', no_summary:'(sem resumo)', p_preview:'Salvar este rosto?',
     count_title:'Gravando encontro:', count_hint:'Deslize para frente para cancelar',
     rec:'Gravando encontro', paused:'Pausado · Toque para retomar',
     s_ready:'pronto', s_loading:'carregando IA…', s_cam:'câmera ativa', s_buf_face:'buffer (só rosto)', s_buf_speech:'buffer · com fala',
@@ -569,7 +569,7 @@ function handleMatch(descriptor) {
   if (_previewOpen || _state === 'saving') return;
 
   if (m) {
-    if (!isUnnamed(m.profile) || m.profile.nickname) showProfile(m.profile, Math.round((1 - m.dist) * 100));
+    if (!isUnnamed(m.profile) || lookOf(m.profile)) showProfile(m.profile, Math.round((1 - m.dist) * 100));
     else hideHudCard(true);   // no name and no description yet: it gets described during this encounter
     if (isSuppressed(descriptor)) return;   // user said no to this encounter: show the card, don't record
   } else {
@@ -669,7 +669,7 @@ function confirmNewPerson() {
     if (!_enc) return;
     if (!p) { log('⚠ could not save the person — encounter dropped', true); return endEncounter('error'); }
     _enc.person = p;
-    if (_enc.pendingName) renamePerson(p, _enc.pendingName);
+    if (_enc.pendingName) { renamePerson(p, _enc.pendingName, _enc.pendingAlias); _enc.namedHere = true; }
     else _enc.transcript.some(function(l){ var nm = detectName(l.replace(/^\d\d:\d\d: /, '')); if (nm) { renamePerson(p, nm); return true; } });
     startRecording();
   }, desc);
@@ -796,7 +796,7 @@ function snapshotFrame() {
 }
 function takeBestFrame() {
   if (!_enc || !_lastFaceBox) return;
-  if (_enc.kind === 'known' && !(_enc.person && (_enc.person._legacyPhoto || (isUnnamed(_enc.person) && !_enc.person.nickname)))) return;   // new people, an old round photo, or someone to describe
+  if (_enc.kind === 'known' && !(_enc.person && (_enc.person._legacyPhoto || (isUnnamed(_enc.person) && !lookOf(_enc.person))))) return;   // new people, an old round photo, or someone to describe
   var area = _lastFaceBox.w * _lastFaceBox.h;
   if (area <= _enc.bestArea) return;
   var fr = snapshotFrame();
@@ -867,11 +867,15 @@ function onSpeech(text) {
   var d = new Date();
   _enc.transcript.push(String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0') + ': ' + text);
   log('“' + text + '”');
-  var nm = detectName(text);
-  var fix = (_enc.person && !isUnnamed(_enc.person)) ? spellingFix(text, _enc.person.name) : '';
+  var found = detectNameFull(text, { bare: Date.now() - _enc.startedAt < 30000 });
+  var nm = found ? found.name : '';
+  var fix = (_enc.person && !isUnnamed(_enc.person) && !_enc.namedHere) ? spellingFix(text, _enc.person.name) : '';
   if (fix) renamePerson(_enc.person, fix);                      // "Marcus com u": spelling confirmed
-  else if (nm && _enc.person && isUnnamed(_enc.person)) renamePerson(_enc.person, nm);
-  else if (nm && !_enc.person) _enc.pendingName = nm;   // heard before the person was saved
+  else if (nm && _enc.person && (isUnnamed(_enc.person) || _enc.namedHere)) {   // a later correction in the same encounter wins
+    renamePerson(_enc.person, nm, found.alias);
+    _enc.namedHere = true;
+  }
+  else if (nm && !_enc.person) { _enc.pendingName = nm; _enc.pendingAlias = found.alias; }   // heard before the person was saved
 }
 
 // ── Names come from the conversation ("Meu nome é Marcus Magalhães", "my name is …") ──
@@ -889,51 +893,86 @@ function titleCase(w) { return /^(de|da|do|dos|das)$/i.test(w) ? w.toLowerCase()
 // Brazilian introductions are short: "Marcos, prazer", "Prazer, Ana", "esse é o Rafa".
 // Cues, strongest first. Talk ABOUT someone ("o João me disse", "sua mãe, a Karin",
 // "Carolina, tem que conhecer") matches none of them on purpose.
-var NOT_A_NAME = /^(Tudo|Bem|Muito|Oi|Olá|Ola|Então|Sim|Não|Obrigado|Obrigada|Prazer|Eu|Aqui|É|Também|Igualmente|Opa|Bom|Boa|Dia|Tarde|Noite|Gente|Galera|Pessoal|Cara|Mano|Sure|Fine|Here|Good|Not|So|The|Nice|Hi|Hello)$/;
+var NOT_A_NAME = /^(Tudo|Bem|Muito|Oi|Olá|Ola|Então|Sim|Não|Obrigado|Obrigada|Prazer|Eu|Aqui|É|Também|Igualmente|Opa|Bom|Boa|Dia|Tarde|Noite|Gente|Galera|Pessoal|Cara|Mano|Ah|Aí|Ai|Ei|Olha|Pronto|Perdão|Desculpa|Nossa|Sure|Fine|Here|Good|Not|So|The|Nice|Hi|Hello|Ok|Okay|Vou|Deixa)$/;
 var NAME_GROUP = "(" + NAME_WORD + "(?:\\s+(?:(?:de|da|do|dos|das|e)\\s+)?" + NAME_WORD + "){0,3})";
-var CUE_INTRO_OTHER = new RegExp("(?:[Oo] nome d(?:ele|ela) é|[Oo] seu nome é|[Ee]l[ae] se chama|[Vv]ocê se chama|[Vv]ocê é [oa]|[Ee]ss[ae] é [oa]|[Ee]st[ae] é [oa]|[Tt]his is|[Yy]ou're|[Yy]ou are)\\s+" + NAME_GROUP);
-var FILLER = "(?:\\s*,?\\s*(?:é|né|então|ok|tá|muito|um|uh|eh|ah)\\b)*";
-var CUE_PRAZER_AFTER = new RegExp(NAME_GROUP + FILLER + "\\s*,?\\s*(?:muito\\s+)?(?:[Pp]razer|[Nn]ice to meet you)");
-// speech output often comes lowercase and without commas: "marcelo campos é prazer"
+var REL = "(?:(?:meu|minha|nosso|nossa)\\s+)?(?:amig[oa]|colega|prim[oa]|vizinh[oa]|sóci[oa]|chefe|cliente|parceir[oa])?\\s*";
+var START = "(?:^|[.!?…]\\s*|\\b(?:[Aa]í|[Oo]i|[Oo]lá|[Ee]i|[Ee] aí|[Aa]h|[Ôô])\\s*,?\\s*)";
+// Each cue captures the name of the person IN FRONT of you. Group 1 = name.
+var CUES = [
+  { re: new RegExp("(?:[Oo] nome d(?:ele|ela) é|[Oo] seu nome é|[Ee]l[ae] se chama|[Vv]ocê se chama|[Vv]ocê é [oa]|[Ee]ss[ae] é [oa]\\s+" + REL + "|[Ee]st[ae] é [oa]\\s+" + REL + "|[Tt]his is|[Yy]ou're|[Yy]ou are)\\s*" + NAME_GROUP, 'g'), rel:true },
+  { re: new RegExp("(?:gravar|registrar|salvar|anotar)(?:\\s+(?:você|te|ele|ela))?(?:\\s+aqui)?\\s*[,:.…]*\\s*" + NAME_GROUP, 'g'), rel:true },
+  { re: new RegExp(NAME_GROUP + "(?:\\s*,?\\s*(?:é|né|então|ok|tá|muito|um|uh|eh|ah)(?![\\wÀ-ÿ]))*\\s*,?\\s*(?:muito\\s+)?(?:[Pp]razer|[Nn]ice to meet you)", 'g') },
+  { re: new RegExp("(?:[Pp]razer|[Nn]ice to meet you)\\s*,?\\s*(?:(?:eu\\s+)?sou\\s+[oa]\\s+)?" + NAME_GROUP, 'g') },
+  { re: new RegExp(START + NAME_GROUP + "\\s*,?\\s*né(?![\\wÀ-ÿ])", 'g') },                 // "Karin, né? Lembro de você"
+  { re: new RegExp(START + NAME_GROUP + "\\s*,\\s*(?:você|tu)(?![\\wÀ-ÿ])", 'g') },          // "Aí, Carolina, você tem que…"
+  { re: new RegExp("(?:mas é|na verdade é|[Qq]uer dizer)\\s*,?\\s*" + NAME_GROUP, 'g'), alias:true },   // "pode me chamar de Dani, mas é Daniele"
+  { re: new RegExp("(" + NAME_WORD + ")\\s*,?\\s+com\\s+(?:[a-zà-ú]|dois\\s+[a-z]|duas\\s+[a-z])\\b", 'g') }
+];
+var CUE_SPELL = new RegExp("(" + NAME_WORD + ")\\s*,?\\s+com\\s+(?:[a-zà-ú]|dois\\s+[a-z]|duas\\s+[a-z])\\b");
 var CUE_PRAZER_LOWER = /([a-zà-ÿ'’-]{2,}(?:\s+(?:(?:de|da|do|dos|das)\s+)?[a-zà-ÿ'’-]{2,}){0,2})(?:\s*,?\s*(?:é|né|então|ok|tá))*\s*,?\s*(?:muito\s+)?prazer\b/i;
-var CUE_PRAZER_BEFORE = new RegExp("(?:[Pp]razer|[Nn]ice to meet you)\\s*,?\\s*(?:(?:eu\\s+)?sou\\s+[oa]\\s+)?" + NAME_GROUP);
-var CUE_SPELL = new RegExp("(" + NAME_WORD + ")\\s*,?\\s+com\\s+(?:[a-zà-ú]|dois\\s+[a-z]|duas\\s+[a-z]|[a-z]{1,2}\\s+mud[oa])\\b");
 var THIRD_PARTY = /(?:mãe|mae|pai|irmã|irmão|irmao|avó|avô|tia|tio|filh[oa]|espos[oa]|marido|namorad[oa]|amig[oa]|chefe|primo|prima)\s*,?\s*[oa]?\s*$/i;
+var AFTER_NOT_HIM = /^\s*,?\s*(?:não\b|nao\b|é\s+[oa]\s+(?:sua|seu|minha|meu|dele|dela)\b|era\b|disse\b|falou\b|fez\b|me disse\b)/i;
 function cleanName(n) {
   var w = String(n || '').trim().split(/\s+/);
-  while (w.length && NOT_A_NAME.test(w[0])) w.shift();          // "Tudo bem Marcos, prazer" → "Marcos"
+  while (w.length && NOT_A_NAME.test(w[0])) w.shift();
   while (w.length && /^(de|da|do|dos|das|e)$/.test(w[w.length-1])) w.pop();
   return w.join(' ');
 }
-function detectName(text) {
-  text = String(text || '');
-  var m = NAME_RE.exec(text);                                    // "meu nome é", "me chamo", "sou o/a"
-  if (m && !NOT_A_NAME.test(m[1].split(/\s+/)[0])) return cleanName(m[1]);
-  var st = STRONG_RE.exec(text);                                 // same, lowercase speech output
+// All name candidates in one utterance, in order. The LAST valid one wins ("Gabriela… perdão, você é a Beatriz").
+function nameCandidates(text) {
+  var out = [];
+  function add(name, idx, end, alias) {
+    name = cleanName(name);
+    if (!name || NOT_A_NAME.test(name.split(' ')[0])) return;
+    if (AFTER_NOT_HIM.test(text.slice(end))) return;              // "Gabriela não", "Gabriela é a sua irmã"
+    out.push({ name: name, index: idx, alias: alias || '' });
+  }
+  var m;
+  var self = new RegExp(NAME_RE.source, 'g');                     // "meu nome é", "me chamo", "sou o/a"
+  while ((m = self.exec(text))) add(m[1], m.index + m[0].length - m[1].length, m.index + m[0].length);
+  CUES.forEach(function(c){
+    c.re.lastIndex = 0;
+    while ((m = c.re.exec(text))) {
+      var nStart = m.index + m[0].lastIndexOf(m[1]);
+      if (!c.rel && THIRD_PARTY.test(text.slice(0, nStart))) continue;   // "sua mãe, a Karin"
+      var alias = '';
+      if (c.alias) { var a = /(?:pode me chamar de|me chama de|call me)\s+([A-ZÀ-Ý][\wÀ-ÿ'’-]+)/i.exec(text.slice(0, m.index)); if (a) alias = titleCase(a[1]); }
+      add(m[1], nStart, nStart + m[1].length, alias);
+    }
+  });
+  var st = STRONG_RE.exec(text);                                  // lowercase speech: "meu nome é marcos…"
   if (st) {
     var words = [];
     st[1].split(/\s+/).some(function(w){ if (NAME_STOP.test(w)) return true; words.push(titleCase(w)); });
     while (words.length && /^(de|da|do|dos|das)$/.test(words[words.length-1])) words.pop();
-    if (words.length) return words.join(' ');
+    if (words.length) out.push({ name: words.join(' '), index: st.index, alias: '' });
   }
-  var cues = [CUE_INTRO_OTHER, CUE_PRAZER_AFTER, CUE_PRAZER_BEFORE, CUE_SPELL];
-  for (var k = 0; k < cues.length; k++) {
-    var c = cues[k].exec(text);
-    if (!c) continue;
-    if (THIRD_PARTY.test(text.slice(0, c.index + (c[0].indexOf(c[1]) >= 0 ? c[0].indexOf(c[1]) : 0)))) continue;   // "sua mãe, a Karin"
-    var n = cleanName(c[1]);
-    if (n) return n;
-  }
-  var lw = CUE_PRAZER_LOWER.exec(text);
-  if (lw) {
+  var lw = CUE_PRAZER_LOWER.exec(text);                           // lowercase: "marcelo campos é prazer"
+  if (lw && !out.length) {
     var parts = lw[1].split(/\s+/).map(titleCase);
     while (parts.length && (NOT_A_NAME.test(parts[0]) || NAME_STOP.test(parts[0]) || /^(o|a|que|você|voce|sou|é)$/i.test(parts[0]))) parts.shift();
-    var cand = parts.join(' ');
-    if (cand && !NOT_A_NAME.test(parts[0]) && !THIRD_PARTY.test(text.slice(0, lw.index))) return cand;
+    if (parts.length && !THIRD_PARTY.test(text.slice(0, lw.index))) out.push({ name: parts.join(' '), index: lw.index, alias: '' });
   }
-  return '';
+  return out.sort(function(a, b){ return a.index - b.index; });
 }
-// "Marcus com u" fixes the spelling of a name already saved ("Marcos" → "Marcus"), keeping the surname.
+// opts.bare: early in an encounter a lone name ("Mariana.") counts as an introduction.
+function detectNameFull(text, opts) {
+  text = String(text || '');
+  var c = nameCandidates(text);
+  if (c.length) {
+    var last = c[c.length - 1];
+    // "Marcelo" then "Marcelo Campos": keep the fuller form of the same person
+    c.forEach(function(x){ if (x.name.indexOf(last.name) === 0 && x.name.length > last.name.length) last = x; });
+    if (!last.alias) c.forEach(function(x){ if (x.alias) last = { name: last.name, alias: x.alias, index: last.index }; });
+    return last;
+  }
+  if (opts && opts.bare) {
+    var b = new RegExp("^\\s*" + NAME_GROUP + "\\s*[.!]?\\s*$").exec(text);
+    if (b && !NOT_A_NAME.test(b[1].split(/\s+/)[0])) return { name: cleanName(b[1]), alias: '' };
+  }
+  return null;
+}
+function detectName(text, opts) { var r = detectNameFull(text, opts); return r ? r.name : ''; }
 function lev(a, b) {
   a = a.toLowerCase(); b = b.toLowerCase();
   var d = []; for (var i = 0; i <= a.length; i++) { d[i] = [i]; }
@@ -951,7 +990,8 @@ function spellingFix(text, current) {
   return w.join(' ');
 }
 // Title on the display: the name, or — until there is one — a short accessible description.
-function displayName(p) { return isUnnamed(p) ? (p.nickname || t('no_name')) : (p.name || '—'); }
+function lookOf(p) { return (p && p.custom_fields && p.custom_fields.look) || (p && isUnnamed(p) && p.nickname) || ''; }
+function displayName(p) { return isUnnamed(p) ? (lookOf(p) || t('no_name')) : (p.name || '—'); }
 
 // ── Accessible description of a face without a name ("Moça de ~20 anos, cabelo castanho, de preto") ──
 var _ageNet = null;
@@ -977,7 +1017,7 @@ function hairWord(frame, box) {
     var diff = Math.abs(hair[0]-skin[0]) + Math.abs(hair[1]-skin[1]) + Math.abs(hair[2]-skin[2]);
     if (diff < 45) return t('lk_bald');
     var c = colorName(hair[0], hair[1], hair[2]);
-    var key = { black:'h_black', brown:'h_brown', burgundy:'h_brown', orange:'h_red', red:'h_red', yellow:'h_blond', beige:'h_blond', grey:'h_grey', white:'h_grey' }[c];
+    var key = { black:'h_black', brown:'h_brown', burgundy:'h_brown', orange:'h_red', red:'h_red', yellow:'h_blond', beige:'h_blond', grey:'h_grey', white:'h_grey', purple:'h_purple', pink:'h_pink', blue:'h_blue', navy:'h_blue', green:'h_green' }[c];
     return key ? t('lk_hair', { c: t(key) }) : '';
   } catch (e) { return ''; }
 }
@@ -1000,28 +1040,29 @@ function describeLook(frame, box, clothing) {
 // A registered face with no name and no description yet (e.g. saved before 10/10): describe it now.
 function describeIfNeeded() {
   var e = _enc;
-  if (!e || !e.person || !isUnnamed(e.person) || e.person.nickname || e.describing || !e.bestFrame) return;
+  if (!e || !e.person || !isUnnamed(e.person) || lookOf(e.person) || e.describing || !e.bestFrame) return;
   e.describing = true;
   describeLook(e.bestFrame, e.bestBox, e.clothing || (e.bestFrame ? describeClothing(cropTorso(e.bestFrame, e.bestBox) || e.bestFrame) : null)).then(function(desc){
     if (!desc || !e.person) return;
-    var p = e.person; p.nickname = desc;
-    _profiles.forEach(function(x){ if (x.id === p.id) x.nickname = desc; });
+    var p = e.person; p.custom_fields = Object.assign({}, p.custom_fields, { look: desc });
+    _profiles.forEach(function(x){ if (x.id === p.id) x.custom_fields = p.custom_fields; });
     if (p.id) fetch(PROXY + '?id=' + p.id + '&entity=FaceContextPerson', {
-      method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ nickname: desc, status: 'Pendente' })
+      method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ custom_fields: p.custom_fields, status: 'Pendente' })
     }).catch(function(){});
     log('✓ described: ' + desc, true);
     if (_enc === e && !_review) showProfile(p, null, 'glance');
   });
 }
-function renamePerson(p, name) {
-  if (!p || !name || p.name === name) return;
+function renamePerson(p, name, alias) {
+  if (!p || !name || (p.name === name && (!alias || p.nickname === alias))) return;
   var old = p.name; p.name = name;
+  if (alias) p.nickname = alias;
   _profiles.forEach(function(x){ if (x.id === p.id) x.name = name; });
   log('✓ name heard: ' + old + ' → ' + name, true);
   if (_currentProfile && _currentProfile.id === p.id) showProfile(p, null, /review/.test(document.getElementById('hud-card').className) ? 'review' : 'glance');
   else if (_enc && _enc.person && _enc.person.id === p.id && !_review) showProfile(p, null, 'glance');   // name just heard: the card appears now
   if (p.id) fetch(PROXY + '?id=' + p.id + '&entity=FaceContextPerson', {
-    method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ name: name, status: 'Identificado' })
+    method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(alias ? { name: name, nickname: alias, status: 'Identificado' } : { name: name, status: 'Identificado' })
   }).catch(function(){});
 }
 
@@ -1041,7 +1082,7 @@ function createPerson(emb, photo, mode, cb, nickname) {
     last_seen_context: t(mode === 'auto' ? 'd_first_auto' : 'd_first_manual')
   };
   if (photo) body.photo_url = photo;
-  if (nickname) { body.nickname = nickname; body.status = 'Pendente'; }   // name still to come: an accessible description in the meantime
+  if (nickname) { body.custom_fields = { look: nickname }; body.status = 'Pendente'; }   // name still to come: an accessible description in the meantime
   fetch(PROXY, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) })
   .then(function(r){ return r.json(); })
   .then(function(p){
@@ -1464,10 +1505,13 @@ function renderDossier(p, list) {
 function renderHeadline(p, list) {
   var el = document.getElementById('hud-headline');
   if (p.headline) { el.textContent = p.headline; return; }
-  if (isUnnamed(p)) {   // "Moça de ~20 anos, cabelo castanho" + "conheceu ontem · no café, falaram de …"
+  if (isUnnamed(p)) {
+    // title: "Mulher de ~25 anos, cabelo roxo". Subtitle: the memorable hook of the conversation
+    // ("a menina da fofoca do relógio falso", written by the AI), else when/what you talked about.
     var ds = (list || []).filter(function(e){ return e.date; });
     var firstE = ds[ds.length - 1];
-    el.textContent = firstE ? [t('met_when', { when: relDate(new Date(firstE.date))[0] }), firstE.context].filter(Boolean).join(' · ') : '';
+    var hook = (p.custom_fields && p.custom_fields.hook) || (firstE && firstE.hook);
+    el.textContent = hook || (firstE ? [t('met_when', { when: relDate(new Date(firstE.date))[0] }), firstE.context].filter(Boolean).join(' · ') : '');
     return;
   }
   var dated = (list || []).filter(function(e){ return e.date; });
@@ -1550,7 +1594,7 @@ function openReview() {
     _review.items = (Array.isArray(data) ? data : (data.records || [])).filter(function(e){ return e.date; })
       .map(function(e){
         var person = _profiles.filter(function(p){ return p.id === e.person_id || (e.person_name && p.name === e.person_name); })[0];
-        return { kind:'person', date:e.date, enc:e, person:person, photo: person && person.photo_url, title: person && (isUnnamed(person) ? (person.nickname || t('no_name')) : shortName(person.name)) };
+        return { kind:'person', date:e.date, enc:e, person:person, photo: person && person.photo_url, title: person && (isUnnamed(person) ? (lookOf(person) || t('no_name')) : shortName(person.name)) };
       })
       .filter(function(it){ return hasPhoto(it.person); })   // legacy records without a photo stay out
       .sort(function(a,b){ return new Date(b.date) - new Date(a.date); });
