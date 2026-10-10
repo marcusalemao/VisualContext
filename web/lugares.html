@@ -15,15 +15,18 @@ html,body{background:#000;height:100%;overflow:hidden;font-family:monospace;colo
 #zone{position:absolute;left:0;right:0;top:336px;border-top:2px dashed rgba(0,255,136,.35);display:none}
 body.guides #zone{display:block}
 /* Place card: anchored horizontally to the building's direction, always inside the top 70% */
-#card{position:absolute;top:40px;width:300px;display:none;padding:12px 14px;border-radius:12px;
+.pc{position:absolute;top:40px;width:300px;display:none;padding:10px 12px;border-radius:12px;
   background:rgba(0,255,136,.2);border:2px solid rgba(0,255,136,.6);transform:translateX(-50%)}
-#card.on{display:block}
-#card:after{content:'';position:absolute;left:50%;bottom:-14px;width:2px;height:12px;background:rgba(0,255,136,.6)}
-#c-name{font-size:22px;font-weight:bold;text-transform:uppercase;line-height:1.15}
-#c-sub{font-size:13px;color:#8fdfb5;margin-top:4px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-#c-mem{font-size:14px;color:#00ff88;margin-top:8px;border-top:2px solid rgba(0,255,136,.3);padding-top:6px}
-#c-mem:empty{display:none}
-#c-dist{font-size:12px;color:#00ff88;margin-top:6px;letter-spacing:1px}
+.pc.on{display:block}
+.pc.small{width:200px;padding:8px 10px}
+.pc.small .n{font-size:17px}
+.pc:after{content:'';position:absolute;left:50%;bottom:-14px;width:2px;height:12px;background:rgba(0,255,136,.6)}
+.pc .n{font-size:22px;font-weight:bold;text-transform:uppercase;line-height:1.15;overflow:hidden;text-overflow:ellipsis}
+.pc .s{font-size:13px;color:#8fdfb5;margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pc .w{font-size:12px;color:#8fdfb5;margin-top:4px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.pc .m{font-size:14px;color:#00ff88;margin-top:6px;border-top:2px solid rgba(0,255,136,.3);padding-top:5px}
+.pc .d{font-size:12px;color:#00ff88;margin-top:5px;letter-spacing:1px}
+.pc .s:empty,.pc .w:empty,.pc .m:empty,.pc .d:empty{display:none}
 /* dwell ring: the card appears only after ~1.5 s looking at the place */
 #dwell{position:absolute;top:150px;width:28px;height:28px;border-radius:50%;border:2px solid rgba(0,255,136,.6);transform:translateX(-50%);display:none}
 #dwell.on{display:block}
@@ -60,7 +63,7 @@ body.guides #dbg{display:block}
     <div id="zone"></div>
     <div id="edge"></div>
     <div id="dwell"></div>
-    <div id="card"><div id="c-name"></div><div id="c-sub"></div><div id="c-mem"></div><div id="c-dist"></div></div>
+    <div class="pc" id="pc0"></div><div class="pc" id="pc1"></div><div class="pc" id="pc2"></div>
     <div id="status"></div>
   </div>
 </div>
@@ -72,18 +75,20 @@ body.guides #dbg{display:block}
 <div id="bar">
   <button id="b-mem" data-i18n="t_remember"></button>
   <button id="b-fov"></button>
+  <button id="b-max"></button>
+  <button id="b-lvl"></button>
   <button id="b-dbg" data-i18n="t_debug"></button>
 </div>
 <script>
 VC_I18N.add({
   en:{ t_title:'Places · prototype', t_intro:'Point the phone (later: your head) at a building. After ~1.5 s its card appears and stays pinned to it while you turn. Uses GPS + compass and the map around you — no image analysis.',
        t_real:'Start (camera + GPS + compass)', t_sim:'Simulate at Av. Paulista (no GPS)', t_heading:'Direction you are facing (simulation)',
-       t_remember:'Remember here', t_debug:'Details', t_fov_g:'View: glasses (24°)', t_fov_p:'View: phone (60°)',
+       t_remember:'Remember here', t_debug:'Details', t_fov_g:'View: glasses (24°)', t_max:'Cards: {n}', t_lvl:'Detail: {n}/5', t_fov_p:'View: phone (60°)',
        s_wait_gps:'waiting for GPS…', s_wait_cmp:'waiting for compass…', s_places:'{n} places around', s_none:'no places around',
        mem_none:'', mem_here:'You were here {when}', mem_saved:'saved: you were here today', away:'{d} m', no_cmp:'compass unavailable — use the simulation' },
   pt:{ t_title:'Lugares · protótipo', t_intro:'Aponte o celular (depois: a cabeça) para um prédio. Depois de ~1,5 s aparece o card dele, que fica preso ao prédio enquanto você vira. Usa GPS + bússola e o mapa do entorno — sem análise de imagem.',
        t_real:'Começar (câmera + GPS + bússola)', t_sim:'Simular na Av. Paulista (sem GPS)', t_heading:'Para onde você está olhando (simulação)',
-       t_remember:'Lembrar daqui', t_debug:'Detalhes', t_fov_g:'Visão: óculos (24°)', t_fov_p:'Visão: celular (60°)',
+       t_remember:'Lembrar daqui', t_debug:'Detalhes', t_fov_g:'Visão: óculos (24°)', t_max:'Cards: {n}', t_lvl:'Detalhe: {n}/5', t_fov_p:'Visão: celular (60°)',
        s_wait_gps:'esperando GPS…', s_wait_cmp:'esperando bússola…', s_places:'{n} lugares por perto', s_none:'nenhum lugar por perto',
        mem_none:'', mem_here:'Você esteve aqui {when}', mem_saved:'salvo: você esteve aqui hoje', away:'{d} m', no_cmp:'sem bússola — use a simulação' }
 });
@@ -104,7 +109,8 @@ var FALLBACK = [
 ];
 var SIM_POS = { lat:-23.56210, lon:-46.65630 };   // sidewalk in front of Trianon, looking at MASP to the NE
 var places = [], pos = null, heading = null, simulate = false, fov = 24;
-var target = null, dwellStart = 0, shown = null, xSmooth = 320;
+var maxCards = 2, level = 3, seen = {}, pinned = [], xs = {};   // seen[name] = since when it's in the centre band
+
 
 function rad(d){ return d * Math.PI / 180; }
 function dist(a, b){ var R = 6371000, dLat = rad(b.lat - a.lat), dLon = rad(b.lon - a.lon);
@@ -115,6 +121,20 @@ function bearing(a, b){ var y = Math.sin(rad(b.lon - a.lon)) * Math.cos(rad(b.la
   return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360; }
 function diff(a, b){ var d = (a - b + 540) % 360 - 180; return d; }   // signed −180…180
 
+var KIND_PT = { theatre:'teatro', cinema:'cinema', arts_centre:'centro cultural', library:'biblioteca', place_of_worship:'templo', university:'universidade',
+  museum:'museu', attraction:'atração', gallery:'galeria', artwork:'obra de arte', park:'parque', monument:'monumento', memorial:'memorial', building:'prédio' };
+function kindName(k) { return (VC_I18N.lang === 'pt' && KIND_PT[k]) || k || ''; }
+// level 5: first sentence from Wikipedia, when the map links an article
+var _wiki = {};
+function wikiLine(p) {
+  if (!p.wiki) return '';
+  if (_wiki[p.wiki] !== undefined) return _wiki[p.wiki] || '';
+  _wiki[p.wiki] = '';
+  var m = /^([a-z\-]+):(.+)$/.exec(p.wiki); if (!m) return '';
+  fetch('https://' + m[1] + '.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(m[2].replace(/ /g, '_')))
+    .then(function(r){ return r.json(); }).then(function(d){ _wiki[p.wiki] = ((d && d.extract) || '').split(/(?<=\.)\s/)[0].slice(0, 180); }).catch(function(){});
+  return '';
+}
 function loadPlaces(p) {
   places = FALLBACK.slice();
   var q = '[out:json][timeout:15];(' +
@@ -122,14 +142,15 @@ function loadPlaces(p) {
     'nwr(around:500,' + p.lat + ',' + p.lon + ')[historic][name];' +
     'nwr(around:500,' + p.lat + ',' + p.lon + ')[building][name][wikidata];' +
     'nwr(around:500,' + p.lat + ',' + p.lon + ')[leisure=park][name];' +
+    'nwr(around:500,' + p.lat + ',' + p.lon + ')[amenity~"theatre|cinema|arts_centre|library|place_of_worship|university"][name];' +
     ');out center 60;';
   fetch('https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(q))
     .then(function(r){ return r.json(); })
     .then(function(d){
       var got = (d.elements || []).map(function(e){
         var c = e.center || e; var tg = e.tags || {};
-        return { name: tg.name, sub: [tg.tourism || tg.historic || tg.leisure || tg.building, tg['addr:street']].filter(function(x){ return x && x !== 'yes'; }).join(' · '),
-                 lat: c.lat, lon: c.lon };
+        return { name: tg.name, sub: [kindName(tg.amenity || tg.tourism || tg.historic || tg.leisure || tg.building), tg['addr:street']].filter(function(x){ return x && x !== 'yes'; }).join(' · '),
+                 lat: c.lat, lon: c.lon, wiki: tg.wikipedia || '' };
       }).filter(function(x){ return x.name && x.lat; });
       // keep fallback descriptions for well-known names, add the rest
       got.forEach(function(g){ if (!places.some(function(f){ return f.name.toLowerCase() === g.name.toLowerCase() || dist(f, g) < 40; })) places.push(g); });
@@ -187,47 +208,59 @@ function startSim() {
   });
 }
 
-// ── frame loop: pick the place in front, dwell, anchor the card to its direction ──
+// ── frame loop: places in view, each needs ~1.5 s in view before its card appears; up to maxCards pinned ──
 function frame() {
   requestAnimationFrame(frame);
-  var card = document.getElementById('card'), dw = document.getElementById('dwell'), edge = document.getElementById('edge');
-  if (!pos || heading === null || !places.length) { card.className = ''; dw.className = ''; edge.className = ''; dbg(); return; }
-  var best = null;
+  var dw = document.getElementById('dwell'), now = performance.now();
+  if (!pos || heading === null || !places.length) { hideAll(); dw.className = ''; dbg(); return; }
+  var inView = [];
   places.forEach(function(p){
     var d = dist(pos, p); if (d > 500 || d < 5) return;
     var off = diff(bearing(pos, p), heading);
-    var tol = Math.max(4, Math.min(14, Math.atan(40 / d) * 180 / Math.PI));   // bigger when closer
-    if (Math.abs(off) <= tol && (!best || Math.abs(off) < Math.abs(best.off))) best = { p:p, off:off, d:d };
+    if (Math.abs(off) <= fov / 2) inView.push({ p:p, off:off, d:d });
   });
-  var now = performance.now();
-  if (best && (!target || target.p !== best.p)) { target = best; dwellStart = now; }
-  else if (best) target = best;
-  else target = null;
-
-  // the card stays pinned to the shown place while it's in view, even if you look a bit away
-  if (shown) {
-    var offS = diff(bearing(pos, shown), heading);
-    if (Math.abs(offS) > fov / 2 + 6) { shown = null; }
-    else place(card, offS, shown);
-    edge.className = '';
-  }
-  if (!shown && target && now - dwellStart > 1500) { shown = target.p; xSmooth = toX(target.off); }
-  if (!shown && target) { dw.className = 'on'; dw.style.left = toX(target.off) + 'px';
-    var k = Math.min(1, (now - dwellStart) / 1500); dw.style.borderColor = 'rgba(0,255,136,' + (0.2 + 0.8 * k) + ')'; }
+  inView.sort(function(a, b){ return Math.abs(a.off) - Math.abs(b.off); });
+  var names = {};
+  inView.forEach(function(x){ names[x.p.name] = true; if (!seen[x.p.name]) seen[x.p.name] = now; });
+  Object.keys(seen).forEach(function(n){ if (!names[n]) { delete seen[n]; } });
+  // keep pinned cards while their place is still in view; fill free slots with the most central ripe ones
+  pinned = pinned.filter(function(n){ return names[n]; });
+  inView.forEach(function(x){
+    if (pinned.length >= maxCards || pinned.indexOf(x.p.name) >= 0) return;
+    if (now - seen[x.p.name] > 1500) pinned.push(x.p.name);
+  });
+  // dwell ring on the most central place that is not shown yet
+  var next = inView.filter(function(x){ return pinned.indexOf(x.p.name) < 0; })[0];
+  if (next && pinned.length < maxCards) { var k = Math.min(1, (now - seen[next.p.name]) / 1500);
+    dw.className = 'on'; dw.style.left = toX(next.off) + 'px'; dw.style.borderColor = 'rgba(0,255,136,' + (0.2 + 0.8 * k) + ')'; }
   else dw.className = '';
-  if (!shown) card.className = '';
-  dbg(best);
+  // layout: each card at its building's direction, pushed apart so they never overlap
+  var shownNow = inView.filter(function(x){ return pinned.indexOf(x.p.name) >= 0; }).sort(function(a, b){ return a.off - b.off; });
+  var small = shownNow.length > 1, w = small ? 200 : 300, gap = 8;
+  var xsNow = shownNow.map(function(x){ var tx = toX(x.off); xs[x.p.name] = xs[x.p.name] === undefined ? tx : xs[x.p.name] + (tx - xs[x.p.name]) * 0.35; return xs[x.p.name]; });
+  for (var i = 1; i < xsNow.length; i++) if (xsNow[i] - xsNow[i-1] < w + gap) xsNow[i] = xsNow[i-1] + w + gap;
+  var over = xsNow.length ? xsNow[xsNow.length - 1] - (640 - w / 2) : 0;
+  if (over > 0) xsNow = xsNow.map(function(x){ return x - over; });
+  for (i = 0; i < 3; i++) {
+    var el = document.getElementById('pc' + i), x = shownNow[i];
+    if (!x) { el.className = 'pc'; continue; }
+    el.className = 'pc on' + (small ? ' small' : '');
+    el.style.left = Math.max(w / 2, xsNow[i]) + 'px';
+    el.innerHTML = cardHTML(x.p, x.d);
+  }
+  dbg(inView[0]);
+}
+function hideAll(){ for (var i = 0; i < 3; i++) document.getElementById('pc' + i).className = 'pc'; }
+function esc(v){ return String(v || '').replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); }
+// detail 1 name · 2 + distance · 3 + kind/address · 4 + your memory here · 5 + Wikipedia line
+function cardHTML(p, d) {
+  return '<div class="n">' + esc(p.name) + '</div>' +
+    '<div class="s">' + (level >= 3 ? esc(p.sub) : '') + '</div>' +
+    '<div class="w">' + (level >= 5 ? esc(wikiLine(p)) : '') + '</div>' +
+    '<div class="m">' + (level >= 4 ? esc(memLine(p)) : '') + '</div>' +
+    '<div class="d">' + (level >= 2 ? esc(t('away', { d: Math.round(d) })) : '') + '</div>';
 }
 function toX(off) { return 320 + (off / (fov / 2)) * 320; }
-function place(card, off, p) {
-  xSmooth += (toX(off) - xSmooth) * 0.35;
-  card.style.left = Math.max(150, Math.min(490, xSmooth)) + 'px';
-  card.className = 'on';
-  document.getElementById('c-name').textContent = p.name;
-  document.getElementById('c-sub').textContent = p.sub || '';
-  document.getElementById('c-mem').textContent = memLine(p);
-  document.getElementById('c-dist').textContent = t('away', { d: Math.round(dist(pos, p)) });
-}
 function setStatus() {
   var s = document.getElementById('status');
   if (!pos) { s.textContent = t('s_wait_gps'); return; }
@@ -260,13 +293,16 @@ function fovLabel(){ document.getElementById('b-fov').textContent = t(fov === 24
 document.getElementById('b-fov').onclick = function(){ fov = fov === 24 ? 60 : 24; fovLabel(); };
 document.getElementById('b-dbg').onclick = function(){ document.body.classList.toggle('guides'); };
 document.getElementById('b-mem').onclick = function(){
-  var p = shown || (target && target.p); if (!p) return;
+  var n = pinned[0]; var p = places.filter(function(x){ return x.name === n; })[0]; if (!p) return;
   try { localStorage.setItem(memKey(p), String(Date.now())); } catch (e) {}
-  document.getElementById('c-mem').textContent = t('mem_saved');
 };
 document.getElementById('go-real').onclick = function(){ document.getElementById('intro').style.display = 'none'; fit(); startReal(); };
 document.getElementById('go-sim').onclick = function(){ document.getElementById('intro').style.display = 'none'; fit(); startSim(); };
-fovLabel(); fit(); requestAnimationFrame(frame);
+try { maxCards = +(localStorage.getItem('vc_places_max') || 2); level = +(localStorage.getItem('vc_places_lvl') || 3); } catch (e) {}
+function ctlLabels(){ document.getElementById('b-max').textContent = t('t_max', { n: maxCards }); document.getElementById('b-lvl').textContent = t('t_lvl', { n: level }); }
+document.getElementById('b-max').onclick = function(){ maxCards = maxCards % 3 + 1; pinned = pinned.slice(0, maxCards); try { localStorage.setItem('vc_places_max', maxCards); } catch (e) {} ctlLabels(); };
+document.getElementById('b-lvl').onclick = function(){ level = level % 5 + 1; try { localStorage.setItem('vc_places_lvl', level); } catch (e) {} ctlLabels(); };
+ctlLabels(); fovLabel(); fit(); requestAnimationFrame(frame);
 </script>
 </body>
 </html>

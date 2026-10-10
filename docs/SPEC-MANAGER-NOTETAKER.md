@@ -85,6 +85,8 @@ Você anda pela Paulista, olha para o MASP por ~1,5 s e aparece o card **MASP**.
 - **Onde precisa rodar:** **nos óculos**, porque 60 quadros/s não atravessam o Bluetooth. Como plugin Nexus puro não dá (a imagem atualiza no máximo a cada 150 ms e os plugins não rodam código nos óculos). Precisa de app nativo nos óculos (a Opção B do estudo do Anezium) ou de uma capacidade nova no Nexus ("card ancorado por direção"), boa proposta para ele.
 - **Limite honesto:** a bússola erra 10–20° perto de prédios e de metal. O card pode "escorregar" do prédio. Confirmar pela câmera de vez em quando resolve.
 - **Controle:** liga/desliga em Ajustes; só aparece depois de ~1,5 s olhando (nada de chuva de cards).
+- **Ajustes do usuário (10/10):** **Cards ao mesmo tempo: 1, 2 ou 3** (padrão 2); com mais de um, os cards ficam menores e nunca se sobrepõem. **Detalhe de 1 a 5:** 1 = nome · 2 = + distância · 3 = + tipo/endereço · 4 = + a sua memória ali · 5 = + uma linha da Wikipédia.
+- **Protótipo:** `web/lugares.html` (celular: GPS + bússola; ou simulação na Paulista). Lugares do OpenStreetMap: museus, teatros, cinemas, centros culturais, bibliotecas, templos, parques, monumentos.
 - **Dados e bateria:** dados quase zero (só a lista de pontos). A bateria pesa mais pela IMU e pela tela acesa do que pela rede.
 
 ## Encontro em grupo = Evento (proposta, 10/10, a decidir)
