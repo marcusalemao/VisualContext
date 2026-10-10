@@ -76,7 +76,7 @@ body.guides #hud-zone{display:block}
 /* GLANCE (during a conversation): photo, name, pills, one line. Nothing to read or expand.
    REVIEW (outside a conversation): + ABOUT (dossier) + ENCOUNTERS (timeline). */
 #hud-card.glance #hud-about,#hud-card.glance #hud-sum-wrap{display:none !important}
-#hud-card.review #hud-headline{display:none}
+/* line 3 (occasion/hook) shows in both modes: title · tags · occasion · [review: about + timeline] */
 /* Idle: one discreet line at the top-left (inside the view zone). Tap opens the list below it. */
 #hud-recent-bar{position:absolute;left:16px;top:16px;font-size:12px;letter-spacing:1.5px;color:#00aa55;display:none;
   pointer-events:auto;cursor:pointer}
@@ -1105,14 +1105,18 @@ function saveEncounter(e) {
   var notes = e.clothing ? t('d_clothing', { c: e.clothing }) : '';
   var p = e.person;
   setStatus('s_saving_enc');
-  summarize(transcript, p.name).then(function(summary){
+  analyzeEncounter(transcript, p).then(function(a){
+    if (a) applyAnalysis(p, a, e);
+    return (a && a.context) ? { summary: a.context, hook: a.hook } : summarize(transcript, p.name).then(function(sm){ return { summary: sm }; });
+  }).then(function(res){
+    var summary = res.summary;
     var context = summary || (t('d_conv', { m: mins }) + (transcript ? '' : t('d_nospeech')));
     return fetch(PROXY + '?entity=FaceContextEncounter', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
         person_id: p.id, person_name: p.name, date: start.toISOString(),
         context: context, capture_mode: 'presencial',
-        speech_captured: transcript, notes: notes, ocr_captured: ''
+        speech_captured: transcript, notes: notes, ocr_captured: '', hook: res.hook || ''
       })
     }).then(function(r){ return r.json(); }).then(function(enc){
       fetch(PROXY + '?id=' + p.id + '&entity=FaceContextPerson', {
@@ -1125,6 +1129,34 @@ function saveEncounter(e) {
       if (e.kind === 'new' && e.torso && enc && enc.id) readBadge(e.torso, enc.id);
     });
   }).catch(function(err){ log('⚠ encounter not saved: ' + err.message, true); setStatus('s_fail'); });
+}
+
+// Full analysis (docs/PROMPT-ANALYZE-ENCOUNTER.md): name with evidence, tags, hook, context, dossier.
+// Until Beto ships the action, the call fails quietly and the 1-line summary below is used.
+function analyzeEncounter(transcript, p) {
+  if (!transcript) return Promise.resolve(null);
+  var cf = p.custom_fields || {};
+  return fetch(PROXY, { method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ action:'analyze_encounter', lang: VC_I18N.lang, transcript: transcript,
+      person:{ name:p.name, named:!isUnnamed(p), look:lookOf(p), tags:p.tags || [], dossier:cf.dossier || '', hook:cf.hook || '' },
+      previous_encounters:(_encCache[p.id] || []).slice(0, 5).map(function(x){ return { date:x.date, context:x.context, hook:x.hook || '' }; }) }) })
+  .then(function(r){ return r.ok ? r.json() : null; })
+  .then(function(d){ return (d && typeof d === 'object' && ('hook' in d || 'tags' in d || 'dossier' in d)) ? d : null; })
+  .catch(function(){ return null; });
+}
+function applyAnalysis(p, a, e) {
+  var upd = {}, cf = Object.assign({}, p.custom_fields);
+  if (a.hook) cf.hook = a.hook;
+  if (a.dossier) cf.dossier = a.dossier;
+  upd.custom_fields = cf; p.custom_fields = cf;
+  if (Array.isArray(a.tags) && a.tags.length) { p.tags = a.tags.slice(0, 3); upd.tags = p.tags; }
+  // name only with a literal quote from the transcript and high confidence
+  var quoted = a.name_evidence && e.transcript.join(' ').toLowerCase().indexOf(String(a.name_evidence).replace(/["“”]/g, '').slice(0, 20).toLowerCase()) >= 0;
+  if (a.name && (a.name_confidence || 0) >= 0.8 && quoted && (isUnnamed(p) || e.namedHere)) renamePerson(p, a.name, a.alias || '');
+  if (p.id) fetch(PROXY + '?id=' + p.id + '&entity=FaceContextPerson', {
+    method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(upd)
+  }).catch(function(){});
+  log('✓ analysis: ' + [a.hook, (a.tags || []).join(', ')].filter(Boolean).join(' · '), true);
 }
 
 // 1-line summary via the existing backend (Gemini, with budget tracking), in the USER's language.
@@ -1422,7 +1454,7 @@ function showProfile(p, score, mode) {
   else photo.style.display = 'none';
   document.getElementById('hud-name').textContent = displayName(p);
   // pills: where you know them from (AI-inferred, edited in the Manager). No e-mail on the display.
-  var pills = Array.isArray(p.pills) ? p.pills : (p.pills ? String(p.pills).split(',') : [p.relation_context || p.relation, p.company]);
+  var pills = (Array.isArray(p.tags) && p.tags.length) ? p.tags : Array.isArray(p.pills) ? p.pills : (p.pills ? String(p.pills).split(',') : [p.relation_context || p.relation, p.company]);
   document.getElementById('hud-pills').innerHTML = pills.map(function(x){ return String(x || '').trim(); }).filter(Boolean).slice(0, 3)
     .map(function(x){ return '<span class="pill">' + esc(x) + '</span>'; }).join('');
   renderHeadline(p, _encCache[p.id] || []);
@@ -1486,7 +1518,8 @@ function encDetail(e) {
 // wins; until it exists, a plain summary is assembled from what is already stored.
 function renderDossier(p, list) {
   var el = document.getElementById('hud-dossier');
-  if (p.dossier || p.ai_summary) { el.textContent = p.dossier || p.ai_summary; return; }
+  var dz = p.dossier || (p.custom_fields && p.custom_fields.dossier) || p.ai_summary;
+  if (dz) { el.textContent = dz; return; }
   var lines = [], yearAgo = Date.now() - 365 * 864e5;
   var n = (list || []).filter(function(e){ return e.date && new Date(e.date).getTime() > yearAgo; }).length;
   if (n > 1) lines.push(t('dz_count', { n: n })); else if (n === 1) lines.push(t('dz_once'));
@@ -1505,6 +1538,8 @@ function renderDossier(p, list) {
 function renderHeadline(p, list) {
   var el = document.getElementById('hud-headline');
   if (p.headline) { el.textContent = p.headline; return; }
+  var lastHook = (p.custom_fields && p.custom_fields.hook) || ((list || []).filter(function(e){ return e.hook; })[0] || {}).hook;
+  if (lastHook && !isUnnamed(p)) { el.textContent = lastHook; return; }   // line 3 = the occasion of the last encounter
   if (isUnnamed(p)) {
     // title: "Mulher de ~25 anos, cabelo roxo". Subtitle: the memorable hook of the conversation
     // ("a menina da fofoca do relógio falso", written by the AI), else when/what you talked about.

@@ -65,6 +65,7 @@ No Brasil quase ninguém diz "meu nome é…". A apresentação é curta: **"Mar
 Ninguém é "desconhecido" nem "não cadastrado". Enquanto não há nome, o título é uma **descrição curta**, no estilo de audiodescrição: *"Moça de ~20 anos, cabelo castanho, de preto"*. Abaixo vem onde e quando vocês se conheceram: *"conheceu ontem · no café, falaram da viagem"*. Quando você reencontra a pessoa sem lembrar o nome, o card diz exatamente isso.
 
 - **Subtítulo = o gancho da conversa:** a IA escolhe o que melhor marca o encontro, como um tema, uma situação engraçada ou uma frase. Exemplo: título *"Mulher de ~25 anos, cabelo roxo"*, subtítulo *"a menina da fofoca do relógio falso"*. Sem gancho, mostra *"conheceu ontem · resumo"*.
+- **Card em 4 blocos (Marcus, 10/10):** título · tags (2–3) · ocasião (gancho) · sobre (~4 linhas). Contrato e prompt completos em `docs/PROMPT-ANALYZE-ENCOUNTER.md`.
 - **Para o Beto:** `analyze_encounter` devolve também o campo `hook`: uma frase curta, no gênero da descrição, sem nome. Fica salvo em `custom_fields.hook` da pessoa e em `hook` do encontro.
 - **Fonte (emulador):** idade e gênero estimados pela IA de rosto, cor do cabelo (ou careca) e cor predominante da roupa. Tom de pele fica de fora por enquanto, porque a luz engana demais.
 - **Fonte (app real):** a mesma descrição, melhorada pela IA (Gemini) a partir da foto.
