@@ -175,26 +175,30 @@ body.debug #sync-badge{display:inline}
 .h-key{min-width:78px;padding:3px 5px;background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.15);border-radius:5px;font-size:9px;color:#00ff88;text-align:center;flex-shrink:0}
 .h-desc{font-size:9px;color:#007744;line-height:1.5}
 .h-note{font-size:8px;color:#004422;line-height:1.6;margin-top:10px;border-top:1px solid #0a2a18;padding-top:8px}
+.h-lang{display:flex;gap:6px;flex-wrap:wrap}
+.h-lang button{background:none;border:1px solid #1a3a22;color:#00aa55;font-family:inherit;font-size:10px;padding:6px 10px;border-radius:6px;cursor:pointer}
+.h-lang button.on{border-color:#00ff88;color:#00ff88;background:rgba(0,255,136,.08)}
 </style>
+<script src="/i18n.js"></script>
 </head>
 <body>
 
 <div id="top-bar">
-  <span>⬡ VISUALCONTEXT · ROKID EMULATOR</span>
-  <span id="sync-badge">● disconnected</span>
+  <span>⬡ VISUALCONTEXT · <span data-i18n="topbar"></span></span>
+  <span id="sync-badge"></span>
 </div>
 
 <!-- ══ WAVEGUIDE 640×480 — camera + HUD overlay ══ -->
 <div id="waveguide">
   <video id="vid" autoplay playsinline muted></video>
-  <button id="flip-cam-btn" type="button" title="Switch front/back camera">🔄</button>
+  <button id="flip-cam-btn" type="button" data-i18n-title="flip">🔄</button>
   <canvas id="cnv"></canvas>
   <div id="flash"></div>
 
   <div id="hud-idle">
     <span style="font-size:32px;color:#002a14">◉</span>
-    <span id="idle-main">Press Camera to start</span>
-    <span id="idle-sub" style="font-size:9px;color:#001a0c;max-width:240px;text-align:center;line-height:1.5">Simulates the glasses HUD — live face recognition and encounter recording, as it would appear on the display</span>
+    <span id="idle-main"></span>
+    <span id="idle-sub" style="font-size:9px;color:#001a0c;max-width:240px;text-align:center;line-height:1.5"></span>
   </div>
 
   <div id="hud">
@@ -206,17 +210,17 @@ body.debug #sync-badge{display:inline}
       <div id="hud-when"></div>
       <div id="hud-ctx"></div>
       <div id="hud-sum-wrap" style="display:none">
-        <div id="hud-sum-lbl">ENCOUNTERS</div>
+        <div id="hud-sum-lbl" data-i18n="encounters"></div>
         <div id="hud-sum"></div>
       </div>
     </div>
     <div id="hud-count">
-      <div id="hc-title">Recording encounter!</div>
+      <div id="hc-title" data-i18n="count_title"></div>
       <div id="hc-num">5</div>
-      <div id="hc-hint">Swipe forward to cancel</div>
+      <div id="hc-hint" data-i18n="count_hint"></div>
     </div>
-    <div id="hud-rec"><span class="dot"></span><span id="hr-txt">Recording encounter</span></div>
-    <div id="hud-status">⬡ ready</div>
+    <div id="hud-rec"><span class="dot"></span><span id="hr-txt"></span></div>
+    <div id="hud-status"></div>
   </div>
 </div>
 
@@ -224,45 +228,140 @@ body.debug #sync-badge{display:inline}
 
 <!-- Phone panel — only shows when there is something to act on -->
 <div id="match-box">
-  <div class="mlbl" id="mlbl">ENCOUNTER</div>
+  <div class="mlbl" data-i18n="panel_lbl"></div>
   <div id="mlist"></div>
 </div>
 
 <!-- ══ BOTTOM BAR — Rokid temple gestures ══ -->
 <div id="bottom-bar">
-  <button class="bar-btn" id="btn-cam">⏻<span class="blbl">Camera</span></button>
-  <button class="bar-btn" id="btn-tap" disabled>●<span class="blbl">Tap</span></button>
-  <button class="bar-btn" id="btn-swipe" disabled>›<span class="blbl">Swipe fwd</span></button>
-  <button class="bar-btn" id="btn-dtap" disabled>●●<span class="blbl">Double tap</span></button>
-  <button class="bar-btn" id="btn-help">?<span class="blbl">Help</span></button>
+  <button class="bar-btn" id="btn-cam">⏻<span class="blbl" data-i18n="b_camera"></span></button>
+  <button class="bar-btn" id="btn-tap" disabled>●<span class="blbl" data-i18n="b_tap"></span></button>
+  <button class="bar-btn" id="btn-swipe" disabled>›<span class="blbl" data-i18n="b_swipe"></span></button>
+  <button class="bar-btn" id="btn-dtap" disabled>●●<span class="blbl" data-i18n="b_dtap"></span></button>
+  <button class="bar-btn" id="btn-help">?<span class="blbl" data-i18n="b_help"></span></button>
 </div>
 
 <!-- ══ HELP ══ -->
 <div id="help-ov">
   <div id="help-card">
     <button id="help-x">✕</button>
-    <div class="h-tit">REFERENCE</div>
-    <div class="h-sec">Encounter recording</div>
-    <div class="h-row"><span class="h-key">Eye contact + speech</span><span class="h-desc">Buffering starts right away, silently. Just looking without talking never records.</span></div>
-    <div class="h-row"><span class="h-key">New person</span><span class="h-desc">After 7s: "Recording encounter! Swipe forward to cancel" 5…0. At 0 the person is saved (face photo, clothing colour, badge text if readable) and recording continues.</span></div>
-    <div class="h-row"><span class="h-key">Known person</span><span class="h-desc">After 7s recording starts on its own — no warning, no countdown.</span></div>
-    <div class="h-row"><span class="h-key">● Recording</span><span class="h-desc">Only text is kept (transcript + summary). No audio or video is ever saved. The encounter ends when the person leaves the view for 5s.</span></div>
-    <div class="h-sec">Gestures</div>
-    <div class="h-row"><span class="h-key">Swipe forward</span><span class="h-desc">During the countdown: cancel — nothing saved, won't ask about this face again this session. In the photo preview: discard.</span></div>
-    <div class="h-row"><span class="h-key">Double tap</span><span class="h-desc">While recording: stop and discard this encounter (the person stays saved). Otherwise: dismiss the HUD (back).</span></div>
-    <div class="h-row"><span class="h-key">Tap</span><span class="h-desc">Paused: resume recording. Unknown face: take a photo to save it by hand → preview → Tap save / Swipe forward discard.</span></div>
-    <div class="h-sec">Keyboard (desktop)</div>
-    <div class="h-row"><span class="h-key">Space / P</span><span class="h-desc">Camera on/off</span></div>
-    <div class="h-row"><span class="h-key">Enter / ↑</span><span class="h-desc">Tap</span></div>
-    <div class="h-row"><span class="h-key">→</span><span class="h-desc">Swipe forward</span></div>
-    <div class="h-row"><span class="h-key">Esc / ↓</span><span class="h-desc">Double tap</span></div>
-    <div class="h-sec">Developer</div>
-    <div class="h-row"><button id="help-debug">On-screen log: OFF</button></div>
-    <div class="h-note">Speech uses the browser's speech recognition (Chrome). Without it, the emulator falls back to face-only and says so on the panel. Real display: 640×480 landscape — pure black (#000) is transparent on the waveguide.</div>
+    <div class="h-tit" data-i18n="h_title"></div>
+    <div class="h-sec" data-i18n="h_sec_rec"></div>
+    <div class="h-row"><span class="h-key" data-i18n="h_k_eye"></span><span class="h-desc" data-i18n="h_d_eye"></span></div>
+    <div class="h-row"><span class="h-key" data-i18n="h_k_new"></span><span class="h-desc" data-i18n="h_d_new"></span></div>
+    <div class="h-row"><span class="h-key" data-i18n="h_k_known"></span><span class="h-desc" data-i18n="h_d_known"></span></div>
+    <div class="h-row"><span class="h-key" data-i18n="h_k_rec"></span><span class="h-desc" data-i18n="h_d_rec"></span></div>
+    <div class="h-sec" data-i18n="h_sec_gest"></div>
+    <div class="h-row"><span class="h-key" data-i18n="g_swipe"></span><span class="h-desc" data-i18n="h_d_swipe"></span></div>
+    <div class="h-row"><span class="h-key" data-i18n="g_dtap"></span><span class="h-desc" data-i18n="h_d_dtap"></span></div>
+    <div class="h-row"><span class="h-key" data-i18n="g_tap"></span><span class="h-desc" data-i18n="h_d_tap"></span></div>
+    <div class="h-sec" data-i18n="h_sec_kbd"></div>
+    <div class="h-row"><span class="h-key">Space / P</span><span class="h-desc" data-i18n="h_d_space"></span></div>
+    <div class="h-row"><span class="h-key">Enter / ↑</span><span class="h-desc" data-i18n="g_tap"></span></div>
+    <div class="h-row"><span class="h-key">→</span><span class="h-desc" data-i18n="g_swipe"></span></div>
+    <div class="h-row"><span class="h-key">Esc / ↓</span><span class="h-desc" data-i18n="g_dtap"></span></div>
+    <div class="h-sec" data-i18n="h_sec_lang"></div>
+    <div class="h-lang" id="lang-btns">
+      <button data-lang="system" data-i18n="lang_system"></button>
+      <button data-lang="en">English</button>
+      <button data-lang="pt">Português</button>
+    </div>
+    <div class="h-desc" style="margin-top:6px" data-i18n="h_d_lang"></div>
+    <div class="h-sec" data-i18n="h_sec_dev"></div>
+    <div class="h-row"><button id="help-debug"></button></div>
+    <div class="h-note" data-i18n="h_note"></div>
   </div>
 </div>
 
 <script>
+// ══ TEXTS — Portuguese and English (VC_I18N picks: user choice → system → English) ══
+VC_I18N.add({
+  en: {
+    topbar:'ROKID EMULATOR', flip:'Switch front/back camera', disconnected:'● disconnected', profiles:'● Base44 · {n} profiles',
+    idle_start:'Press Camera to start', idle_start_sub:'Simulates the glasses HUD — live face recognition and encounter recording, as it would appear on the display',
+    idle_req:'Requesting camera…', idle_req_sub:'The browser will ask for camera permission — same flow as on the glasses',
+    idle_blocked:'Camera blocked', idle_blocked_sub:'Allow it in the 🔒 of the address bar → Camera, then tap Camera', idle_retry_sub:'Tap Camera to try again',
+    idle_fail:'Could not access the camera', idle_fail_sub:'Check the permission in the 🔒 of the address bar',
+    idle_stopped:'Camera stopped', idle_stopped_sub:'Tap Camera to turn it back on',
+    idle_nosupport:'Camera not supported', idle_nosupport_sub:'Open over HTTPS in a browser with a camera',
+    encounters:'ENCOUNTERS', last_seen:'Last seen: ', no_summary:'(no summary)',
+    count_title:'Recording encounter!', count_hint:'Swipe forward to cancel',
+    rec:'Recording encounter', paused:'Paused · Tap to resume',
+    s_ready:'ready', s_loading:'loading AI…', s_cam:'camera on', s_buf_face:'buffering (face only)', s_buf_speech:'buffering · speech',
+    s_buf_wait:'buffering · waiting for speech', s_confirm:'new person · confirming', s_rec:'recording', s_paused:'paused',
+    s_identified:'identified', s_saved:'saved', s_notrec:'not recorded', s_saving_enc:'saving encounter…', s_enc_saved:'encounter saved', s_fail:'save failed',
+    panel_lbl:'ENCOUNTER', p_count:'Recording encounter! <b id="p-num">{n}</b>', p_cancel:'— cancel',
+    p_rec:'● Recording encounter', p_rec_with:'● Recording encounter with {name}', p_stop:'— stop &amp; discard',
+    p_paused:'Recording stopped — nothing from it was kept', p_resume:'Resume', p_tap:'— tap',
+    p_newface:'New face', p_buffering:'{who} — buffering ({why})', why_nomic:'no microphone — face only', why_speech:'speech detected', why_wait:'waiting for speech',
+    p_saving:'Saving…', p_suppressed:'You chose not to record this face', p_anyway:'— save it anyway',
+    p_preview:'Save this face?', p_nopreview:'preview unavailable', p_save:'— save', p_discard:'— discard',
+    b_camera:'Camera', b_stop:'Stop', b_tap:'Tap', b_swipe:'Swipe fwd', b_dtap:'Double tap', b_help:'Help',
+    g_tap:'Tap', g_swipe:'Swipe forward', g_dtap:'Double tap',
+    h_title:'REFERENCE', h_sec_rec:'Encounter recording',
+    h_k_eye:'Eye contact + speech', h_d_eye:'Buffering starts right away, silently. Just looking without talking never records.',
+    h_k_new:'New person', h_d_new:'After 7s: "Recording encounter! Swipe forward to cancel" 5…0. At 0 the person is saved (face photo, clothing colour, badge text if readable) and recording continues.',
+    h_k_known:'Known person', h_d_known:'After 7s recording starts on its own — no warning, no countdown.',
+    h_k_rec:'● Recording', h_d_rec:'Only text is kept (transcript + summary). No audio or video is ever saved. The encounter ends when the person leaves the view for 5s.',
+    h_sec_gest:'Gestures',
+    h_d_swipe:'During the countdown: cancel — nothing saved, won\'t ask about this face again this session. In the photo preview: discard.',
+    h_d_dtap:'While recording: stop and discard this encounter (the person stays saved). Otherwise: dismiss the HUD (back).',
+    h_d_tap:'Paused: resume recording. Unknown face: take a photo to save it by hand → preview → Tap save / Swipe forward discard.',
+    h_sec_kbd:'Keyboard (desktop)', h_d_space:'Camera on/off',
+    h_sec_lang:'Language', lang_system:'Phone language', h_d_lang:'By default the app follows the phone\'s language — Portuguese if the phone is in Portuguese, English otherwise.',
+    h_sec_dev:'Developer', log_btn:'On-screen log: {s}',
+    h_note:'Speech uses the browser\'s speech recognition (Chrome). Without it, the emulator falls back to face-only and says so on the panel. Real display: 640×480 landscape — pure black (#000) is transparent on the waveguide.',
+    // stored data (written in the user's language at the time)
+    d_unknown:'Unknown Person {n}', d_first_auto:'First encounter (auto)', d_first_manual:'First encounter (manual)',
+    d_first_hand:'First encounter — saved by hand', d_clothing:'Clothing (dominant colour): {c}',
+    d_conv:'Conversation · {m} min', d_nospeech:' (no speech captured)', d_mixed:'mixed ({a} and {b})',
+    c_black:'black', c_white:'white', c_grey:'grey', c_burgundy:'burgundy', c_red:'red', c_brown:'brown', c_orange:'orange',
+    c_beige:'beige', c_yellow:'yellow', c_green:'green', c_navy:'navy', c_blue:'blue', c_purple:'purple', c_pink:'pink'
+  },
+  pt: {
+    topbar:'EMULADOR ROKID', flip:'Trocar câmera frontal/traseira', disconnected:'● desconectado', profiles:'● Base44 · {n} perfis',
+    idle_start:'Toque em Câmera para começar', idle_start_sub:'Simula o HUD dos óculos — reconhecimento facial e gravação de encontros ao vivo, como apareceria no visor',
+    idle_req:'Pedindo a câmera…', idle_req_sub:'O navegador vai pedir permissão de câmera — o mesmo fluxo dos óculos',
+    idle_blocked:'Câmera bloqueada', idle_blocked_sub:'Permita no 🔒 da barra de endereço → Câmera, e toque em Câmera', idle_retry_sub:'Toque em Câmera para tentar de novo',
+    idle_fail:'Não deu pra acessar a câmera', idle_fail_sub:'Verifique a permissão no 🔒 da barra de endereço',
+    idle_stopped:'Câmera parada', idle_stopped_sub:'Toque em Câmera para religar',
+    idle_nosupport:'Câmera não suportada', idle_nosupport_sub:'Abra em HTTPS num navegador com câmera',
+    encounters:'ENCONTROS', last_seen:'Último encontro: ', no_summary:'(sem resumo)',
+    count_title:'Gravando encontro!', count_hint:'Deslize para frente para cancelar',
+    rec:'Gravando encontro', paused:'Pausado · Toque para retomar',
+    s_ready:'pronto', s_loading:'carregando IA…', s_cam:'câmera ativa', s_buf_face:'buffer (só rosto)', s_buf_speech:'buffer · com fala',
+    s_buf_wait:'buffer · esperando fala', s_confirm:'pessoa nova · confirmando', s_rec:'gravando', s_paused:'pausado',
+    s_identified:'identificado', s_saved:'salvo', s_notrec:'não gravado', s_saving_enc:'salvando encontro…', s_enc_saved:'encontro salvo', s_fail:'falha ao salvar',
+    panel_lbl:'ENCONTRO', p_count:'Gravando encontro! <b id="p-num">{n}</b>', p_cancel:'— cancelar',
+    p_rec:'● Gravando encontro', p_rec_with:'● Gravando encontro com {name}', p_stop:'— parar e descartar',
+    p_paused:'Gravação parada — nada dela foi guardado', p_resume:'Retomar', p_tap:'— toque',
+    p_newface:'Rosto novo', p_buffering:'{who} — buffer ({why})', why_nomic:'sem microfone — só rosto', why_speech:'fala detectada', why_wait:'esperando fala',
+    p_saving:'Salvando…', p_suppressed:'Você escolheu não gravar este rosto', p_anyway:'— salvar mesmo assim',
+    p_preview:'Salvar este rosto?', p_nopreview:'prévia indisponível', p_save:'— salvar', p_discard:'— descartar',
+    b_camera:'Câmera', b_stop:'Parar', b_tap:'Toque', b_swipe:'Deslizar', b_dtap:'2 toques', b_help:'Ajuda',
+    g_tap:'Toque', g_swipe:'Deslizar p/ frente', g_dtap:'Toque duplo',
+    h_title:'REFERÊNCIA', h_sec_rec:'Gravação de encontro',
+    h_k_eye:'Olho no olho + fala', h_d_eye:'O buffer começa na hora, em silêncio. Só olhar sem falar nunca grava.',
+    h_k_new:'Pessoa nova', h_d_new:'Aos 7s: "Gravando encontro! Deslize para frente para cancelar" 5…0. No 0 a pessoa é salva (foto do rosto, cor da roupa, texto do crachá se der pra ler) e a gravação continua.',
+    h_k_known:'Pessoa conhecida', h_d_known:'Aos 7s a gravação começa sozinha — sem aviso, sem contagem.',
+    h_k_rec:'● Gravando', h_d_rec:'Só texto é guardado (transcrição + resumo). Áudio e vídeo nunca. O encontro termina quando a pessoa sai da vista por 5s.',
+    h_sec_gest:'Gestos',
+    h_d_swipe:'Na contagem: cancela — nada é salvo e não pergunta de novo sobre esse rosto nesta sessão. Na prévia da foto: descarta.',
+    h_d_dtap:'Gravando: para e descarta este encontro (a pessoa continua salva). Fora disso: fecha o HUD (voltar).',
+    h_d_tap:'Pausado: retoma a gravação. Rosto desconhecido: tira foto pra salvar na mão → prévia → Toque salva / Deslizar descarta.',
+    h_sec_kbd:'Teclado (desktop)', h_d_space:'Liga/desliga a câmera',
+    h_sec_lang:'Idioma', lang_system:'Idioma do celular', h_d_lang:'Por padrão o app segue o idioma do celular — português se o celular estiver em português, inglês nos outros casos.',
+    h_sec_dev:'Desenvolvedor', log_btn:'Log na tela: {s}',
+    h_note:'A fala usa o reconhecimento de voz do navegador (Chrome). Sem ele, o emulador funciona só com o rosto e avisa no painel. Display real: 640×480 paisagem — preto puro (#000) é transparente no waveguide.',
+    d_unknown:'Pessoa Desconhecida {n}', d_first_auto:'Primeiro encontro (automático)', d_first_manual:'Primeiro encontro (manual)',
+    d_first_hand:'Primeiro encontro — salvo manualmente', d_clothing:'Roupa (cor predominante): {c}',
+    d_conv:'Conversa · {m} min', d_nospeech:' (sem fala captada)', d_mixed:'mista ({a} e {b})',
+    c_black:'preto', c_white:'branco', c_grey:'cinza', c_burgundy:'vinho', c_red:'vermelho', c_brown:'marrom', c_orange:'laranja',
+    c_beige:'bege', c_yellow:'amarelo', c_green:'verde', c_navy:'azul-marinho', c_blue:'azul', c_purple:'roxo', c_pink:'rosa'
+  }
+});
+var t = VC_I18N.t;
+
 var camStream = null;
 var _facingMode = 'environment';
 var _isTouchDevice = (function(){
@@ -274,14 +373,14 @@ var _profiles = [];
 var _currentProfile = null;
 var PROXY = 'https://base44.app/api/apps/6a11083db49430b410a8c066/functions/fcProxy';
 
-// ── Log ── (browser console by default; on screen only with Help → On-screen log)
+// ── Log ── (developer tool: always English; browser console by default, on screen via Help)
 var _debugMode = false;
 try { _debugMode = localStorage.getItem('fc_debug') === '1'; } catch(e) {}
 var _logBuf = [];
 function log(msg, hi) {
   var d = new Date();
-  var t = [d.getHours(), d.getMinutes(), d.getSeconds()].map(function(n){ return String(n).padStart(2,'0'); }).join(':');
-  var txt = t + ' ' + msg;
+  var tt = [d.getHours(), d.getMinutes(), d.getSeconds()].map(function(n){ return String(n).padStart(2,'0'); }).join(':');
+  var txt = tt + ' ' + msg;
   try { console.log(txt); } catch(e) {}
   _logBuf.push(txt);
   if (_logBuf.length > 200) _logBuf.shift();
@@ -299,7 +398,7 @@ function setDebug(on) {
   try { localStorage.setItem('fc_debug', on ? '1' : '0'); } catch(e) {}
   document.body.classList.toggle('debug', on);
   var btn = document.getElementById('help-debug');
-  if (btn) btn.textContent = 'On-screen log: ' + (on ? 'ON' : 'OFF');
+  if (btn) btn.textContent = t('log_btn', { s: on ? 'ON' : 'OFF' });
   if (on) {
     var el = document.getElementById('log-el');
     el.innerHTML = '';
@@ -310,15 +409,28 @@ function setDebug(on) {
     el.scrollTop = el.scrollHeight;
   }
 }
-function setIdle(main, sub) {
-  var m = document.getElementById('idle-main'), s = document.getElementById('idle-sub');
-  if (m) m.textContent = main;
-  if (s) s.textContent = sub || '';
+
+// idle screen and status line remember their keys so a language switch re-renders them
+var _idleKeys = ['idle_start', 'idle_start_sub'], _statusKey = ['s_loading', ''];
+function setIdle(mainKey, subKey) {
+  _idleKeys = [mainKey, subKey];
+  document.getElementById('idle-main').textContent = t(mainKey);
+  document.getElementById('idle-sub').textContent = subKey ? t(subKey) : '';
 }
-function setStatus(t) { document.getElementById('hud-status').textContent = '⬡ ' + t; }
+function setStatus(key, extra) {
+  _statusKey = [key, extra || ''];
+  document.getElementById('hud-status').textContent = '⬡ ' + t(key) + (extra || '');
+}
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 // ── Sync with the database ──
+var _syncState = 'disconnected';
+function renderSyncBadge() {
+  var badge = document.getElementById('sync-badge');
+  if (_syncState === 'ok') { badge.textContent = t('profiles', { n: _profiles.length }); badge.className = 'ok'; }
+  else if (_syncState === 'err') { badge.textContent = '● offline'; badge.className = 'err'; }
+  else { badge.textContent = t('disconnected'); badge.className = ''; }
+}
 function syncProfiles() {
   fetch(PROXY, {
     method:'POST', headers:{'Content-Type':'application/json'},
@@ -327,15 +439,12 @@ function syncProfiles() {
   .then(function(r){ return r.json(); })
   .then(function(data){
     _profiles = Array.isArray(data) ? data : (data.records || []);
-    var badge = document.getElementById('sync-badge');
-    badge.textContent = '● Base44 · ' + _profiles.length + ' profiles';
-    badge.className = 'ok';
+    _syncState = 'ok'; renderSyncBadge();
     log('✓ connected to Base44 — ' + _profiles.length + ' profiles', true);
     loadEmbeddings();
   })
   .catch(function(e){
-    var badge = document.getElementById('sync-badge');
-    badge.textContent = '● offline'; badge.className = 'err';
+    _syncState = 'err'; renderSyncBadge();
     log('⚠ database offline: ' + e.message);
   });
 }
@@ -373,7 +482,7 @@ var MAX_SAMPLES       = 30;
 var _state = 'idle';            // idle | buffer | countdown | recording | paused | saving
 var _enc = null;                // current encounter
 var _stable = { count:0, first:null };
-var _suppressed = [];           // faces cancelled with swipe forward (this session)
+var _suppressed = [];           // faces the user said no to (this session)
 var _previewOpen = false;
 var _lastMatchDescriptor = null;
 var _lastMatchKnown = false;
@@ -407,7 +516,7 @@ function handleMatch(descriptor) {
       takeBestFrame();
       return;
     }
-    // someone else in front: the current person is "not seen" — leave timers handle it
+    // someone else in front: the current person is "not seen" — the tick decides when it ends
     if (_state === 'buffer' || _state === 'countdown') {
       if (Date.now() - _enc.lastSeen > LEAVE_MS_PENDING) endEncounter('left');
     }
@@ -473,7 +582,7 @@ function tick() {
       if (_enc.kind === 'new') {
         _state = 'countdown';
         _enc.countdownEnd = now + COUNTDOWN_S * 1000;
-        log('◔ new person — "Recording encounter!" countdown (swipe forward to cancel)', true);
+        log('◔ new person — countdown (swipe forward to cancel)', true);
       } else {
         startRecording();
       }
@@ -521,7 +630,7 @@ function endEncounter(reason) {
   if (reason === 'cancel') {
     _suppressed.push(e.anchor);
     log('✗ cancelled — nothing saved, won\'t ask about this face again (Tap saves it anyway)', true);
-    setStatus('not recorded');
+    setStatus('s_notrec');
   } else if (reason === 'finished') {
     saveEncounter(e);
   } else if (reason === 'left' && e.kind === 'new' && !e.person) {
@@ -573,74 +682,72 @@ function render() {
   var cnt = document.getElementById('hud-count');
   if (st === 'countdown') {
     cnt.className = 'on';
-    var secs = Math.max(0, Math.ceil((e.countdownEnd - Date.now()) / 1000));
-    document.getElementById('hc-num').textContent = secs;
+    document.getElementById('hc-num').textContent = Math.max(0, Math.ceil((e.countdownEnd - Date.now()) / 1000));
   } else cnt.className = '';
 
   // discreet recording circle
   var rec = document.getElementById('hud-rec');
-  if (st === 'recording' || (st === 'saving' && e)) { rec.className = 'on'; document.getElementById('hr-txt').textContent = 'Recording encounter'; }
-  else if (st === 'paused') { rec.className = 'on paused'; document.getElementById('hr-txt').textContent = 'Paused · Tap to resume'; }
+  if (st === 'recording' || (st === 'saving' && e)) { rec.className = 'on'; document.getElementById('hr-txt').textContent = t('rec'); }
+  else if (st === 'paused') { rec.className = 'on paused'; document.getElementById('hr-txt').textContent = t('paused'); }
   else rec.className = '';
 
   // new person while recording: only the circle (no card)
   if (e && e.kind === 'new' && st !== 'buffer') hideHudCard(true);
 
   // status line
-  if (st === 'buffer') setStatus(_speech === 'unavailable' ? 'buffering (face only)' : (e.heardSpeech ? 'buffering · speech' : 'buffering · waiting for speech'));
-  else if (st === 'countdown') setStatus('new person · confirming');
-  else if (st === 'recording') setStatus('recording');
-  else if (st === 'paused') setStatus('paused');
+  if (st === 'buffer') setStatus(_speech === 'unavailable' ? 's_buf_face' : (e.heardSpeech ? 's_buf_speech' : 's_buf_wait'));
+  else if (st === 'countdown') setStatus('s_confirm');
+  else if (st === 'recording') setStatus('s_rec');
+  else if (st === 'paused') setStatus('s_paused');
 
   renderPanel();
   updateBar();
 }
 
+function btn(id, cls, main, sub) {
+  return '<div class="mbtn' + (cls ? ' ' + cls : '') + '" id="' + id + '">' + main + ' <small>' + sub + '</small></div>';
+}
+
 function renderPanel() {
-  var st = _state, e = _enc;
-  if (_previewOpen) return;   // preview owns the panel
+  var st = _state, e = _enc, L = VC_I18N.lang;
+  if (_previewOpen) return;   // the preview owns the panel
   if (st === 'countdown') {
     var secs = Math.max(0, Math.ceil((e.countdownEnd - Date.now()) / 1000));
-    if (_lastMatchSig && _lastMatchSig.indexOf('count:') === 0 && document.getElementById('p-num')) {
-      _lastMatchSig = 'count:' + secs; document.getElementById('p-num').textContent = secs; return;
+    if (_lastMatchSig && _lastMatchSig.indexOf('count:' + L + ':') === 0 && document.getElementById('p-num')) {
+      _lastMatchSig = 'count:' + L + ':' + secs; document.getElementById('p-num').textContent = secs; return;
     }
-    setMatchBox('count:' + secs,
-      '<div class="mcount-lbl">Recording encounter! <b id="p-num">' + secs + '</b></div>' +
-      '<div class="mbtn no" id="p-cancel">Swipe forward <small>— cancel</small></div>');
+    setMatchBox('count:' + L + ':' + secs,
+      '<div class="mcount-lbl">' + t('p_count', { n: secs }) + '</div>' + btn('p-cancel', 'no', t('g_swipe'), t('p_cancel')));
     bindTapDyn(document.getElementById('p-cancel'), gestureSwipeForward);
     return;
   }
   if (st === 'recording') {
-    setMatchBox('rec',
-      '<div class="mcount-lbl">● Recording encounter' + (e.person ? ' with ' + esc(e.person.name) : '') + '</div>' +
-      '<div class="mbtn no" id="p-stop">Double tap <small>— stop &amp; discard</small></div>');
+    setMatchBox('rec:' + L,
+      '<div class="mcount-lbl">' + (e.person ? t('p_rec_with', { name: esc(e.person.name) }) : t('p_rec')) + '</div>' +
+      btn('p-stop', 'no', t('g_dtap'), t('p_stop')));
     bindTapDyn(document.getElementById('p-stop'), gestureDoubleTap);
     return;
   }
   if (st === 'paused') {
-    setMatchBox('paused',
-      '<div class="mcount-lbl">Recording stopped — nothing from it was kept</div>' +
-      '<div class="mbtn" id="p-resume">Resume <small>— tap</small></div>');
+    setMatchBox('paused:' + L, '<div class="mcount-lbl">' + t('p_paused') + '</div>' + btn('p-resume', '', t('p_resume'), t('p_tap')));
     bindTapDyn(document.getElementById('p-resume'), gestureTap);
     return;
   }
   if (st === 'buffer') {
-    var why = _speech === 'unavailable' ? 'no microphone — face only' : (e.heardSpeech ? 'speech detected' : 'waiting for speech');
-    setMatchBox('buffer:' + why,
-      '<div class="mnomatch">' + (e.kind === 'new' ? 'New face' : esc(e.person.name)) + ' — buffering (' + why + ')</div>');
+    var why = _speech === 'unavailable' ? 'why_nomic' : (e.heardSpeech ? 'why_speech' : 'why_wait');
+    setMatchBox('buffer:' + L + ':' + why,
+      '<div class="mnomatch">' + t('p_buffering', { who: e.kind === 'new' ? t('p_newface') : esc(e.person.name), why: t(why) }) + '</div>');
     return;
   }
-  if (st === 'saving') { setMatchBox('saving', '<div class="mnomatch">Saving…</div>'); return; }
+  if (st === 'saving') { setMatchBox('saving:' + L, '<div class="mnomatch">' + t('p_saving') + '</div>'); return; }
   if (st === 'idle' && !_lastMatchKnown && _lastMatchDescriptor && Date.now() - _lastFaceAt < LEAVE_MS_PENDING) {
-    setMatchBox('unknown', '<div class="mnomatch">New face</div>');
-    return;
+    setMatchBox('unknown:' + L, '<div class="mnomatch">' + t('p_newface') + '</div>');
   }
 }
 
 function renderSuppressed() {
-  setMatchBox('suppressed',
-    '<div class="mcount-lbl">You chose not to record this face</div>' +
-    '<div class="mbtn" id="p-capture">Tap <small>— save it anyway</small></div>');
+  setMatchBox('suppressed:' + VC_I18N.lang,
+    '<div class="mcount-lbl">' + t('p_suppressed') + '</div>' + btn('p-capture', '', t('g_tap'), t('p_anyway')));
   bindTapDyn(document.getElementById('p-capture'), manualCapture);
 }
 
@@ -649,6 +756,9 @@ function updateBar() {
   document.getElementById('btn-tap').disabled = !on;
   document.getElementById('btn-swipe').disabled = !on;
   document.getElementById('btn-dtap').disabled = !on;
+  var cam = document.getElementById('btn-cam');
+  if (cam.textContent !== '⏳') cam.innerHTML = (on ? '■' : '⏻') + '<span class="blbl">' + t(on ? 'b_stop' : 'b_camera') + '</span>';
+  cam.className = 'bar-btn' + (on ? ' on' : '');
 }
 
 // ── Buffer helpers ──
@@ -661,7 +771,7 @@ function snapshotFrame() {
   return cv;
 }
 function takeBestFrame() {
-  if (!_enc || !_lastFaceBox || _enc.person && _enc.kind === 'known') return;   // only new people need a photo
+  if (!_enc || !_lastFaceBox || _enc.kind === 'known') return;   // only new people need a photo
   var area = _lastFaceBox.w * _lastFaceBox.h;
   if (area <= _enc.bestArea) return;
   var fr = snapshotFrame();
@@ -676,7 +786,8 @@ function meanDescriptor(samples) {
 }
 
 // ── Speech: listens only while an encounter is open (eye contact) ──
-// Text only — the browser's recognizer turns speech into text; nothing audio is stored here.
+// Transcribes in the language being SPOKEN (phone's language), independent of the UI language.
+// Text only — nothing audio is stored.
 var _speech = 'idle';   // idle | listening | unavailable
 var _rec = null, _wantListen = false;
 (function initSpeech(){
@@ -685,8 +796,8 @@ var _rec = null, _wantListen = false;
   _rec = new SR();
   _rec.continuous = true;
   _rec.interimResults = false;
-  _rec.lang = navigator.language || 'pt-BR';
-  _rec.onspeechstart = function(){ if (_enc) { _enc.heardSpeech = true; } };
+  _rec.lang = navigator.language || 'en-US';
+  _rec.onspeechstart = function(){ if (_enc) _enc.heardSpeech = true; };
   _rec.onresult = function(ev){
     for (var i = ev.resultIndex; i < ev.results.length; i++) {
       if (!ev.results[i].isFinal) continue;
@@ -726,11 +837,11 @@ function onSpeech(text) {
   log('“' + text + '”');
 }
 
-// ── Persistence ──
+// ── Persistence (stored text is written in the user's language) ──
 function nextUnknownName() {
   var n = 1, re = /^(?:Pessoa Desconhecida|Unknown Person) (\d+)$/;
   _profiles.forEach(function(p){ var m = re.exec(p.name || ''); if (m) n = Math.max(n, parseInt(m[1], 10) + 1); });
-  return 'Unknown Person ' + n;
+  return t('d_unknown', { n: n });
 }
 
 function createPerson(emb, photo, mode, cb) {
@@ -739,7 +850,7 @@ function createPerson(emb, photo, mode, cb) {
   var body = {
     name: name, status: 'Identificado', face_embedding: JSON.stringify(emb),
     last_seen_date: new Date().toISOString(),
-    last_seen_context: mode === 'auto' ? 'First encounter (auto)' : 'First encounter (manual)'
+    last_seen_context: t(mode === 'auto' ? 'd_first_auto' : 'd_first_manual')
   };
   if (photo) body.photo_url = photo;
   fetch(PROXY, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) })
@@ -747,6 +858,7 @@ function createPerson(emb, photo, mode, cb) {
   .then(function(p){
     if (!p || !p.id) throw new Error(p && p.error || 'no id');
     _profiles.push(p);
+    renderSyncBadge();
     loadEmbeddings();
     log('✓ ' + name + ' saved — complete the details later in the Manager', true);
     cb(p);
@@ -760,11 +872,11 @@ function saveEncounter(e) {
   var start = new Date(e.recordingSince || e.startedAt);
   var mins = Math.max(1, Math.round((Date.now() - start.getTime()) / 60000));
   var transcript = e.transcript.join('\n');
-  var notes = e.clothing ? 'Clothing (dominant colour): ' + e.clothing : '';
+  var notes = e.clothing ? t('d_clothing', { c: e.clothing }) : '';
   var p = e.person;
-  setStatus('saving encounter…');
+  setStatus('s_saving_enc');
   summarize(transcript, p.name).then(function(summary){
-    var context = summary || ('Conversation · ' + mins + ' min' + (transcript ? '' : ' (no speech captured)'));
+    var context = summary || (t('d_conv', { m: mins }) + (transcript ? '' : t('d_nospeech')));
     return fetch(PROXY + '?entity=FaceContextEncounter', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
@@ -778,19 +890,19 @@ function saveEncounter(e) {
         body:JSON.stringify({ last_seen_date: start.toISOString(), last_seen_context: context })
       }).catch(function(){});
       delete _encCache[p.id];
-      setStatus('encounter saved');
+      setStatus('s_enc_saved');
       log('✓ encounter saved — ' + context, true);
       if (e.kind === 'new' && e.torso && enc && enc.id) readBadge(e.torso, enc.id);
     });
-  }).catch(function(err){ log('⚠ encounter not saved: ' + err.message, true); setStatus('save failed'); });
+  }).catch(function(err){ log('⚠ encounter not saved: ' + err.message, true); setStatus('s_fail'); });
 }
 
-// 1-line summary via the existing backend (Gemini, with budget tracking). Falls back to nothing.
+// 1-line summary via the existing backend (Gemini, with budget tracking), in the USER's language.
 function summarize(transcript, personName) {
   if (!transcript) return Promise.resolve('');
   return fetch(PROXY, {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({ action:'ai_summary', transcript: transcript, person_name: personName })
+    body:JSON.stringify({ action:'ai_summary', transcript: transcript, person_name: personName, lang: VC_I18N.lang })
   }).then(function(r){ return r.json(); })
     .then(function(d){ return (d && d.summary) || ''; })
     .catch(function(){ return ''; });
@@ -813,34 +925,37 @@ function manualCapture() {
     torso: (frame && box) ? cropTorso(frame, box) : null
   };
   _previewOpen = true;
-  setMatchBox('preview',
-    '<div class="mcount-lbl">Save this face?</div>' +
+  renderPreview();
+  log('● photo preview — Tap to save, Swipe forward to discard', true);
+}
+function renderPreview() {
+  _lastMatchSig = null;
+  setMatchBox('preview:' + VC_I18N.lang,
+    '<div class="mcount-lbl">' + t('p_preview') + '</div>' +
     (_preview.photo
       ? '<div style="display:flex;justify-content:center;margin:6px 0"><img src="' + _preview.photo + '" style="width:96px;height:96px;border-radius:48px;border:1px solid #1a5a2a"></div>'
-      : '<div class="mnomatch">preview unavailable</div>') +
-    '<div class="mbtn" id="p-save">Tap <small>— save</small></div>' +
-    '<div class="mbtn no" id="p-discard">Swipe forward <small>— discard</small></div>');
+      : '<div class="mnomatch">' + t('p_nopreview') + '</div>') +
+    btn('p-save', '', t('g_tap'), t('p_save')) + btn('p-discard', 'no', t('g_swipe'), t('p_discard')));
   bindTapDyn(document.getElementById('p-save'), savePreview);
   bindTapDyn(document.getElementById('p-discard'), discardPreview);
-  log('● photo preview — Tap to save, Swipe forward to discard', true);
 }
 function savePreview() {
   if (!_previewOpen) return;
   var pv = _preview; _previewOpen = false; _preview = null;
-  _state = 'saving'; setMatchBox('saving', '<div class="mnomatch">Saving…</div>');
+  _state = 'saving'; setMatchBox('saving:' + VC_I18N.lang, '<div class="mnomatch">' + t('p_saving') + '</div>');
   createPerson(pv.emb, pv.photo, 'manual', function(p){
     _state = 'idle';
     clearMatchBox();
     if (!p) return;
     _suppressed = _suppressed.filter(function(d){ return dist(d, pv.emb) >= SAME_FACE; });
     showProfile(p, null);
-    setStatus('saved');
+    setStatus('s_saved');
     var clothing = pv.torso ? describeClothing(pv.torso) : null;
     fetch(PROXY + '?entity=FaceContextEncounter', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body:JSON.stringify({ person_id:p.id, person_name:p.name, date:new Date().toISOString(),
-        context:'First encounter — saved by hand', capture_mode:'presencial',
-        notes: clothing ? 'Clothing (dominant colour): ' + clothing : '', ocr_captured:'' })
+        context:t('d_first_hand'), capture_mode:'presencial',
+        notes: clothing ? t('d_clothing', { c: clothing }) : '', ocr_captured:'' })
     }).then(function(r){ return r.json(); })
       .then(function(enc){ if (pv.torso && enc && enc.id) readBadge(pv.torso, enc.id); })
       .catch(function(){});
@@ -850,7 +965,7 @@ function discardPreview() {
   if (!_previewOpen) return;
   _previewOpen = false; _preview = null;
   clearMatchBox();
-  setStatus('ready');
+  setStatus('s_ready');
   log('✗ photo discarded');
 }
 
@@ -892,7 +1007,7 @@ function cropTorso(src, b) {
   } catch (e) { return null; }
 }
 
-// Dominant clothing colour — simple estimate, no AI.
+// Dominant clothing colour — simple estimate, no AI. Returns a colour key (c_*).
 function colorName(r, g, b) {
   r /= 255; g /= 255; b /= 255;
   var mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
@@ -921,8 +1036,8 @@ function describeClothing(torso) {
     if (!total) return null;
     var ranked = Object.keys(count).sort(function(a, b){ return count[b] - count[a]; });
     var top = ranked[0];
-    if (count[top] / total < 0.35 && ranked[1]) return 'mixed (' + top + ' and ' + ranked[1] + ')';
-    return top;
+    if (count[top] / total < 0.35 && ranked[1]) return t('d_mixed', { a: t('c_' + top), b: t('c_' + ranked[1]) });
+    return t('c_' + top);
   } catch (e) { return null; }
 }
 
@@ -1046,9 +1161,9 @@ function showProfile(p, score) {
   document.getElementById('hud-role').textContent = p.role || '';
   document.getElementById('hud-co').textContent = p.company || '';
   document.getElementById('hud-rel').textContent = p.relation_context || p.relation || '';
-  document.getElementById('hud-when').textContent = p.last_seen_date ? 'Last seen: ' + new Date(p.last_seen_date).toLocaleDateString() : '';
+  document.getElementById('hud-when').textContent = p.last_seen_date ? t('last_seen') + new Date(p.last_seen_date).toLocaleDateString(VC_I18N.locale()) : '';
   document.getElementById('hud-ctx').textContent = p.last_seen_context || '';
-  setStatus('identified' + (score ? ' · ' + score + '%' : ''));
+  setStatus('s_identified', score ? ' · ' + score + '%' : '');
   loadEncounterSummary(p);
 }
 function hideHudCard(keepProfile) {
@@ -1086,15 +1201,15 @@ function renderSummary(list) {
   if (!wrap || !box) return;
   if (!list || !list.length) { wrap.style.display = 'none'; return; }
   wrap.style.display = 'block';
-  var html = '';
+  var loc = VC_I18N.locale(), html = '';
   list.forEach(function(e){
     var d = e.date ? new Date(e.date) : null;
-    var when = d ? (d.toLocaleDateString(undefined,{day:'2-digit',month:'short'}) + ' ' +
-                    d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'})) : '';
+    var when = d ? (d.toLocaleDateString(loc,{day:'2-digit',month:'short'}) + ' ' +
+                    d.toLocaleTimeString(loc,{hour:'2-digit',minute:'2-digit'})) : '';
     var txt = (e.context || e.notes || '').split('\n')[0];
     if (txt.length > 90) txt = txt.slice(0, 88) + '…';
     html += '<div class="sum-item"><span class="sum-when">' + when + (e.location ? ' · ' + esc(e.location) : '') + '</span>' +
-            '<br><span class="sum-txt">' + esc(txt || '(no summary)') + '</span></div>';
+            '<br><span class="sum-txt">' + esc(txt || t('no_summary')) + '</span></div>';
   });
   box.innerHTML = html;
   box.scrollTop = box.scrollHeight;
@@ -1103,7 +1218,7 @@ function renderSummary(list) {
 function dismissHUD() {
   hideHudCard();
   clearMatchBox();
-  setStatus('ready');
+  setStatus('s_ready');
   log('HUD dismissed');
 }
 
@@ -1113,7 +1228,7 @@ function toggleFlipCam() {
   _facingMode = (_facingMode === 'environment') ? 'user' : 'environment';
   log('Switching camera: ' + (_facingMode === 'user' ? 'front' : 'back'));
   if (camStream) {
-    camStream.getTracks().forEach(function(t){ t.stop(); });
+    camStream.getTracks().forEach(function(tr){ tr.stop(); });
     camStream = null;
     startCam(true);
   }
@@ -1126,19 +1241,19 @@ function flipCamTap() {
   setTimeout(function(){ _flipBusy = false; }, 800);
 }
 (function initFlipCamBtn(){
-  var btn = document.getElementById('flip-cam-btn');
-  if (!btn) return;
-  if (_isTouchDevice) btn.classList.add('show');
+  var b = document.getElementById('flip-cam-btn');
+  if (!b) return;
+  if (_isTouchDevice) b.classList.add('show');
   var touched = false;
-  btn.addEventListener('touchstart', function(e){ e.preventDefault(); touched = true; }, {passive:false});
-  btn.addEventListener('touchend', function(e){ e.preventDefault(); if (touched){ touched = false; flipCamTap(); } }, {passive:false});
-  btn.addEventListener('click', function(e){ e.preventDefault(); if (!touched) flipCamTap(); });
+  b.addEventListener('touchstart', function(e){ e.preventDefault(); touched = true; }, {passive:false});
+  b.addEventListener('touchend', function(e){ e.preventDefault(); if (touched){ touched = false; flipCamTap(); } }, {passive:false});
+  b.addEventListener('click', function(e){ e.preventDefault(); if (!touched) flipCamTap(); });
 })();
 
 function startCam(auto) {
-  var btn = document.getElementById('btn-cam');
-  btn.textContent = '⏳'; btn.disabled = true;
-  setIdle('Requesting camera…', 'The browser will ask for camera permission — same flow as on the glasses');
+  var b = document.getElementById('btn-cam');
+  b.textContent = '⏳'; b.disabled = true;
+  setIdle('idle_req', 'idle_req_sub');
   log('Requesting camera…');
   navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:_facingMode},width:{ideal:640},height:{ideal:480}},audio:false})
   .then(function(stream) {
@@ -1148,25 +1263,18 @@ function startCam(auto) {
     vid.onloadedmetadata = function(){ vid.play(); };
     document.getElementById('hud-idle').style.display = 'none';
     document.getElementById('hud').style.display = 'block';
-    setStatus('camera on');
-    btn.innerHTML = '■<span class="blbl">Stop</span>';
-    btn.className = 'bar-btn on';
-    btn.disabled = false;
+    setStatus('s_cam');
+    b.textContent = ''; b.disabled = false;
     updateBar();
     log('✓ camera on', true);
     startFaceDetection();
   })
   .catch(function(e) {
     log('✗ camera: ' + e.message);
-    if (auto) {
-      setIdle('Camera blocked', e && e.name === 'NotAllowedError'
-        ? 'Allow it in the 🔒 of the address bar → Camera, then tap Camera'
-        : 'Tap Camera to try again');
-    } else {
-      setIdle('Could not access the camera', 'Check the permission in the 🔒 of the address bar');
-    }
-    btn.innerHTML = '⏻<span class="blbl">Camera</span>';
-    btn.disabled = false;
+    if (auto) setIdle('idle_blocked', e && e.name === 'NotAllowedError' ? 'idle_blocked_sub' : 'idle_retry_sub');
+    else setIdle('idle_fail', 'idle_fail_sub');
+    b.textContent = ''; b.disabled = false;
+    updateBar();
   });
 }
 
@@ -1174,7 +1282,7 @@ function startCam(auto) {
 document.addEventListener('visibilitychange', function() {
   if (document.visibilityState !== 'visible' || !camStream) return;
   var dead = camStream.getTracks().length === 0 ||
-             camStream.getTracks().every(function(t){ return t.readyState === 'ended'; });
+             camStream.getTracks().every(function(tr){ return tr.readyState === 'ended'; });
   if (dead) { log('camera died in background — restarting…'); camStream = null; startCam(true); }
 });
 
@@ -1182,17 +1290,15 @@ function stopCam() {
   _lastFaceAt = 0;
   if (_enc) endEncounter(_state === 'recording' ? 'finished' : 'stop');
   if (_previewOpen) discardPreview();
-  if (camStream) { camStream.getTracks().forEach(function(t){ t.stop(); }); camStream = null; }
+  if (camStream) { camStream.getTracks().forEach(function(tr){ tr.stop(); }); camStream = null; }
   document.getElementById('vid').srcObject = null;
   stopFaceDetection();
   clearMatchBox();
   document.getElementById('cnv').getContext('2d').clearRect(0,0,640,480);
   document.getElementById('hud-idle').style.display = 'flex';
   document.getElementById('hud').style.display = 'none';
-  document.getElementById('btn-cam').innerHTML = '⏻<span class="blbl">Camera</span>';
-  document.getElementById('btn-cam').className = 'bar-btn';
   updateBar();
-  setIdle('Camera stopped', 'Tap Camera to turn it back on');
+  setIdle('idle_stopped', 'idle_stopped_sub');
   log('camera stopped');
 }
 
@@ -1223,8 +1329,36 @@ bindBtn('btn-help', function(){ document.getElementById('help-ov').classList.add
 bindTapDyn(document.getElementById('help-debug'), function(){ setDebug(!_debugMode); });
 bindBtn('help-x', function(){ document.getElementById('help-ov').classList.remove('on'); });
 
+// ── Language ──
+function markLangButtons() {
+  var chosen = VC_I18N.isUserChoice() ? VC_I18N.lang : 'system';
+  document.querySelectorAll('#lang-btns button').forEach(function(b){
+    b.classList.toggle('on', b.getAttribute('data-lang') === chosen);
+  });
+}
+document.querySelectorAll('#lang-btns button').forEach(function(b){
+  bindTapDyn(b, function(){ VC_I18N.set(b.getAttribute('data-lang')); });
+});
+// everything built from text re-renders when the language changes (here or in another page)
+function applyLanguage() {
+  VC_I18N.apply();
+  document.title = 'VisualContext — ' + t('topbar').charAt(0) + t('topbar').slice(1).toLowerCase();
+  setIdle(_idleKeys[0], _idleKeys[1]);
+  setStatus(_statusKey[0], _statusKey[1]);
+  renderSyncBadge();
+  var dbg = document.getElementById('help-debug');
+  if (dbg) dbg.textContent = t('log_btn', { s: _debugMode ? 'ON' : 'OFF' });
+  markLangButtons();
+  _lastMatchSig = null;
+  if (_previewOpen) renderPreview(); else if (_state === 'idle' && isSuppressedNow()) renderSuppressed(); else render();
+  if (_currentProfile) showProfile(_currentProfile, null);
+}
+function isSuppressedNow() {
+  return !!(_lastMatchDescriptor && !_lastMatchKnown && window.faceapi && isSuppressed(_lastMatchDescriptor));
+}
+window.addEventListener('vc-lang', applyLanguage);
+
 // ── Load face-api ──
-setStatus('loading AI…');
 var script = document.createElement('script');
 script.src = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js';
 script.onload = function() {
@@ -1234,20 +1368,23 @@ script.onload = function() {
     faceapi.nets.faceRecognitionNet.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model')
   ]).then(function() {
     _faceApiLoaded = true;
-    setStatus('ready');
+    setStatus('s_ready');
     log('✓ AI ready', true);
     loadEmbeddings();
     if (camStream) startFaceDetection();
-  }).catch(function(e){ log('⚠ AI: ' + e.message); setStatus('ready'); });
+  }).catch(function(e){ log('⚠ AI: ' + e.message); setStatus('s_ready'); });
 };
 document.head.appendChild(script);
 
 // ── Init ──
+applyLanguage();
+setStatus('s_loading');
 syncProfiles();
 if (_debugMode) setDebug(true);
 if (_speech === 'unavailable') log('⚠ no speech recognition in this browser — face-only mode');
+log('language: ' + VC_I18N.lang + (VC_I18N.isUserChoice() ? ' (user choice)' : ' (phone: ' + (navigator.language || '?') + ')'));
 if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) startCam(true);
-else setIdle('Camera not supported', 'Open over HTTPS in a browser with a camera');
+else setIdle('idle_nosupport', 'idle_nosupport_sub');
 </script>
 </body>
 </html>
