@@ -35,6 +35,7 @@ Status: proposal (10/10). Decided: privacy by default; the most sensitive guards
 - **Transport glasses ↔ phone:** Nexus link (SPP authenticated, integrity and replay protection) plus our own end-to-end layer (libsodium) on top. Wi-Fi Direct for stills, same encryption.
 - **Phone:** SQLCipher (AES-256) database; the key is wrapped by the Keystore and bound to biometric unlock. Face embeddings are encrypted like everything else.
 - **Cloud (optional, Pro):** client-side encryption; the server stores ciphertext and logs usage, nothing readable.
+- **Updated 11/10:** the user picks where memory lives (default: their own Google Drive), and the glasses now keep a small encrypted cache for offline use. See section 10; two points there are still open.
 - **Crypto-shredding:** every person and every encounter has its own key. Deleting the key = deleting the data, including from backups.
 
 ### 4. How long things are kept (defaults, all adjustable)
@@ -89,7 +90,7 @@ Status: proposal (10/10). Decided: privacy by default; the most sensitive guards
 
 - **Sensitive situations:** all on by default. Light ones toggle here; bathroom, sexual intimacy and automatic enrollment of children only in Developer mode (they return after 1 h).
 - **Retention:** transcript (7 / 30 / 90 days / forever), people without a name (7 / 14 / 30 days).
-- **Cloud:** off / encrypted backup only / Pro.
+- **Where memory is kept:** my Google Drive (default) / Dropbox / OneDrive / only on this phone / Plus. Always encrypted on the phone first.
 - **AI:** on the phone (Gemini Nano) / my key / Pro.
 - **Self-destruct:** panic phrase, inactivity, failed attempts.
 - **Places where it never records.**
@@ -98,6 +99,41 @@ Status: proposal (10/10). Decided: privacy by default; the most sensitive guards
 ### 9. Note for later (store distribution)
 
 Marcus chose not to focus on law now. When the app goes to stores worldwide, face data counts as biometric data in several places: GDPR art. 9 in Europe, BIPA in Illinois, LGPD in Brazil. The design above (local first, consent by eye contact, real deletion, nothing shared) already points the right way. It will only need formal text and an explicit consent screen.
+
+### 10. Offline use and where memory lives (decided 11/10)
+
+**Where memory lives.** Chosen once in setup.
+- **Community:** the user's own cloud. Default: Google Drive; also Dropbox, OneDrive, or only on the phone. The app creates a folder there and encrypts everything on the phone before upload, so not even the cloud provider can read it. No server of ours in the path. (iCloud has no open API for Android or web apps; only with a native iOS app someday.)
+- **Plus:** we host it, ready to use, with backup and sync, encrypted the same way.
+- A cloud drive is good for files (face photos, backups, export), not for fast search. **The search index lives on the phone** (and, in Plus, also on our cloud). The glasses never search on their own: they ask through the phone or over Wi-Fi.
+
+**What each mode can do.**
+
+| | Phone nearby | Glasses on Wi-Fi, no phone | No connection |
+|---|---|---|---|
+| Card of a known person | Yes | Yes | Yes: the signatures of everyone are on the glasses |
+| Unknown person | Recorded, described by AI | Recorded, described by AI in the cloud | Recorded with photo; described later |
+| Expanded card (dossier, history) | Full | Full, a bit slower | Reduced: only what is on the glasses |
+| Ask anything (search) | Yes | Yes, slower | No |
+| Places | Yes (phone GPS) | No | No |
+| The conversation itself | Yes | Yes | Open, see 10.4 |
+
+Glasses on Wi-Fi without the phone need the glasses' own app (the Nexus plugin runs on the phone) and a way to write to the user's cloud from the glasses. To design.
+
+**10.1 What the glasses keep (three levels).** Internal rules; the user never sees them.
+1. **Always, for everyone:** the face signature (~1 KB each) and the short card (name, tags, hook). Thousands fit in a few MB, so recognition of known people works offline.
+2. **Only recent people:** the face photo (~50 KB) and the latest encounters, up to a cap: for example the 200 most recent people or the last 30 days, whichever comes first. Past the cap, the oldest leaves the glasses and stays whole in the cloud. The number is calibrated in the real test.
+3. **Never on the glasses:** the full history and transcripts.
+
+**10.2 Offline queue.** What is captured without a connection waits on the glasses, with a fixed size limit and a HUD warning near it. It uploads through whichever link comes back first (Wi-Fi or phone). An item is deleted from the glasses only after the destination confirms it arrived.
+
+**10.3 Places needs the phone.** Checked on the glasses on 11/10: Android location there uses only Wi-Fi and Bluetooth; there is no GPS chip. Wi-Fi positioning is tens of meters at best (and may not work at all without a location provider), and there is no compass. Building cards need the phone's GPS. The neighborhood map can be cached; the position cannot.
+
+**10.4 Open: two conflicts with sections 3 and 4 (Marcus decides).**
+- **a) The glasses used to keep nothing on disk (section 3).** Offline use needs signatures, cards and the queue on the glasses. Proposal: encrypted on the glasses; the key lives only in RAM while the glasses are worn; taking them off locks it, and the next phone unlock opens it again. Result: offline works for as long as you keep the glasses on.
+- **b) "Audio is never stored" (section 4).** Without a connection, the conversation can't be transcribed, unless the glasses can do it on their own (to test). Options: (1) keep the rule: offline encounters keep face, time and photo, no conversation; (2) exception: encrypted audio waits on the glasses until it is transcribed, at most 24 h, then is deleted. Recommendation: (1), and test transcription on the glasses.
+
+**10.5 What the user sees.** Kept simple: "Works offline. When you connect, the rest fills in." In daily use, nothing; if something is missing offline, the card says "full memory when connected" instead of an error. Settings has one quiet line with "Learn more". The technical detail lives only in this privacy page.
 
 ---
 
@@ -132,6 +168,7 @@ Status: proposta (10/10). Decidido: privacidade por padrão; as proteções mais
 - **Transporte óculos ↔ celular:** link do Nexus (SPP autenticado, com integridade e proteção contra repetição) e, por cima, a nossa própria camada de ponta a ponta (libsodium). Wi‑Fi Direct para as fotos, com a mesma criptografia.
 - **Celular:** banco SQLCipher (AES-256); a chave é protegida pelo cofre do Android e presa ao desbloqueio biométrico. Os dados de reconhecimento facial são criptografados como todo o resto.
 - **Nuvem (opcional, Pro):** criptografia no celular; o servidor guarda dado cifrado e registra uso, nada legível.
+- **Atualizado em 11/10:** o usuário escolhe onde a memória fica (padrão: o próprio Google Drive), e os óculos passam a guardar um pequeno cache criptografado para funcionar offline. Ver a seção 10; dois pontos ali ainda estão em aberto.
 - **Destruição criptográfica:** cada pessoa e cada encontro têm a própria chave. Apagar a chave = apagar o dado, inclusive dos backups.
 
 ### 4. Por quanto tempo se guarda (padrões, todos ajustáveis)
@@ -186,7 +223,7 @@ Status: proposta (10/10). Decidido: privacidade por padrão; as proteções mais
 
 - **Situações sensíveis:** todas ligadas por padrão. As leves se desligam aqui; banheiro, intimidade sexual e cadastro automático de crianças só no modo desenvolvedor (voltam depois de 1 h).
 - **Retenção:** transcrição (7 / 30 / 90 dias / sempre), pessoas sem nome (7 / 14 / 30 dias).
-- **Nuvem:** desligada / só backup criptografado / Pro.
+- **Onde a memória fica:** meu Google Drive (padrão) / Dropbox / OneDrive / só neste celular / Plus. Sempre criptografada no celular antes.
 - **IA:** no celular (Gemini Nano) / minha chave / Pro.
 - **Autodestruição:** frase de pânico, inatividade, tentativas erradas.
 - **Lugares onde nunca grava.**
@@ -195,3 +232,38 @@ Status: proposta (10/10). Decidido: privacidade por padrão; as proteções mais
 ### 9. Nota para depois (distribuição nas lojas)
 
 O Marcus escolheu não focar em leis agora. Quando o app for para lojas no mundo todo, dado de rosto conta como dado biométrico em vários lugares: GDPR art. 9 na Europa, BIPA em Illinois, LGPD no Brasil. O desenho acima (local primeiro, consentimento pelo contato visual, exclusão real, nada compartilhado) já aponta para o lado certo. Vai faltar só o texto formal e uma tela de consentimento explícita.
+
+### 10. Uso offline e onde a memória fica (decidido em 11/10)
+
+**Onde a memória fica.** Escolhido uma vez, na configuração inicial.
+- **Community:** a nuvem do próprio usuário. Padrão: Google Drive; também Dropbox, OneDrive, ou só no celular. O app cria uma pasta lá e criptografa tudo no celular antes de subir, então nem o provedor da nuvem consegue ler. Nenhum servidor nosso no caminho. (O iCloud não tem API aberta para apps Android ou web; só com um app nativo de iOS, se um dia existir.)
+- **Plus:** nós hospedamos, pronto para usar, com backup e sincronização, criptografado do mesmo jeito.
+- Uma nuvem de arquivos é boa para arquivos (fotos de rosto, backup, exportação), não para busca rápida. **O índice de busca fica no celular** (e, no Plus, também na nossa nuvem). Os óculos nunca buscam sozinhos: perguntam pelo celular ou pelo Wi-Fi.
+
+**O que cada modo faz.**
+
+| | Celular por perto | Óculos no Wi-Fi, sem celular | Sem conexão |
+|---|---|---|---|
+| Card de um conhecido | Sim | Sim | Sim: as assinaturas de todos ficam nos óculos |
+| Desconhecido | Registrado, descrito pela IA | Registrado, descrito pela IA na nuvem | Registrado com foto; descrito depois |
+| Card expandido (dossiê, histórico) | Completo | Completo, um pouco mais lento | Reduzido: só o que está nos óculos |
+| Pergunte qualquer coisa (busca) | Sim | Sim, mais lento | Não |
+| Lugares | Sim (GPS do celular) | Não | Não |
+| A conversa em si | Sim | Sim | Em aberto, ver 10.4 |
+
+Óculos no Wi-Fi sem celular pedem o app próprio dos óculos (o plugin do Nexus roda no celular) e um jeito de os óculos escreverem na nuvem do usuário. A desenhar.
+
+**10.1 O que os óculos guardam (três níveis).** Regras internas; o usuário nunca vê.
+1. **Sempre, de todos:** a assinatura do rosto (~1 KB cada) e o card curto (nome, tags, gancho). Milhares cabem em poucos MB, então o reconhecimento de conhecidos funciona offline.
+2. **Só das pessoas recentes:** a foto do rosto (~50 KB) e os últimos encontros, até um teto: por exemplo as 200 pessoas mais recentes ou os últimos 30 dias, o que vier primeiro. Passou do teto, a mais antiga sai dos óculos e continua inteira na nuvem. O número é calibrado no teste real.
+3. **Nunca nos óculos:** o histórico completo e as transcrições.
+
+**10.2 Fila offline.** O que é capturado sem conexão espera nos óculos, com um limite fixo de espaço e um aviso no visor perto dele. Sobe pelo primeiro caminho que voltar (Wi-Fi ou celular). Um item só é apagado dos óculos depois que o destino confirma que recebeu.
+
+**10.3 Lugares precisa do celular.** Conferido nos óculos em 11/10: a localização do Android ali usa só Wi-Fi e Bluetooth; não há chip de GPS. A posição por Wi-Fi erra dezenas de metros no melhor caso (e pode nem funcionar sem um provedor de localização), e não há bússola. Os cards de prédios precisam do GPS do celular. O mapa do bairro dá para guardar; a posição, não.
+
+**10.4 Em aberto: dois conflitos com as seções 3 e 4 (o Marcus decide).**
+- **a) Os óculos não guardavam nada em disco (seção 3).** O uso offline precisa de assinaturas, cards e da fila nos óculos. Proposta: criptografados nos óculos; a chave fica só na RAM enquanto os óculos estão no rosto; tirar os óculos trava, e o próximo desbloqueio no celular abre de novo. Resultado: o offline funciona enquanto você não tirar os óculos.
+- **b) "Áudio nunca é guardado" (seção 4).** Sem conexão, a conversa não tem como ser transcrita, a não ser que os óculos transcrevam sozinhos (a testar). Opções: (1) manter a regra: encontros offline guardam rosto, hora e foto, sem a conversa; (2) exceção: o áudio criptografado espera nos óculos até ser transcrito, no máximo 24 h, e depois é apagado. Recomendação: (1), e testar a transcrição nos óculos.
+
+**10.5 O que o usuário vê.** Simples: "Funciona offline. Quando você se conecta, o resto se completa." No dia a dia, nada; se faltar algo offline, o card diz "memória completa quando conectar" em vez de um erro. Nos Ajustes, uma linha discreta com "Saiba mais". O detalhe técnico fica só nesta página de privacidade.

@@ -27,6 +27,8 @@ Approved by Marcus on 11/10. Visual reference: the canvas "VisualContext Manager
 - **On the glasses:** the 4 main switches (Faces, Places, Things, Memories). No sub-settings.
 - **Encounter recording:** "Needs speech" / "A look is enough".
 - **AI:** plan (Community with your own keys, or Plus), provider and key.
+- **Where memory is kept:** my Google Drive (default), Dropbox, OneDrive, only on this phone, or Plus. Asked once in setup.
+- **Memory:** one quiet line, "Offline and online. The glasses keep the essentials to work without internet; the rest stays in your cloud." with "Learn more" (privacy page, section 10).
 - **Privacy:** sensitive-situation guards (on; only developer mode turns them off), how long to keep things, "Forget everything".
 - **Device:** glasses connected, device token (masked, "Change"), language.
 
@@ -55,6 +57,13 @@ Approved by Marcus on 11/10. Visual reference: the canvas "VisualContext Manager
 - An imported photo is for **display only** (card and Manager). The app never builds face templates from the address book.
 - Face recognition starts only from a **real encounter**. When a new face appears, the app compares names and asks: "Is this Rafael Souza from your contacts?". On confirmation, the records merge.
 
+### 6. Offline, as the user sees it (11/10)
+- **Promise:** "Works offline. When you connect, the rest fills in." No settings to choose what stays where.
+- **Daily use:** nothing to do. If something is missing offline, the card shows "full memory when connected", never an error.
+- **Search ("Ask anything") and the expanded card** need the phone or Wi-Fi. Offline, the glasses show the short card and the recent encounters.
+- **Places needs the phone nearby** (the glasses have no GPS). Say it plainly in onboarding and next to the Places switch.
+- Technical rules (what the glasses keep, caps, queue): privacy spec, section 10.
+
 ---
 
 ## PT — Português
@@ -82,6 +91,8 @@ Aprovado pelo Marcus em 11/10. Referência visual: o canvas "VisualContext Manag
 - **Nos óculos:** as 4 chaves principais (Rostos, Lugares, Coisas, Memórias). Sem subconfigurações.
 - **Gravação de encontros:** "Precisa de fala" / "Só o olhar basta".
 - **IA:** plano (Community com as suas chaves, ou Plus), provedor e chave.
+- **Onde a memória fica:** meu Google Drive (padrão), Dropbox, OneDrive, só neste celular, ou Plus. Perguntado uma vez na configuração inicial.
+- **Memória:** uma linha discreta, "Offline e online. Os óculos guardam o essencial para funcionar sem internet; o resto fica na sua nuvem." com "Saiba mais" (página de privacidade, seção 10).
 - **Privacidade:** proteções em situações sensíveis (ligadas; só o modo desenvolvedor desliga), por quanto tempo guardar, "Esquecer tudo".
 - **Aparelho:** óculos conectados, token do aparelho (mascarado, botão "Trocar"), idioma.
 
@@ -109,3 +120,10 @@ Aprovado pelo Marcus em 11/10. Referência visual: o canvas "VisualContext Manag
 **Regra das fotos (dado biométrico, LGPD):**
 - A foto importada serve **só para mostrar** (card e Manager). O app nunca gera modelo de rosto a partir da agenda.
 - O reconhecimento facial só nasce de um **encontro real**. Quando aparece um rosto novo, o app compara os nomes e pergunta: "É o Rafael Souza da sua agenda?". Com a confirmação, os registros se juntam.
+
+### 6. Offline, do jeito que o usuário vê (11/10)
+- **Promessa:** "Funciona offline. Quando você se conecta, o resto se completa." Sem ajuste para escolher o que fica onde.
+- **No dia a dia:** nada a fazer. Se faltar algo offline, o card mostra "memória completa quando conectar", nunca um erro.
+- **A busca ("Pergunte qualquer coisa") e o card expandido** precisam do celular ou do Wi-Fi. Offline, os óculos mostram o card curto e os encontros recentes.
+- **Lugares precisa do celular por perto** (os óculos não têm GPS). Dizer isso com clareza no primeiro uso e ao lado da chave Lugares.
+- Regras técnicas (o que os óculos guardam, tetos, fila): spec de privacidade, seção 10.
