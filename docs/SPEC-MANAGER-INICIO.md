@@ -69,7 +69,18 @@ Approved by Marcus on 11/10. Visual reference: the canvas "VisualContext Manager
 - How: phone GPS + head heading + the map of the surroundings. No image analysis.
 - Decoration, not a task. Seen places go to the timeline.
 - Turned off with the Places switch in Settings. No sub-settings (fixed: 2 cards, 24°).
+- **During an encounter, places are hidden.** The glasses show only the person card, kept short: name, how you know each other ("supplier · met at the Torra Fina offsite"), and when you last saw each other ("last time: 12/09, the budget"). Places come back when the encounter ends.
 - **Later version:** if you keep looking at a place for a few seconds, the card expands with a web search: current exhibitions or, if there is nothing current, a short note about the building. Only the place name goes to the search, never the photo.
+
+### 1g. Hint during a conversation (idea for testing, 11/10)
+- When the other person asks you something and your memory has a fact that answers it, a small chip can appear: "✦ pilot starts in March (you said on 12/09)".
+- Rules to keep distraction low:
+  - **Pull, not push:** a small ✦ dot appears; one tap opens the chip. Nothing flies across the screen on its own.
+  - **Only from memory**, with its source. No generic AI answers ("say you are proactive").
+  - **Max one chip, a few words,** and it fades by itself.
+  - **Off by default;** turned on per encounter or in Settings.
+- Risks to test: eyes going to the HUD are noticed by the other person; the glasses mic favours the wearer, so the other person's question may be missed (phone mic helps); transcription today runs only with a known person.
+- Job interviews: many companies treat live hidden assistance as cheating. Not a use case we promote.
 
 ### 2. Settings
 - **On the glasses:** the 4 main switches (Faces, Places, Things, Memories). No sub-settings.
@@ -189,7 +200,18 @@ Aprovado pelo Marcus em 11/10. Referência visual: o canvas "VisualContext Manag
 - Como: GPS do celular + direção da cabeça + o mapa do entorno. Sem análise de imagem.
 - Enfeite, não tarefa. Os lugares vistos vão para a linha do tempo.
 - Desliga com a chave Lugares nos Ajustes. Sem subconfigurações (fixo: 2 cards, 24°).
+- **Durante um encontro, os lugares somem.** Os óculos mostram só o card da pessoa, curto: nome, de onde vocês se conhecem ("fornecedor · conheceram no encontro da Torra Fina") e quando se viram pela última vez ("última vez: 12/09, o orçamento"). Os lugares voltam quando o encontro termina.
 - **Versão futura:** se você fica olhando para um lugar por alguns segundos, o card se expande com uma busca na web: as exposições em cartaz ou, se não houver nada atual, uma nota curta sobre o prédio. Só o nome do lugar vai para a busca, nunca a foto.
+
+### 1g. Cola durante a conversa (ideia para testar, 11/10)
+- Quando a outra pessoa te pergunta algo e a sua memória tem um fato que responde, pode aparecer um chip pequeno: "✦ piloto começa em março (você disse em 12/09)".
+- Regras para distrair pouco:
+  - **Puxar, não empurrar:** aparece um pontinho ✦; um toque abre o chip. Nada voa pela tela sozinho.
+  - **Só da memória,** com a fonte. Nada de resposta genérica de IA ("diga que você é proativo").
+  - **No máximo um chip, poucas palavras,** e ele some sozinho.
+  - **Desligado por padrão;** liga por encontro ou nos Ajustes.
+- Riscos a testar: o olhar indo para o HUD é percebido pela outra pessoa; o microfone dos óculos favorece quem usa, então a pergunta da outra pessoa pode se perder (o microfone do celular ajuda); a transcrição hoje só roda com pessoa conhecida.
+- Entrevista de emprego: muitas empresas tratam ajuda escondida ao vivo como trapaça. Não é um uso que vamos promover.
 
 ### 2. Ajustes
 - **Nos óculos:** as 4 chaves principais (Rostos, Lugares, Coisas, Memórias). Sem subconfigurações.
