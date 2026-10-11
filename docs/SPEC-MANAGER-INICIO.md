@@ -17,6 +17,12 @@ Approved by Marcus on 11/10. Visual reference: the canvas "VisualContext Manager
 - **Answer card:** the answer plus its source (which encounter, date, open follow-ups).
 - **Web:** the same ask field on top; the catalog on the left and the selected item's detail on the right, in the HUD card format (photo, name, tags, hook, About, encounters with follow-ups). The two columns stack on a phone.
 
+### 1b. "My day" card (top of the Timeline view)
+- Only in the Timeline view, at the top: a sparkle header "MY DAY · TODAY", 1–2 sentences telling the day, the stops with times (place, people, duration), and a count line (people · places · notes · follow-ups) with "See the day".
+- **Built only from what is already recorded:** encounters, place cards seen, things, notes. Nothing extra is captured for it.
+- **Route and times (like Google's timeline) are a separate step, opt-in:** asked once at first use ("Should VisualContext remember where you go?"), tied to the Places switch, not a sub-setting. Store stops ("Café da Paim, 12:40–13:30"), not the raw trail; on the device only; raw stops deleted after 30 days, the day summary kept.
+- No automatic photos and no nightly notification: the card is there when the user wants it.
+
 ### 2. Settings
 - **On the glasses:** the 4 main switches (Faces, Places, Things, Memories). No sub-settings.
 - **Encounter recording:** "Needs speech" / "A look is enough".
@@ -65,6 +71,12 @@ Aprovado pelo Marcus em 11/10. Referência visual: o canvas "VisualContext Manag
 - **Ordem:** Recentes / Antigos. Some no A–Z.
 - **Card de resposta:** a resposta e a fonte (qual encontro, data, pendências).
 - **Web:** a mesma pergunta no topo; o catálogo à esquerda e o detalhe do item escolhido à direita, no formato do card do HUD (foto, nome, tags, gancho, Sobre, encontros com pendências). As duas colunas se empilham no celular.
+
+### 1b. Card "Meu dia" (topo da Linha do tempo)
+- Só na visualização Linha do tempo, no topo: cabeçalho com estrelinha "MEU DIA · HOJE", 1–2 frases contando o dia, as paradas com horário (lugar, pessoas, duração) e uma linha de contagem (pessoas · lugares · notas · pendências) com "Ver o dia".
+- **Feito só com o que já foi registrado:** encontros, cards de lugares vistos, coisas, notas. Nada é capturado a mais para ele.
+- **Trajeto e horários (como a linha do tempo do Google) são um passo à parte, opcional:** perguntado uma vez no primeiro uso ("Quer que o VisualContext lembre por onde você passa?"), ligado à chave Lugares, sem virar subconfiguração. Guardar paradas ("Café da Paim, 12:40–13:30"), não o rastro; só no aparelho; paradas brutas apagadas em 30 dias, o resumo do dia fica.
+- Sem fotos automáticas e sem notificação à noite: o card está lá quando a pessoa quiser.
 
 ### 2. Ajustes
 - **Nos óculos:** as 4 chaves principais (Rostos, Lugares, Coisas, Memórias). Sem subconfigurações.
