@@ -68,7 +68,7 @@ Approved by Marcus on 11/10. Visual reference: the canvas "VisualContext Manager
 
 ### 3. First use: empty, with a well-designed empty state
 - **No sample records mixed with real ones.** Sample data would confuse answers ("who is Rafael?"), add fake faces to recognition, and leave cleanup work.
-- **Welcome with 3 steps:** wear the glasses and talk to someone · say "remember this" about a thing · ask here anything.
+- **Welcome with 3 steps:** wear the glasses and talk to someone · say "save this" about a thing · ask here anything.
 - **Shortcuts:** "Import contacts" and "Create your profile (Me)", so the app knows who the wearer is.
 - **"See it with sample data":** opens a separate, clearly labeled demo mode that never mixes with the real memory.
 
@@ -174,7 +174,7 @@ Aprovado pelo Marcus em 11/10. Referência visual: o canvas "VisualContext Manag
 
 ### 3. Primeiro uso: vazio, com um vazio bem desenhado
 - **Nada de registros de exemplo misturados com os reais.** Dados de exemplo confundiriam as respostas ("quem é o Rafael?"), colocariam rostos falsos no reconhecimento e deixariam trabalho de limpeza.
-- **Boas-vindas em 3 passos:** coloque os óculos e converse com alguém · diga "lembra disso" para uma coisa · pergunte aqui o que quiser.
+- **Boas-vindas em 3 passos:** coloque os óculos e converse com alguém · diga "guarda isso" para uma coisa · pergunte aqui o que quiser.
 - **Atalhos:** "Importar contatos" e "Criar o seu perfil (Eu)", para o app saber quem é você.
 - **"Ver com dados de exemplo":** abre um modo de demonstração separado e marcado, que nunca se mistura com a memória real.
 
