@@ -23,7 +23,7 @@ Collected from Beto on 11/10 and checked against the app through the Base44 API 
 2. Legacy FaceContext (fc.alema.io) kept untouched, VisualContext separate; AI response cache keyed by a hash of the full input.
 3. ✅ Decided 11/10: every conversation is transcribed, known person or not; discarded only on cancel or a too-short encounter. Old rule: transcript only when a known person is in the conversation. (The 11/10 privacy spec also records encounters with unnamed people.)
 4. Dossier: the dashboard card is the exact HUD preview; data comes through the conversational agent, never forms; every fact shows its source.
-5. ⚠️ Live HUD: name + short descriptor only, no expandable card (10/10). (The 11/10 offline spec mentions an expanded card on phone or Wi-Fi.)
+5. ✅ Decided 11/10: during an encounter the person card is always short (name, how you know each other, last time); the full card only in Recall mode. Old rule: name + short descriptor, no expandable card (10/10).
 6. Business: free app, bring your own key, paid "all set up" plan. Matches Community/Plus.
 7. Ecosystem: VisualContext records; navigation goes to Anezium's GMaps, assistance to the Nexus Assistant. Competitor to watch: LightMem-Ego.
 8. Security: x-vc-token or Base44 login, never trust Origin; ~60 req/min.
@@ -51,7 +51,7 @@ Levantado com o Beto em 11/10 e conferido no app pela API do Base44 (só leitura
 2. FaceContext legado (fc.alema.io) intocado, VisualContext separado; cache de respostas da IA indexado pelo hash da entrada completa.
 3. ✅ Decidido em 11/10: toda conversa é transcrita, com pessoa conhecida ou não; descartada só se cancelada ou curta demais. Regra antiga: transcrição só com pessoa conhecida na conversa. (A spec de privacidade de 11/10 também registra encontros com pessoas sem nome.)
 4. Dossiê: o card do dashboard é a prévia exata do HUD; os dados entram pelo agente conversacional, nunca por formulário; cada fato mostra a origem.
-5. ⚠️ HUD ao vivo: só nome e descritor breve, sem card expansível (10/10). (A spec offline de 11/10 fala em card expandido com celular ou Wi-Fi.)
+5. ✅ Decidido em 11/10: durante o encontro o card da pessoa é sempre curto (nome, de onde se conhecem, última vez); o card completo só no modo Recordar. Regra antiga: só nome e descritor breve, sem card expansível (10/10).
 6. Negócio: app grátis, chave própria grátis, plano pago "tudo configurado". Bate com Community/Plus.
 7. Ecossistema: o VisualContext registra; navegação vai para o GMaps do Anezium, assistência para o Assistant do Nexus. Concorrente a observar: LightMem-Ego.
 8. Segurança: x-vc-token ou login Base44, nunca confiar em Origin; ~60 req/min.
