@@ -62,11 +62,14 @@ Approved by Marcus on 11/10. Visual reference: the canvas "VisualContext Manager
 - **Capture:** the camera can't stay on all day (heat, battery). Plan: a low-resolution frame every few seconds while the user moves around, checked on the phone against registered things only; frames with no registered thing are discarded at once; kept sightings expire after a few days. Plus a voice shortcut: "save: key here".
 - **Today's code** (rvLearnSkill) learns from text only. It needs to accept photos and store the visual signature.
 
-### 1f. Places you pass by: ambient cards (11/10)
-- Landmarks, museums and cafés you pass by (MASP, Café da Paim) always show a small card. It is decoration, not a task, and it goes to the timeline.
-- Turned off with the Places switch in Settings. No sub-settings.
-- During an encounter, place cards stay quiet: they never cover the person you are talking to.
-- **Later version:** if you keep looking at a place (head heading held for a few seconds), the card expands with a web search: current exhibitions or, if there is nothing current, a short note about the building. Only the place name goes to the search, never the photo.
+### 1f. Places you pass by: AR cards on the glasses (11/10)
+- **On the glasses, always** (not a phone feature). This is the experience tested on 10/10 in the prototype `web/lugares.html`.
+- Places nearby (MASP, a museum, a café) appear on their own, **up to 2 at a time**, inside the glasses' **24° field of view**, each card pinned to the building's direction while you turn your head.
+- **Dotted outline = probably behind other buildings.**
+- How: phone GPS + head heading + the map of the surroundings. No image analysis.
+- Decoration, not a task. Seen places go to the timeline.
+- Turned off with the Places switch in Settings. No sub-settings (fixed: 2 cards, 24°).
+- **Later version:** if you keep looking at a place for a few seconds, the card expands with a web search: current exhibitions or, if there is nothing current, a short note about the building. Only the place name goes to the search, never the photo.
 
 ### 2. Settings
 - **On the glasses:** the 4 main switches (Faces, Places, Things, Memories). No sub-settings.
@@ -179,11 +182,14 @@ Aprovado pelo Marcus em 11/10. Referência visual: o canvas "VisualContext Manag
 - **Captura:** a câmera não pode ficar ligada o dia todo (calor, bateria). Plano: um quadro em baixa resolução a cada poucos segundos enquanto a pessoa se move, conferido no celular só contra as coisas cadastradas; quadro sem coisa cadastrada é descartado na hora; os avistamentos guardados expiram em poucos dias. Mais um atalho de voz: "guarda: chave aqui".
 - **O código de hoje** (rvLearnSkill) aprende só por texto. Precisa aceitar fotos e guardar a assinatura visual.
 
-### 1f. Lugares por onde você passa: cards de ambiente (11/10)
-- Pontos conhecidos, museus e cafés por onde você passa (MASP, Café da Paim) sempre mostram um card pequeno. É enfeite, não tarefa, e vai para a linha do tempo.
-- Desliga com a chave Lugares nos Ajustes. Sem subconfigurações.
-- Durante um encontro, os cards de lugar ficam quietos: nunca cobrem a pessoa com quem você está falando.
-- **Versão futura:** se você fica olhando para um lugar (a cabeça parada naquela direção por alguns segundos), o card se expande com uma busca na web: as exposições em cartaz ou, se não houver nada atual, uma nota curta sobre o prédio. Só o nome do lugar vai para a busca, nunca a foto.
+### 1f. Lugares por onde você passa: cards de RA nos óculos (11/10)
+- **Nos óculos, sempre** (não é recurso do celular). É a experiência testada em 10/10 no protótipo `web/lugares.html`.
+- Lugares por perto (MASP, um museu, um café) aparecem sozinhos, **até 2 de cada vez**, dentro do **campo de visão de 24°** dos óculos, cada card preso à direção do prédio enquanto você vira a cabeça.
+- **Contorno pontilhado = provavelmente atrás de outros prédios.**
+- Como: GPS do celular + direção da cabeça + o mapa do entorno. Sem análise de imagem.
+- Enfeite, não tarefa. Os lugares vistos vão para a linha do tempo.
+- Desliga com a chave Lugares nos Ajustes. Sem subconfigurações (fixo: 2 cards, 24°).
+- **Versão futura:** se você fica olhando para um lugar por alguns segundos, o card se expande com uma busca na web: as exposições em cartaz ou, se não houver nada atual, uma nota curta sobre o prédio. Só o nome do lugar vai para a busca, nunca a foto.
 
 ### 2. Ajustes
 - **Nos óculos:** as 4 chaves principais (Rostos, Lugares, Coisas, Memórias). Sem subconfigurações.
