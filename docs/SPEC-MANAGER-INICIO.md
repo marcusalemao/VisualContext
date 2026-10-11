@@ -79,8 +79,13 @@ Approved by Marcus on 11/10. Visual reference: the canvas "VisualContext Manager
   - **Only from memory**, with its source. No generic AI answers ("say you are proactive").
   - **Max one chip, a few words,** and it fades by itself.
   - **Off by default;** turned on per encounter or in Settings.
-- Risks to test: eyes going to the HUD are noticed by the other person; the glasses mic favours the wearer, so the other person's question may be missed (phone mic helps); transcription today runs only with a known person.
+- Risks to test: eyes going to the HUD are noticed by the other person; the glasses mic favours the wearer, so the other person's question may be missed (phone mic helps).
 - Job interviews: many companies treat live hidden assistance as cheating. Not a use case we promote.
+
+### 1h. Every conversation is transcribed (decided 11/10, replaces the 30/09 rule)
+- Any conversation is transcribed, known person or not. Someone unknown to the system may be someone you know who is not registered yet, or someone you are meeting now: that is how the people database grows.
+- A transcript is discarded only if you cancel it (✕ on the countdown) or if the encounter was too short (the timer).
+- The old rule "transcript only with a known person" is retired.
 
 ### 2. Settings
 - **On the glasses:** the 4 main switches (Faces, Places, Things, Memories). No sub-settings.
@@ -210,8 +215,13 @@ Aprovado pelo Marcus em 11/10. Referência visual: o canvas "VisualContext Manag
   - **Só da memória,** com a fonte. Nada de resposta genérica de IA ("diga que você é proativo").
   - **No máximo um chip, poucas palavras,** e ele some sozinho.
   - **Desligado por padrão;** liga por encontro ou nos Ajustes.
-- Riscos a testar: o olhar indo para o HUD é percebido pela outra pessoa; o microfone dos óculos favorece quem usa, então a pergunta da outra pessoa pode se perder (o microfone do celular ajuda); a transcrição hoje só roda com pessoa conhecida.
+- Riscos a testar: o olhar indo para o HUD é percebido pela outra pessoa; o microfone dos óculos favorece quem usa, então a pergunta da outra pessoa pode se perder (o microfone do celular ajuda).
 - Entrevista de emprego: muitas empresas tratam ajuda escondida ao vivo como trapaça. Não é um uso que vamos promover.
+
+### 1h. Toda conversa é transcrita (decidido em 11/10, substitui a regra de 30/09)
+- Qualquer conversa é transcrita, com pessoa conhecida ou não. Alguém desconhecido para o sistema pode ser alguém que você conhece e ainda não cadastrou, ou alguém que você está conhecendo agora: é assim que o banco de pessoas cresce.
+- A transcrição só é descartada se você cancelar (✕ no countdown) ou se o encontro for curto demais (o timer).
+- A regra antiga "transcrição só com pessoa conhecida" sai.
 
 ### 2. Ajustes
 - **Nos óculos:** as 4 chaves principais (Rostos, Lugares, Coisas, Memórias). Sem subconfigurações.
