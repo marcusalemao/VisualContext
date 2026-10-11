@@ -419,10 +419,27 @@ var PROXY = 'https://base44.app/api/apps/6a11083db49430b410a8c066/functions/fcPr
 // Safety guard (10/10): if "list" stops returning a list (backend contract broken), stop every other
 // database call this session, so the emulator doesn't create duplicate or empty records. AI calls still go through.
 var _backendBroken = false, _fetch0 = window.fetch.bind(window);
+// Device token (11/10): the backend accepts only requests carrying header x-vc-token.
+// Asked once on this device, kept in localStorage, never in the code. Add ?resettoken=1 to the URL to change it.
+function vcToken() {
+  var k = 'vc_device_token', v = '';
+  try { if (/[?&]resettoken=1\b/.test(location.search)) localStorage.removeItem(k); v = localStorage.getItem(k) || ''; } catch (e) {}
+  if (!v) { v = (prompt('VisualContext — cole o token do aparelho (VC_DEVICE_TOKEN):') || '').trim(); try { if (v) localStorage.setItem(k, v); } catch (e) {} }
+  return v;
+}
 window.fetch = function(url, opt) {
-  if (_backendBroken && typeof url === 'string' && url.indexOf(PROXY) === 0 &&
-      !/"action":"(ai_summary|analyze_encounter|ai_detect_name)"/.test(String((opt && opt.body) || '')))
-    return Promise.reject(new Error('backend unavailable'));
+  if (typeof url === 'string' && url.indexOf(PROXY) === 0) {
+    if (_backendBroken && !/"action":"(ai_summary|analyze_encounter|ai_detect_name)"/.test(String((opt && opt.body) || '')))
+      return Promise.reject(new Error('backend unavailable'));
+    opt = opt || {};
+    var h = {}; Object.keys(opt.headers || {}).forEach(function(k){ h[k] = opt.headers[k]; });
+    var tk = vcToken(); if (tk) h['x-vc-token'] = tk;
+    opt.headers = h;
+    return _fetch0(url, opt).then(function(r){
+      if (r.status === 401) { try { localStorage.removeItem('vc_device_token'); } catch (e) {} log('⚠ token recusado pelo backend — recarregue a página e cole o token de novo'); }
+      return r;
+    });
+  }
   return _fetch0(url, opt);
 };
 
