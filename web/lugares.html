@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>VisualContext — Lugares (protótipo)</title>
+<script src="i18n.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#000;height:100%;overflow:hidden;font-family:monospace;color:#00ff88}
+#view{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+#vid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.55}
+/* HUD stage: same 640×480 as the emulator, scaled to fit */
+#stage{position:absolute;left:0;top:0;width:640px;height:480px;transform-origin:0 0;pointer-events:none}
+#zone{position:absolute;left:0;right:0;top:336px;border-top:2px dashed rgba(0,255,136,.35);display:none}
+body.guides #zone{display:block}
+/* Place card: anchored horizontally to the building's direction, always inside the top 70% */
+.pc{position:absolute;top:40px;width:300px;display:none;padding:10px 12px;border-radius:12px;
+  background:rgba(0,255,136,.2);border:2px solid rgba(0,255,136,.6);transform:translateX(-50%)}
+.pc.on{display:block}
+/* dashed outline = probably hidden behind buildings */
+.pc.hid{border-style:dashed}
+.pc.hid:after{background:none;width:0;border-left:2px dashed rgba(0,255,136,.6)}
+.pc.small{width:200px;padding:8px 10px}
+.pc.small .n{font-size:17px}
+.pc:after{content:'';position:absolute;left:50%;bottom:-14px;width:2px;height:12px;background:rgba(0,255,136,.6)}
+.pc .n{font-size:22px;font-weight:bold;text-transform:uppercase;line-height:1.15;overflow:hidden;text-overflow:ellipsis}
+.pc .s{font-size:13px;color:#8fdfb5;margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pc .w{font-size:12px;color:#8fdfb5;margin-top:4px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.pc .m{font-size:14px;color:#00ff88;margin-top:6px;border-top:2px solid rgba(0,255,136,.3);padding-top:5px}
+.pc .d{font-size:12px;color:#00ff88;margin-top:5px;letter-spacing:1px}
+.pc .s:empty,.pc .w:empty,.pc .m:empty,.pc .d:empty{display:none}
+#edge{position:absolute;top:60px;font-size:26px;display:none}
+#edge.on{display:block}
+#status{position:absolute;right:16px;bottom:14px;font-size:14px;color:#00ff88;text-align:right;line-height:1.5}
+/* phone controls (not part of the HUD) */
+#bar{position:fixed;left:0;right:0;bottom:0;display:flex;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));
+  background:#0a1a0f;border-top:1px solid #1a3a22;flex-wrap:wrap;z-index:5}
+#bar button{flex:1;min-width:90px;background:#0f2216;border:1px solid #1a4a2a;color:#00ff88;font-family:inherit;font-size:13px;padding:10px 6px;border-radius:10px}
+#bar button.on{border-color:#00ff88}
+#sim{position:fixed;left:12px;right:12px;bottom:118px;display:none;background:#0a1a0f;border:1px solid #1a4a2a;border-radius:10px;padding:10px;z-index:5;font-size:12px}
+#sim.on{display:block}
+#sim input{width:100%}
+#dbg{position:fixed;left:8px;top:8px;font-size:11px;color:#00aa55;z-index:5;white-space:pre;display:none;background:rgba(0,0,0,.6);padding:6px;border-radius:6px;max-width:94vw;overflow:hidden}
+body.guides #dbg{display:block}
+#intro{position:fixed;inset:0;z-index:9;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;gap:14px}
+#intro h1{font-size:20px}
+#intro p{font-size:13px;color:#8fdfb5;max-width:340px;line-height:1.5}
+#intro button{background:#0f2216;border:2px solid #00ff88;color:#00ff88;font-family:inherit;font-size:15px;padding:12px 20px;border-radius:12px;min-width:240px}
+#intro .alt{border-color:#1a4a2a;font-size:13px}
+</style>
+</head>
+<body>
+<div id="intro">
+  <h1 data-i18n="t_title"></h1>
+  <p data-i18n="t_intro"></p>
+  <button id="go-real" data-i18n="t_real"></button>
+  <button id="go-sim" class="alt" data-i18n="t_sim"></button>
+</div>
+<div id="view">
+  <video id="vid" autoplay playsinline muted></video>
+  <div id="stage">
+    <div id="zone"></div>
+    <div id="edge"></div>
+    <div class="pc" id="pc0"></div><div class="pc" id="pc1"></div><div class="pc" id="pc2"></div>
+    <div id="status"></div>
+  </div>
+</div>
+<div id="dbg"></div>
+<div id="sim">
+  <div data-i18n="t_heading"></div>
+  <input id="sim-h" type="range" min="0" max="359" value="20">
+</div>
+<div id="bar">
+  <button id="b-mem" data-i18n="t_remember"></button>
+  <button id="b-on" class="on"></button>
+  <button id="b-dbg" data-i18n="t_debug"></button>
+</div>
+<script>
+VC_I18N.add({
+  en:{ t_title:'Places · prototype', t_intro:'Point the phone (later: your head) around. Nearby places show up on their own (up to 2 at a time). Cards stay pinned to the building while you turn. Dashed outline = probably behind buildings. Uses GPS + compass and the map around you — no image analysis.',
+       t_real:'Start (camera + GPS + compass)', t_sim:'Simulate at Av. Paulista (no GPS)', t_heading:'Direction you are facing (simulation)',
+       t_remember:'Remember here', t_debug:'Details', t_fov_g:'View: glasses (24°)', t_on:'Places: on', t_off:'Places: off', t_fov_p:'View: phone (60°)',
+       s_wait_gps:'waiting for GPS…', s_wait_cmp:'waiting for compass…', s_places:'{n} places around', s_none:'no places around', s_map_load:'loading the map…', s_map_fail:'map unavailable — try again in a minute',
+       mem_none:'', mem_here:'You were here {when}', mem_saved:'saved: you were here today', away:'{d} m', behind:'behind buildings', no_cmp:'compass unavailable — use the simulation' },
+  pt:{ t_title:'Lugares · protótipo', t_intro:'Aponte o celular (depois: a cabeça) em volta. Os lugares por perto aparecem sozinhos (até 2 de cada vez). O card fica preso ao prédio enquanto você vira. Contorno pontilhado = provavelmente atrás de prédios. Usa GPS + bússola e o mapa do entorno — sem análise de imagem.',
+       t_real:'Começar (câmera + GPS + bússola)', t_sim:'Simular na Av. Paulista (sem GPS)', t_heading:'Para onde você está olhando (simulação)',
+       t_remember:'Lembrar daqui', t_debug:'Detalhes', t_fov_g:'Visão: óculos (24°)', t_on:'Lugares: ligado', t_off:'Lugares: desligado', t_fov_p:'Visão: celular (60°)',
+       s_wait_gps:'esperando GPS…', s_wait_cmp:'esperando bússola…', s_places:'{n} lugares por perto', s_none:'nenhum lugar por perto', s_map_load:'carregando o mapa…', s_map_fail:'mapa indisponível — tente de novo em 1 min',
+       mem_none:'', mem_here:'Você esteve aqui {when}', mem_saved:'salvo: você esteve aqui hoje', away:'{d} m', behind:'atrás de prédios', no_cmp:'sem bússola — use a simulação' }
+});
+var t = VC_I18N.t;
+VC_I18N.apply();
+if (/[?&]guides=1\b/.test(location.search)) document.body.classList.add('guides');
+
+// ── Places: OpenStreetMap around you; fallback list for Av. Paulista (approximate coordinates) ──
+var FALLBACK = [
+  { name:'MASP', sub:'Museu de Arte de São Paulo · Lina Bo Bardi, 1968', lat:-23.56135, lon:-46.65588 },
+  { name:'Parque Trianon', sub:'Parque Tenente Siqueira Campos · Mata Atlântica', lat:-23.56205, lon:-46.65745 },
+  { name:'FIESP', sub:'Edifício da FIESP · a "pirâmide" da Paulista', lat:-23.56262, lon:-46.65460 },
+  { name:'Conjunto Nacional', sub:'Edifício de 1958 · Livraria Cultura', lat:-23.55810, lon:-46.66090 },
+  { name:'IMS Paulista', sub:'Instituto Moreira Salles · fotografia', lat:-23.55600, lon:-46.66240 },
+  { name:'Itaú Cultural', sub:'Centro cultural · Av. Paulista, 149', lat:-23.57020, lon:-46.64640 },
+  { name:'Japan House', sub:'Centro cultural japonês · Kengo Kuma', lat:-23.57030, lon:-46.64520 },
+  { name:'Casa das Rosas', sub:'Casarão de 1935 · poesia e literatura', lat:-23.57130, lon:-46.64470 }
+];
+FALLBACK.forEach(function(f){ f.score = 3; });
+var SIM_POS = { lat:-23.56210, lon:-46.65630 };   // sidewalk in front of Trianon, looking at MASP to the NE
+var places = [], pos = null, heading = null, simulate = false, fov = 24;
+// No sub-settings: only the main Places switch (next to Faces, Things, Memories). Fixed: up to 2 cards, 24° (the glasses' field of view), detail level 4.
+var MAX_CARDS = 2, level = 4, enabled = true, seen = {}, pinned = [], xs = {};   // seen[name] = since when it's in view
+var EYE = +((/[?&]eye=(\d+)/.exec(location.search) || [])[1] || 1.6);   // eye height in m (test: ?eye=30 for a high window)
+
+
+function rad(d){ return d * Math.PI / 180; }
+function dist(a, b){ var R = 6371000, dLat = rad(b.lat - a.lat), dLon = rad(b.lon - a.lon);
+  var h = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dLon/2)*Math.sin(dLon/2);
+  return 2 * R * Math.asin(Math.sqrt(h)); }
+function bearing(a, b){ var y = Math.sin(rad(b.lon - a.lon)) * Math.cos(rad(b.lat));
+  var x = Math.cos(rad(a.lat))*Math.sin(rad(b.lat)) - Math.sin(rad(a.lat))*Math.cos(rad(b.lat))*Math.cos(rad(b.lon - a.lon));
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360; }
+function diff(a, b){ var d = (a - b + 540) % 360 - 180; return d; }   // signed −180…180
+
+var KIND_PT = { theatre:'teatro', cinema:'cinema', arts_centre:'centro cultural', library:'biblioteca', place_of_worship:'templo', university:'universidade',
+  museum:'museu', attraction:'atração', gallery:'galeria', artwork:'obra de arte', park:'parque', monument:'monumento', memorial:'memorial', building:'prédio' };
+function kindName(k) { return (VC_I18N.lang === 'pt' && KIND_PT[k]) || k || ''; }
+// level 5: first sentence from Wikipedia, when the map links an article
+var _wiki = {};
+function wikiLine(p) {
+  if (!p.wiki) return '';
+  if (_wiki[p.wiki] !== undefined) return _wiki[p.wiki] || '';
+  _wiki[p.wiki] = '';
+  var m = /^([a-z\-]+):(.+)$/.exec(p.wiki); if (!m) return '';
+  fetch('https://' + m[1] + '.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(m[2].replace(/ /g, '_')))
+    .then(function(r){ return r.json(); }).then(function(d){ var ex = (d && d.extract) || ''; var k = ex.indexOf('. '); _wiki[p.wiki] = (k > 0 ? ex.slice(0, k + 1) : ex).slice(0, 180); }).catch(function(){});
+  return '';
+}
+var MIRRORS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter'];
+var mapState = 'loading', loadedAt = null;
+function mergePlaces(got) {
+  places = FALLBACK.slice();
+  got.forEach(function(g){ if (!places.some(function(f){ return f.name.toLowerCase() === g.name.toLowerCase() || dist(f, g) < 40; })) places.push(g); });
+}
+function loadPlaces(p) {
+  loadedAt = { lat:p.lat, lon:p.lon };
+  // instant: last map we got near here (this phone only)
+  try { var c = JSON.parse(localStorage.getItem('vc_places_cache') || 'null');
+    if (c && dist(c.at, p) < 600) { mergePlaces(c.items); mapState = 'cache'; computeHidden(true); } else if (!places.length) places = FALLBACK.slice(); } catch (e) { places = FALLBACK.slice(); }
+  var a = 'nwr(around:600,' + p.lat + ',' + p.lon + ')';
+  var q = '[out:json][timeout:20];(' +
+    a + '[tourism~"museum|attraction|gallery|artwork"][name];' +
+    a + '[historic][name];' +
+    a + '[building][name][wikidata];' +
+    a + '[leisure=park][name];' +
+    a + '[amenity~"theatre|cinema|arts_centre|library|place_of_worship|university"][name];' +
+    ');out center 80;';
+  (function tryMirror(k) {
+    if (k >= MIRRORS.length) { if (mapState !== 'cache') mapState = 'fail'; setStatus(); return; }
+    fetch(MIRRORS[k] + '?data=' + encodeURIComponent(q))
+      .then(function(r){ if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function(d){
+        var got = (d.elements || []).map(function(e){
+          var c = e.center || e; var tg = e.tags || {};
+          return { name: tg.name, sub: [kindName(tg.amenity || tg.tourism || tg.historic || tg.leisure || tg.building), tg['addr:street']].filter(function(x){ return x && x !== 'yes'; }).join(' · '),
+                   lat: c.lat, lon: c.lon, wiki: tg.wikipedia || '', score: importance(tg) };
+        }).filter(function(x){ return x.name && x.lat; });
+        mergePlaces(got); mapState = 'ok'; computeHidden(true);
+        setTimeout(function(){ loadBuildings(loadedAt, k); }, 800);
+        try { localStorage.setItem('vc_places_cache', JSON.stringify({ at: loadedAt, items: got })); } catch (e) {}
+        setStatus();
+      })
+      .catch(function(){ tryMirror(k + 1); });
+  })(0);
+}
+// landmark score: landmarks (score ≥ 2) get a head start when there are more places than card slots
+function importance(tg) {
+  var s = 0;
+  if (tg.wikidata || tg.wikipedia) s += 2;
+  if (/museum|attraction/.test(tg.tourism || '') || tg.historic) s += 2;
+  if (/theatre|arts_centre/.test(tg.amenity || '')) s += 2;
+  if (/cinema|library|university|place_of_worship/.test(tg.amenity || '') || tg.leisure === 'park' || /gallery|artwork/.test(tg.tourism || '')) s += 1;
+  return s;
+}
+// ── buildings: is the place probably hidden behind one? (OSM footprints + heights) ──
+var bld = [], bOrigin = null, hidAt = null;
+function toXY(p){ return [(p.lon - bOrigin.lon) * Math.cos(rad(bOrigin.lat)) * 111320, (p.lat - bOrigin.lat) * 110540]; }
+function bHeight(tg) {
+  var h = parseFloat(tg.height); if (h > 0) return h;
+  var l = parseFloat(tg['building:levels']); if (l > 0) return l * 3;
+  return tg.building === 'house' ? 7 : 10;   // unknown: ~3 floors
+}
+function loadBuildings(p, k0) {
+  try { var c = JSON.parse(localStorage.getItem('vc_bldg_cache') || 'null');
+    if (c && dist(c.o, p) < 150) { bOrigin = c.o; bld = c.items; computeHidden(true); } } catch (e) {}
+  var q = '[out:json][timeout:25];way["building"](around:400,' + p.lat + ',' + p.lon + ');out geom qt;';
+  (function tryMirror(k, n) {
+    if (n >= MIRRORS.length) return;   // no buildings → cards just stay solid
+    fetch(MIRRORS[k % MIRRORS.length] + '?data=' + encodeURIComponent(q))
+      .then(function(r){ if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function(d){
+        bOrigin = { lat:p.lat, lon:p.lon };
+        bld = (d.elements || []).filter(function(e){ return e.geometry && e.geometry.length > 2; }).map(function(e){
+          var pts = [], b = [1e9, 1e9, -1e9, -1e9];
+          e.geometry.forEach(function(g){ var xy = toXY(g); pts.push(Math.round(xy[0] * 10) / 10, Math.round(xy[1] * 10) / 10);
+            b = [Math.min(b[0], xy[0]), Math.min(b[1], xy[1]), Math.max(b[2], xy[0]), Math.max(b[3], xy[1])]; });
+          return { h: bHeight(e.tags || {}), pts: pts, bb: b.map(Math.round) };
+        });
+        try { localStorage.setItem('vc_bldg_cache', JSON.stringify({ o: bOrigin, items: bld })); } catch (e) {}
+        computeHidden(true);
+      })
+      .catch(function(){ tryMirror(k + 1, n + 1); });
+  })(k0 || 0, 0);
+}
+function inPoly(x, y, pts) {
+  var c = false;
+  for (var i = 0, j = pts.length - 2; i < pts.length; j = i, i += 2) {
+    var xi = pts[i], yi = pts[i+1], xj = pts[j], yj = pts[j+1];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c;
+  }
+  return c;
+}
+function nearPoly(x, y, b, r) {   // is the point within r metres of the footprint's outline?
+  if (x < b.bb[0] - r || x > b.bb[2] + r || y < b.bb[1] - r || y > b.bb[3] + r) return false;
+  for (var i = 0, j = b.pts.length - 2; i < b.pts.length; j = i, i += 2) {
+    var ax = b.pts[j], ay = b.pts[j+1], dx = b.pts[i] - ax, dy = b.pts[i+1] - ay, L = dx*dx + dy*dy;
+    var k = L ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / L)) : 0;
+    var ex = ax + k * dx - x, ey = ay + k * dy - y; if (ex*ex + ey*ey < r*r) return true;
+  }
+  return false;
+}
+function crossAt(ax, ay, bx, by, cx, cy, dx, dy) {   // where segment AB crosses CD, as a fraction of AB (−1 = no)
+  var rx = bx - ax, ry = by - ay, sx = dx - cx, sy = dy - cy, den = rx * sy - ry * sx;
+  if (!den) return -1;
+  var t = ((cx - ax) * sy - (cy - ay) * sx) / den, u = ((cx - ax) * ry - (cy - ay) * rx) / den;
+  return t > 0 && t < 1 && u >= 0 && u <= 1 ? t : -1;
+}
+// line of sight from your eyes to the top of the place; a building that rises above that line hides it
+function computeHidden(force) {
+  if (!pos || !bld.length) return;
+  if (!force && hidAt && dist(hidAt, pos) < 8) return;
+  hidAt = { lat:pos.lat, lon:pos.lon };
+  var u = toXY(pos);
+  var mine = bld.filter(function(b){ return inPoly(u[0], u[1], b.pts); });   // the building you are in
+  places.forEach(function(p){
+    p.hidden = false;
+    var D = dist(pos, p); if (D > 500 || D < 5) return;
+    var tp = toXY(p), ht = 10, own = [];
+    bld.forEach(function(b){ if (inPoly(tp[0], tp[1], b.pts) || nearPoly(tp[0], tp[1], b, 12)) { own.push(b); ht = Math.max(ht, b.h); } });
+    var minX = Math.min(u[0], tp[0]), maxX = Math.max(u[0], tp[0]), minY = Math.min(u[1], tp[1]), maxY = Math.max(u[1], tp[1]);
+    for (var n = 0; n < bld.length && !p.hidden; n++) {
+      var b = bld[n];
+      if (b.bb[2] < minX || b.bb[0] > maxX || b.bb[3] < minY || b.bb[1] > maxY) continue;
+      if (mine.indexOf(b) >= 0 || own.indexOf(b) >= 0) continue;
+      for (var i = 0, j = b.pts.length - 2; i < b.pts.length; j = i, i += 2) {
+        var s = crossAt(u[0], u[1], tp[0], tp[1], b.pts[j], b.pts[j+1], b.pts[i], b.pts[i+1]);
+        if (s > 0 && b.h > EYE + (ht - EYE) * s) { p.hidden = true; break; }
+      }
+    }
+  });
+}
+// ── personal memory per place (prototype: this phone only) ──
+function memKey(p){ return 'vc_place_' + p.name; }
+function memLine(p) {
+  var v = null; try { v = localStorage.getItem(memKey(p)); } catch (e) {}
+  if (!v) return '';
+  var d = new Date(+v), days = Math.round((Date.now() - d) / 864e5);
+  var when = days < 1 ? (VC_I18N.lang === 'pt' ? 'hoje' : 'today') : d.toLocaleDateString(VC_I18N.locale(), { day:'2-digit', month:'2-digit' });
+  return t('mem_here', { when: when });
+}
+
+// ── sensors ──
+function startReal() {
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+    navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment' }, audio:false })
+      .then(function(s){ document.getElementById('vid').srcObject = s; }).catch(function(){});
+  if (navigator.geolocation) navigator.geolocation.watchPosition(function(p){
+    var first = !pos;
+    pos = { lat:p.coords.latitude, lon:p.coords.longitude, acc:p.coords.accuracy };
+    if (first || (loadedAt && dist(loadedAt, pos) > 250 && p.coords.accuracy < 100)) loadPlaces(pos);
+    else computeHidden();
+  }, function(){ setStatus(); }, { enableHighAccuracy:true, maximumAge:2000 });
+  var ask = window.DeviceOrientationEvent && DeviceOrientationEvent.requestPermission;
+  (ask ? DeviceOrientationEvent.requestPermission() : Promise.resolve('granted')).then(function(){
+    window.addEventListener('deviceorientationabsolute', onOrient, true);
+    window.addEventListener('deviceorientation', onOrient, true);
+  }).catch(function(){});
+  setTimeout(function(){ if (heading === null) { document.getElementById('status').textContent = t('no_cmp'); } }, 4000);
+}
+function onOrient(e) {
+  var h = null;
+  if (typeof e.webkitCompassHeading === 'number') h = e.webkitCompassHeading;          // iOS
+  else if (e.absolute && typeof e.alpha === 'number') h = (360 - e.alpha) % 360;      // Android (absolute)
+  if (h === null) return;
+  var so = (screen.orientation && screen.orientation.angle) || window.orientation || 0;
+  h = (h + so + 360) % 360;
+  heading = heading === null ? h : (heading + diff(h, heading) * 0.25 + 360) % 360;   // smooth the jitter
+}
+function startSim() {
+  simulate = true;
+  pos = { lat:SIM_POS.lat, lon:SIM_POS.lon, acc:5 };
+  loadPlaces(pos);
+  var s = document.getElementById('sim'); s.className = 'on';
+  var r = document.getElementById('sim-h');
+  heading = +r.value;
+  r.addEventListener('input', function(){ heading = +r.value; });
+  window.addEventListener('keydown', function(e){
+    if (e.key === 'ArrowLeft') { r.value = (+r.value + 359) % 360; heading = +r.value; }
+    if (e.key === 'ArrowRight') { r.value = (+r.value + 1) % 360; heading = +r.value; }
+  });
+}
+
+// ── frame loop: every place in view shows on its own (up to MAX_CARDS), pinned to its direction ──
+function frame() {
+  requestAnimationFrame(frame);
+  var now = performance.now();
+  if (!enabled || !pos || heading === null || !places.length) { hideAll(); dbg(); return; }
+  var inView = [];
+  places.forEach(function(p){
+    var d = dist(pos, p); if (d > 500 || d < 5) return;
+    var off = diff(bearing(pos, p), heading);
+    if (Math.abs(off) <= fov / 2) inView.push({ p:p, off:off, d:d });
+  });
+  inView.sort(function(a, b){ return Math.abs(a.off) - Math.abs(b.off); });
+  var names = {};
+  inView.forEach(function(x){ names[x.p.name] = true; if (!seen[x.p.name]) seen[x.p.name] = now; });
+  Object.keys(seen).forEach(function(n){ if (!names[n]) { delete seen[n]; } });
+  // keep pinned cards while their place is still in view
+  pinned = pinned.filter(function(n){ return names[n]; });
+  // every place in view shows on its own (after 0.3 s, so a fast sweep doesn't flicker).
+  // Free slots go to the best-ranked: closest to the centre, with a head start for landmarks.
+  inView.slice().sort(function(a, b){ return rank(a) - rank(b); }).forEach(function(x){
+    if (pinned.length >= MAX_CARDS || pinned.indexOf(x.p.name) >= 0) return;
+    if (now - seen[x.p.name] > 300) pinned.push(x.p.name);
+  });
+  // layout: each card at its building's direction, pushed apart so they never overlap
+  var shownNow = inView.filter(function(x){ return pinned.indexOf(x.p.name) >= 0; }).sort(function(a, b){ return a.off - b.off; });
+  var small = shownNow.length > 1, w = small ? 200 : 300, gap = 8;
+  var xsNow = shownNow.map(function(x){ var tx = toX(x.off); xs[x.p.name] = xs[x.p.name] === undefined ? tx : xs[x.p.name] + (tx - xs[x.p.name]) * 0.35; return xs[x.p.name]; });
+  for (var i = 1; i < xsNow.length; i++) if (xsNow[i] - xsNow[i-1] < w + gap) xsNow[i] = xsNow[i-1] + w + gap;
+  var over = xsNow.length ? xsNow[xsNow.length - 1] - (640 - w / 2) : 0;
+  if (over > 0) xsNow = xsNow.map(function(x){ return x - over; });
+  for (i = 0; i < 3; i++) {
+    var el = document.getElementById('pc' + i), x = shownNow[i];
+    if (!x) { el.className = 'pc'; continue; }
+    el.className = 'pc on' + (small ? ' small' : '') + (x.p.hidden ? ' hid' : '');
+    el.style.left = Math.max(w / 2, xsNow[i]) + 'px';
+    el.innerHTML = cardHTML(x.p, x.d);
+  }
+  dbg(inView[0]);
+}
+function rank(x){ return Math.abs(x.off) - ((x.p.score || 0) >= 2 ? 6 : 0); }
+function hideAll(){ for (var i = 0; i < 3; i++) document.getElementById('pc' + i).className = 'pc'; }
+function esc(v){ return String(v || '').replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); }
+// detail 1 name · 2 + distance · 3 + kind/address · 4 + your memory here · 5 + Wikipedia line
+function cardHTML(p, d) {
+  return '<div class="n">' + esc(p.name) + '</div>' +
+    '<div class="s">' + (level >= 3 ? esc(p.sub) : '') + '</div>' +
+    '<div class="w">' + (level >= 5 ? esc(wikiLine(p)) : '') + '</div>' +
+    '<div class="m">' + (level >= 4 ? esc(memLine(p)) : '') + '</div>' +
+    '<div class="d">' + (level >= 2 ? esc(t('away', { d: Math.round(d) }) + (p.hidden && level >= 3 ? ' · ' + t('behind') : '')) : '') + '</div>';
+}
+function toX(off) { return 320 + (off / (fov / 2)) * 320; }
+function setStatus() {
+  var s = document.getElementById('status');
+  if (!enabled) { s.textContent = ''; return; }
+  if (!pos) { s.textContent = t('s_wait_gps'); return; }
+  if (heading === null) { s.textContent = t('s_wait_cmp'); return; }
+  var n = places.filter(function(p){ return dist(pos, p) <= 500; }).length;
+  s.textContent = n ? t('s_places', { n: n }) : (mapState === 'loading' ? t('s_map_load') : mapState === 'fail' ? t('s_map_fail') : t('s_none'));
+  if (pos.acc > 60) s.textContent += ' · GPS ±' + Math.round(pos.acc) + ' m';
+}
+setInterval(setStatus, 2000);
+function dbg(best) {
+  if (!document.body.classList.contains('guides')) return;
+  var lines = ['pos ' + (pos ? pos.lat.toFixed(5) + ',' + pos.lon.toFixed(5) + ' ±' + Math.round(pos.acc) + 'm' : '—'),
+               'heading ' + (heading === null ? '—' : Math.round(heading) + '°') + ' · fov ' + fov + '°' + (simulate ? ' · SIM' : '')];
+  if (pos && heading !== null) places.map(function(p){ return { n:p.name, d:dist(pos, p), o:diff(bearing(pos, p), heading), s:p.score || 0, h:p.hidden }; })
+    .filter(function(x){ return x.d <= 500; }).sort(function(a, b){ return Math.abs(a.o) - Math.abs(b.o); }).slice(0, 6)
+    .forEach(function(x){ lines.push((Math.abs(x.o) < 20 ? '▶ ' : '  ') + x.n.slice(0, 22) + '  ' + Math.round(x.d) + 'm  ' + Math.round(x.o) + '°  ' + (x.s >= 2 ? '★' : '·') + (x.h ? ' ┄' : '')); });
+  lines.push('prédios ' + bld.length + ' · olhos ' + EYE + ' m');
+  document.getElementById('dbg').textContent = lines.join('\n');
+}
+
+// ── fit stage ──
+function fit() {
+  var s = document.getElementById('stage'), w = innerWidth, h = innerHeight - document.getElementById('bar').offsetHeight;
+  var k = Math.min(w / 640, h / 480);
+  s.style.transform = 'scale(' + k + ')';
+  s.style.left = ((w - 640 * k) / 2) + 'px'; s.style.top = ((h - 480 * k) / 2) + 'px';
+}
+addEventListener('resize', fit);
+
+// ── controls ──
+document.getElementById('b-dbg').onclick = function(){ document.body.classList.toggle('guides'); };
+document.getElementById('b-mem').onclick = function(){
+  var n = pinned[0]; var p = places.filter(function(x){ return x.name === n; })[0]; if (!p) return;
+  try { localStorage.setItem(memKey(p), String(Date.now())); } catch (e) {}
+};
+document.getElementById('go-real').onclick = function(){ document.getElementById('intro').style.display = 'none'; fit(); startReal(); };
+document.getElementById('go-sim').onclick = function(){ document.getElementById('intro').style.display = 'none'; fit(); startSim(); };
+// the main Places switch (in the app it sits with Faces, Things and Memories)
+try { enabled = localStorage.getItem('vc_places_on') !== '0'; } catch (e) {}
+function ctlLabels(){ var b = document.getElementById('b-on'); b.textContent = t(enabled ? 't_on' : 't_off'); b.className = enabled ? 'on' : ''; }
+document.getElementById('b-on').onclick = function(){ enabled = !enabled; pinned = []; try { localStorage.setItem('vc_places_on', enabled ? '1' : '0'); } catch (e) {} ctlLabels(); setStatus(); };
+ctlLabels(); fit(); requestAnimationFrame(frame);
+</script>
+</body>
+</html>

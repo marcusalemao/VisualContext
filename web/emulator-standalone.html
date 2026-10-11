@@ -1,0 +1,2114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>VisualContext — Rokid Emulator</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#000;height:100%;overflow:hidden;font-family:monospace;color:#00ff88}
+
+/* ══ WAVEGUIDE — 640x480 landscape, camera as background ══ */
+#flip-cam-btn{
+  position:absolute; top:8px; right:8px; z-index:50;   /* top-right is free on the display */
+  width:34px; height:34px; border-radius:50%;
+  background:rgba(0,255,136,.2); border:2px solid rgba(0,255,136,.6);
+  color:#00ff88; font-size:15px; line-height:1;
+  display:none; align-items:center; justify-content:center;
+  cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent;
+  backdrop-filter:blur(2px);
+}
+#flip-cam-btn.show{display:flex}
+#flip-cam-btn:active{background:rgba(0,255,136,.18); border-color:#00ff88}
+#waveguide{
+  position:relative;
+  /* 640×480 on desktop; shrinks to fit on phones */
+  width:100%; max-width:640px;
+  aspect-ratio:4/3; height:auto;
+  background:#000;
+  overflow:hidden;
+  border:1px solid #0a2a18;
+  border-radius:8px;
+  margin:0 auto;
+  flex-shrink:0;
+}
+#vid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+#cnv{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+
+/* ── HUD STAGE ──
+   The real display is 640×480. Everything inside #stage is in DISPLAY pixels and the stage is
+   scaled to fit the viewfinder, so the emulator shows the true proportions of the glasses.
+   Type sizes are chosen for the glasses (readable at arm's length on the waveguide). */
+#stage{position:absolute;left:0;top:0;width:640px;height:480px;transform-origin:0 0;pointer-events:none}
+#hud{position:absolute;inset:0;pointer-events:none;display:none}
+/* VIEW ZONE — everything relevant lives in the top 70% of the display height (0–336px).
+   The lower band is blurry/out of reach for the wearer and can't be read without looking down,
+   which breaks "looking at the person". Nothing important goes below 336px.
+   Dev guide: add ?guides=1 to the URL to see the limit. */
+#hud-zone{position:absolute;left:0;right:0;top:336px;border-top:1px dashed rgba(0,255,136,.35);display:none}
+#hud-zone span{position:absolute;right:8px;top:2px;font-size:10px;color:rgba(0,255,136,.5);letter-spacing:1px}
+body.guides #hud-zone{display:block}
+
+/* Person card — 70% of the display width, so most of the view stays clear (and less green shows
+   to the person in front of you). Monochrome: green on black transparency only. */
+#hud-card{
+  position:absolute; top:16px; left:16px; width:436px; max-height:320px;   /* ends at 336px = 70% of the height */
+  flex-direction:column;
+  background:rgba(0,255,136,.2);   /* no black overlay: black is transparent on the glasses — 20% green only */
+  border:2px solid rgba(0,255,136,.6);
+  border-radius:12px; padding:14px 16px;
+  pointer-events:auto;
+}
+.hc-head{display:flex;gap:16px;align-items:flex-start;flex-shrink:0}
+#hud-photo{width:96px;height:96px;border-radius:6px;object-fit:cover;flex-shrink:0;display:none;
+  border:2px solid rgba(0,255,136,.6);filter:grayscale(1) sepia(1) hue-rotate(80deg) saturate(4) brightness(.85)}
+.hc-id{min-width:0;flex:1}
+#hud-name{font-size:24px;font-weight:bold;color:#00ff88;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:uppercase;letter-spacing:.5px}
+/* pills: where you know the person from — what you need while talking */
+#hud-card.unnamed #hud-name{font-size:18px;white-space:normal;text-transform:none;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+#hud-pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+#hud-pills:empty{display:none}
+.pill{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#00ff88;border:2px solid rgba(0,255,136,.6);border-radius:6px;padding:1px 8px}
+#hud-headline{font-size:15px;line-height:1.35;color:#8fdfb5;margin-top:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+#hud-headline:empty{display:none}
+.sec-lbl{font-size:12px;color:#00aa55;letter-spacing:1.5px;margin-bottom:4px}
+#hud-about{margin-top:12px;flex-shrink:0}
+/* GLANCE (during a conversation): photo, name, pills, one line. Nothing to read or expand.
+   REVIEW (outside a conversation): + ABOUT (dossier) + ENCOUNTERS (timeline). */
+#hud-card.glance #hud-about,#hud-card.glance #hud-sum-wrap{display:none !important}
+/* line 3 (occasion/hook) shows in both modes: title · tags · occasion · [review: about + timeline] */
+/* Idle: one discreet line at the top-left (inside the view zone). Tap opens the list below it. */
+#hud-recent-bar{position:absolute;left:16px;top:16px;font-size:12px;letter-spacing:1.5px;color:#00aa55;display:none;
+  pointer-events:auto;cursor:pointer}
+#hud-recent-bar.on{display:block}
+#hud-recent-bar::after{content:'';display:inline-block;width:6px;height:6px;margin-left:8px;vertical-align:1px;
+  border-right:2px solid #00aa55;border-bottom:2px solid #00aa55;transform:rotate(45deg);vertical-align:3px}
+/* Last encounters — a narrow column of short cards (small photo beside name + date), vertical infinite scroll.
+   Small on purpose: opened over a coffee, closed with a double tap. */
+#hud-list{position:absolute;left:16px;top:16px;width:250px;height:232px;   /* opens downward from the top, ends at 248px */display:none;flex-direction:column;
+  background:rgba(0,255,136,.2);border:2px solid rgba(0,255,136,.6);border-radius:10px;padding:10px 10px 8px;pointer-events:auto}
+#hud-list.on{display:flex}
+#hl-items{overflow-y:auto;min-height:0;padding-right:4px;scrollbar-width:thin;scrollbar-color:#00aa55 transparent}
+#hl-items::-webkit-scrollbar{width:3px}
+#hl-items::-webkit-scrollbar-thumb{background:#00aa55;border-radius:2px}
+.hl-item{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:6px;border:2px solid transparent;cursor:pointer;margin-bottom:2px}
+.hl-item.focus{border-color:rgba(0,255,136,.5);background:rgba(0,255,136,.06)}
+.hl-ph{width:34px;height:34px;border-radius:4px;flex-shrink:0;border:2px solid rgba(0,255,136,.6)}
+.hl-ph{object-fit:cover;filter:grayscale(1) sepia(1) hue-rotate(80deg) saturate(4) brightness(.85)}
+.hl-txt{min-width:0}
+.hl-name{font-size:13px;font-weight:bold;color:#00ff88;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hl-when{font-size:10px;color:#00aa55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hl-empty{font-size:13px;color:#8fdfb5}
+/* Card body (review): dossier + encounter timeline */
+#hud-dossier{font-size:16px;line-height:1.4;color:#8fdfb5;
+  display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+#hud-dossier:empty{display:none}
+#hud-sum-wrap{margin-top:12px;border-top:2px solid rgba(0,255,136,.6);padding-top:8px;min-height:0;flex-direction:column}
+#hud-sum-lbl{font-size:12px;color:#00aa55;letter-spacing:1.5px;margin-bottom:6px}
+#hud-sum{overflow-y:auto;min-height:0;padding-right:8px;scrollbar-width:thin;scrollbar-color:#00aa55 transparent}
+#hud-sum::-webkit-scrollbar{width:4px}
+#hud-sum::-webkit-scrollbar-thumb{background:#00aa55;border-radius:2px}
+/* each encounter is a small card: date · place on top, one-line summary below, chevron on the right */
+.tl-item{position:relative;padding:6px 36px 6px 10px;border-radius:8px;border:2px solid transparent;margin-bottom:4px;cursor:pointer}
+.tl-item.focus{border-color:rgba(0,255,136,.5);background:rgba(0,255,136,.06)}
+.tl-head{font-size:13px;color:#00aa55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tl-head b{color:#00cc66}
+.tl-txt{font-size:16px;color:#8fdfb5;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tl-item.open .tl-txt{white-space:normal}
+.tl-chev{position:absolute;right:14px;top:50%;width:8px;height:8px;margin-top:-7px;
+  border-right:2px solid #00aa55;border-bottom:2px solid #00aa55;transform:rotate(45deg);display:none}
+.tl-item.has-more .tl-chev{display:block}
+.tl-item.open .tl-chev{top:16px;margin-top:0;transform:rotate(-135deg)}
+.tl-detail{display:none;font-size:14px;color:#7fdfb0;line-height:1.45;margin-top:6px;white-space:pre-wrap}
+.tl-item.open .tl-detail{display:block}
+
+/* Photo preview (manual capture) — loose on the display, like the native camera preview */
+#hud-preview{position:absolute;top:20px;left:20px;display:none;text-align:center}
+#hud-preview.on{display:block}
+#hp-img{width:110px;height:110px;border-radius:6px;border:2px solid rgba(0,255,136,.6);display:block;margin:0 auto 8px;
+  filter:grayscale(1) sepia(1) hue-rotate(80deg) saturate(4) brightness(.85)}
+#hp-q{font-size:20px;color:#00ff88}
+
+/* Countdown — new person: loose text, no card (black is transparent on the waveguide) */
+#hud-count{position:absolute; top:20px; left:20px; display:none;}
+#hud-count.on{display:block}
+#hc-title{font-size:20px;color:#00ff88;letter-spacing:.3px}
+#hc-num{font-weight:bold}
+#hc-hint{font-size:16px;color:#00aa55;margin-top:6px}
+
+/* Recording indicator — loose text on the RIGHT, outside the card: no box, no background */
+#hud-rec{
+  position:absolute; top:18px; right:12px;
+  display:none; align-items:center; gap:6px;
+  font-size:14px; color:#00cc6e;
+}
+#hud-rec.on{display:none}   /* redundant (Marcus 10/10): the status line at the bottom-right is the only recording indicator */
+#hud-rec .dot{width:11px;height:11px;border-radius:50%;background:#00ff88;animation:pulse 1.6s ease-in-out infinite}
+#hud-rec.paused .dot{animation:none;background:transparent;border:2px solid #00aa55;width:9px;height:9px}
+#hud-rec.paused{color:#00aa55}
+
+/* System status — bottom left (emulator only) */
+#hud-status{position:absolute;bottom:14px;right:20px;font-size:14px;color:#00ff88;line-height:1.6;text-align:right}   /* 100% green: dim green is unreadable on the waveguide */
+
+/* Idle state */
+#hud-idle{
+  position:absolute; inset:0;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:12px; font-size:18px; color:#00552a; pointer-events:none;
+}
+
+/* Capture flash */
+#flash{position:absolute;inset:0;background:#00ff88;opacity:0;pointer-events:none;transition:opacity .05s}
+#flash.on{opacity:.35}
+
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+
+/* ══ PAGE LAYOUT ══ */
+body{
+  display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
+  padding:8px 8px 170px; gap:8px;
+  overflow-y:auto; overflow-x:hidden;
+}
+#top-bar{
+  width:100%; max-width:640px;
+  display:flex; justify-content:space-between; align-items:center;
+  font-size:9px; color:#004422; letter-spacing:1px;
+}
+#sync-badge{font-size:9px;padding:2px 8px;border:1px solid #0a2a18;border-radius:10px}
+#sync-badge.ok{color:#00ff88;border-color:#00aa55}
+#sync-badge.err{color:#007a40;border-color:#0a2a18}
+
+/* Log and badge only in debug mode (Help → On-screen log).
+   Otherwise everything goes to the browser console — like on the glasses. */
+#log-box,#sync-badge{display:none}
+body.debug #log-box{display:block}
+body.debug #sync-badge{display:inline}
+#log-box{
+  width:100%; max-width:640px;
+  background:#060f09; border:1px solid #0a2a18; border-radius:8px;
+  height:78px; overflow-y:auto; padding:6px 10px; font-size:11px;
+}
+.log-line{color:#006633;line-height:1.85}
+.log-line.hi{color:#00ff88}
+#help-debug{background:none;border:1px solid #0a2a18;color:#4ade80;font-family:inherit;font-size:10px;padding:6px 12px;border-radius:6px;cursor:pointer}
+
+/* ══ BOTTOM BAR — temple gestures ══ */
+#bottom-bar{
+  position:fixed; bottom:0; left:0; right:0;
+  background:#080f0a; border-top:1px solid #1a4a2a;
+  padding:10px 10px 22px; display:flex; gap:6px; z-index:200;
+}
+.bar-btn{
+  flex:1; min-width:0; padding:12px 2px 10px;
+  background:#0f2018; border:1px solid #1a4a2a; border-radius:10px;
+  color:#00aa55; font-size:18px; font-family:monospace; text-align:center;
+  cursor:pointer; -webkit-tap-highlight-color:transparent; touch-action:manipulation;
+  user-select:none; line-height:1.1;
+}
+.bar-btn:active,.bar-btn.on{background:#0a3020;border-color:#00ff88;color:#00ff88}
+.bar-btn:disabled{opacity:.3;pointer-events:none}
+.bar-btn .blbl{font-size:10px;font-weight:600;display:block;margin-top:4px;color:#00aa55;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar-btn:disabled .blbl{color:#004422}
+
+/* ══ HELP OVERLAY (70%) ══ */
+#help-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;align-items:center;justify-content:center;padding:20px}
+#help-ov.on{display:flex}
+#help-card{background:#0a1a0f;border:1.5px solid #1a4a2a;border-radius:16px;padding:20px 16px;width:100%;max-width:320px;max-height:80vh;overflow-y:auto;position:relative}
+#help-x{position:absolute;top:10px;right:10px;width:30px;height:30px;background:#111;border:1px solid #1a3a22;border-radius:50%;color:#00aa55;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation}
+.h-tit{font-size:11px;color:#00ff88;letter-spacing:2px;margin-bottom:14px}
+.h-sec{font-size:8px;color:#004422;letter-spacing:2px;margin:10px 0 6px;text-transform:uppercase}
+.h-row{display:flex;gap:10px;margin-bottom:7px;align-items:flex-start}
+.h-key{min-width:78px;padding:3px 5px;background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.15);border-radius:5px;font-size:9px;color:#00ff88;text-align:center;flex-shrink:0}
+.h-desc{font-size:9px;color:#007744;line-height:1.5}
+.h-note{font-size:8px;color:#004422;line-height:1.6;margin-top:10px;border-top:1px solid #0a2a18;padding-top:8px}
+.h-lang{display:flex;gap:6px;flex-wrap:wrap}
+.h-lang button{background:none;border:1px solid #1a3a22;color:#00aa55;font-family:inherit;font-size:10px;padding:6px 10px;border-radius:6px;cursor:pointer}
+.h-lang button.on{border-color:#00ff88;color:#00ff88;background:rgba(0,255,136,.08)}
+</style>
+<script src="i18n.js"></script>
+</head>
+<body>
+
+<div id="top-bar">
+  <span>⬡ VISUALCONTEXT · <span data-i18n="topbar"></span></span>
+  <span id="sync-badge"></span>
+</div>
+
+<!-- ══ WAVEGUIDE 640×480 — camera + HUD overlay ══ -->
+<div id="waveguide">
+  <video id="vid" autoplay playsinline muted></video>
+  <button id="flip-cam-btn" type="button" data-i18n-title="flip">🔄</button>
+  <canvas id="cnv"></canvas>
+  <div id="flash"></div>
+
+  <div id="stage">
+  <div id="hud-idle">
+    <span style="font-size:52px;color:#003a1c">◉</span>
+    <span id="idle-main"></span>
+    <span id="idle-sub" style="font-size:14px;color:#003a1c;max-width:400px;text-align:center;line-height:1.5"></span>
+  </div>
+
+  <div id="hud">
+    <div id="hud-card" style="display:none">
+      <div class="hc-head">
+        <img id="hud-photo" alt="">
+        <div class="hc-id"><div id="hud-name"></div><div id="hud-pills"></div><div id="hud-headline"></div></div>
+      </div>
+      <div id="hud-about"><div class="sec-lbl" data-i18n="about"></div><div id="hud-dossier"></div></div>
+      <div id="hud-sum-wrap" style="display:none">
+        <div id="hud-sum-lbl" class="sec-lbl" data-i18n="timeline"></div>
+        <div id="hud-sum"></div>
+      </div>
+    </div>
+    <div id="hud-recent-bar" data-i18n="list_title"></div>
+    <div id="hud-list"><div class="sec-lbl" data-i18n="list_title"></div><div id="hl-items"></div></div>
+    <div id="hud-count">
+      <div id="hc-title"><span data-i18n="count_title"></span> <span id="hc-num">5</span></div>
+      <div id="hc-hint" data-i18n="count_hint"></div>
+    </div>
+    <div id="hud-preview"><img id="hp-img" alt=""><div id="hp-q" data-i18n="p_preview"></div></div>
+    <div id="hud-rec"><span class="dot"></span><span id="hr-txt"></span></div>
+    <div id="hud-status"></div>
+    <div id="hud-zone"><span>70%</span></div>
+  </div>
+  </div>
+</div>
+
+<div id="log-box"><div id="log-el"></div></div>
+
+<!-- ══ BOTTOM BAR — Rokid temple gestures ══ -->
+<div id="bottom-bar">
+  <button class="bar-btn" id="btn-cam">⏻<span class="blbl" data-i18n="b_camera"></span></button>
+  <button class="bar-btn" id="btn-swipe-b" disabled>‹<span class="blbl" data-i18n="b_swipe"></span></button>
+  <button class="bar-btn" id="btn-tap" disabled>●<span class="blbl" data-i18n="b_tap"></span></button>
+  <button class="bar-btn" id="btn-swipe" disabled>›<span class="blbl" data-i18n="b_swipe"></span></button>
+  <button class="bar-btn" id="btn-dtap" disabled>●●<span class="blbl" data-i18n="b_dtap"></span></button>
+  <button class="bar-btn" id="btn-help">?<span class="blbl" data-i18n="b_help"></span></button>
+</div>
+
+<!-- ══ HELP ══ -->
+<div id="help-ov">
+  <div id="help-card">
+    <button id="help-x">✕</button>
+    <div class="h-tit" data-i18n="h_title"></div>
+    <div class="h-sec" data-i18n="h_sec_rec"></div>
+    <div class="h-row"><span class="h-key" data-i18n="h_k_eye"></span><span class="h-desc" data-i18n="h_d_eye"></span></div>
+    <div class="h-row"><span class="h-key" data-i18n="h_k_new"></span><span class="h-desc" data-i18n="h_d_new"></span></div>
+    <div class="h-row"><span class="h-key" data-i18n="h_k_known"></span><span class="h-desc" data-i18n="h_d_known"></span></div>
+    <div class="h-row"><span class="h-key" data-i18n="h_k_rec"></span><span class="h-desc" data-i18n="h_d_rec"></span></div>
+    <div class="h-sec" data-i18n="h_sec_gest"></div>
+    <div class="h-row"><span class="h-key" data-i18n="g_swipe"></span><span class="h-desc" data-i18n="h_d_swipe"></span></div>
+    <div class="h-row"><span class="h-key" data-i18n="g_dtap"></span><span class="h-desc" data-i18n="h_d_dtap"></span></div>
+    <div class="h-row"><span class="h-key" data-i18n="g_tap"></span><span class="h-desc" data-i18n="h_d_tap"></span></div>
+    <div class="h-row"><span class="h-key" data-i18n="g_swipes"></span><span class="h-desc" data-i18n="h_d_swipes"></span></div>
+    <div class="h-sec" data-i18n="h_sec_kbd"></div>
+    <div class="h-row"><span class="h-key">Space / P</span><span class="h-desc" data-i18n="h_d_space"></span></div>
+    <div class="h-row"><span class="h-key">Enter / ↑</span><span class="h-desc" data-i18n="g_tap"></span></div>
+    <div class="h-row"><span class="h-key">← / →</span><span class="h-desc" data-i18n="g_swipes"></span></div>
+    <div class="h-row"><span class="h-key">Esc / ↓</span><span class="h-desc" data-i18n="g_dtap"></span></div>
+    <div class="h-sec" data-i18n="h_sec_rec"></div>
+    <div class="h-lang" id="rec-btns">
+      <button data-need="1" data-i18n="rec_speech"></button>
+      <button data-need="0" data-i18n="rec_look"></button>
+    </div>
+    <div class="h-desc" style="margin-top:6px" data-i18n="h_d_rec"></div>
+    <div class="h-sec" data-i18n="h_sec_lang"></div>
+    <div class="h-lang" id="lang-btns">
+      <button data-lang="system" data-i18n="lang_system"></button>
+      <button data-lang="en">English</button>
+      <button data-lang="pt">Português</button>
+    </div>
+    <div class="h-desc" style="margin-top:6px" data-i18n="h_d_lang"></div>
+    <div class="h-sec" data-i18n="h_sec_dev"></div>
+    <div class="h-row"><button id="help-debug"></button></div>
+    <div class="h-note" data-i18n="h_note"></div>
+  </div>
+</div>
+
+<script>
+// ══ TEXTS — Portuguese and English (VC_I18N picks: user choice → system → English) ══
+VC_I18N.add({
+  en: {
+    topbar:'ROKID EMULATOR', flip:'Switch front/back camera', disconnected:'● disconnected', profiles:'● Base44 · {n} profiles',
+    idle_start:'Press Camera to start', idle_start_sub:'Simulates the glasses HUD — live face recognition and encounter recording, as it would appear on the display',
+    idle_req:'Requesting camera…', idle_req_sub:'The browser will ask for camera permission — same flow as on the glasses',
+    idle_blocked:'Camera blocked', idle_blocked_sub:'Allow it in the 🔒 of the address bar → Camera, then tap Camera', idle_retry_sub:'Tap Camera to try again',
+    idle_fail:'Could not access the camera', idle_fail_sub:'Check the permission in the 🔒 of the address bar',
+    idle_stopped:'Camera stopped', idle_stopped_sub:'Tap Camera to turn it back on',
+    idle_nosupport:'Camera not supported', idle_nosupport_sub:'Open over HTTPS in a browser with a camera',
+    about:'ABOUT', timeline:'ENCOUNTERS', list_title:'LATEST RECORDS', list_empty:'Nothing recorded yet.', hl_count:'{n} encounters · since {since}', hl_one:'Met once · {when}', met_when:'met {when}', lk_f1:'Young woman', lk_f2:'Woman', lk_f3:'Older woman', lk_m1:'Young man', lk_m2:'Man', lk_m3:'Older man', lk_p:'Person', lk_age:', ~{a}', lk_hair:', {c} hair', lk_bald:', bald', lk_wear:', in {c}', h_black:'black', h_brown:'brown', h_blond:'blond', h_red:'red', h_grey:'grey', h_purple:'purple', h_pink:'pink', h_blue:'blue', h_green:'green', dz_count:'Seen {n} times in the last year.', dz_once:'Seen once in the last year.', dz_last:'Last time {when}{where}: {what}', dz_at:' at {p}', today:'today', yesterday:'yesterday', no_summary:'(no summary)', p_preview:'Save this face?',
+    count_title:'Recording encounter:', count_hint:'Swipe forward to cancel',
+    rec:'Recording encounter', paused:'Paused · Tap to resume',
+    s_ready:'ready', s_loading:'loading AI…', s_cam:'camera on', s_buf_face:'buffering (face only)', s_buf_speech:'buffering · speech',
+    s_buf_wait:'buffering · waiting for speech', s_confirm:'new person · confirming', s_rec:'recording', s_paused:'paused', s_quiet:'paused · silence',
+    s_identified:'identified', s_saved:'saved', s_notrec:'not recorded', s_saving_enc:'saving encounter…', s_enc_saved:'encounter saved', s_fail:'save failed',
+    b_camera:'Camera', b_stop:'Stop', b_tap:'Tap', b_swipe:'Swipe fwd', b_dtap:'Double tap', b_help:'Help',
+    g_tap:'Tap', g_swipe:'Swipe forward', g_dtap:'Double tap', g_swipes:'Swipe ‹ ›',
+    h_title:'REFERENCE', h_sec_rec:'Encounter recording',
+    h_k_eye:'Eye contact + speech', h_d_eye:'Buffering starts right away, silently. Just looking without talking never records.',
+    h_k_new:'New person', h_d_new:'After 7s: "Recording encounter: 5…0 — Swipe forward to cancel". At 0 the person is saved (face photo, clothing colour, badge text if readable) and recording continues.',
+    h_k_known:'Known person', h_d_known:'After 7s recording starts on its own — no warning, no countdown.',
+    h_k_rec:'● Recording', h_d_rec:'Only text is kept (transcript + summary). No audio or video is ever saved. The encounter ends when the person leaves the view for 5s.',
+    h_sec_gest:'Gestures',
+    h_d_swipe:'During the countdown: cancel — nothing saved, won\'t ask about this face again this session. In the photo preview: discard.',
+    h_d_dtap:'Back: closes an expanded encounter; while recording, stops and discards it (the person stays saved); otherwise dismisses the HUD.',
+    h_d_tap:'Paused: resume recording. Nobody in front: open your last encounters; then open a person and expand an encounter. Unknown face: take a photo to save it by hand → preview → Tap save / Swipe forward discard.',
+    h_d_swipes:'Outside a conversation: move through your last encounters and the timeline.',
+    h_sec_kbd:'Keyboard (desktop)', h_d_space:'Camera on/off',
+    h_sec_rec:'Recording', rec_speech:'Needs speech', rec_look:'Eye contact is enough', h_d_rec:'Default: an encounter starts after eye contact AND speech. "Eye contact is enough" records even when nobody talks — e.g. visiting someone who barely speaks.',
+    h_sec_lang:'Language', lang_system:'Phone language', h_d_lang:'By default the app follows the phone\'s language — Portuguese if the phone is in Portuguese, English otherwise.',
+    h_sec_dev:'Developer', log_btn:'On-screen log: {s}',
+    h_note:'Speech uses the browser\'s speech recognition (Chrome). Without it, the emulator falls back to face-only and says so on the panel. Real display: 640×480 landscape — pure black (#000) is transparent on the waveguide.',
+    // stored data (written in the user's language at the time)
+    d_unknown:'No name {n}', no_name:'NO NAME',  d_first_auto:'First encounter (auto)', d_first_manual:'First encounter (manual)',
+    d_first_hand:'First encounter — saved by hand', d_clothing:'Clothing (dominant colour): {c}',
+    d_badge:'Badge: {b}', d_conv:'Conversation · {m} min', d_nospeech:' (no speech captured)', d_mixed:'mixed ({a} and {b})',
+    c_black:'black', c_white:'white', c_grey:'grey', c_burgundy:'burgundy', c_red:'red', c_brown:'brown', c_orange:'orange',
+    c_beige:'beige', c_yellow:'yellow', c_green:'green', c_navy:'navy', c_blue:'blue', c_purple:'purple', c_pink:'pink'
+  },
+  pt: {
+    topbar:'EMULADOR ROKID', flip:'Trocar câmera frontal/traseira', disconnected:'● desconectado', profiles:'● Base44 · {n} perfis',
+    idle_start:'Toque em Câmera para começar', idle_start_sub:'Simula o HUD dos óculos — reconhecimento facial e gravação de encontros ao vivo, como apareceria no visor',
+    idle_req:'Pedindo a câmera…', idle_req_sub:'O navegador vai pedir permissão de câmera — o mesmo fluxo dos óculos',
+    idle_blocked:'Câmera bloqueada', idle_blocked_sub:'Permita no 🔒 da barra de endereço → Câmera, e toque em Câmera', idle_retry_sub:'Toque em Câmera para tentar de novo',
+    idle_fail:'Não deu pra acessar a câmera', idle_fail_sub:'Verifique a permissão no 🔒 da barra de endereço',
+    idle_stopped:'Câmera parada', idle_stopped_sub:'Toque em Câmera para religar',
+    idle_nosupport:'Câmera não suportada', idle_nosupport_sub:'Abra em HTTPS num navegador com câmera',
+    about:'SOBRE', timeline:'ENCONTROS', list_title:'ÚLTIMOS REGISTROS', list_empty:'Nenhum registro ainda.', hl_count:'{n} encontros · desde {since}', hl_one:'Vocês se viram 1 vez · {when}', met_when:'conheceu {when}', lk_f1:'Moça', lk_f2:'Mulher', lk_f3:'Senhora', lk_m1:'Rapaz', lk_m2:'Homem', lk_m3:'Senhor', lk_p:'Pessoa', lk_age:' de ~{a} anos', lk_hair:', cabelo {c}', lk_bald:', careca', lk_wear:', de {c}', h_black:'preto', h_brown:'castanho', h_blond:'loiro', h_red:'ruivo', h_grey:'grisalho', h_purple:'roxo', h_pink:'rosa', h_blue:'azul', h_green:'verde', dz_count:'Registrado {n} vezes no último ano.', dz_once:'Registrado 1 vez no último ano.', dz_last:'Da última vez, {when}{where}: {what}', dz_at:' em {p}', today:'hoje', yesterday:'ontem', no_summary:'(sem resumo)', p_preview:'Salvar este rosto?',
+    count_title:'Gravando encontro:', count_hint:'Deslize para frente para cancelar',
+    rec:'Gravando encontro', paused:'Pausado · Toque para retomar',
+    s_ready:'pronto', s_loading:'carregando IA…', s_cam:'câmera ativa', s_buf_face:'buffer (só rosto)', s_buf_speech:'buffer · com fala',
+    s_buf_wait:'buffer · esperando fala', s_confirm:'pessoa nova · confirmando', s_rec:'gravando', s_paused:'pausado', s_quiet:'pausado · silêncio',
+    s_identified:'identificado', s_saved:'salvo', s_notrec:'não gravado', s_saving_enc:'salvando encontro…', s_enc_saved:'encontro salvo', s_fail:'falha ao salvar',
+    b_camera:'Câmera', b_stop:'Parar', b_tap:'Toque', b_swipe:'Deslizar', b_dtap:'2 toques', b_help:'Ajuda',
+    g_tap:'Toque', g_swipe:'Deslizar p/ frente', g_dtap:'Toque duplo', g_swipes:'Deslizar ‹ ›',
+    h_title:'REFERÊNCIA', h_sec_rec:'Gravação de encontro',
+    h_k_eye:'Olho no olho + fala', h_d_eye:'O buffer começa na hora, em silêncio. Só olhar sem falar nunca grava.',
+    h_k_new:'Pessoa nova', h_d_new:'Aos 7s: "Gravando encontro: 5…0 — Deslize para frente para cancelar". No 0 a pessoa é salva (foto do rosto, cor da roupa, texto do crachá se der pra ler) e a gravação continua.',
+    h_k_known:'Pessoa conhecida', h_d_known:'Aos 7s a gravação começa sozinha — sem aviso, sem contagem.',
+    h_k_rec:'● Gravando', h_d_rec:'Só texto é guardado (transcrição + resumo). Áudio e vídeo nunca. O encontro termina quando a pessoa sai da vista por 5s.',
+    h_sec_gest:'Gestos',
+    h_d_swipe:'Na contagem: cancela — nada é salvo e não pergunta de novo sobre esse rosto nesta sessão. Na prévia da foto: descarta.',
+    h_d_dtap:'Voltar: fecha um encontro expandido; gravando, para e descarta (a pessoa continua salva); fora disso, fecha o HUD.',
+    h_d_tap:'Pausado: retoma a gravação. Ninguém na frente: abre os últimos encontros; depois abre a pessoa e expande um encontro. Rosto desconhecido: tira foto pra salvar na mão → prévia → Toque salva / Deslizar descarta.',
+    h_d_swipes:'Fora de uma conversa: passa pelos últimos encontros e pela linha do tempo.',
+    h_sec_kbd:'Teclado (desktop)', h_d_space:'Liga/desliga a câmera',
+    h_sec_rec:'Gravação', rec_speech:'Precisa de fala', rec_look:'Só o olhar basta', h_d_rec:'Padrão: o encontro começa com contato visual E fala. "Só o olhar basta" grava mesmo sem ninguém falar — por exemplo, visitar alguém que quase não fala.',
+    h_sec_lang:'Idioma', lang_system:'Idioma do celular', h_d_lang:'Por padrão o app segue o idioma do celular — português se o celular estiver em português, inglês nos outros casos.',
+    h_sec_dev:'Desenvolvedor', log_btn:'Log na tela: {s}',
+    h_note:'A fala usa o reconhecimento de voz do navegador (Chrome). Sem ele, o emulador funciona só com o rosto e avisa no painel. Display real: 640×480 paisagem — preto puro (#000) é transparente no waveguide.',
+    d_unknown:'Sem nome {n}', no_name:'SEM NOME',  d_first_auto:'Primeiro encontro (automático)', d_first_manual:'Primeiro encontro (manual)',
+    d_first_hand:'Primeiro encontro — salvo manualmente', d_clothing:'Roupa (cor predominante): {c}',
+    d_badge:'Crachá: {b}', d_conv:'Conversa · {m} min', d_nospeech:' (sem fala captada)', d_mixed:'mista ({a} e {b})',
+    c_black:'preto', c_white:'branco', c_grey:'cinza', c_burgundy:'vinho', c_red:'vermelho', c_brown:'marrom', c_orange:'laranja',
+    c_beige:'bege', c_yellow:'amarelo', c_green:'verde', c_navy:'azul-marinho', c_blue:'azul', c_purple:'roxo', c_pink:'rosa'
+  }
+});
+var t = VC_I18N.t;
+
+var camStream = null;
+var _facingMode = 'environment';   // phone: rear camera by default (what the glasses see); laptop: falls back to the webcam
+var _isTouchDevice = (function(){
+  try { return window.matchMedia && window.matchMedia('(pointer: coarse)').matches
+    || ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+  } catch(e){ return false; }
+})();
+var _profiles = [];
+var _currentProfile = null;
+var PROXY = 'https://base44.app/api/apps/6a11083db49430b410a8c066/functions/fcProxy';
+// Safety guard (10/10): if "list" stops returning a list (backend contract broken), stop every other
+// database call this session, so the emulator doesn't create duplicate or empty records. AI calls still go through.
+var _backendBroken = false, _fetch0 = window.fetch.bind(window);
+// Device token (11/10): the backend accepts only requests carrying header x-vc-token.
+// Asked once on this device, kept in localStorage, never in the code. Add ?resettoken=1 to the URL to change it.
+function vcToken() {
+  var k = 'vc_device_token', v = '';
+  try { if (/[?&]resettoken=1\b/.test(location.search)) localStorage.removeItem(k); v = localStorage.getItem(k) || ''; } catch (e) {}
+  if (!v) { v = (prompt('VisualContext — cole o token do aparelho (VC_DEVICE_TOKEN):') || '').trim(); try { if (v) localStorage.setItem(k, v); } catch (e) {} }
+  return v;
+}
+window.fetch = function(url, opt) {
+  if (typeof url === 'string' && url.indexOf(PROXY) === 0) {
+    if (_backendBroken && !/"action":"(ai_summary|analyze_encounter|ai_detect_name)"/.test(String((opt && opt.body) || '')))
+      return Promise.reject(new Error('backend unavailable'));
+    opt = opt || {};
+    var h = {}; Object.keys(opt.headers || {}).forEach(function(k){ h[k] = opt.headers[k]; });
+    var tk = vcToken(); if (tk) h['x-vc-token'] = tk;
+    opt.headers = h;
+    return _fetch0(url, opt).then(function(r){
+      if (r.status === 401) { try { localStorage.removeItem('vc_device_token'); } catch (e) {} log('⚠ token recusado pelo backend — recarregue a página e cole o token de novo'); }
+      return r;
+    });
+  }
+  return _fetch0(url, opt);
+};
+
+// ── Log ── (developer tool: always English; browser console by default, on screen via Help)
+var _debugMode = false;
+try { _debugMode = localStorage.getItem('fc_debug') === '1'; } catch(e) {}
+var _logBuf = [];
+function log(msg, hi) {
+  var d = new Date();
+  var tt = [d.getHours(), d.getMinutes(), d.getSeconds()].map(function(n){ return String(n).padStart(2,'0'); }).join(':');
+  var txt = tt + ' ' + msg;
+  try { console.log(txt); } catch(e) {}
+  _logBuf.push(txt);
+  if (_logBuf.length > 200) _logBuf.shift();
+  if (_debugMode) {
+    var el = document.getElementById('log-el');
+    var line = document.createElement('div');
+    line.className = 'log-line' + (hi ? ' hi' : '');
+    line.textContent = txt;
+    el.appendChild(line);
+    el.scrollTop = el.scrollHeight;
+  }
+}
+function setDebug(on) {
+  _debugMode = on;
+  try { localStorage.setItem('fc_debug', on ? '1' : '0'); } catch(e) {}
+  document.body.classList.toggle('debug', on);
+  var btn = document.getElementById('help-debug');
+  if (btn) btn.textContent = t('log_btn', { s: on ? 'ON' : 'OFF' });
+  if (on) {
+    var el = document.getElementById('log-el');
+    el.innerHTML = '';
+    _logBuf.forEach(function(t2){
+      var line = document.createElement('div');
+      line.className = 'log-line'; line.textContent = t2; el.appendChild(line);
+    });
+    el.scrollTop = el.scrollHeight;
+  }
+}
+
+// idle screen and status line remember their keys so a language switch re-renders them
+var _idleKeys = ['idle_start', 'idle_start_sub'], _statusKey = ['s_loading', ''];
+function setIdle(mainKey, subKey) {
+  _idleKeys = [mainKey, subKey];
+  document.getElementById('idle-main').textContent = t(mainKey);
+  document.getElementById('idle-sub').textContent = subKey ? t(subKey) : '';
+}
+function setStatus(key, extra) {
+  _statusKey = [key, extra || ''];
+  document.getElementById('hud-status').textContent = '⬡ ' + t(key) + (extra || '');
+}
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── Sync with the database ──
+var _syncState = 'disconnected';
+function renderSyncBadge() {
+  var badge = document.getElementById('sync-badge');
+  if (_syncState === 'ok') { badge.textContent = t('profiles', { n: _profiles.length }); badge.className = 'ok'; }
+  else if (_syncState === 'err') { badge.textContent = '● offline'; badge.className = 'err'; }
+  else { badge.textContent = t('disconnected'); badge.className = ''; }
+}
+function syncProfiles() {
+  fetch(PROXY, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action:'list',entity:'FaceContextPerson',limit:200})
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if (!Array.isArray(data) && !(data && Array.isArray(data.records))) {
+      _backendBroken = true; _syncState = 'err'; renderSyncBadge();
+      log('⚠ database answered "list" with something that is not a list — saving disabled this session');
+      return;
+    }
+    _profiles = Array.isArray(data) ? data : (data.records || []);
+    _syncState = 'ok'; renderSyncBadge();
+    log('✓ connected to Base44 — ' + _profiles.length + ' profiles', true);
+    loadEmbeddings();
+  })
+  .catch(function(e){
+    _syncState = 'err'; renderSyncBadge();
+    log('⚠ database offline: ' + e.message);
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// ENCOUNTER ENGINE
+// Eye contact + speech → silent buffer (from the first frame) → after 7s:
+//   • new person   → "Recording encounter! Swipe forward to cancel" 5…0 → save person → recording
+//   • known person → recording starts on its own (no warning)
+// Recording: discreet circle top-right. Double tap = stop & discard (person stays) → Resume (tap).
+// Person leaves the view for 5s → encounter ends and is saved (text only, never audio/video).
+// ════════════════════════════════════════════════════════════════════════
+var MATCH_THRESHOLD   = 0.5;    // face distance for a confident match
+var BUFFER_MS         = 7000;   // when the countdown MESSAGE appears. Recording itself starts at once (pre-roll below)
+var PREROLL_MS        = 30000;  // speech heard just before a face became stable is kept — the start of a conversation is never lost
+var SILENCE_MS        = 5000;   // 5 s of silence → recording pauses (saves battery); speech resumes it
+var COUNTDOWN_S       = 5;      // 5…0
+var STABLE_FRAMES     = 3;      // ~1.2s of a stable face before the buffer starts
+var SAME_FACE         = 0.5;    // max distance to keep treating it as the same person
+var LEAVE_MS_PENDING  = 2500;   // left during buffer/countdown → discard
+var LEAVE_MS_RECORD   = 5000;   // left during recording → end encounter and save
+var MAX_SAMPLES       = 30;
+
+var _state = 'idle';            // idle | buffer | countdown | recording | paused | saving
+var _enc = null;                // current encounter
+var _stable = { count:0, first:null };
+var _suppressed = [];           // faces the user said no to (this session)
+var _previewOpen = false;
+var _lastMatchDescriptor = null;
+var _lastMatchKnown = false;
+var _lastFaceBox = null;
+var _lastFaceAt = 0;
+var _tickTimer = null;
+
+function dist(a, b) { return faceapi.euclideanDistance(a, b); }
+// A "no" lasts while the person stays in front of you. Once the face has been gone for
+// SUPPRESS_GONE_MS, the next time you see them is a new encounter (no page reload needed).
+var SUPPRESS_GONE_MS = 10000;
+function suppress(desc) { var d = new Float32Array(desc); d._seen = Date.now(); _suppressed.push(d); }
+function isSuppressed(desc) {
+  var now = Date.now();
+  _suppressed = _suppressed.filter(function(d){ return now - (d._seen || 0) < SUPPRESS_GONE_MS; });
+  var hit = false;
+  _suppressed.forEach(function(d){ if (dist(desc, d) < SAME_FACE) { d._seen = now; hit = true; } });
+  return hit;
+}
+
+function bestMatch(descriptor) {
+  if (!_descriptors.length) return null;
+  var best = _descriptors.map(function(d){ return { profile:d.profile, dist:dist(descriptor, d.descriptor) }; })
+    .sort(function(a,b){ return a.dist - b.dist; })[0];
+  return (best && best.dist < MATCH_THRESHOLD) ? best : null;
+}
+
+// Called for the main face on every detection
+function handleMatch(descriptor) {
+  if (_review) closeReview();   // someone in front of you: the live conversation wins
+  document.getElementById('hud-recent-bar').className = '';
+  _lastMatchDescriptor = Array.from(descriptor);
+  var m = bestMatch(descriptor);
+  _lastMatchKnown = !!m;
+
+  // An encounter is open: is this still the same person?
+  if (_enc) {
+    var same = dist(descriptor, _enc.anchor) < SAME_FACE * 1.2 ||
+               (m && _enc.person && m.profile.id === _enc.person.id);
+    if (same) {
+      _enc.lastSeen = Date.now();
+      if (_enc.samples.length < MAX_SAMPLES) _enc.samples.push(Array.from(descriptor));
+      takeBestFrame();
+      return;
+    }
+    // someone else in front: the current person is "not seen" — the tick decides when it ends
+    if (_state === 'buffer' || _state === 'countdown') {
+      if (Date.now() - _enc.lastSeen > LEAVE_MS_PENDING) endEncounter('left');
+    }
+    return;
+  }
+
+  if (_previewOpen || _state === 'saving') return;
+
+  if (m) {
+    if (!isUnnamed(m.profile) || lookOf(m.profile)) showProfile(m.profile, Math.round((1 - m.dist) * 100));
+    else hideHudCard(true);   // no name and no description yet: it gets described during this encounter
+    if (isSuppressed(descriptor)) return;   // user said no to this encounter: show the card, don't record
+  } else {
+    hideHudCard();
+    if (isSuppressed(descriptor)) return;   // user said no: nothing on screen
+  }
+
+  // wait for a stable face before opening an encounter
+  if (_stable.first && dist(descriptor, _stable.first) > SAME_FACE * 1.2) _stable = { count:0, first:null };
+  if (!_stable.first) _stable.first = Array.from(descriptor);
+  _stable.count++;
+  if (_stable.count >= STABLE_FRAMES) openEncounter(_stable.first, m ? m.profile : null);
+
+}
+
+function noFace() {
+  _stable = { count:0, first:null };
+  updateRecentBar();
+  if (_enc) return;   // the tick decides when an open encounter ends
+  if (Date.now() - _lastFaceAt > LEAVE_MS_PENDING && !_previewOpen && _state !== 'saving') {
+    hideHudCard();
+  }
+}
+
+function openEncounter(anchor, person) {
+  var now = Date.now();
+  _stable = { count:0, first:null };
+  _enc = {
+    kind: person ? 'known' : 'new',
+    person: person,
+    anchor: new Float32Array(anchor),
+    samples: [Array.from(anchor)],
+    startedAt: now, lastSeen: now,
+    heardSpeech: false, transcript: [],
+    bestArea: 0, bestFrame: null, bestBox: null,
+    countdownEnd: 0, recordingSince: 0
+  };
+  _state = 'buffer';
+  // the conversation started before the face was stable: keep what was said in the last seconds
+  _enc.transcript = _preroll.filter(function(x){ return now - x.at < PREROLL_MS; }).map(function(x){ return x.line; });
+  if (now - _lastPrerollSpeechAt < 8000) { _enc.heardSpeech = true; _enc.lastSpeechAt = _lastPrerollSpeechAt; }
+  _preroll = [];
+  if (person) checkLegacyPhoto(person);
+  takeBestFrame();
+  startListening();
+  if (!_tickTimer) _tickTimer = setInterval(tick, 200);
+  log('◌ ' + (person ? person.name : 'new face') + ' — buffering (eye contact)');
+  render();
+}
+
+function tick() {
+  if (!_enc) { clearInterval(_tickTimer); _tickTimer = null; return; }
+  qrTick();
+  var now = Date.now();
+  var away = now - _enc.lastSeen;
+
+  if (_state === 'buffer') {
+    if (away > LEAVE_MS_PENDING) return endEncounter('left');
+    var speechOk = _enc.heardSpeech || _speech === 'unavailable' || !NEED_SPEECH;
+    if (now - _enc.startedAt >= BUFFER_MS && speechOk) {
+      if (_enc.kind === 'new') {
+        _state = 'countdown';
+        _enc.countdownEnd = now + COUNTDOWN_S * 1000;
+        log('◔ new person — countdown (swipe forward to cancel)', true);
+      } else {
+        startRecording();
+      }
+    }
+  } else if (_state === 'countdown') {
+    if (away > LEAVE_MS_PENDING) return endEncounter('left');
+    if (now >= _enc.countdownEnd) return confirmNewPerson();
+  } else if (_state === 'recording' || _state === 'paused' || _state === 'quiet') {
+    describeIfNeeded();
+    if (away > LEAVE_MS_RECORD) return endEncounter((_state === 'recording' || _state === 'quiet') ? 'finished' : 'left');
+    if (_state === 'recording' && NEED_SPEECH && _speech !== 'unavailable' && now - (_enc.lastSpeechAt || _enc.recordingSince) > SILENCE_MS) {
+      _state = 'quiet';   // silence: stop recording audio (battery); the encounter stays open
+      log('❚❚ silence — recording paused, resumes with speech');
+    }
+  }
+  render();
+}
+
+function startRecording() {
+  _state = 'recording';
+  _enc.recordingSince = Date.now();
+  log('● recording encounter' + (_enc.person ? ' with ' + _enc.person.name : ''), true);
+  render();
+}
+
+// Rule (Marcus, 10/10): an encounter without a photo does not exist. People are recognised by
+// their face, so every saved person carries a real face photo — never a placeholder.
+function hasPhoto(p) { return !!(p && p.photo_url && !/ui-avatars\.com/.test(p.photo_url)); }
+
+// Countdown reached 0: save the new person, keep recording
+function confirmNewPerson() {
+  _state = 'saving';
+  render();
+  var photo = (_enc.bestFrame ? cropFaceCircle(_enc.bestFrame, _enc.bestBox) : null) || captureFacePhoto();
+  if (!photo) { log('⚠ no face photo — nothing saved (an encounter without a photo does not exist)', true); return endEncounter('error'); }
+  _enc.torso = _enc.bestFrame ? cropTorso(_enc.bestFrame, _enc.bestBox) : null;
+  _enc.clothing = _enc.torso ? describeClothing(_enc.torso) : null;
+  var frame = _enc.bestFrame, box = _enc.bestBox, samples = meanDescriptor(_enc.samples);
+  describeLook(frame, box, _enc.clothing).then(function(desc){
+  if (!_enc) return;
+  createPerson(samples, photo, 'auto', function(p){
+    if (!_enc) return;
+    if (!p) { log('⚠ could not save the person — encounter dropped', true); return endEncounter('error'); }
+    _enc.person = p;
+    if (_enc.pendingQR) applyQR(p, _enc.pendingQR, _enc);
+    else if (_enc.pendingName) { renamePerson(p, _enc.pendingName, _enc.pendingAlias); _enc.namedHere = true; }
+    else _enc.transcript.some(function(l){ var nm = detectName(l.replace(/^\d\d:\d\d: /, '')); if (nm) { renamePerson(p, nm); return true; } });
+    startRecording();
+  }, desc);
+  });
+}
+
+// reason: cancel (swipe forward) | left | finished | error | stop
+function endEncounter(reason) {
+  var e = _enc;
+  if (!e) return;
+  _enc = null;
+  _state = 'idle';
+  clearInterval(_tickTimer); _tickTimer = null;
+  if (!camStream) stopListening();   // camera on: keep listening (pre-roll for the next encounter)
+  if (reason === 'finished' && e.kind === 'known' && e.person && e.person._legacyPhoto && e.bestFrame) replacePhoto(e.person, cropFaceCircle(e.bestFrame, e.bestBox));
+  e.bestFrame = null;   // full frame dropped — only the circular face photo is ever kept
+  if (reason === 'cancel') {
+    suppress(e.anchor);
+    log('✗ cancelled — nothing saved, won\'t ask about this face again (Tap saves it anyway)', true);
+    setStatus('s_notrec');
+  } else if (reason === 'finished') {
+    saveEncounter(e);
+  } else if (reason === 'left' && e.kind === 'new' && !e.person) {
+    log('✗ left before the countdown ended — nothing saved');
+  }
+  render();
+}
+
+// Double tap while recording: stop and discard this recording. The person stays saved.
+function stopRecording() {
+  if (_state !== 'recording' && _state !== 'quiet') return;
+  _state = 'paused';
+  _enc.transcript = [];
+  _enc.recordingSince = 0;
+  log('❚❚ recording stopped and discarded — Tap to resume');
+  render();
+}
+function resumeRecording() {
+  if (_state !== 'paused') return;
+  _enc.transcript = [];
+  startRecording();
+}
+
+// ── Gestures ──
+function gestureTap() {
+  if (_previewOpen) { savePreview(); return; }
+  if (_state === 'paused') { resumeRecording(); return; }
+  if (_review) { if (_review.card) tlToggle(); else reviewOpenCard(); return; }
+  if (_state === 'idle' && noFaceNow()) { openReview(); return; }   // nobody in front: last encounters
+  if (_state === 'idle') manualCapture();
+}
+function gestureSwipeForward() {
+  if (_previewOpen) { discardPreview(); return; }
+  if (_state === 'countdown') { endEncounter('cancel'); return; }
+  if (_review) { if (_review.card) tlMove(1); else reviewMove(1); }
+}
+function gestureSwipeBack() {
+  if (_review) { if (_review.card) tlMove(-1); else reviewMove(-1); }
+}
+function gestureDoubleTap() {   // native "back"
+  if (_previewOpen) { discardPreview(); return; }
+  if (_state === 'countdown') { endEncounter('cancel'); return; }
+  if (_review) {                          // back one level: expanded → card → list → closed
+    if (tlCollapse()) return;
+    if (_review.card) reviewBack(); else closeReview();
+    return;
+  }
+  if (_state === 'recording' || _state === 'quiet') { stopRecording(); return; }
+  if (_state === 'buffer') { endEncounter('stop'); if (_lastMatchDescriptor) suppress(_lastMatchDescriptor); return; }
+  dismissHUD();
+}
+
+// ── Render HUD + phone panel from state ──
+function render() {
+  var st = _state, e = _enc;
+  var hud = document.getElementById('hud');
+  if (camStream) { hud.style.display = 'block'; document.getElementById('hud-idle').style.display = 'none'; }
+
+  // countdown card (new person only)
+  var cnt = document.getElementById('hud-count');
+  if (st === 'countdown') {
+    cnt.className = 'on';
+    document.getElementById('hc-num').textContent = Math.max(0, Math.ceil((e.countdownEnd - Date.now()) / 1000));
+  } else cnt.className = '';
+
+  // discreet recording circle
+  var rec = document.getElementById('hud-rec');
+  if (st === 'recording' || (st === 'saving' && e)) { rec.className = 'on'; document.getElementById('hr-txt').textContent = t('rec'); }
+  else if (st === 'paused') { rec.className = 'on paused'; document.getElementById('hr-txt').textContent = t('paused'); }
+  else rec.className = '';
+
+  // new person while recording: only the circle (no card)
+  if (e && e.kind === 'new' && st !== 'buffer') hideHudCard(true);
+
+  updateRecentBar();
+  // status line
+  if (st === 'buffer') setStatus((_speech === 'unavailable' || !NEED_SPEECH) ? 's_buf_face' : (e.heardSpeech ? 's_buf_speech' : 's_buf_wait'));
+  else if (st === 'countdown') setStatus('s_confirm');
+  else if (st === 'recording') setStatus('s_rec');
+  else if (st === 'quiet') setStatus('s_quiet');
+  else if (st === 'paused') setStatus('s_paused');
+
+  updateBar();
+}
+
+function updateBar() {
+  var on = !!camStream;
+  document.getElementById('btn-tap').disabled = !on;
+  document.getElementById('btn-swipe-b').disabled = !on;
+  document.getElementById('btn-swipe').disabled = !on;
+  document.getElementById('btn-dtap').disabled = !on;
+  var cam = document.getElementById('btn-cam');
+  if (cam.textContent !== '⏳') cam.innerHTML = (on ? '■' : '⏻') + '<span class="blbl">' + t(on ? 'b_stop' : 'b_camera') + '</span>';
+  cam.className = 'bar-btn' + (on ? ' on' : '');
+}
+
+// ── Buffer helpers ──
+function snapshotFrame() {
+  var vid = document.getElementById('vid');
+  if (!vid || vid.readyState < 2) return null;
+  var cv = document.createElement('canvas');
+  cv.width = vid.videoWidth || 640; cv.height = vid.videoHeight || 480;
+  cv.getContext('2d').drawImage(vid, 0, 0, cv.width, cv.height);
+  return cv;
+}
+function takeBestFrame() {
+  if (!_enc || !_lastFaceBox) return;
+  if (_enc.kind === 'known' && !(_enc.person && (_enc.person._legacyPhoto || (isUnnamed(_enc.person) && !lookOf(_enc.person))))) return;   // new people, an old round photo, or someone to describe
+  var area = _lastFaceBox.w * _lastFaceBox.h;
+  if (area <= _enc.bestArea) return;
+  var fr = snapshotFrame();
+  if (!fr) return;
+  _enc.bestArea = area; _enc.bestFrame = fr;
+  _enc.bestBox = { x:_lastFaceBox.x, y:_lastFaceBox.y, w:_lastFaceBox.w, h:_lastFaceBox.h };
+}
+function meanDescriptor(samples) {
+  var out = new Array(128).fill(0);
+  samples.forEach(function(s){ for (var i = 0; i < 128; i++) out[i] += s[i]; });
+  return out.map(function(v){ return v / samples.length; });
+}
+
+// ── Speech: listens only while an encounter is open (eye contact) ──
+// Transcribes in the language being SPOKEN (phone's language), independent of the UI language.
+// Text only — nothing audio is stored.
+var _speech = 'idle';   // idle | listening | unavailable
+var _rec = null, _wantListen = false;
+(function initSpeech(){
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { _speech = 'unavailable'; return; }
+  _rec = new SR();
+  _rec.continuous = true;
+  _rec.interimResults = true;   // interim results only mark activity (fast start/resume); only finals are stored
+  _rec.lang = speechLang();
+  _rec.onspeechstart = function(){ speechActivity(); };
+  _rec.onresult = function(ev){
+    speechActivity();
+    for (var i = ev.resultIndex; i < ev.results.length; i++) {
+      if (!ev.results[i].isFinal) continue;
+      var text = ev.results[i][0].transcript.trim();
+      if (text) onSpeech(text);
+    }
+  };
+  _rec.onerror = function(ev){
+    if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
+      _speech = 'unavailable'; _wantListen = false;
+      log('⚠ microphone not allowed — face-only mode', true);
+      render();
+    }
+  };
+  _rec.onend = function(){
+    if (_speech === 'unavailable') return;
+    _speech = 'idle';
+    if (_wantListen) setTimeout(function(){ if (_wantListen) startListening(); }, 300);   // continuous mode stops on its own
+  };
+})();
+function speechLang() {
+  var nav = navigator.language || 'en-US';
+  if (VC_I18N.lang === 'pt') return /^pt/i.test(nav) ? nav : 'pt-BR';
+  if (VC_I18N.lang === 'en') return /^en/i.test(nav) ? nav : 'en-US';
+  return nav;
+}
+var _lastPrerollSpeechAt = 0;
+function speechActivity() {
+  if (!_enc) { _lastPrerollSpeechAt = Date.now(); return; }
+  _enc.heardSpeech = true;
+  _enc.lastSpeechAt = Date.now();
+  if (_state === 'quiet') { _state = 'recording'; log('● speech — recording resumed'); render(); }
+}
+function startListening() {
+  if (!_rec || _speech === 'unavailable') return;
+  _rec.lang = speechLang();
+  _wantListen = true;
+  if (_speech === 'listening') return;
+  try { _rec.start(); _speech = 'listening'; } catch(e) {}
+}
+function stopListening() {
+  _wantListen = false;
+  if (_rec && _speech === 'listening') { try { _rec.stop(); } catch(e) {} }
+}
+var _preroll = [];   // [{at, line}] — only in memory, rolling 30 s, dropped unless an encounter opens
+function stampLine(text) { var d = new Date(); return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0') + ': ' + text; }
+function onSpeech(text) {
+  if (!_enc) {
+    var now = Date.now();
+    _preroll.push({ at: now, line: stampLine(text) });
+    _preroll = _preroll.filter(function(x){ return now - x.at < PREROLL_MS; });
+    _lastPrerollSpeechAt = now;
+    return;
+  }
+  speechActivity();
+  if (_state === 'paused') return;   // stopped by the user: nothing is kept
+  var d = new Date();
+  _enc.transcript.push(String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0') + ': ' + text);
+  log('“' + text + '”');
+  var found = detectNameFull(text, { bare: Date.now() - _enc.startedAt < 30000 });
+  var nm = found ? found.name : '';
+  var fix = (_enc.person && !isUnnamed(_enc.person)) ? spellingFix(text, _enc.person.name) : '';
+  if (fix) renamePerson(_enc.person, fix);                      // "Marcus com u": spelling confirmed
+  else if (nm && _enc.person && (isUnnamed(_enc.person) || _enc.namedHere)) {   // a later correction in the same encounter wins
+    renamePerson(_enc.person, nm, found.alias);
+    _enc.namedHere = true;
+  }
+  else if (nm && !_enc.person) { _enc.pendingName = nm; _enc.pendingAlias = found.alias; }   // heard before the person was saved
+}
+
+// ── Names come from the conversation ("Meu nome é Marcus Magalhães", "my name is …") ──
+// A face without a name is "no name" — never "unknown": it may be your best friend, just not registered yet.
+var UNNAMED_RE = /^(?:Pessoa Desconhecida|Unknown Person|Sem nome|No name)(?: \d+)?$/i;
+function isUnnamed(p) { return !p || !p.name || UNNAMED_RE.test(p.name.trim()); }
+var NAME_WORD = "[A-ZÀ-Ý][a-zà-ÿ'’-]+";
+var NAME_RE = new RegExp(
+  "(?:[Mm]eu nome é|[Mm]e chamo|[Pp]ode me chamar de|[Ee]u sou [oa]|[Ss]ou [oa]|[Mm]y name is|[Ii]'m|[Ii] am|[Cc]all me)\\s+(" +
+  NAME_WORD + "(?:\\s+(?:(?:de|da|do|dos|das|e)\\s+)?" + NAME_WORD + "){0,3})");
+// strong cues ("meu nome é", "me chamo", "my name is") also accept lowercase speech output
+var STRONG_RE = /(?:meu nome é|me chamo|pode me chamar de|my name is|call me)\s+([a-zà-ÿ'’-]+(?:\s+(?:(?:de|da|do|dos|das)\s+)?[a-zà-ÿ'’-]+){0,3})/i;
+var NAME_STOP = /^(e|eu|trabalho|sou|tenho|moro|and|i|i'm|work|from|aqui|tudo|prazer|muito|com|na|no|em)$/i;
+function titleCase(w) { return /^(de|da|do|dos|das)$/i.test(w) ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1); }
+// Brazilian introductions are short: "Marcos, prazer", "Prazer, Ana", "esse é o Rafa".
+// Cues, strongest first. Talk ABOUT someone ("o João me disse", "sua mãe, a Karin",
+// "Carolina, tem que conhecer") matches none of them on purpose.
+var NOT_A_NAME = /^(Tudo|Bem|Muito|Oi|Olá|Ola|Então|Sim|Não|Obrigado|Obrigada|Prazer|Eu|Aqui|É|Também|Igualmente|Opa|Bom|Boa|Dia|Tarde|Noite|Gente|Galera|Pessoal|Cara|Mano|Ah|Aí|Ai|Ei|Olha|Pronto|Perdão|Desculpa|Nossa|Sure|Fine|Here|Good|Not|So|The|Nice|Hi|Hello|Hey|Pleasure|Pleased|Great|Yes|Yeah|Well|Right|Ok|Okay|Vou|Deixa|Hola|Mucho|Gusto|Buenos|Buenas|Encantado|Encantada|Bueno|Sí|Si|Claro|Oye|Mira)$/;
+var NAME_GROUP = "(" + NAME_WORD + "(?:\\s+(?:(?:de|da|do|dos|das|e)\\s+)?" + NAME_WORD + "){0,3})";
+var REL = "(?:(?:meu|minha|nosso|nossa|my|our|mi|nuestr[oa])\\s+)?(?:amig[oa]|colega|prim[oa]|vizinh[oa]|sóci[oa]|chefe|cliente|parceir[oa]|friend|colleague|coworker|partner|cousin|neighbou?r|boss|vecin[oa]|jefe)?\\s*";
+var START = "(?:^|[.!?…]\\s*|\\b(?:[Aa]í|[Oo]i|[Oo]lá|[Ee]i|[Ee] aí|[Aa]h|[Ôô])\\s*,?\\s*)";
+// Each cue captures the name of the person IN FRONT of you. Group 1 = name.
+var CUES = [
+  { re: new RegExp("(?:[Oo] nome d(?:ele|ela) é|[Oo] seu nome é|[Ee]l[ae] se chama|[Vv]ocê se chama|[Vv]ocê é [oa]|[Ee]ss[ae] é [oa]\\s+" + REL + "|[Ee]st[ae] é [oa]\\s+" + REL + "|[Tt]his is\\s+" + REL + "|[Yy]ou're|[Yy]ou are)\\s*" + NAME_GROUP, 'g'), rel:true },
+  { re: new RegExp("(?:gravar|registrar|salvar|anotar)(?:\\s+(?:você|te|ele|ela))?(?:\\s+aqui)?\\s*[,:.…]*\\s*" + NAME_GROUP, 'g'), rel:true },
+  { re: new RegExp(NAME_GROUP + "(?:\\s*,?\\s*(?:é|né|então|ok|tá|muito|um|uh|eh|ah)(?![\\wÀ-ÿ]))*\\s*,?\\s*(?:muito\\s+)?(?:[Pp]razer|[Nn]ice to meet you)", 'g') },
+  { re: new RegExp("(?:[Pp]razer|[Nn]ice to meet you)\\s*,?\\s*(?:(?:eu\\s+)?sou\\s+[oa]\\s+)?" + NAME_GROUP, 'g') },
+  { re: new RegExp(START + NAME_GROUP + "\\s*,?\\s*né(?![\\wÀ-ÿ])", 'g') },                 // "Karin, né? Lembro de você"
+  { re: new RegExp(START + NAME_GROUP + "\\s*,\\s*(?:você|tu)(?![\\wÀ-ÿ])", 'g') },          // "Aí, Carolina, você tem que…"
+  { re: new RegExp("(?:mas é|na verdade é|[Qq]uer dizer)\\s*,?\\s*" + NAME_GROUP, 'g'), alias:true },   // "pode me chamar de Dani, mas é Daniele"
+  { re: new RegExp("(" + NAME_WORD + ")\\s*,?\\s+com\\s+(?:[a-zà-ú]|dois\\s+[a-z]|duas\\s+[a-z])\\b", 'g') },
+  // English: "Nice to meet you, Mike", "You must be Sarah", "Sarah, right?", "It's Michael, but everyone calls me Mike"
+  { re: new RegExp("(?:[Nn]ice|[Gg]ood|[Gg]reat|[Pp]leased|[Hh]appy) to meet you\\s*,?\\s*" + NAME_GROUP, 'g') },
+  { re: new RegExp("(?:[Yy]ou must be|[Yy]ou're|[Aa]re you)\\s+" + NAME_GROUP, 'g'), rel:true },
+  { re: new RegExp(START + NAME_GROUP + "\\s*,\\s*right\\b", 'g') },
+  { re: new RegExp("[Ii]t's\\s+" + NAME_GROUP + "\\s*,?\\s+but\\s+(?:everyone|everybody|people|you can)\\s+call", 'g') },
+  // Spanish: "me llamo", "soy Ana", "mucho gusto, Ana", "Ana, mucho gusto", "encantada, Ana", "te presento a Luis", "tú eres Ana, ¿no?"
+  { re: new RegExp("(?:[Mm]e llamo|[Mm]i nombre es|[Ss]oy|[Tt]e presento a\\s*" + REL + "|[Ll]e presento a\\s*" + REL + "|[Tt]ú eres|[Uu]sted es|[Ee]ste es\\s*" + REL + "|[Ee]sta es\\s*" + REL + ")\\s+" + NAME_GROUP, 'g'), rel:true },
+  { re: new RegExp("(?:[Mm]ucho gusto|[Ee]ncantad[oa]|[Uu]n placer)\\s*,?\\s*(?:(?:yo\\s+)?soy\\s+)?" + NAME_GROUP, 'g') },
+  { re: new RegExp(NAME_GROUP + "\\s*,?\\s*(?:mucho gusto|encantad[oa]|un placer)", 'g') }
+];
+var CUE_SPELL = new RegExp("(" + NAME_WORD + ")\\s*,?\\s+com\\s+(?:[a-zà-ú]|dois\\s+[a-z]|duas\\s+[a-z])\\b");
+var CUE_PRAZER_LOWER = /([a-zà-ÿ'’-]{2,}(?:\s+(?:(?:de|da|do|dos|das)\s+)?[a-zà-ÿ'’-]{2,}){0,2})(?:\s*,?\s*(?:é|né|então|ok|tá))*\s*,?\s*(?:muito\s+)?prazer\b/i;
+var THIRD_PARTY = /(?:mãe|mae|pai|irmã|irmão|irmao|avó|avô|tia|tio|filh[oa]|espos[oa]|marido|namorad[oa]|amig[oa]|chefe|primo|prima|mom|mum|mother|dad|father|sister|brother|wife|husband|son|daughter|boss|friend|aunt|uncle|madre|padre|hermana|hermano|hij[oa]|jefe|novi[oa])\s*,?\s*(?:[oa]|the|la|el)?\s*$/i;
+var AFTER_NOT_HIM = /^\s*,?\s*(?:não\b|nao\b|no\b(?!\s*\?)|not\b|é\s+[oa]\s+(?:sua|seu|minha|meu|dele|dela)\b|is your\b|es tu\b|era\b|disse\b|falou\b|fez\b|me disse\b|said\b|told\b|dijo\b)/i;
+function cleanName(n) {
+  var w = String(n || '').trim().replace(/^(?:Mr|Mrs|Ms|Miss|Dr|Dra|Sr|Sra|Srta|Prof|Profa)\.?\s+/, '').split(/\s+/);
+  while (w.length && NOT_A_NAME.test(w[0])) w.shift();
+  while (w.length && /^(de|da|do|dos|das|e)$/.test(w[w.length-1])) w.pop();
+  return w.join(' ');
+}
+// All name candidates in one utterance, in order. The LAST valid one wins ("Gabriela… perdão, você é a Beatriz").
+function nameCandidates(text) {
+  var out = [];
+  function add(name, idx, end, alias) {
+    name = cleanName(name);
+    if (!name || NOT_A_NAME.test(name.split(' ')[0])) return;
+    if (AFTER_NOT_HIM.test(text.slice(end))) return;              // "Gabriela não", "Gabriela é a sua irmã"
+    out.push({ name: name, index: idx, alias: alias || '' });
+  }
+  var m;
+  var self = new RegExp(NAME_RE.source, 'g');                     // "meu nome é", "me chamo", "sou o/a"
+  while ((m = self.exec(text))) add(m[1], m.index + m[0].length - m[1].length, m.index + m[0].length);
+  CUES.forEach(function(c){
+    c.re.lastIndex = 0;
+    while ((m = c.re.exec(text))) {
+      var nStart = m.index + m[0].lastIndexOf(m[1]);
+      if (!c.rel && THIRD_PARTY.test(text.slice(0, nStart))) continue;   // "sua mãe, a Karin"
+      var alias = '';
+      if (c.alias) { var a = /(?:pode me chamar de|me chama de|call me)\s+([A-ZÀ-Ý][\wÀ-ÿ'’-]+)/i.exec(text.slice(0, m.index)); if (a) alias = titleCase(a[1]); }
+      add(m[1], nStart, nStart + m[1].length, alias);
+    }
+  });
+  var st = STRONG_RE.exec(text);                                  // lowercase speech: "meu nome é marcos…"
+  if (st) {
+    var words = [];
+    st[1].split(/\s+/).some(function(w){ if (NAME_STOP.test(w)) return true; words.push(titleCase(w)); });
+    while (words.length && /^(de|da|do|dos|das)$/.test(words[words.length-1])) words.pop();
+    if (words.length) out.push({ name: words.join(' '), index: st.index, alias: '' });
+  }
+  var lw = CUE_PRAZER_LOWER.exec(text);                           // lowercase: "marcelo campos é prazer"
+  if (lw && !out.length) {
+    var parts = lw[1].split(/\s+/).map(titleCase);
+    while (parts.length && (NOT_A_NAME.test(parts[0]) || NAME_STOP.test(parts[0]) || /^(o|a|que|você|voce|sou|é)$/i.test(parts[0]))) parts.shift();
+    if (parts.length && !THIRD_PARTY.test(text.slice(0, lw.index))) out.push({ name: parts.join(' '), index: lw.index, alias: '' });
+  }
+  return out.sort(function(a, b){ return a.index - b.index; });
+}
+// opts.bare: early in an encounter a lone name ("Mariana.") counts as an introduction.
+function detectNameFull(text, opts) {
+  text = String(text || '');
+  var c = nameCandidates(text);
+  if (c.length) {
+    var last = c[c.length - 1];
+    // "Marcelo" then "Marcelo Campos": keep the fuller form of the same person
+    c.forEach(function(x){ if (x.name.indexOf(last.name) === 0 && x.name.length > last.name.length) last = x; });
+    if (!last.alias) c.forEach(function(x){ if (x.alias) last = { name: last.name, alias: x.alias, index: last.index }; });
+    return last;
+  }
+  if (opts && opts.bare) {
+    var b = new RegExp("^\\s*" + NAME_GROUP + "\\s*[.!]?\\s*$").exec(text);
+    if (b && !NOT_A_NAME.test(b[1].split(/\s+/)[0])) return { name: cleanName(b[1]), alias: '' };
+  }
+  return null;
+}
+function detectName(text, opts) { var r = detectNameFull(text, opts); return r ? r.name : ''; }
+function lev(a, b) {
+  a = a.toLowerCase(); b = b.toLowerCase();
+  var d = []; for (var i = 0; i <= a.length; i++) { d[i] = [i]; }
+  for (var j = 1; j <= b.length; j++) d[0][j] = j;
+  for (i = 1; i <= a.length; i++) for (j = 1; j <= b.length; j++)
+    d[i][j] = Math.min(d[i-1][j] + 1, d[i][j-1] + 1, d[i-1][j-1] + (a[i-1] === b[j-1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+// "é Marcos, com U" / "Marcus com u" / "Luiz com S": fix the spelling of the current first name.
+// Speech output is often lowercase, and the spoken word may still be the OLD spelling — then the letter decides.
+var SWAPS = { u:['o'], o:['u'], y:['i'], i:['y','e'], e:['i'], z:['s'], s:['z','ç'], k:['c'], c:['k','s'], w:['v','u'], h:[''], l:[''], n:[''], t:[''] };
+function spellingFix(text, current) {
+  if (!current) return '';
+  var w = current.split(/\s+/), first = w[0], re = /([A-Za-zÀ-ÿ'’-]{2,})\s*,?\s+com\s+(?:(dois|duas|two)\s+)?([A-Za-zÀ-ú])(?![\wÀ-ÿ])/gi, m, best = '';
+  while ((m = re.exec(String(text || '')))) {
+    var word = titleCase(m[1].toLowerCase()), L = m[3].toLowerCase(), dbl = !!m[2];
+    if (word[0].toLowerCase() !== first[0].toLowerCase() || lev(word, first) > 2) continue;
+    var has = dbl ? word.toLowerCase().indexOf(L + L) >= 0 : word.toLowerCase().indexOf(L) >= 0;
+    if (has) { best = word; continue; }
+    // the spoken word lacks the letter: change the current spelling so it has it (Marcos + u → Marcus)
+    var low = first.toLowerCase(), cand = '';
+    if (dbl && low.indexOf(L) >= 0) { var k = low.lastIndexOf(L); cand = first.slice(0, k) + L + first.slice(k); }
+    else (SWAPS[L] || []).some(function(from){
+      if (from === '') return false;
+      var k = low.lastIndexOf(from);
+      if (k > 0) { cand = first.slice(0, k) + L + first.slice(k + from.length); return true; }
+    });
+    if (cand) best = cand;
+  }
+  if (!best || best === first) return '';
+  w[0] = best;
+  return w.join(' ');
+}
+// Title on the display: the name, or — until there is one — a short accessible description.
+function lookOf(p) { return (p && p.custom_fields && p.custom_fields.look) || (p && isUnnamed(p) && p.nickname) || ''; }
+function displayName(p) { return isUnnamed(p) ? (lookOf(p) || t('no_name')) : (p.name || '—'); }
+
+// ── Accessible description of a face without a name ("Moça de ~20 anos, cabelo castanho, de preto") ──
+var _ageNet = null;
+function loadAgeNet() {
+  if (_ageNet) return _ageNet;
+  _ageNet = (window.faceapi ? faceapi.nets.ageGenderNet.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model') : Promise.reject())
+    .catch(function(){ _ageNet = null; throw new Error('age model unavailable'); });
+  return _ageNet;
+}
+function avgRGB(cv, x0, y0, x1, y1) {
+  x0 = Math.max(0, Math.round(x0)); y0 = Math.max(0, Math.round(y0));
+  x1 = Math.min(cv.width, Math.round(x1)); y1 = Math.min(cv.height, Math.round(y1));
+  if (x1 - x0 < 2 || y1 - y0 < 2) return null;
+  var d = cv.getContext('2d').getImageData(x0, y0, x1 - x0, y1 - y0).data, r = 0, g = 0, b = 0, n = 0;
+  for (var i = 0; i < d.length; i += 16) { r += d[i]; g += d[i+1]; b += d[i+2]; n++; }
+  return n ? [r/n, g/n, b/n] : null;
+}
+function hairWord(frame, box) {
+  try {
+    var hair = avgRGB(frame, box.x + box.w*0.3, box.y - box.h*0.18, box.x + box.w*0.7, box.y + box.h*0.02);
+    var skin = avgRGB(frame, box.x + box.w*0.3, box.y + box.h*0.5, box.x + box.w*0.7, box.y + box.h*0.7);
+    if (!hair || !skin) return '';
+    var diff = Math.abs(hair[0]-skin[0]) + Math.abs(hair[1]-skin[1]) + Math.abs(hair[2]-skin[2]);
+    if (diff < 45) return t('lk_bald');
+    var c = colorName(hair[0], hair[1], hair[2]);
+    var key = { black:'h_black', brown:'h_brown', burgundy:'h_brown', orange:'h_red', red:'h_red', yellow:'h_blond', beige:'h_blond', grey:'h_grey', white:'h_grey', purple:'h_purple', pink:'h_pink', blue:'h_blue', navy:'h_blue', green:'h_green' }[c];
+    return key ? t('lk_hair', { c: t(key) }) : '';
+  } catch (e) { return ''; }
+}
+function describeLook(frame, box, clothing) {
+  if (!frame || !box) return Promise.resolve('');
+  var hair = hairWord(frame, box);
+  var wear = clothing ? t('lk_wear', { c: clothing }) : '';
+  return loadAgeNet().then(function(){
+    return faceapi.detectSingleFace(frame, new faceapi.TinyFaceDetectorOptions({ scoreThreshold:0.3 })).withAgeAndGender();
+  }).then(function(r){
+    var who = t('lk_p'), age = '';
+    if (r) {
+      var a = Math.round(r.age / 5) * 5, band = r.age < 25 ? 1 : (r.age < 55 ? 2 : 3);
+      if (r.genderProbability >= 0.7) who = t((r.gender === 'female' ? 'lk_f' : 'lk_m') + band);
+      age = t('lk_age', { a: a });
+    }
+    return who + age + hair + wear;
+  }).catch(function(){ return t('lk_p') + hair + wear; });
+}
+// A registered face with no name and no description yet (e.g. saved before 10/10): describe it now.
+function describeIfNeeded() {
+  var e = _enc;
+  if (!e || !e.person || !isUnnamed(e.person) || lookOf(e.person) || e.describing || !e.bestFrame) return;
+  e.describing = true;
+  describeLook(e.bestFrame, e.bestBox, e.clothing || (e.bestFrame ? describeClothing(cropTorso(e.bestFrame, e.bestBox) || e.bestFrame) : null)).then(function(desc){
+    if (!desc || !e.person) return;
+    var p = e.person; p.custom_fields = Object.assign({}, p.custom_fields, { look: desc });
+    _profiles.forEach(function(x){ if (x.id === p.id) x.custom_fields = p.custom_fields; });
+    if (p.id) fetch(PROXY + '?id=' + p.id + '&entity=FaceContextPerson', {
+      method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ custom_fields: p.custom_fields, status: 'Pendente' })
+    }).catch(function(){});
+    log('✓ described: ' + desc, true);
+    if (_enc === e && !_review) showProfile(p, null, 'glance');
+  });
+}
+function renamePerson(p, name, alias) {
+  if (!p || !name || (p.name === name && (!alias || p.nickname === alias))) return;
+  var old = p.name; p.name = name;
+  if (alias) p.nickname = alias;
+  _profiles.forEach(function(x){ if (x.id === p.id) x.name = name; });
+  log('✓ name heard: ' + old + ' → ' + name, true);
+  if (_currentProfile && _currentProfile.id === p.id) showProfile(p, null, /review/.test(document.getElementById('hud-card').className) ? 'review' : 'glance');
+  else if (_enc && _enc.person && _enc.person.id === p.id && !_review) showProfile(p, null, 'glance');   // name just heard: the card appears now
+  if (p.id) fetch(PROXY + '?id=' + p.id + '&entity=FaceContextPerson', {
+    method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(alias ? { name: name, nickname: alias, status: 'Identificado' } : { name: name, status: 'Identificado' })
+  }).catch(function(){});
+}
+
+// ── Persistence (stored text is written in the user's language) ──
+function nextUnknownName() {
+  var n = 1, re = /^(?:Pessoa Desconhecida|Unknown Person|Sem nome|No name) (\d+)$/i;
+  _profiles.forEach(function(p){ var m = re.exec(p.name || ''); if (m) n = Math.max(n, parseInt(m[1], 10) + 1); });
+  return t('d_unknown', { n: n });
+}
+
+function createPerson(emb, photo, mode, cb, nickname) {
+  if (!emb || !Array.isArray(emb) || emb.length !== 128 || !photo) { cb(null); return; }
+  var name = nextUnknownName();
+  var body = {
+    name: name, status: 'Identificado', face_embedding: JSON.stringify(emb),
+    last_seen_date: new Date().toISOString(),
+    last_seen_context: t(mode === 'auto' ? 'd_first_auto' : 'd_first_manual')
+  };
+  if (photo) body.photo_url = photo;
+  if (nickname) { body.custom_fields = { look: nickname }; body.status = 'Pendente'; }   // name still to come: an accessible description in the meantime
+  fetch(PROXY, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) })
+  .then(function(r){ return r.json(); })
+  .then(function(p){
+    if (!p || !p.id) throw new Error(p && p.error || 'no id');
+    _profiles.push(p);
+    renderSyncBadge();
+    loadEmbeddings();
+    log('✓ ' + name + ' saved — complete the details later in the Manager', true);
+    cb(p);
+  })
+  .catch(function(e){ log('⚠ save failed: ' + e.message, true); cb(null); });
+}
+
+// Encounter ended naturally: save text only (transcript + 1-line summary + what was seen)
+function saveEncounter(e) {
+  if (!e.person) return;
+  var start = new Date(e.recordingSince || e.startedAt);
+  var mins = Math.max(1, Math.round((Date.now() - start.getTime()) / 60000));
+  var transcript = e.transcript.join('\n');
+  var notes = e.clothing ? t('d_clothing', { c: e.clothing }) : '';
+  var p = e.person;
+  setStatus('s_saving_enc');
+  analyzeEncounter(transcript, p).then(function(a){
+    if (a) applyAnalysis(p, a, e);
+    return (a && a.context) ? { summary: a.context, hook: a.hook } : summarize(transcript, p.name).then(function(sm){ return { summary: sm }; });
+  }).then(function(res){
+    var summary = res.summary;
+    var context = summary || (t('d_conv', { m: mins }) + (transcript ? '' : t('d_nospeech')));
+    return fetch(PROXY + '?entity=FaceContextEncounter', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        person_id: p.id, person_name: p.name, date: start.toISOString(),
+        context: context, capture_mode: 'presencial',
+        speech_captured: transcript, notes: notes, ocr_captured: '', hook: res.hook || ''
+      })
+    }).then(function(r){ return r.json(); }).then(function(enc){
+      fetch(PROXY + '?id=' + p.id + '&entity=FaceContextPerson', {
+        method:'PUT', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ last_seen_date: start.toISOString(), last_seen_context: context })
+      }).catch(function(){});
+      delete _encCache[p.id];
+      setStatus('s_enc_saved');
+      log('✓ encounter saved — ' + context, true);
+      if (e.kind === 'new' && e.torso && enc && enc.id) readBadge(e.torso, enc.id);
+    });
+  }).catch(function(err){ log('⚠ encounter not saved: ' + err.message, true); setStatus('s_fail'); });
+}
+
+// Full analysis (docs/PROMPT-ANALYZE-ENCOUNTER.md): name with evidence, tags, hook, context, dossier.
+// Until Beto ships the action, the call fails quietly and the 1-line summary below is used.
+function analyzeEncounter(transcript, p) {
+  if (!transcript) return Promise.resolve(null);
+  var cf = p.custom_fields || {};
+  return fetch(PROXY, { method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ action:'analyze_encounter', lang: VC_I18N.lang, transcript: transcript,
+      person:{ name:p.name, named:!isUnnamed(p), look:lookOf(p), tags:p.tags || [], dossier:cf.dossier || '', hook:cf.hook || '' },
+      previous_encounters:(_encCache[p.id] || []).slice(0, 5).map(function(x){ return { date:x.date, context:x.context, hook:x.hook || '' }; }) }) })
+  .then(function(r){ return r.ok ? r.json() : null; })
+  .then(function(d){ return (d && typeof d === 'object' && ('hook' in d || 'tags' in d || 'dossier' in d)) ? d : null; })
+  .catch(function(){ return null; });
+}
+function applyAnalysis(p, a, e) {
+  var upd = {}, cf = Object.assign({}, p.custom_fields);
+  if (a.hook) cf.hook = a.hook;
+  if (a.dossier) cf.dossier = a.dossier;
+  upd.custom_fields = cf; p.custom_fields = cf;
+  if (Array.isArray(a.tags) && a.tags.length) { p.tags = a.tags.slice(0, 3); upd.tags = p.tags; }
+  // name only with a literal quote from the transcript and high confidence
+  var quoted = a.name_evidence && e.transcript.join(' ').toLowerCase().indexOf(String(a.name_evidence).replace(/["“”]/g, '').slice(0, 20).toLowerCase()) >= 0;
+  if (a.name && (a.name_confidence || 0) >= 0.8 && quoted && (isUnnamed(p) || e.namedHere)) renamePerson(p, a.name, a.alias || '');
+  if (p.id) fetch(PROXY + '?id=' + p.id + '&entity=FaceContextPerson', {
+    method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(upd)
+  }).catch(function(){});
+  log('✓ analysis: ' + [a.hook, (a.tags || []).join(', ')].filter(Boolean).join(' · '), true);
+}
+
+// 1-line summary via the existing backend (Gemini, with budget tracking), in the USER's language.
+function summarize(transcript, personName) {
+  if (!transcript) return Promise.resolve('');
+  return fetch(PROXY, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ action:'ai_summary', transcript: transcript, person_name: personName, lang: VC_I18N.lang })
+  }).then(function(r){ return r.json(); })
+    .then(function(d){
+      if (!d || !d.summary || d.error || d.model === 'fallback') { if (d && d.error) log('⚠ AI summary unavailable: ' + String(d.error).slice(0, 80), true); return ''; }
+      return d.summary;
+    })
+    .catch(function(){ return ''; });
+}
+
+// ── Manual capture (recovery path): Tap on an unknown face ──
+var _captureBusy = false, _preview = null;
+function manualCapture() {
+  if (_captureBusy || !camStream || _previewOpen || _enc) return;
+  if (!_lastMatchDescriptor || Date.now() - _lastFaceAt > LEAVE_MS_PENDING) { log('● no face in view'); return; }
+  if (_lastMatchKnown) { log('● ' + (_currentProfile ? _currentProfile.name : 'this face') + ' is already saved'); return; }
+  _captureBusy = true; setTimeout(function(){ _captureBusy = false; }, 1000);
+  var fl = document.getElementById('flash');
+  if (fl) { fl.classList.add('on'); setTimeout(function(){ fl.classList.remove('on'); }, 100); }
+  var frame = snapshotFrame();
+  var box = _lastFaceBox ? { x:_lastFaceBox.x, y:_lastFaceBox.y, w:_lastFaceBox.w, h:_lastFaceBox.h } : null;
+  _preview = {
+    emb: _lastMatchDescriptor,
+    photo: (frame && box) ? cropFaceCircle(frame, box) : null,
+    torso: (frame && box) ? cropTorso(frame, box) : null
+  };
+  if (!_preview.photo) { _preview = null; log('● no usable face photo — try again', true); return; }
+  _previewOpen = true;
+  renderPreview();
+  log('● photo preview — Tap to save, Swipe forward to discard', true);
+}
+function renderPreview() {
+  var img = document.getElementById('hp-img');
+  if (_preview && _preview.photo) { img.src = _preview.photo; img.style.display = 'block'; } else img.style.display = 'none';
+  hideHudCard(true);
+  document.getElementById('hud-preview').className = _previewOpen ? 'on' : '';
+}
+function savePreview() {
+  if (!_previewOpen) return;
+  var pv = _preview; _previewOpen = false; _preview = null;
+  _state = 'saving'; renderPreview();
+  createPerson(pv.emb, pv.photo, 'manual', function(p){
+    _state = 'idle';
+    if (!p) return;
+    _suppressed = _suppressed.filter(function(d){ return dist(d, pv.emb) >= SAME_FACE; });
+    showProfile(p, null);
+    setStatus('s_saved');
+    var clothing = pv.torso ? describeClothing(pv.torso) : null;
+    fetch(PROXY + '?entity=FaceContextEncounter', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ person_id:p.id, person_name:p.name, date:new Date().toISOString(),
+        context:t('d_first_hand'), capture_mode:'presencial',
+        notes: clothing ? t('d_clothing', { c: clothing }) : '', ocr_captured:'' })
+    }).then(function(r){ return r.json(); })
+      .then(function(enc){ if (pv.torso && enc && enc.id) readBadge(pv.torso, enc.id); })
+      .catch(function(){});
+  });
+}
+function discardPreview() {
+  if (!_previewOpen) return;
+  _previewOpen = false; _preview = null;
+  renderPreview();
+  setStatus('s_ready');
+  log('✗ photo discarded');
+}
+
+// ── Frame crops ──
+// Circular 256px face photo — the only image ever stored (spec B5).
+function cropFaceCircle(src, b) {
+  try {
+    if (!src || !b) return null;
+    var m = Math.max(b.w, b.h) * 0.25;
+    var side = Math.max(b.w, b.h) + m * 2;
+    var sx = b.x - (side - b.w) / 2, sy = b.y - (side - b.h) / 2;
+    var vw = src.videoWidth || src.width || 640, vh = src.videoHeight || src.height || 480;
+    if (sx < 0) sx = 0; if (sy < 0) sy = 0;
+    if (sx + side > vw) side = Math.min(side, vw - sx);
+    if (sy + side > vh) side = Math.min(side, vh - sy);
+    if (side < 10) return null;
+    var cv = document.createElement('canvas');
+    cv.width = 256; cv.height = 256;
+    var ctx = cv.getContext('2d');
+    // SQUARE photo, no mask: a circle leaves black corners, and black has no place on the display
+    ctx.drawImage(src, sx, sy, side, side, 0, 0, 256, 256);
+    return cv.toDataURL('image/jpeg', 0.8);
+  } catch (e) { return null; }
+}
+// Photos saved before 10/10 were round (black corners). Detect them by a dark corner pixel and
+// replace them with a square one the next time the person is seen.
+function checkLegacyPhoto(p) {
+  if (!hasPhoto(p) || p._legacyChecked) return;
+  p._legacyChecked = true;
+  try {
+    var img = new Image();
+    img.onload = function(){
+      try {
+        var c = document.createElement('canvas'); c.width = c.height = 8;
+        var x = c.getContext('2d'); x.drawImage(img, 0, 0, 8, 8);
+        var d = x.getImageData(0, 0, 1, 1).data, d2 = x.getImageData(7, 7, 1, 1).data;
+        if (d[0] + d[1] + d[2] < 30 && d2[0] + d2[1] + d2[2] < 30) p._legacyPhoto = true;
+      } catch (e) {}
+    };
+    img.src = p.photo_url;
+  } catch (e) {}
+}
+function replacePhoto(p, photo) {
+  if (!p || !p.id || !photo) return;
+  p.photo_url = photo; p._legacyPhoto = false;
+  _profiles.forEach(function(x){ if (x.id === p.id) x.photo_url = photo; });
+  fetch(PROXY + '?id=' + p.id + '&entity=FaceContextPerson', {
+    method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ photo_url: photo })
+  }).catch(function(){});
+  log('✓ round photo replaced by a square one — ' + p.name, true);
+}
+function captureFacePhoto() { return cropFaceCircle(document.getElementById('vid'), _lastFaceBox); }
+
+// Chest area right below the face (clothing + badge). Kept in memory only.
+function cropTorso(src, b) {
+  try {
+    if (!src || !b) return null;
+    var W = src.width, H = src.height;
+    var x0 = Math.max(0, b.x - b.w * 0.8), x1 = Math.min(W, b.x + b.w * 1.8);
+    var y0 = Math.max(0, b.y + b.h * 1.15), y1 = Math.min(H, b.y + b.h * 3.2);
+    if (x1 - x0 < 20 || y1 - y0 < b.h * 0.5) return null;
+    var cv = document.createElement('canvas');
+    cv.width = Math.round(x1 - x0); cv.height = Math.round(y1 - y0);
+    cv.getContext('2d').drawImage(src, x0, y0, x1 - x0, y1 - y0, 0, 0, cv.width, cv.height);
+    return cv;
+  } catch (e) { return null; }
+}
+
+// Dominant clothing colour — simple estimate, no AI. Returns a colour key (c_*).
+function colorName(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  var mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+  var s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  if (l < 0.16) return 'black';
+  if (l > 0.86 && s < 0.25) return 'white';
+  if (s < 0.16) return 'grey';
+  var h = mx === r ? 60 * (((g - b) / d) % 6) : mx === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4);
+  if (h < 0) h += 360;
+  if (h < 15 || h >= 345) return l < 0.3 ? 'burgundy' : 'red';
+  if (h < 40) return l < 0.45 ? 'brown' : 'orange';
+  if (h < 65) return l < 0.38 ? 'brown' : (s < 0.4 && l > 0.6 ? 'beige' : 'yellow');
+  if (h < 165) return 'green';
+  if (h < 255) return l < 0.3 ? 'navy' : 'blue';
+  if (h < 290) return 'purple';
+  return 'pink';
+}
+function describeClothing(torso) {
+  try {
+    var data = torso.getContext('2d').getImageData(0, 0, torso.width, torso.height).data;
+    var count = {}, total = 0;
+    for (var i = 0; i < data.length; i += 16) {
+      var c = colorName(data[i], data[i + 1], data[i + 2]);
+      count[c] = (count[c] || 0) + 1; total++;
+    }
+    if (!total) return null;
+    var ranked = Object.keys(count).sort(function(a, b){ return count[b] - count[a]; });
+    var top = ranked[0];
+    if (count[top] / total < 0.35 && ranked[1]) return t('d_mixed', { a: t('c_' + top), b: t('c_' + ranked[1]) });
+    return t('c_' + top);
+  } catch (e) { return null; }
+}
+
+// Badge OCR — runs after saving, in the background; only stored if readable text is found.
+var _tessLoading = null;
+function loadTesseract() {
+  if (window.Tesseract) return Promise.resolve();
+  if (_tessLoading) return _tessLoading;
+  _tessLoading = new Promise(function(res, rej){
+    var sc = document.createElement('script');
+    sc.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+    sc.onload = res; sc.onerror = function(){ _tessLoading = null; rej(new Error('OCR unavailable')); };
+    document.head.appendChild(sc);
+  });
+  return _tessLoading;
+}
+function readBadge(torso, encounterId) {
+  var cv = document.createElement('canvas');
+  cv.width = torso.width * 2; cv.height = torso.height * 2;
+  var ctx = cv.getContext('2d');
+  ctx.filter = 'grayscale(1) contrast(1.4)';
+  ctx.drawImage(torso, 0, 0, cv.width, cv.height);
+  var timeout = new Promise(function(_, rej){ setTimeout(function(){ rej(new Error('timed out')); }, 30000); });
+  Promise.race([ loadTesseract().then(function(){ return Tesseract.recognize(cv, 'por+eng'); }), timeout ])
+  .then(function(res){
+    var words = (res && res.data && res.data.words) || [];
+    var txt = words.filter(function(w){ return w.confidence >= 70 && /[A-Za-zÀ-ú]{2,}/.test(w.text); })
+      .map(function(w){ return w.text; }).join(' ').trim();
+    if (txt.replace(/[^A-Za-zÀ-ú]/g, '').length < 3) { log('◌ badge: no readable text'); return; }
+    log('✓ badge: ' + txt, true);
+    return fetch(PROXY + '?id=' + encounterId + '&entity=FaceContextEncounter', {
+      method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ocr_captured: txt })
+    });
+  })
+  .catch(function(e){ log('◌ badge not read: ' + e.message); });
+}
+
+// ── QR codes during an encounter (business card, LinkedIn/WhatsApp QR on a phone, vCard) ──
+// The strongest source of all: the name is written, not guessed. Scanned ~1×/s only while an encounter is open.
+var _qrDetector = null, _qrLib = null, _qrLastAt = 0, _qrSeen = {};
+function qrInit() {
+  if (_qrDetector || _qrLib) return Promise.resolve();
+  try {
+    if ('BarcodeDetector' in window) { _qrDetector = new BarcodeDetector({ formats: ['qr_code'] }); return Promise.resolve(); }
+  } catch (e) {}
+  return new Promise(function(res){
+    var sc = document.createElement('script');
+    sc.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
+    sc.onload = function(){ _qrLib = window.jsQR; res(); }; sc.onerror = function(){ res(); };
+    document.head.appendChild(sc);
+  });
+}
+function scanQR(frame) {
+  if (!frame) return Promise.resolve(null);
+  return qrInit().then(function(){
+    if (_qrDetector) return _qrDetector.detect(frame).then(function(r){ return r && r[0] ? r[0].rawValue : null; }).catch(function(){ return null; });
+    if (_qrLib) {
+      var d = frame.getContext('2d').getImageData(0, 0, frame.width, frame.height);
+      var r = _qrLib(d.data, d.width, d.height, { inversionAttempts: 'dontInvert' });
+      return r ? r.data : null;
+    }
+    return null;
+  });
+}
+// vCard / MeCard / profile links → {name, company, role, phone, email, linkedin, whatsapp, url}
+function parseQR(raw) {
+  raw = String(raw || '').trim();
+  var out = {};
+  function vfield(k) { var m = new RegExp('^' + k + '(?:;[^:\\n]*)?:(.*)$', 'mi').exec(raw); return m ? m[1].trim() : ''; }
+  if (/^BEGIN:VCARD/i.test(raw)) {
+    out.name = vfield('FN');
+    if (!out.name) { var n = vfield('N').split(';'); out.name = [n[1], n[0]].filter(Boolean).join(' ').trim(); }
+    out.company = vfield('ORG').replace(/;+$/, ''); out.role = vfield('TITLE');
+    out.phone = vfield('TEL'); out.email = vfield('EMAIL'); out.url = vfield('URL');
+  } else if (/^MECARD:/i.test(raw)) {
+    var mf = function(k){ var m = new RegExp('[:;]' + k + ':([^;]*)', 'i').exec(raw); return m ? m[1].trim() : ''; };
+    var nn = mf('N').split(','); out.name = [nn[1], nn[0]].filter(Boolean).join(' ').trim();
+    out.phone = mf('TEL'); out.email = mf('EMAIL'); out.url = mf('URL'); out.company = mf('ORG');
+  } else if (/^https?:\/\//i.test(raw)) {
+    out.url = raw;
+  } else if (/^mailto:/i.test(raw)) out.email = raw.replace(/^mailto:/i, '');
+  else if (/^tel:/i.test(raw)) out.phone = raw.replace(/^tel:/i, '');
+  var u = out.url || '';
+  if (/linkedin\.com\/in\//i.test(u)) out.linkedin = u;
+  if (/wa\.me\/|whatsapp\.com/i.test(u)) { out.whatsapp = u; var ph = /wa\.me\/(\d+)/.exec(u); if (ph && !out.phone) out.phone = '+' + ph[1]; }
+  if (!out.name && out.linkedin) {   // linkedin.com/in/marcus-de-magalhaes-1a2b → a hint, not a certainty
+    var slug = /linkedin\.com\/in\/([^/?#]+)/i.exec(out.linkedin)[1].replace(/-[0-9a-f]{4,}$/i, '').split('-').filter(function(w){ return !/\d/.test(w); });
+    if (slug.length) out.nameHint = slug.map(titleCase).join(' ');
+  }
+  return out;
+}
+function qrTick() {
+  var e = _enc;
+  if (!e || Date.now() - _qrLastAt < 1000) return;
+  _qrLastAt = Date.now();
+  scanQR(snapshotFrame()).then(function(raw){
+    if (!raw || !_enc || _enc !== e || _qrSeen[raw]) return;
+    _qrSeen[raw] = true;
+    var q = parseQR(raw);
+    log('▣ QR: ' + [q.name || q.nameHint, q.company, q.linkedin || q.whatsapp || q.email || q.url].filter(Boolean).join(' · '), true);
+    if (e.person) applyQR(e.person, q, e); else e.pendingQR = q;
+  });
+}
+function applyQR(p, q, e) {
+  var name = q.name || '';
+  if (name && (isUnnamed(p) || (e && e.namedHere))) { renamePerson(p, name); if (e) e.namedHere = true; }
+  else if (!name && q.nameHint && isUnnamed(p)) { renamePerson(p, q.nameHint); if (e) e.namedHere = true; }
+  var upd = {};
+  if (q.company && !p.company) upd.company = p.company = q.company;
+  if (q.role && !p.role) upd.role = p.role = q.role;
+  if (q.linkedin) upd.contact_linkedin = p.contact_linkedin = q.linkedin;
+  if (q.whatsapp) upd.contact_whatsapp = p.contact_whatsapp = q.whatsapp;
+  if (q.phone && !p.contact_phone) upd.contact_phone = p.contact_phone = q.phone;
+  if (q.email && !p.contact_email) upd.contact_email = p.contact_email = q.email;
+  if (p.id && Object.keys(upd).length) fetch(PROXY + '?id=' + p.id + '&entity=FaceContextPerson', {
+    method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(upd)
+  }).catch(function(){});
+}
+
+// ── Face recognition (face-api.js) ──
+var _faceApiLoaded = false;
+var _descriptors = [];
+var _detectTimer = null;
+
+function loadEmbeddings() {
+  if (!_faceApiLoaded) return;
+  _descriptors = [];
+  var bad = 0;
+  _profiles.forEach(function(p) {
+    if (!p.face_embedding) return;
+    try {
+      var arr = JSON.parse(p.face_embedding);
+      if (Array.isArray(arr) && arr.length === 128) _descriptors.push({ profile: p, descriptor: new Float32Array(arr) });
+      else bad++;
+    } catch(e) { bad++; }
+  });
+  log('✓ ' + _descriptors.length + ' recognisable faces' + (bad ? ' (' + bad + ' invalid — re-enrol)' : ''), true);
+}
+
+// self-chaining loop: the next detection only runs when the current one finishes
+var _detectRunning = false;
+function _detectChain() {
+  if (!_faceApiLoaded || !camStream || _detectTimer === null) return;
+  if (_detectRunning) { _detectTimer = setTimeout(_detectChain, 300); return; }
+  _detectRunning = true;
+  detectFaces()
+    .then(function(){ _detectRunning = false; })
+    .catch(function(){ _detectRunning = false; })
+    .then(function(){ if (_detectTimer !== null) _detectTimer = setTimeout(_detectChain, 400); });
+}
+function startFaceDetection() {
+  if (!_faceApiLoaded || !camStream) return;
+  clearTimeout(_detectTimer);
+  _detectTimer = setTimeout(_detectChain, 0);
+}
+function stopFaceDetection() { clearTimeout(_detectTimer); _detectTimer = null; _detectRunning = false; }
+
+function detectFaces() {
+  var vid = document.getElementById('vid');
+  var cnv = document.getElementById('cnv');
+  if (!vid || vid.readyState < 2 || !camStream) return Promise.resolve();
+  cnv.width = vid.videoWidth || 640;
+  cnv.height = vid.videoHeight || 480;
+  return faceapi.detectAllFaces(vid, new faceapi.TinyFaceDetectorOptions({scoreThreshold:0.4}))
+    .withFaceLandmarks(true)
+    .withFaceDescriptors()
+    .then(function(results) {
+      var ctx = cnv.getContext('2d');
+      ctx.clearRect(0, 0, cnv.width, cnv.height);
+      if (!results || results.length === 0) { noFace(); return; }
+      _lastFaceAt = Date.now();
+      // the LARGEST face in the frame is the one you are talking to (predictable rule)
+      var main = null, mainArea = 0;
+      results.forEach(function(r) {
+        var box = r.detection.box, area = box.width * box.height;
+        if (area > mainArea) { mainArea = area; main = r; }
+      });
+      results.forEach(function(r) {
+        var box = r.detection.box;
+        ctx.strokeStyle = (r === main) ? '#00ff88' : 'rgba(0,255,136,.35)';
+        ctx.lineWidth = 2;   /* one stroke weight everywhere, never hairline */
+        ctx.shadowColor = '#00ff88';
+        ctx.shadowBlur = (r === main) ? 4 : 0;
+        ctx.strokeRect(box.x, box.y, box.width, box.height);
+        ctx.shadowBlur = 0;
+      });
+      if (main && main.descriptor) {
+        var b = main.detection.box;
+        _lastFaceBox = { x: b.x, y: b.y, w: b.width, h: b.height };
+        handleMatch(main.descriptor);
+      }
+    })
+    .catch(function(e) { log('⚠ detection failed — retrying', true); console.error('detectFaces:', e); });
+}
+
+// ── HUD card: identity + timeline (newest first), scrollable, expandable ──
+var _tl = { pid:null, items:[], focus:0, open:-1 };
+// The timeline is only interactive in REVIEW mode (never while talking to someone)
+function cardVisible() { var c = document.getElementById('hud-card'); return c.style.display !== 'none' && c.classList.contains('review'); }
+
+// mode: 'glance' (during a conversation) | 'review' (opened from today's encounters)
+function showProfile(p, score, mode) {
+  document.getElementById('hud-card').className = (mode || 'glance') + (isUnnamed(p) ? ' unnamed' : '');
+  var fresh = !_currentProfile || _currentProfile.id !== p.id;
+  _currentProfile = p;
+  document.getElementById('hud-idle').style.display = 'none';
+  document.getElementById('hud').style.display = 'block';
+  document.getElementById('hud-card').style.display = 'flex';
+  document.getElementById('hud-recent-bar').className = '';   // the card owns the view zone
+  var photo = document.getElementById('hud-photo');
+  if (p.photo_url && !/ui-avatars\.com/.test(p.photo_url)) { if (photo.getAttribute('src') !== p.photo_url) photo.src = p.photo_url; photo.style.display = 'block'; }
+  else photo.style.display = 'none';
+  document.getElementById('hud-name').textContent = displayName(p);
+  // pills: where you know them from (AI-inferred, edited in the Manager). No e-mail on the display.
+  var pills = (Array.isArray(p.tags) && p.tags.length) ? p.tags : Array.isArray(p.pills) ? p.pills : (p.pills ? String(p.pills).split(',') : [p.relation_context || p.relation, p.company]);
+  document.getElementById('hud-pills').innerHTML = pills.map(function(x){ return String(x || '').trim(); }).filter(Boolean).slice(0, 3)
+    .map(function(x){ return '<span class="pill">' + esc(x) + '</span>'; }).join('');
+  renderHeadline(p, _encCache[p.id] || []);
+  renderDossier(p, _encCache[p.id] || []);
+  setStatus('s_identified', score ? ' · ' + score + '%' : '');
+  if (fresh) loadEncounterSummary(p);
+}
+function hideHudCard(keepProfile) {
+  document.getElementById('hud-card').style.display = 'none';
+  if (!keepProfile) _currentProfile = null;
+}
+
+var _encCache = {};
+function loadEncounterSummary(p) {
+  var wrap = document.getElementById('hud-sum-wrap');
+  if (!p.id) return;
+  if (_encCache[p.id]) { renderTimeline(p.id, _encCache[p.id]); return; }
+  wrap.style.display = 'none';
+  fetch(PROXY, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action:'list',entity:'FaceContextEncounter',limit:200})
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    var list = (Array.isArray(data) ? data : (data.records || []))
+      .filter(function(e){ return e.person_id === p.id || e.person_name === p.name; })
+      .sort(function(a,b){ return new Date(b.date||0) - new Date(a.date||0); })   // newest first
+      .slice(0, 12);
+    _encCache[p.id] = list;
+    if (_currentProfile && _currentProfile.id === p.id) renderTimeline(p.id, list);
+  })
+  .catch(function(){ wrap.style.display = 'none'; });
+}
+
+// [day, time]: ["today","18:20"] · ["yesterday","18:20"] · ["Tue","14:00"] · ["12 Sep",""]
+function relDate(d) {
+  var loc = VC_I18N.locale(), now = new Date();
+  var day0 = function(x){ return new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime(); };
+  var days = Math.round((day0(now) - day0(d)) / 864e5);
+  var hm = d.toLocaleTimeString(loc, { hour:'2-digit', minute:'2-digit' });
+  if (days === 0) return [t('today'), hm];
+  if (days === 1) return [t('yesterday'), hm];
+  if (days > 1 && days < 7) return [d.toLocaleDateString(loc, { weekday:'short' }), hm];
+  return [d.toLocaleDateString(loc, { day:'2-digit', month:'short' }), ''];
+}
+
+function encDetail(e) {
+  var parts = [];
+  var ctx = (e.context || '').split('\n').slice(1).join('\n').trim();   // the first line is already shown
+  if (ctx) parts.push(ctx);
+  if (e.notes) parts.push(e.notes);
+  if (e.ocr_captured) parts.push(t('d_badge', { b: e.ocr_captured }));
+  if (e.speech_captured) {
+    var lines = String(e.speech_captured).split('\n').filter(Boolean);
+    parts.push(lines.slice(0, 4).join('\n') + (lines.length > 4 ? '\n…' : ''));
+  }
+  return parts.join('\n');
+}
+
+// General dossier, 3–4 lines. The AI dossier (p.dossier, written by the backend from all encounters)
+// wins; until it exists, a plain summary is assembled from what is already stored.
+function renderDossier(p, list) {
+  var el = document.getElementById('hud-dossier');
+  var dz = p.dossier || (p.custom_fields && p.custom_fields.dossier) || p.ai_summary;
+  if (dz) { el.textContent = dz; return; }
+  var lines = [], yearAgo = Date.now() - 365 * 864e5;
+  var n = (list || []).filter(function(e){ return e.date && new Date(e.date).getTime() > yearAgo; }).length;
+  if (n > 1) lines.push(t('dz_count', { n: n })); else if (n === 1) lines.push(t('dz_once'));
+  var last = (list || [])[0];
+  if (last && last.date) {
+    var when = relDate(new Date(last.date));
+    lines.push(t('dz_last', { when: when[0], where: last.location ? t('dz_at', { p: last.location }) : '',
+                              what: (last.context || '').split('\n')[0] || t('no_summary') }));
+  }
+  if (p.notes) lines.push(String(p.notes).split('\n')[0]);
+  el.textContent = lines.join(' ');
+}
+
+// One line to glance at while talking. The AI headline (p.headline, e.g. "Work colleague for 2 years")
+// wins; until it exists: role + how many times you met and since when.
+function renderHeadline(p, list) {
+  var el = document.getElementById('hud-headline');
+  if (p.headline) { el.textContent = p.headline; return; }
+  var lastHook = (p.custom_fields && p.custom_fields.hook) || ((list || []).filter(function(e){ return e.hook; })[0] || {}).hook;
+  if (lastHook && !isUnnamed(p)) { el.textContent = lastHook; return; }   // line 3 = the occasion of the last encounter
+  if (isUnnamed(p)) {
+    // title: "Mulher de ~25 anos, cabelo roxo". Subtitle: the memorable hook of the conversation
+    // ("a menina da fofoca do relógio falso", written by the AI), else when/what you talked about.
+    var ds = (list || []).filter(function(e){ return e.date; });
+    var firstE = ds[ds.length - 1];
+    var hook = (p.custom_fields && p.custom_fields.hook) || (firstE && firstE.hook);
+    el.textContent = hook || (firstE ? [t('met_when', { when: relDate(new Date(firstE.date))[0] }), firstE.context].filter(Boolean).join(' · ') : '');
+    return;
+  }
+  var dated = (list || []).filter(function(e){ return e.date; });
+  var part = '';
+  if (dated.length > 1) {
+    var first = new Date(dated[dated.length - 1].date);
+    part = t('hl_count', { n: dated.length, since: first.toLocaleDateString(VC_I18N.locale(), { month:'short', year:'numeric' }) });
+  } else if (dated.length === 1) part = t('hl_one', { when: relDate(new Date(dated[0].date))[0] });
+  el.textContent = [p.role, part].filter(Boolean).join(' · ');
+}
+
+function renderTimeline(pid, list) {
+  var wrap = document.getElementById('hud-sum-wrap');
+  var box = document.getElementById('hud-sum');
+  if (_currentProfile && _currentProfile.id === pid) { renderDossier(_currentProfile, list); renderHeadline(_currentProfile, list); }
+  if (!list || !list.length) { wrap.style.display = 'none'; _tl = { pid:pid, items:[], focus:0, open:-1 }; return; }
+  if (_tl.pid !== pid) _tl = { pid:pid, items:[], focus:0, open:-1 };
+  _tl.items = list;
+  if (_tl.focus >= list.length) _tl.focus = 0;
+  wrap.style.display = 'flex';
+  var html = '';
+  list.forEach(function(e, i){
+    var d = e.date ? relDate(new Date(e.date)) : ['', ''];
+    var first = (e.context || '').split('\n')[0] || t('no_summary');
+    var detail = encDetail(e);
+    html += '<div class="tl-item' + (detail || first.length > 44 ? ' has-more' : '') + '" data-i="' + i + '">' +
+      '<div class="tl-head"><b>' + esc(d[0]) + '</b>' + (d[1] ? ' ' + esc(d[1]) : '') + (e.location ? ' · ' + esc(e.location) : '') + '</div>' +
+      '<div class="tl-txt">' + esc(first) + '</div>' +
+      '<div class="tl-detail">' + esc(detail) + '</div><span class="tl-chev"></span>' +
+      '</div>';
+  });
+  box.innerHTML = html;
+  box.querySelectorAll('.tl-item').forEach(function(el){
+    bindTapDyn(el, function(){
+      var i = +el.getAttribute('data-i');
+      _tl.open = (_tl.focus === i && _tl.open === i) ? -1 : i;
+      _tl.focus = i;
+      applyTimeline();
+    });
+  });
+  applyTimeline();
+}
+
+function applyTimeline() {
+  var box = document.getElementById('hud-sum');
+  box.querySelectorAll('.tl-item').forEach(function(el){
+    var i = +el.getAttribute('data-i');
+    el.classList.toggle('focus', i === _tl.focus);
+    el.classList.toggle('open', i === _tl.open);
+    if (i === _tl.focus && el.scrollIntoView) el.scrollIntoView({ block:'nearest' });
+  });
+}
+
+// ── REVIEW: latest records — people now; vehicles and keys next (outside a conversation) ──
+// Idle (nobody in front, nothing recording): one discreet line "LAST ENCOUNTERS" at the top-left (view zone = top 70%).
+// Tap → grid of mini cards (photo, name, date), all encounters, newest first, vertical infinite scroll.
+// Later: also by voice ("show my last encounters").
+var _review = null;   // { items:[{enc, person}], focus, shown, card:boolean }
+var PAGE = 12;
+function noFaceNow() { return !_enc && Date.now() - _lastFaceAt > LEAVE_MS_PENDING; }
+
+function updateRecentBar() {
+  var on = !!camStream && _state === 'idle' && !_enc && !_review && !_previewOpen && !cardShown() && noFaceNow();
+  document.getElementById('hud-recent-bar').className = on ? 'on' : '';
+}
+function cardShown() { return document.getElementById('hud-card').style.display !== 'none'; }
+
+function openReview() {
+  _review = { items:[], focus:0, shown:PAGE, card:false, loading:true };
+  document.getElementById('hud').style.display = 'block';
+  updateRecentBar();
+  renderReview();
+  fetch(PROXY, { method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ action:'list', entity:'FaceContextEncounter', limit:500 }) })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if (!_review) return;
+    // Records are not only people: vehicles and keys (object skills) come in with the same shape
+    // { kind, date, photo, title, sub, person? } once their sightings exist in the backend.
+    _review.items = (Array.isArray(data) ? data : (data.records || [])).filter(function(e){ return e.date; })
+      .map(function(e){
+        var person = _profiles.filter(function(p){ return p.id === e.person_id || (e.person_name && p.name === e.person_name); })[0];
+        return { kind:'person', date:e.date, enc:e, person:person, photo: person && person.photo_url, title: person && (isUnnamed(person) ? (lookOf(person) || t('no_name')) : shortName(person.name)) };
+      })
+      .filter(function(it){ return hasPhoto(it.person); })   // legacy records without a photo stay out
+      .sort(function(a,b){ return new Date(b.date) - new Date(a.date); });
+    _review.loading = false;
+    renderReview();
+  })
+  .catch(function(){ if (_review) { _review.loading = false; renderReview(); } });
+  log('☰ review: last encounters');
+}
+
+// "Marcus de Magalhães" → "Marcus M." (the photo disambiguates; the full name is on the card)
+function shortName(name) {
+  var w = String(name || '').split(/\s+/).filter(Boolean);
+  if (w.length < 2) return w[0] || '';
+  return w[0] + ' ' + w[w.length - 1][0] + '.';
+}
+
+function renderReview() {
+  var box = document.getElementById('hud-list');
+  if (!_review || _review.card) { box.className = ''; return; }
+  box.className = 'on';
+  var items = document.getElementById('hl-items');
+  var html = '';
+  if (!_review.loading && !_review.items.length) html = '<div class="hl-empty">' + t('list_empty') + '</div>';
+  _review.items.slice(0, _review.shown).forEach(function(it, i){
+    var d = relDate(new Date(it.date));
+    var ph = '<img class="hl-ph" src="' + esc(it.photo) + '" alt="">';
+    var sub = it.sub || (d[0] + (d[1] ? ' ' + d[1] : ''));
+    html += '<div class="hl-item' + (i === _review.focus ? ' focus' : '') + '" data-i="' + i + '">' + ph +
+      '<div class="hl-txt"><div class="hl-name">' + esc(it.title) + '</div>' +
+      '<div class="hl-when">' + esc(sub) + '</div></div></div>';
+  });
+  var keep = items.scrollTop;
+  items.innerHTML = html;
+  items.scrollTop = keep;
+  items.querySelectorAll('.hl-item').forEach(function(el){
+    bindTapDyn(el, function(){ _review.focus = +el.getAttribute('data-i'); reviewOpenCard(); });
+  });
+  var f = items.querySelector('.hl-item.focus'); if (f && f.scrollIntoView) f.scrollIntoView({ block:'nearest' });
+}
+// infinite scroll: show the next page when near the bottom (touch) or when the highlight reaches the end (gestures)
+function loadMoreIfNeeded() {
+  if (!_review || _review.shown >= _review.items.length) return false;
+  _review.shown += PAGE;
+  return true;
+}
+(function(){
+  var items = document.getElementById('hl-items');
+  items.addEventListener('scroll', function(){
+    if (items.scrollTop + items.clientHeight > items.scrollHeight - 40 && loadMoreIfNeeded()) renderReview();
+  });
+})();
+function reviewMove(d) {
+  if (!_review || _review.card || !_review.items.length) return;
+  _review.focus = Math.max(0, Math.min(_review.items.length - 1, _review.focus + d));
+  if (_review.focus >= _review.shown - 4) loadMoreIfNeeded();
+  renderReview();
+}
+function reviewOpenCard() {
+  var it = _review && _review.items[_review.focus];
+  if (!it || it.kind !== 'person') return;   // object cards (vehicle/key) come with the object skills
+  _review.card = true;
+  renderReview();
+  showProfile(it.person, null, 'review');
+}
+function reviewBack() {   // card → grid
+  _review.card = false;
+  hideHudCard();
+  renderReview();
+}
+function closeReview() {
+  if (!_review) return;
+  _review = null;
+  renderReview();
+  hideHudCard();
+  updateRecentBar();
+}
+
+// Gesture helpers — return true when the card handled the gesture
+function tlMove(d) {
+  if (!cardVisible() || !_tl.items.length) return false;
+  var n = Math.max(0, Math.min(_tl.items.length - 1, _tl.focus + d));
+  if (n !== _tl.focus) { _tl.focus = n; if (_tl.open !== n) _tl.open = -1; applyTimeline(); }
+  return true;
+}
+function tlToggle() {
+  if (!cardVisible() || !_tl.items.length) return false;
+  _tl.open = _tl.open === _tl.focus ? -1 : _tl.focus;
+  applyTimeline();
+  return true;
+}
+function tlCollapse() {
+  if (!cardVisible() || _tl.open < 0) return false;
+  _tl.open = -1; applyTimeline();
+  return true;
+}
+
+function dismissHUD() {
+  hideHudCard();
+  updateRecentBar();
+  setStatus('s_ready');
+  log('HUD dismissed');
+}
+
+// ── Camera ──
+function toggleCam() { if (camStream) stopCam(); else startCam(); }
+function toggleFlipCam() {
+  _facingMode = (_facingMode === 'environment') ? 'user' : 'environment';
+  log('Switching camera: ' + (_facingMode === 'user' ? 'front' : 'back'));
+  if (camStream) {
+    camStream.getTracks().forEach(function(tr){ tr.stop(); });
+    camStream = null;
+    startCam(true);
+  }
+}
+var _flipBusy = false;
+function flipCamTap() {
+  if (_flipBusy) return;
+  _flipBusy = true;
+  toggleFlipCam();
+  setTimeout(function(){ _flipBusy = false; }, 800);
+}
+(function initFlipCamBtn(){
+  var b = document.getElementById('flip-cam-btn');
+  if (!b) return;
+  // Phones only: front/rear is a phone concept. On a computer the OS/browser picks the camera
+  // (e.g. the macOS menu bar), and a flip button would do nothing there.
+  if (_isTouchDevice) b.classList.add('show');
+  var touched = false;
+  b.addEventListener('touchstart', function(e){ e.preventDefault(); touched = true; }, {passive:false});
+  b.addEventListener('touchend', function(e){ e.preventDefault(); if (touched){ touched = false; flipCamTap(); } }, {passive:false});
+  b.addEventListener('click', function(e){ e.preventDefault(); if (!touched) flipCamTap(); });
+})();
+
+function startCam(auto) {
+  var b = document.getElementById('btn-cam');
+  b.textContent = '⏳'; b.disabled = true;
+  setIdle('idle_req', 'idle_req_sub');
+  log('Requesting camera…');
+  navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:_facingMode},width:{ideal:640},height:{ideal:480}},audio:false})
+  .then(function(stream) {
+    camStream = stream;
+    var vid = document.getElementById('vid');
+    vid.srcObject = stream;
+    vid.onloadedmetadata = function(){ vid.play(); };
+    document.getElementById('hud-idle').style.display = 'none';
+    document.getElementById('hud').style.display = 'block';
+    setStatus('s_cam');
+    b.textContent = ''; b.disabled = false;
+    updateBar();
+    log('✓ camera on', true);
+    startFaceDetection();
+    startListening();   // always listening while the camera is on: rolling pre-roll, discarded unless an encounter opens
+  })
+  .catch(function(e) {
+    log('✗ camera: ' + e.message);
+    if (auto) setIdle('idle_blocked', e && e.name === 'NotAllowedError' ? 'idle_blocked_sub' : 'idle_retry_sub');
+    else setIdle('idle_fail', 'idle_fail_sub');
+    b.textContent = ''; b.disabled = false;
+    updateBar();
+  });
+}
+
+// camera died in the background (app switch / battery saver) → restart when the page comes back
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState !== 'visible' || !camStream) return;
+  var dead = camStream.getTracks().length === 0 ||
+             camStream.getTracks().every(function(tr){ return tr.readyState === 'ended'; });
+  if (dead) { log('camera died in background — restarting…'); camStream = null; startCam(true); }
+});
+
+// Refresh/close while recording: save the transcript right away (no summary — there's no time).
+window.addEventListener('pagehide', function(){
+  var e = _enc;
+  if (!e || !e.person || !e.person.id || !(_state === 'recording' || _state === 'quiet') || !e.transcript.length) return;
+  try {
+    var start = new Date(e.recordingSince || e.startedAt);
+    fetch(PROXY + '?entity=FaceContextEncounter', { method:'POST', keepalive:true, headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ person_id:e.person.id, person_name:e.person.name, date:start.toISOString(),
+        context: t('d_conv', { m: Math.max(1, Math.round((Date.now() - start.getTime()) / 60000)) }), capture_mode:'presencial',
+        speech_captured: e.transcript.join('\n'), notes:'', ocr_captured:'' }) });
+  } catch (err) {}
+});
+function stopCam() {
+  _lastFaceAt = 0;
+  if (_enc) endEncounter((_state === 'recording' || _state === 'quiet') ? 'finished' : 'stop');
+  if (_previewOpen) discardPreview();
+  if (camStream) { camStream.getTracks().forEach(function(tr){ tr.stop(); }); camStream = null; }
+  document.getElementById('vid').srcObject = null;
+  stopFaceDetection();
+  document.getElementById('cnv').getContext('2d').clearRect(0,0,640,480);
+  document.getElementById('hud-idle').style.display = 'flex';
+  document.getElementById('hud').style.display = 'none';
+  updateBar();
+  setIdle('idle_stopped', 'idle_stopped_sub');
+  log('camera stopped');
+}
+
+// ── Keyboard (desktop) ──
+document.addEventListener('keydown', function(e) {
+  if (e.key === ' ' || e.key === 'p') { e.preventDefault(); toggleCam(); }
+  else if (e.key === 'Enter' || e.key === 'ArrowUp') { e.preventDefault(); gestureTap(); }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); gestureSwipeForward(); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); gestureSwipeBack(); }
+  else if (e.key === 'Escape' || e.key === 'ArrowDown') { e.preventDefault(); gestureDoubleTap(); }
+});
+
+// ── Touch binding (Android 16/Knox does not propagate 'click' on some elements) ──
+function bindTapDyn(el, fn) {
+  if (!el) return;
+  var touched = false;
+  el.addEventListener('touchstart', function(e){ e.preventDefault(); touched=true; el.style.opacity='0.7'; }, {passive:false});
+  el.addEventListener('touchend', function(e){ e.preventDefault(); el.style.opacity=''; if(touched){touched=false;fn();} }, {passive:false});
+  el.addEventListener('touchcancel', function(){ touched=false; el.style.opacity=''; });
+  el.addEventListener('click', function(){ if(!touched) fn(); });
+}
+function bindBtn(id, fn) { bindTapDyn(document.getElementById(id), fn); }
+
+bindBtn('btn-cam', toggleCam);
+bindBtn('btn-tap', gestureTap);
+bindBtn('btn-swipe-b', gestureSwipeBack);
+bindBtn('btn-swipe', gestureSwipeForward);
+bindBtn('btn-dtap', gestureDoubleTap);
+bindTapDyn(document.getElementById('hud-recent-bar'), function(){ if (!_review) openReview(); });
+bindBtn('btn-help', function(){ document.getElementById('help-ov').classList.add('on'); });
+bindTapDyn(document.getElementById('help-debug'), function(){ setDebug(!_debugMode); });
+bindBtn('help-x', function(){ document.getElementById('help-ov').classList.remove('on'); });
+
+// ── Fit the 640×480 display into the viewfinder ──
+(function fitStage(){
+  var wg = document.getElementById('waveguide'), st = document.getElementById('stage');
+  function fit(){ st.style.transform = 'scale(' + (wg.clientWidth / 640) + ')'; }
+  fit();
+  if (window.ResizeObserver) new ResizeObserver(fit).observe(wg); else window.addEventListener('resize', fit);
+})();
+
+// ── Setting: does an encounter need speech? (default yes; the real app keeps it in the phone settings) ──
+var NEED_SPEECH = true;
+try { NEED_SPEECH = localStorage.getItem('vc_need_speech') !== '0'; } catch (e) {}
+function markRecButtons() {
+  document.querySelectorAll('#rec-btns button').forEach(function(b){
+    b.classList.toggle('on', (b.getAttribute('data-need') === '1') === NEED_SPEECH);
+  });
+}
+document.querySelectorAll('#rec-btns button').forEach(function(b){
+  bindTapDyn(b, function(){
+    NEED_SPEECH = b.getAttribute('data-need') === '1';
+    try { localStorage.setItem('vc_need_speech', NEED_SPEECH ? '1' : '0'); } catch (e) {}
+    markRecButtons();
+    log(NEED_SPEECH ? '⚙ encounter needs eye contact + speech' : '⚙ eye contact is enough to record', true);
+  });
+});
+markRecButtons();
+
+// ── Language ──
+function markLangButtons() {
+  var chosen = VC_I18N.isUserChoice() ? VC_I18N.lang : 'system';
+  document.querySelectorAll('#lang-btns button').forEach(function(b){
+    b.classList.toggle('on', b.getAttribute('data-lang') === chosen);
+  });
+}
+document.querySelectorAll('#lang-btns button').forEach(function(b){
+  bindTapDyn(b, function(){ VC_I18N.set(b.getAttribute('data-lang')); });
+});
+// everything built from text re-renders when the language changes (here or in another page)
+function applyLanguage() {
+  VC_I18N.apply();
+  document.title = 'VisualContext — ' + t('topbar').charAt(0) + t('topbar').slice(1).toLowerCase();
+  setIdle(_idleKeys[0], _idleKeys[1]);
+  setStatus(_statusKey[0], _statusKey[1]);
+  renderSyncBadge();
+  var dbg = document.getElementById('help-debug');
+  if (dbg) dbg.textContent = t('log_btn', { s: _debugMode ? 'ON' : 'OFF' });
+  markLangButtons();
+  if (_previewOpen) renderPreview(); else render();
+  if (_currentProfile && _encCache[_currentProfile.id]) renderTimeline(_currentProfile.id, _encCache[_currentProfile.id]);
+}
+window.addEventListener('vc-lang', applyLanguage);
+
+// ── Load face-api ──
+var script = document.createElement('script');
+script.src = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js';
+script.onload = function() {
+  Promise.all([
+    faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model'),
+    faceapi.nets.faceLandmark68TinyNet.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model'),
+    faceapi.nets.faceRecognitionNet.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model')
+  ]).then(function() {
+    _faceApiLoaded = true;
+    setStatus('s_ready');
+    log('✓ AI ready', true);
+    loadEmbeddings();
+    if (camStream) startFaceDetection();
+  }).catch(function(e){ log('⚠ AI: ' + e.message); setStatus('s_ready'); });
+};
+document.head.appendChild(script);
+
+// ── Init ──
+applyLanguage();
+setStatus('s_loading');
+syncProfiles();
+if (_debugMode) setDebug(true);
+if (_speech === 'unavailable') log('⚠ no speech recognition in this browser — face-only mode');
+log('language: ' + VC_I18N.lang + (VC_I18N.isUserChoice() ? ' (user choice)' : ' (phone: ' + (navigator.language || '?') + ')'));
+if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) startCam(true);
+else setIdle('idle_nosupport', 'idle_nosupport_sub');
+
+if (/[?&]guides=1\b/.test(location.search)) document.body.classList.add('guides');
+</script>
+</body>
+</html>
