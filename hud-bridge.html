@@ -192,12 +192,24 @@
       hudAlertTimer = setTimeout(function() { el.style.display = "none"; }, 4000);
     }
 
+    // Token do aparelho (mesmo VC_DEVICE_TOKEN do fcProxy). Pedido uma vez e guardado
+    // neste navegador; ?resettoken=1 apaga e pede de novo.
+    function vcToken() {
+      var k = "vc_device_token", v = "";
+      try { if (/[?&]resettoken=1\b/.test(location.search)) localStorage.removeItem(k); v = localStorage.getItem(k) || ""; } catch (e) {}
+      if (!v) { v = (prompt("VisualContext: cole o token do aparelho (VC_DEVICE_TOKEN):") || "").trim(); try { if (v) localStorage.setItem(k, v); } catch (e) {} }
+      return v;
+    }
+
     async function apiPost(url, payload) {
+      const headers = { "Content-Type": "application/json" };
+      const tk = vcToken(); if (tk) headers["x-vc-token"] = tk;
       const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: headers,
         body: JSON.stringify(payload),
       });
+      if (res.status === 401) { try { localStorage.removeItem("vc_device_token"); } catch (e) {} throw new Error("token recusado (401)"); }
       netStatusEl.innerText = "API: ONLINE";
       netStatusEl.style.color = "#00FF66";
       return res.json();

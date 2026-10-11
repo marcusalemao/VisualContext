@@ -52,6 +52,14 @@ class HudActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Token do aparelho: guardado nas preferências. Para definir pela primeira vez:
+        // adb shell am start -n com.marcusalemao.rokidlive/.hud.HudActivity --es vc_token <TOKEN>
+        val prefs = getSharedPreferences("visualcontext", Context.MODE_PRIVATE)
+        intent?.getStringExtra("vc_token")?.trim()?.takeIf { it.isNotEmpty() }?.let {
+            prefs.edit().putString("vc_device_token", it).apply()
+        }
+        ApiClient.deviceToken = prefs.getString("vc_device_token", "").orEmpty()
+
         // HUD de óculos: sem barra de status, brilho travado, tela ligada.
         window.setFlags(
             WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
