@@ -416,6 +416,15 @@ var _isTouchDevice = (function(){
 var _profiles = [];
 var _currentProfile = null;
 var PROXY = 'https://base44.app/api/apps/6a11083db49430b410a8c066/functions/fcProxy';
+// Safety guard (10/10): if "list" stops returning a list (backend contract broken), stop every other
+// database call this session, so the emulator doesn't create duplicate or empty records. AI calls still go through.
+var _backendBroken = false, _fetch0 = window.fetch.bind(window);
+window.fetch = function(url, opt) {
+  if (_backendBroken && typeof url === 'string' && url.indexOf(PROXY) === 0 &&
+      !/"action":"(ai_summary|analyze_encounter|ai_detect_name)"/.test(String((opt && opt.body) || '')))
+    return Promise.reject(new Error('backend unavailable'));
+  return _fetch0(url, opt);
+};
 
 // ── Log ── (developer tool: always English; browser console by default, on screen via Help)
 var _debugMode = false;
@@ -482,6 +491,11 @@ function syncProfiles() {
   })
   .then(function(r){ return r.json(); })
   .then(function(data){
+    if (!Array.isArray(data) && !(data && Array.isArray(data.records))) {
+      _backendBroken = true; _syncState = 'err'; renderSyncBadge();
+      log('⚠ database answered "list" with something that is not a list — saving disabled this session');
+      return;
+    }
     _profiles = Array.isArray(data) ? data : (data.records || []);
     _syncState = 'ok'; renderSyncBadge();
     log('✓ connected to Base44 — ' + _profiles.length + ' profiles', true);
