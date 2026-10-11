@@ -46,6 +46,15 @@ Approved by Marcus on 11/10. Visual reference: the canvas "VisualContext Manager
   3. open Google Maps on the phone.
 - Without the phone: address only, no distance (the glasses have no GPS).
 
+### 1e. Things: register once, find always (11/10)
+- **Register once, with the thing in hand.** "This is my key": a few photos from different angles, a short description and a visual signature (like the face signature). Hands mark that it is yours and that this is the teaching moment.
+- **Answer = the last photo where it was seen.** "Where is my key?" shows that photo, the time, and where it was, as far as we know. Indoors GPS is useless and a transcript can't tell bed from wardrobe or fridge; the photo can, because you recognise your own bed.
+- **Which house:** the Wi-Fi network name (home, office, a friend's) says which building, without GPS.
+- **Which room (optional):** teach each room once ("this is the bedroom"); after that the scene says the room. Without it, the AI describes the spot ("on the bed", "inside the fridge").
+- **Show the last 2–3 sightings**, not only one: the latest frame may be wrong, or the key moved after it.
+- **Capture:** the camera can't stay on all day (heat, battery). Plan: a low-resolution frame every few seconds while the user moves around, checked on the phone against registered things only; frames with no registered thing are discarded at once; kept sightings expire after a few days. Plus a voice shortcut: "remember: key here".
+- **Today's code** (rvLearnSkill) learns from text only. It needs to accept photos and store the visual signature.
+
 ### 2. Settings
 - **On the glasses:** the 4 main switches (Faces, Places, Things, Memories). No sub-settings.
 - **Encounter recording:** "Needs speech" / "A look is enough".
@@ -140,6 +149,15 @@ Aprovado pelo Marcus em 11/10. Referência visual: o canvas "VisualContext Manag
   2. passar as coordenadas para um app de navegação nos óculos (intent `geo:`), se algum aceitar — a testar: rokid-ar-navigation (voz, HUD a pé), Rokid-GMaps;
   3. abrir o Google Maps no celular.
 - Sem o celular: só o endereço, sem distância (os óculos não têm GPS).
+
+### 1e. Coisas: cadastrar uma vez, achar sempre (11/10)
+- **Cadastro uma vez, com a coisa na mão.** "Essa é a minha chave": algumas fotos de ângulos diferentes, uma descrição curta e uma assinatura visual (como a do rosto). As mãos dizem que é sua e que aquele é o momento de ensinar.
+- **Resposta = a última foto em que ela foi vista.** "Onde está minha chave?" mostra essa foto, a hora e onde estava, até onde sabemos. Dentro de casa o GPS não serve, e a transcrição não sabe se é a cama, o armário ou a geladeira; a foto sabe, porque você reconhece a sua cama.
+- **Qual casa:** o nome da rede Wi-Fi (casa, escritório, casa de um amigo) diz em que lugar, sem GPS.
+- **Qual cômodo (opcional):** ensinar cada cômodo uma vez ("esse é o quarto"); depois a cena diz o cômodo. Sem isso, a IA descreve o ponto ("em cima da cama", "dentro da geladeira").
+- **Mostrar as 2–3 últimas vezes**, não só uma: o último quadro pode estar errado, ou a chave mudou de lugar depois.
+- **Captura:** a câmera não pode ficar ligada o dia todo (calor, bateria). Plano: um quadro em baixa resolução a cada poucos segundos enquanto a pessoa se move, conferido no celular só contra as coisas cadastradas; quadro sem coisa cadastrada é descartado na hora; os avistamentos guardados expiram em poucos dias. Mais um atalho de voz: "lembra: chave aqui".
+- **O código de hoje** (rvLearnSkill) aprende só por texto. Precisa aceitar fotos e guardar a assinatura visual.
 
 ### 2. Ajustes
 - **Nos óculos:** as 4 chaves principais (Rostos, Lugares, Coisas, Memórias). Sem subconfigurações.
