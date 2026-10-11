@@ -21,7 +21,7 @@ Collected from Beto on 11/10 and checked against the app through the Base44 API 
 **Rules that lived only in Beto's memory** (now written down; ⚠️ = differs from a later decision, Marcus decides):
 1. Audio: rolling buffer, no raw audio kept; 30 s cleanup on silence; a silence under 5 s resumes the same encounter.
 2. Legacy FaceContext (fc.alema.io) kept untouched, VisualContext separate; AI response cache keyed by a hash of the full input.
-3. ⚠️ Transcript is saved only when a known person is in the conversation. (The 11/10 privacy spec also records encounters with unnamed people.)
+3. ✅ Decided 11/10: every conversation is transcribed, known person or not; discarded only on cancel or a too-short encounter. Old rule: transcript only when a known person is in the conversation. (The 11/10 privacy spec also records encounters with unnamed people.)
 4. Dossier: the dashboard card is the exact HUD preview; data comes through the conversational agent, never forms; every fact shows its source.
 5. ⚠️ Live HUD: name + short descriptor only, no expandable card (10/10). (The 11/10 offline spec mentions an expanded card on phone or Wi-Fi.)
 6. Business: free app, bring your own key, paid "all set up" plan. Matches Community/Plus.
@@ -49,7 +49,7 @@ Levantado com o Beto em 11/10 e conferido no app pela API do Base44 (só leitura
 **Regras que viviam só na memória do Beto** (agora escritas; ⚠️ = diverge de uma decisão posterior, o Marcus decide):
 1. Áudio: buffer rolante, nenhum áudio bruto guardado; limpeza de 30 s no silêncio; silêncio de menos de 5 s retoma o mesmo encontro.
 2. FaceContext legado (fc.alema.io) intocado, VisualContext separado; cache de respostas da IA indexado pelo hash da entrada completa.
-3. ⚠️ A transcrição só é gravada se houver uma pessoa conhecida na conversa. (A spec de privacidade de 11/10 também registra encontros com pessoas sem nome.)
+3. ✅ Decidido em 11/10: toda conversa é transcrita, com pessoa conhecida ou não; descartada só se cancelada ou curta demais. Regra antiga: transcrição só com pessoa conhecida na conversa. (A spec de privacidade de 11/10 também registra encontros com pessoas sem nome.)
 4. Dossiê: o card do dashboard é a prévia exata do HUD; os dados entram pelo agente conversacional, nunca por formulário; cada fato mostra a origem.
 5. ⚠️ HUD ao vivo: só nome e descritor breve, sem card expansível (10/10). (A spec offline de 11/10 fala em card expandido com celular ou Wi-Fi.)
 6. Negócio: app grátis, chave própria grátis, plano pago "tudo configurado". Bate com Community/Plus.
