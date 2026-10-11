@@ -86,6 +86,7 @@ Approved by Marcus on 11/10. Visual reference: the canvas "VisualContext Manager
 - Any conversation is transcribed, known person or not. Someone unknown to the system may be someone you know who is not registered yet, or someone you are meeting now: that is how the people database grows.
 - A transcript is discarded only if you cancel it (✕ on the countdown) or if the encounter was too short (the timer).
 - The old rule "transcript only with a known person" is retired.
+- **Person card during an encounter: always short** (decided 11/10): name, how you know each other, last time you met. No expanded version during the conversation, even with phone or Wi-Fi; the full card belongs to Recall mode.
 
 ### 2. Settings
 - **On the glasses:** the 4 main switches (Faces, Places, Things, Memories). No sub-settings.
@@ -222,6 +223,7 @@ Aprovado pelo Marcus em 11/10. Referência visual: o canvas "VisualContext Manag
 - Qualquer conversa é transcrita, com pessoa conhecida ou não. Alguém desconhecido para o sistema pode ser alguém que você conhece e ainda não cadastrou, ou alguém que você está conhecendo agora: é assim que o banco de pessoas cresce.
 - A transcrição só é descartada se você cancelar (✕ no countdown) ou se o encontro for curto demais (o timer).
 - A regra antiga "transcrição só com pessoa conhecida" sai.
+- **Card da pessoa durante o encontro: sempre curto** (decidido em 11/10): nome, de onde se conhecem, última vez que se viram. Sem versão expandida durante a conversa, mesmo com celular ou Wi-Fi; o card completo é do modo Recordar.
 
 ### 2. Ajustes
 - **Nos óculos:** as 4 chaves principais (Rostos, Lugares, Coisas, Memórias). Sem subconfigurações.
