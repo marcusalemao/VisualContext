@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>FaceContext</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#030a05;color:#00ff88;font-family:monospace;min-height:100vh}
+body{display:flex;flex-direction:column;align-items:center;padding:16px 14px 28px;gap:14px}
+h1{font-size:14px;color:#005533;letter-spacing:3px;margin-top:8px;text-align:center}
+.sub{font-size:9px;color:#003320;text-align:center}
+
+/* sync badge */
+#syncbadge{font-size:9px;padding:4px 10px;border-radius:20px;border:1px solid #0a2a18;color:#004422;background:#060e08}
+#syncbadge.ok{color:#00ff88;border-color:#00aa55}
+#syncbadge.err{color:#aa4400;border-color:#441a00}
+#syncbadge.loading{color:#aaaa00;border-color:#444400}
+
+.screen{width:min(220px,55vw);aspect-ratio:3/4;background:#000;border-radius:12px;border:1px solid #0a2a18;position:relative;overflow:hidden}
+.idle{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;font-size:10px;color:#002a14}
+.hud{position:absolute;inset:0;padding:12px;display:none;flex-direction:column}
+.hn{font-size:15px;font-weight:bold;color:#00ff88}
+.hr,.hc{font-size:10px;color:#00cc6e;margin-top:2px}
+.hx2{font-size:9px;color:#008844;margin-top:4px}
+.hw{position:absolute;bottom:10px;left:12px;font-size:8px;color:#005533}
+.dot{position:absolute;top:10px;right:10px;width:7px;height:7px;border-radius:50%;background:#00ff88;display:none}
+.dot.on{display:block;animation:blink .8s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+.camwrap{width:100%;max-width:400px;background:#000;border-radius:12px;overflow:hidden;border:1px solid #0a2a18;position:relative}
+video{width:100%;display:block;min-height:80px}
+.fbox{position:absolute;border:2px solid #00ff88;border-radius:3px;display:none;pointer-events:none}
+.flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .08s}
+.flash.on{opacity:.4}
+.cst{padding:8px 12px;font-size:10px;color:#664400;white-space:pre-wrap;line-height:1.5;min-height:32px}
+.cst.ok{color:#00cc6e}
+
+.brow{width:100%;max-width:400px;display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px}
+.btn{padding:13px 4px 11px;background:#0d2016;border:1.5px solid #153520;border-radius:12px;color:#009944;font-family:monospace;font-size:10px;text-align:center;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:rgba(0,255,136,.25)}
+.bicon{font-size:20px;line-height:1}
+.btn:active{background:#0f3020;border-color:#00ff88;color:#00ff88}
+.btn.on{background:#0a2a18;border-color:#00ff88;color:#00ff88}
+.btn.dim{opacity:.3;pointer-events:none}
+.btn.red{border-color:#2a1000;color:#663300}
+
+.pform{width:100%;max-width:400px;background:#070e09;border:1px solid #0a2a18;border-radius:12px;padding:14px;display:none}
+.pform.show{display:block}
+.ftit{font-size:9px;color:#006633;letter-spacing:2px;margin-bottom:10px}
+.trow{display:flex;gap:10px;margin-bottom:10px}
+.thumb{width:58px;height:58px;border-radius:8px;background:#0a1a0f;border:1px solid #0a2a18;object-fit:cover;flex-shrink:0}
+.fcol{flex:1;display:flex;flex-direction:column;gap:6px}
+.fi{background:#0a1a0f;border:1px solid #0a2a18;border-radius:8px;color:#00cc6e;font-size:12px;font-family:monospace;padding:9px 10px;outline:none;width:100%;-webkit-appearance:none}
+.fi:focus{border-color:#00ff88}
+.fi::placeholder{color:#002a14}
+.fsel{background:#0a1a0f;border:1px solid #0a2a18;border-radius:8px;color:#00cc6e;font-size:12px;font-family:monospace;padding:9px 10px;outline:none;width:100%;-webkit-appearance:none}
+.fsel option{background:#0a1a0f}
+.tags{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}
+.tag{font-size:10px;color:#006633;background:rgba(0,255,136,.03);border:1px solid #0a2a18;border-radius:20px;padding:5px 11px;cursor:pointer;touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:rgba(0,255,136,.25)}
+.tag.on{color:#00ff88;background:rgba(0,255,136,.1);border-color:#00aa55}
+.savebtn{width:100%;padding:14px;background:rgba(0,255,136,.05);border:1.5px solid rgba(0,255,136,.18);border-radius:10px;color:#00ff88;font-size:13px;font-family:monospace;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,255,136,.25);margin-top:4px}
+.savebtn:active{background:rgba(0,255,136,.14)}
+.savebtn:disabled{opacity:.4;pointer-events:none}
+
+.sec{width:100%;max-width:400px}
+.slbl{font-size:9px;color:#003a18;letter-spacing:2px;margin-bottom:4px}
+.logbox{background:#060e08;border:1px solid #0a2a18;border-radius:8px;height:68px;overflow-y:auto;padding:6px 10px;font-size:9px}
+.ll{color:#004420;line-height:1.8}
+.ll.hi{color:#00bb66}
+.ll.warn{color:#aa8800}
+.pcard{background:#060e08;border:1px solid #0a2a18;border-radius:8px;padding:10px 12px;margin-bottom:6px;display:flex;gap:10px;align-items:center}
+.pthumb{width:38px;height:38px;border-radius:6px;object-fit:cover;background:#0a1a0f;border:1px solid #0a2a18;flex-shrink:0}
+.pinfo{flex:1;min-width:0}
+.pcn{font-size:12px;color:#00bb66;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pcs{font-size:9px;color:#004422;margin-top:2px}
+.pbadge{font-size:8px;color:#006633;background:rgba(0,255,136,.06);border:1px solid #0a2a18;border-radius:10px;padding:1px 6px;margin-top:3px;display:inline-block}
+.pbadge.cloud{color:#00ff88;border-color:#00aa55}
+
+#help{display:none;position:fixed;inset:0;background:rgba(0,4,2,.96);z-index:9999;overflow-y:auto;padding:28px 16px 40px}
+#help.show{display:block}
+.hcard{max-width:340px;margin:0 auto;background:#060e08;border:1.5px solid #0d3a1a;border-radius:16px;padding:22px 18px}
+.hhead{font-size:12px;color:#00ff88;letter-spacing:3px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center}
+.hxbtn{background:#0d2016;border:1px solid #153520;border-radius:50%;width:34px;height:34px;color:#009944;font-size:18px;cursor:pointer;touch-action:manipulation;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:rgba(0,255,136,.25)}
+.hxbtn:active{color:#00ff88}
+.hsec{font-size:8px;color:#004422;letter-spacing:2px;margin:12px 0 6px}
+.hrow{display:flex;gap:12px;margin-bottom:6px;align-items:flex-start}
+.hkey{min-width:64px;padding:4px 6px;background:rgba(0,255,136,.04);border:1px solid rgba(0,255,136,.1);border-radius:6px;font-size:9px;color:#00ff88;text-align:center;flex-shrink:0}
+.hdesc{font-size:9px;color:#007744;line-height:1.6}
+.hnote{font-size:9px;color:#004422;line-height:1.7;margin-top:14px;padding-top:12px;border-top:1px solid #0a2a18}
+</style>
+</head>
+<body>
+
+<h1>FACECONTEXT</h1>
+<p class="sub">Rokid AI · v10 · banco real</p>
+<div id="syncbadge" class="loading">⟳ conectando...</div>
+
+<div class="screen">
+  <div class="idle" id="idle"><span style="font-size:22px;opacity:.25">◉</span><span>pronto</span></div>
+  <div class="hud" id="hud">
+    <div class="hn" id="hn"></div>
+    <div class="hr" id="hr"></div>
+    <div class="hc" id="hc"></div>
+    <div class="hx2" id="hx2"></div>
+    <div class="hw" id="hw"></div>
+  </div>
+  <div class="dot" id="dot"></div>
+</div>
+
+<div class="camwrap">
+  <video id="vid" autoplay playsinline muted></video>
+  <div class="fbox" id="fbox"></div>
+  <div class="flash" id="flash"></div>
+  <canvas id="cnv" style="display:none"></canvas>
+  <div class="cst" id="cst">câmera inativa</div>
+</div>
+
+<div class="brow">
+  <div class="btn" id="bcam"><span class="bicon">⏻</span><span>Câmera</span></div>
+  <div class="btn dim" id="bsnap"><span class="bicon">⊙</span><span>Capturar</span></div>
+  <div class="btn dim red" id="bstop"><span class="bicon">■</span><span>Parar</span></div>
+  <div class="btn" id="bhelp"><span class="bicon">?</span><span>Ajuda</span></div>
+</div>
+
+<div class="pform" id="pform">
+  <div class="ftit">NOVO PERFIL</div>
+  <div class="trow">
+    <img class="thumb" id="thumb" src="" alt=""/>
+    <div class="fcol">
+      <input class="fi" id="fname" type="text" placeholder="Nome completo" autocomplete="off"/>
+      <input class="fi" id="frole" type="text" placeholder="Cargo / função" autocomplete="off"/>
+    </div>
+  </div>
+  <input class="fi" id="fco" type="text" placeholder="Empresa" autocomplete="off" style="margin-bottom:6px"/>
+  <input class="fi" id="fctx" type="text" placeholder="Como se conheceram?" autocomplete="off" style="margin-bottom:6px"/>
+  <select class="fsel" id="frel">
+    <option value="">Tipo de relação...</option>
+    <option>Amigo</option>
+    <option>Colega de trabalho</option>
+    <option>Cliente</option>
+    <option>Fornecedor</option>
+    <option>Familiar</option>
+    <option>Conhecido</option>
+    <option>Outro</option>
+  </select>
+  <div class="tags">
+    <span class="tag">amigo</span><span class="tag">trabalho</span><span class="tag">tech</span>
+    <span class="tag">design</span><span class="tag">família</span><span class="tag">academia</span><span class="tag">evento</span>
+  </div>
+  <button class="savebtn" id="savebtn">✓  Salvar perfil</button>
+</div>
+
+<div class="sec"><div class="slbl">LOG</div><div class="logbox" id="logbox"></div></div>
+<div class="sec"><div class="slbl" id="slbl">PERFIS (carregando...)</div><div id="slist"></div></div>
+
+<div id="help">
+  <div class="hcard">
+    <div class="hhead"><span>REFERÊNCIA</span><button class="hxbtn" id="helpx">✕</button></div>
+    <div class="hsec">BOTÕES</div>
+    <div class="hrow"><span class="hkey">⏻ Câmera</span><span class="hdesc">Liga/desliga câmera</span></div>
+    <div class="hrow"><span class="hkey">⊙ Capturar</span><span class="hdesc">Fotografa e abre formulário</span></div>
+    <div class="hrow"><span class="hkey">■ Parar</span><span class="hdesc">Para a câmera</span></div>
+    <div class="hsec">TECLADO</div>
+    <div class="hrow"><span class="hkey">Espaço</span><span class="hdesc">Liga/desliga câmera</span></div>
+    <div class="hrow"><span class="hkey">↑</span><span class="hdesc">Capturar frame</span></div>
+    <div class="hrow"><span class="hkey">Esc</span><span class="hdesc">Fechar overlay</span></div>
+    <div class="hnote">
+      ☁ Perfis salvos no banco Base44 — disponíveis nos óculos quando chegarem.<br><br>
+      📱 Ícone nuvem = salvo no servidor<br>
+      💾 Ícone disco = só local (offline)
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── CONFIG ────────────────────────────────────────────────
+var APP_ID = "6a11083db49430b410a8c066";
+var API    = "https://base44.app/api/apps/6a11083db49430b410a8c066/functions/fcProxy";
+
+
+// ─── STATE ────────────────────────────────────────────────
+var stream = null, snapDataUrl = null, faceT = null;
+var profiles = [];
+var isOnline = false;
+
+// ─── API ──────────────────────────────────────────────────
+function apiFetch(url, opts) {
+  return fetch(url, Object.assign({
+    
+    headers: Object.assign({"Content-Type":"application/json"}, (opts||{}).headers||{})
+  }, opts||{}));
+}
+
+async function loadProfiles() {
+  try {
+    var r = await apiFetch(API + "?_limit=50&_sort=-created_date");
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    var data = await r.json();
+    profiles = Array.isArray(data) ? data : (data.data || data.items || []);
+    isOnline = true;
+    setSyncBadge("ok", "☁ banco conectado");
+    lg("☁ " + profiles.length + " perfis carregados", true);
+  } catch(e) {
+    isOnline = false;
+    setSyncBadge("err", "⚠ offline — salvando local");
+    lg("Offline: " + e.message, false);
+    // fallback localStorage
+    try { profiles = JSON.parse(localStorage.getItem("fc_p") || "[]"); } catch(ex){}
+  }
+  renderSaved();
+}
+
+async function uploadPhoto(dataUrl) {
+  // Upload via proxy não implementado — salva base64 localmente
+  return null;
+}
+
+async function saveToAPI(payload) {
+  var r = await apiFetch(API, { method:"POST", body: JSON.stringify(payload) });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return await r.json();
+}
+
+// ─── CAMERA ───────────────────────────────────────────────
+function startCam() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    cs("getUserMedia indisponível.\nNecessário HTTPS.", false); return;
+  }
+  cs("Aguardando permissão...", false);
+  lg("Solicitando câmera...", false);
+  navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}}, audio:true})
+    .then(gotStream)
+    .catch(function(e1){
+      lg("Traseira: " + e1.name, false);
+      navigator.mediaDevices.getUserMedia({video:true, audio:false})
+        .then(function(s){ gotStream(s); lg("Usando câmera frontal", false); })
+        .catch(function(e2){ cs("Erro: " + e2.name + "\n" + e2.message, false); lg("ERRO: " + e2.name, false); });
+    });
+}
+function gotStream(s) {
+  stream = s;
+  document.getElementById("vid").srcObject = s;
+  cs("● CÂMERA ATIVA", true);
+  lg("Câmera ativa!", true);
+  document.getElementById("bcam").classList.add("on");
+  document.querySelector("#bcam .bicon").textContent = "⏸";
+  document.getElementById("bsnap").classList.remove("dim");
+  document.getElementById("bstop").classList.remove("dim");
+  document.getElementById("dot").classList.add("on");
+  document.getElementById("idle").style.display = "none";
+  document.getElementById("hud").style.display = "flex";
+  faceT = setTimeout(function(){
+    if (!stream) return;
+    document.getElementById("fbox").style.cssText = "display:block;left:27%;top:11%;width:46%;height:63%;";
+    cs("◈ Rosto detectado", true);
+    lg("◈ Rosto — toque ⊙ Capturar", true);
+  }, 1800);
+}
+function stopCam() {
+  if (stream) { stream.getTracks().forEach(function(t){ t.stop(); }); stream = null; }
+  if (faceT) { clearTimeout(faceT); faceT = null; }
+  document.getElementById("vid").srcObject = null;
+  document.getElementById("fbox").style.display = "none";
+  document.getElementById("dot").classList.remove("on");
+  cs("câmera inativa", false);
+  document.getElementById("bcam").classList.remove("on");
+  document.querySelector("#bcam .bicon").textContent = "⏻";
+  document.getElementById("bsnap").classList.add("dim");
+  document.getElementById("bstop").classList.add("dim");
+  document.getElementById("idle").style.display = "flex";
+  document.getElementById("hud").style.display = "none";
+  lg("Câmera parada", false);
+}
+function doSnap() {
+  var v = document.getElementById("vid"), c = document.getElementById("cnv");
+  c.width = v.videoWidth || 640; c.height = v.videoHeight || 480;
+  c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
+  snapDataUrl = c.toDataURL("image/jpeg", .85);
+  document.getElementById("flash").classList.add("on");
+  setTimeout(function(){ document.getElementById("flash").classList.remove("on"); }, 120);
+  document.getElementById("thumb").src = snapDataUrl;
+  ["fname","frole","fco","fctx"].forEach(function(id){ document.getElementById(id).value = ""; });
+  document.getElementById("frel").value = "";
+  document.querySelectorAll(".tag").forEach(function(t){ t.classList.remove("on"); });
+  document.getElementById("pform").classList.add("show");
+  lg("Frame capturado", true);
+  setTimeout(function(){ document.getElementById("fname").focus(); }, 100);
+}
+
+// ─── SAVE PROFILE ─────────────────────────────────────────
+async function saveProfile() {
+  var nm = document.getElementById("fname").value.trim();
+  if (!nm) {
+    document.getElementById("fname").style.borderColor = "#ff3300";
+    setTimeout(function(){ document.getElementById("fname").style.borderColor = ""; }, 700);
+    return;
+  }
+  var btn = document.getElementById("savebtn");
+  btn.disabled = true; btn.textContent = "⟳ salvando...";
+
+  var tags = [];
+  document.querySelectorAll(".tag.on").forEach(function(t){ tags.push(t.textContent); });
+
+  var photoUrl = null;  // foto salva localmente
+
+  var payload = {
+    name:             nm,
+    role:             document.getElementById("frole").value.trim(),
+    company:          document.getElementById("fco").value.trim(),
+    relation_context: document.getElementById("fctx").value.trim(),
+    relation:         document.getElementById("frel").value || "Outro",
+    tags:             tags,
+    photo_url:        photoUrl || "",
+    status:           "Identificado",
+    last_seen_date:   new Date().toISOString(),
+    last_seen_context:"Capturado via emulador"
+  };
+
+  var savedCloud = false;
+  if (isOnline) {
+    try {
+      var created = await saveToAPI(payload);
+      profiles.unshift(created);
+      savedCloud = true;
+      lg("☁ " + nm + " salvo no banco!", true);
+    } catch(e) {
+      lg("⚠ API falhou, salvando local: " + e.message, false);
+    }
+  }
+  if (!savedCloud) {
+    var local = Object.assign({id: Date.now(), _local: true}, payload);
+    if (snapDataUrl) local.photo_url = snapDataUrl; // guarda base64 local
+    profiles.unshift(local);
+    try { localStorage.setItem("fc_p", JSON.stringify(profiles.slice(0,50))); } catch(e){}
+    lg("💾 " + nm + " salvo localmente", false);
+  }
+
+  showHUD(payload, photoUrl || snapDataUrl);
+  document.getElementById("pform").classList.remove("show");
+  btn.disabled = false; btn.textContent = "✓  Salvar perfil";
+  renderSaved();
+}
+
+function showHUD(p, photo) {
+  document.getElementById("hn").textContent = p.name;
+  document.getElementById("hr").textContent = p.role || "";
+  document.getElementById("hc").textContent = p.company || "";
+  document.getElementById("hx2").textContent = p.relation_context || "";
+  document.getElementById("hw").textContent = "Agora · " + new Date().toLocaleDateString("pt-BR");
+  document.getElementById("idle").style.display = "none";
+  document.getElementById("hud").style.display = "flex";
+}
+
+// ─── RENDER LIST ──────────────────────────────────────────
+function renderSaved() {
+  var list = document.getElementById("slist");
+  var total = profiles.length;
+  document.getElementById("slbl").textContent = "PERFIS (" + total + ")";
+  list.innerHTML = "";
+  profiles.slice(0, 10).forEach(function(p) {
+    var c = document.createElement("div"); c.className = "pcard";
+    var isCloud = !p._local;
+    var thumb = p.photo_url && p.photo_url.startsWith("http") ? p.photo_url : "";
+    c.innerHTML =
+      '<img class="pthumb" src="' + (thumb||"") + '" onerror="this.style.visibility=\'hidden\'"/>' +
+      '<div class="pinfo">' +
+        '<div class="pcn">' + p.name + '</div>' +
+        '<div class="pcs">' + (p.role||"") + (p.company ? " · " + p.company : "") + '</div>' +
+        '<span class="pbadge ' + (isCloud?"cloud":"") + '">' + (isCloud?"☁ banco":"💾 local") + '</span>' +
+      '</div>';
+    list.appendChild(c);
+  });
+}
+
+// ─── UTILS ────────────────────────────────────────────────
+function lg(m, hi) {
+  var el = document.getElementById("logbox");
+  var d = document.createElement("div");
+  d.className = "ll" + (hi ? " hi" : "");
+  d.textContent = new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",second:"2-digit"}) + "  " + m;
+  el.appendChild(d); el.scrollTop = el.scrollHeight;
+}
+function cs(m, ok) {
+  var e = document.getElementById("cst"); e.textContent = m;
+  e.className = "cst" + (ok ? " ok" : "");
+}
+function setSyncBadge(cls, txt) {
+  var b = document.getElementById("syncbadge");
+  b.className = cls; b.textContent = txt;
+}
+
+// ─── WIRE EVENTS ─────────────────────────────────────────
+function wire(id, fn) {
+  var el = document.getElementById(id); if (!el) return;
+  el.addEventListener("click", fn);
+  el.addEventListener("touchend", function(e){ e.preventDefault(); fn(); }, {passive:false});
+}
+wire("bcam",  function(){ if (stream) stopCam(); else startCam(); });
+wire("bsnap", function(){ if (stream) doSnap(); });
+wire("bstop", stopCam);
+wire("bhelp", function(){ document.getElementById("help").classList.add("show"); });
+wire("helpx", function(){ document.getElementById("help").classList.remove("show"); });
+wire("savebtn", saveProfile);
+document.querySelectorAll(".tag").forEach(function(t) {
+  t.addEventListener("click", function(){ t.classList.toggle("on"); });
+  t.addEventListener("touchend", function(e){ e.preventDefault(); t.classList.toggle("on"); }, {passive:false});
+});
+document.addEventListener("keydown", function(e) {
+  if (e.repeat) return;
+  if (e.key === " ")          { e.preventDefault(); if (stream) stopCam(); else startCam(); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); if (stream) doSnap(); }
+  else if (e.key === "Escape")  { document.getElementById("help").classList.remove("show"); }
+});
+
+// ─── INIT ────────────────────────────────────────────────
+lg("v10 iniciando...", false);
+loadProfiles();
+</script>
+</body>
+</html>

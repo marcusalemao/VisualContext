@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>FaceContext — Gestão</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--green:#00ff88;--bg:#0a0e1a;--card:#111827;--border:rgba(255,255,255,0.08);--text:rgba(255,255,255,0.85);--muted:rgba(255,255,255,0.4)}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overscroll-behavior:none}
+
+/* NAV */
+.nav{display:flex;background:#0d1220;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50}
+.nav-btn{flex:1;padding:12px 4px 10px;background:none;border:none;color:var(--muted);font-size:10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;-webkit-tap-highlight-color:transparent;border-bottom:2px solid transparent;transition:.15s}
+.nav-btn .icon{font-size:20px}
+.nav-btn.active{color:var(--green);border-bottom-color:var(--green)}
+
+/* PAGES */
+.page{display:none;min-height:calc(100vh - 50px)}
+.page.active{display:block}
+
+/* TOPBAR */
+.topbar{padding:14px 16px 10px;display:flex;align-items:center;gap:10px}
+.topbar h2{font-size:18px;font-weight:700;flex:1}
+.badge{background:rgba(0,255,136,0.1);color:var(--green);border:1px solid rgba(0,255,136,0.25);border-radius:20px;padding:2px 10px;font-size:12px}
+.btn-icon{width:40px;height:40px;border-radius:50%;background:var(--green);color:#0a0e1a;border:none;font-size:20px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;-webkit-tap-highlight-color:transparent}
+
+/* SEARCH + TABS */
+.search-bar{padding:0 16px 10px;position:relative}
+.search-bar input{width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:12px;padding:10px 14px 10px 40px;color:var(--text);font-size:15px;outline:none}
+.search-bar input:focus{border-color:var(--green)}
+.search-bar .si{position:absolute;left:28px;top:50%;transform:translateY(-50%);opacity:.4;pointer-events:none}
+.tabs{display:flex;gap:6px;padding:0 16px 12px;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex-shrink:0;padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:12px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.tab.active{background:var(--green);color:#0a0e1a;border-color:var(--green);font-weight:600}
+
+/* CONTACT LIST */
+.clist{padding:0 16px 80px}
+.ccard{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:13px;margin-bottom:9px;display:flex;gap:12px;align-items:center;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.ccard:active{background:rgba(255,255,255,0.06)}
+.av{width:46px;height:46px;border-radius:50%;background:rgba(0,255,136,0.12);border:2px solid rgba(0,255,136,0.25);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:var(--green);overflow:hidden;background-size:cover;background-position:center}
+.av img{width:100%;height:100%;object-fit:cover}
+.ci{flex:1;min-width:0}
+.cn{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cs{font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ctags{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+.tag{background:rgba(0,255,136,0.08);border:1px solid rgba(0,255,136,0.2);color:var(--green);padding:1px 7px;border-radius:10px;font-size:10px}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dot.Identificado{background:#00ff88}.dot.Pendente{background:#f59e0b}.dot.Arquivado{background:#64748b}
+
+/* PENDING / MERGE */
+.section-title{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;padding:16px 16px 8px}
+.pending-card{background:var(--card);border:1px solid rgba(245,158,11,0.3);border-radius:14px;margin:0 16px 12px;padding:14px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.pending-card:active{background:rgba(255,255,255,0.05)}
+.pending-row{display:flex;align-items:center;gap:10px}
+.pending-info{flex:1}
+.pending-label{font-size:13px;font-weight:600;color:#f59e0b}
+.pending-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.btn-merge{background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.4);color:#f59e0b;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent}
+
+/* ENCOUNTERS */
+.enc-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin:0 16px 10px}
+.enc-header{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.enc-avatar{width:32px;height:32px;border-radius:50%;background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--green);flex-shrink:0}
+.enc-name{font-size:14px;font-weight:600}
+.enc-date{font-size:11px;color:var(--muted)}
+.enc-text{font-size:13px;color:rgba(255,255,255,0.6);line-height:1.5}
+.enc-loc{font-size:11px;color:var(--muted);margin-top:4px}
+.enc-mode{font-size:10px;background:rgba(0,255,136,0.08);color:var(--green);border-radius:10px;padding:1px 7px;margin-left:auto}
+
+/* MODAL */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:200;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.overlay.open{opacity:1;pointer-events:all}
+.modal{background:#141824;border-radius:20px 20px 0 0;width:100%;max-width:600px;max-height:92vh;overflow-y:auto;padding-bottom:40px;transform:translateY(100%);transition:transform .3s ease}
+.overlay.open .modal{transform:translateY(0)}
+.mhandle{width:36px;height:4px;background:rgba(255,255,255,0.15);border-radius:2px;margin:12px auto 0}
+.mhead{display:flex;align-items:center;justify-content:space-between;padding:14px 20px 10px}
+.mtitle{font-size:17px;font-weight:700}
+.mbody{padding:0 20px}
+.btn-x{background:rgba(255,255,255,0.08);border:none;color:var(--text);width:32px;height:32px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent}
+
+/* FORM */
+.field{margin-bottom:14px}
+.field label{display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.field input,.field textarea,.field select{width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;padding:10px 13px;color:var(--text);font-size:15px;outline:none;font-family:inherit}
+.field input:focus,.field textarea:focus,.field select:focus{border-color:var(--green)}
+.field textarea{resize:none;min-height:68px}
+.field select option{background:#141824}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+.photo-pick{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+.photo-circle{width:60px;height:60px;border-radius:50%;background:rgba(0,255,136,0.08);border:2px dashed rgba(0,255,136,0.35);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;cursor:pointer;overflow:hidden}
+.photo-circle img{width:100%;height:100%;object-fit:cover}
+#photoInput{display:none}
+
+.tags-box{display:flex;flex-wrap:wrap;gap:5px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;padding:7px 10px;min-height:42px;cursor:text}
+.tags-box:focus-within{border-color:var(--green)}
+.tag-chip{background:rgba(0,255,136,0.12);border:1px solid rgba(0,255,136,0.3);color:var(--green);padding:2px 8px;border-radius:10px;font-size:13px;display:flex;align-items:center;gap:4px}
+.tag-chip button{background:none;border:none;color:var(--green);cursor:pointer;padding:0;font-size:14px;line-height:1}
+.tag-inp{background:none;border:none;outline:none;color:var(--text);font-size:14px;min-width:80px;flex:1}
+
+.btn-save{width:100%;padding:13px;background:var(--green);color:#0a0e1a;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;margin-top:6px;-webkit-tap-highlight-color:transparent}
+.btn-save:disabled{opacity:.5}
+
+/* DETAIL */
+.det-top{text-align:center;padding:4px 0 16px}
+.det-av{width:76px;height:76px;border-radius:50%;background:rgba(0,255,136,0.1);border:3px solid rgba(0,255,136,0.3);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:var(--green);margin:0 auto 10px;overflow:hidden}
+.det-av img{width:100%;height:100%;object-fit:cover}
+.det-name{font-size:20px;font-weight:700}
+.det-sub{font-size:13px;color:var(--muted);margin-top:3px}
+.det-actions{display:flex;gap:8px;padding:0 20px 14px}
+.btn-act{flex:1;padding:9px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,0.04);color:var(--text);font-size:13px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.btn-act:active{background:rgba(255,255,255,0.08)}
+.btn-act.danger{border-color:rgba(255,80,80,0.3);color:#ff6b6b}
+.det-section{padding:0 20px;margin-bottom:14px}
+.det-section h3{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;border-top:1px solid var(--border);padding-top:12px}
+.det-row{display:flex;gap:10px;margin-bottom:8px;align-items:flex-start}
+.det-icon{font-size:15px;width:22px;flex-shrink:0;margin-top:1px}
+.det-val{font-size:14px;color:var(--text);word-break:break-word;line-height:1.5}
+.det-val a{color:var(--green);text-decoration:none}
+.sbadge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600}
+.sbadge.Identificado{background:rgba(0,255,136,0.12);color:var(--green);border:1px solid rgba(0,255,136,0.25)}
+.sbadge.Pendente{background:rgba(245,158,11,0.12);color:#f59e0b;border:1px solid rgba(245,158,11,0.25)}
+.sbadge.Arquivado{background:rgba(100,116,139,0.12);color:#94a3b8;border:1px solid rgba(100,116,139,0.25)}
+
+/* MERGE MODAL */
+.merge-candidate{background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px;display:flex;align-items:center;gap:12px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.merge-candidate:active,.merge-candidate.selected{background:rgba(0,255,136,0.08);border-color:var(--green)}
+.merge-or{text-align:center;padding:8px 0;color:var(--muted);font-size:13px}
+.btn-new-contact{width:100%;padding:11px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,0.04);color:var(--text);font-size:14px;cursor:pointer;margin-bottom:8px;-webkit-tap-highlight-color:transparent}
+.btn-new-contact:active{background:rgba(255,255,255,0.08)}
+
+/* CONVERSATION MODAL */
+.conv-section{background:rgba(255,255,255,0.04);border-radius:12px;padding:12px;margin-bottom:12px}
+.conv-section h4{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.mic-btn{width:100%;padding:14px;border-radius:12px;border:1px solid rgba(0,255,136,0.3);background:rgba(0,255,136,0.06);color:var(--green);font-size:15px;cursor:pointer;-webkit-tap-highlight-color:transparent;margin-bottom:10px}
+.mic-btn.recording{background:rgba(255,80,80,0.1);border-color:rgba(255,80,80,0.4);color:#ff6b6b;animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+.transcript-box{background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:10px;padding:10px;min-height:60px;font-size:14px;color:var(--text);line-height:1.5;white-space:pre-wrap;margin-bottom:8px}
+.summary-box{background:rgba(0,255,136,0.05);border:1px solid rgba(0,255,136,0.2);border-radius:10px;padding:10px;font-size:14px;color:rgba(255,255,255,0.8);line-height:1.5}
+
+/* EMPTY / LOADER */
+.empty{text-align:center;padding:50px 20px;color:var(--muted)}
+.empty .ei{font-size:44px;margin-bottom:10px}
+.loader{text-align:center;padding:40px}
+.spin{width:30px;height:30px;border:3px solid rgba(0,255,136,0.15);border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 10px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* TOAST */
+.toast{position:fixed;bottom:70px;left:50%;transform:translateX(-50%) translateY(60px);background:#1e293b;color:var(--text);border:1px solid var(--border);border-radius:12px;padding:10px 20px;font-size:14px;z-index:999;transition:transform .3s;white-space:nowrap;pointer-events:none}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.ok{border-color:rgba(0,255,136,0.4);color:var(--green)}
+.toast.err{border-color:rgba(255,80,80,0.4);color:#ff6b6b}
+
+/* STATUS BAR */
+.sbar{padding:5px 16px;font-size:11px;display:flex;align-items:center;gap:5px;border-bottom:1px solid var(--border)}
+.sbar.online{color:var(--green);background:rgba(0,255,136,0.05);border-color:rgba(0,255,136,0.15)}
+.sbar.offline{color:#f59e0b;background:rgba(245,158,11,0.05);border-color:rgba(245,158,11,0.15)}
+.sdot{width:5px;height:5px;border-radius:50%;background:currentColor}
+
+/* CONFIRM */
+.cbox{margin:20px;background:var(--card);border-radius:14px;padding:22px;text-align:center}
+.cbox h3{margin-bottom:6px}.cbox p{color:var(--muted);font-size:13px;margin-bottom:18px}
+.cbtns{display:flex;gap:8px}
+.cbtns button{flex:1;padding:12px;border-radius:10px;border:none;font-size:14px;font-weight:600;cursor:pointer}
+.btn-no{background:rgba(255,255,255,0.08);color:var(--text)}
+.btn-yes{background:#ff4444;color:#fff}
+
+/* OCR / CAMERA capture */
+.ocr-area{position:relative;background:#000;border-radius:12px;overflow:hidden;margin-bottom:10px;min-height:180px;display:flex;align-items:center;justify-content:center}
+.ocr-area video{width:100%;border-radius:12px}
+.ocr-area canvas{display:none}
+.ocr-result{background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;padding:10px;font-size:14px;min-height:50px;color:var(--text);margin-bottom:8px}
+.btn-capture{width:100%;padding:12px;border-radius:10px;background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.3);color:var(--green);font-size:14px;font-weight:600;cursor:pointer;margin-bottom:6px;-webkit-tap-highlight-color:transparent}
+.apply-row{display:flex;gap:6px;flex-wrap:wrap}
+.btn-apply{padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,0.04);color:var(--text);font-size:13px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.btn-apply:active{background:rgba(255,255,255,0.08)}
+</style>
+</head>
+<body>
+
+<!-- BOTTOM NAV -->
+<nav class="nav">
+  <button class="nav-btn active" data-page="contacts" onclick="showPage('contacts')">
+    <span class="icon">👥</span>Contatos
+  </button>
+  <button class="nav-btn" data-page="pending" onclick="showPage('pending')">
+    <span class="icon">⚠️</span>Pendentes
+  </button>
+  <button class="nav-btn" data-page="encounters" onclick="showPage('encounters')">
+    <span class="icon">💬</span>Encontros
+  </button>
+  <button class="nav-btn" data-page="merge" onclick="showPage('merge')">
+    <span class="icon">🔀</span>Mesclar
+  </button>
+</nav>
+
+<!-- ═══════════════ PAGE: CONTACTS ═══════════════ -->
+<div class="page active" id="page-contacts">
+  <div class="topbar">
+    <h2>👤 FaceContext</h2>
+    <span class="badge" id="cntBadge">…</span>
+    <button class="btn-icon" onclick="openAdd()">+</button>
+  </div>
+  <div id="statusBar" class="sbar offline"><div class="sdot"></div><span id="statusMsg">Conectando…</span></div>
+  <div class="search-bar">
+    <span class="si">🔍</span>
+    <input type="text" id="searchInput" placeholder="Buscar nome, empresa, tag…" oninput="applyFilters()">
+  </div>
+  <div class="tabs">
+    <button class="tab active" onclick="setFilter('all',this)">Todos</button>
+    <button class="tab" onclick="setFilter('Identificado',this)">✅ Identificados</button>
+    <button class="tab" onclick="setFilter('Pendente',this)">⏳ Pendentes</button>
+    <button class="tab" onclick="setFilter('Arquivado',this)">📁 Arquivados</button>
+    <button class="tab" onclick="setFilter('Amigo',this)">🤝 Amigos</button>
+    <button class="tab" onclick="setFilter('Familiar',this)">👪 Família</button>
+    <button class="tab" onclick="setFilter('Colega de trabalho',this)">💼 Trabalho</button>
+  </div>
+  <div class="clist" id="contactList"><div class="loader"><div class="spin"></div>Carregando…</div></div>
+</div>
+
+<!-- ═══════════════ PAGE: PENDING ═══════════════ -->
+<div class="page" id="page-pending">
+  <div class="topbar"><h2>⚠️ Rostos Pendentes</h2><span class="badge" id="pendBadge">0</span></div>
+  <div id="pendingList"><div class="empty"><div class="ei">👁</div><p>Nenhum rosto pendente.<br>Capturas não identificadas aparecem aqui.</p></div></div>
+</div>
+
+<!-- ═══════════════ PAGE: ENCOUNTERS ═══════════════ -->
+<div class="page" id="page-encounters">
+  <div class="topbar"><h2>💬 Encontros</h2><span class="badge" id="encBadge">0</span></div>
+  <div id="encList"><div class="loader"><div class="spin"></div>Carregando…</div></div>
+</div>
+
+<!-- ═══════════════ PAGE: MERGE ═══════════════ -->
+<div class="page" id="page-merge">
+  <div class="topbar"><h2>🔀 Mesclar Contatos</h2></div>
+  <div style="padding:0 16px 80px">
+    <p style="font-size:14px;color:var(--muted);margin-bottom:16px;line-height:1.6">
+      Encontrou duplicatas? Selecione dois contatos para mesclar. O perfil primário fica, o secundário é apagado e seus dados são copiados.
+    </p>
+    <div style="margin-bottom:10px"><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px">🔵 CONTATO PRINCIPAL (fica)</label>
+      <div class="search-bar" style="padding:0 0 6px"><span class="si">🔍</span><input type="text" id="mergeSearchA" placeholder="Buscar…" oninput="renderMergeList('A')"></div>
+      <div id="mergeListA" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:12px;padding:6px"></div>
+    </div>
+    <div style="margin-bottom:10px"><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px">🔴 CONTATO SECUNDÁRIO (será absorvido)</label>
+      <div class="search-bar" style="padding:0 0 6px"><span class="si">🔍</span><input type="text" id="mergeSearchB" placeholder="Buscar…" oninput="renderMergeList('B')"></div>
+      <div id="mergeListB" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:12px;padding:6px"></div>
+    </div>
+    <div id="mergePreview" style="display:none;background:rgba(0,255,136,0.05);border:1px solid rgba(0,255,136,0.2);border-radius:12px;padding:14px;margin-bottom:12px">
+      <div style="font-size:13px;font-weight:600;color:var(--green);margin-bottom:6px">Prévia da mesclagem</div>
+      <div id="mergePreviewContent" style="font-size:13px;color:rgba(255,255,255,0.7);line-height:1.7"></div>
+    </div>
+    <button class="btn-save" id="btnDoMerge" style="display:none" onclick="doMerge()">🔀 Mesclar Contatos</button>
+  </div>
+</div>
+
+<!-- ══════════ MODAL: ADD/EDIT ══════════ -->
+<div class="overlay" id="addOverlay">
+  <div class="modal">
+    <div class="mhandle"></div>
+    <div class="mhead">
+      <span class="mtitle" id="addTitle">Novo Contato</span>
+      <button class="btn-x" onclick="closeModal('addOverlay')">✕</button>
+    </div>
+    <div class="mbody">
+      <!-- CAPTURE TOOLS -->
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <button class="btn-capture" style="flex:1" onclick="openOCR()">📷 OCR Crachá/Cartão</button>
+        <button class="btn-capture" style="flex:1" onclick="openMic()">🎙 Transcrever Fala</button>
+      </div>
+
+      <div class="photo-pick">
+        <div class="photo-circle" id="photoPreview" onclick="document.getElementById('photoInput').click()">📷</div>
+        <div><div style="font-size:14px;margin-bottom:2px">Foto do contato</div><div style="font-size:12px;color:var(--muted)">Toca para selecionar</div></div>
+        <input type="file" id="photoInput" accept="image/*">
+      </div>
+      <div class="field"><label>Nome *</label><input type="text" id="fName" placeholder="Nome completo"></div>
+      <div class="field"><label>Apelido</label><input type="text" id="fNickname" placeholder="Apelido / como chama"></div>
+      <div class="row2">
+        <div class="field"><label>Empresa</label><input type="text" id="fCompany" placeholder="Empresa"></div>
+        <div class="field"><label>Cargo</label><input type="text" id="fRole" placeholder="Cargo"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Relação</label>
+          <select id="fRelation"><option value="">—</option><option>Amigo</option><option>Colega de trabalho</option><option>Cliente</option><option>Fornecedor</option><option>Familiar</option><option>Conhecido</option><option>Outro</option></select>
+        </div>
+        <div class="field"><label>Status</label>
+          <select id="fStatus"><option value="Identificado">✅ Identificado</option><option value="Pendente">⏳ Pendente</option><option value="Arquivado">📁 Arquivado</option></select>
+        </div>
+      </div>
+      <div class="field"><label>Contexto da relação</label><textarea id="fRelContext" placeholder="Onde se conheceram, como se relacionam…"></textarea></div>
+      <div class="field"><label>Tags</label>
+        <div class="tags-box" id="tagsBox" onclick="document.getElementById('tagInp').focus()">
+          <input class="tag-inp" id="tagInp" placeholder="Digite e Enter…">
+        </div>
+      </div>
+      <div class="field"><label>WhatsApp</label><input type="tel" id="fWA" placeholder="+55 11 99999-0000"></div>
+      <div class="field"><label>Email</label><input type="email" id="fEmail" placeholder="email@exemplo.com"></div>
+      <div class="field"><label>LinkedIn</label><input type="text" id="fLI" placeholder="URL ou username"></div>
+      <div class="field"><label>Notas / Resumo</label><textarea id="fNotes" placeholder="Informações extras, contexto, última conversa…"></textarea></div>
+      <button class="btn-save" id="btnSave" onclick="saveContact()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MODAL: DETAIL ══════════ -->
+<div class="overlay" id="detOverlay">
+  <div class="modal">
+    <div class="mhandle"></div>
+    <div class="mhead"><span class="mtitle">Perfil</span><button class="btn-x" onclick="closeModal('detOverlay')">✕</button></div>
+    <div id="detContent"></div>
+  </div>
+</div>
+
+<!-- ══════════ MODAL: MERGE SUGGESTION ══════════ -->
+<div class="overlay" id="mergeOverlay">
+  <div class="modal">
+    <div class="mhandle"></div>
+    <div class="mhead"><span class="mtitle">🤔 Quem é essa pessoa?</span><button class="btn-x" onclick="closeModal('mergeOverlay')">✕</button></div>
+    <div class="mbody" id="mergeBody"></div>
+  </div>
+</div>
+
+<!-- ══════════ MODAL: OCR ══════════ -->
+<div class="overlay" id="ocrOverlay">
+  <div class="modal">
+    <div class="mhandle"></div>
+    <div class="mhead"><span class="mtitle">📷 OCR — Crachá / Cartão</span><button class="btn-x" onclick="closeOCR()">✕</button></div>
+    <div class="mbody">
+      <div class="ocr-area"><video id="ocrVideo" autoplay playsinline muted></video><canvas id="ocrCanvas"></canvas></div>
+      <button class="btn-capture" onclick="captureOCR()">📸 Capturar e Ler Texto</button>
+      <div class="ocr-result" id="ocrResult">Texto detectado aparecerá aqui…</div>
+      <div class="apply-row" id="applyRow" style="display:none">
+        <button class="btn-apply" onclick="applyOCR('name')">→ Nome</button>
+        <button class="btn-apply" onclick="applyOCR('company')">→ Empresa</button>
+        <button class="btn-apply" onclick="applyOCR('role')">→ Cargo</button>
+        <button class="btn-apply" onclick="applyOCR('all')">→ Preencher tudo</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MODAL: MIC / CONVERSA ══════════ -->
+<div class="overlay" id="micOverlay">
+  <div class="modal">
+    <div class="mhandle"></div>
+    <div class="mhead"><span class="mtitle">🎙 Captura de Fala</span><button class="btn-x" onclick="closeMic()">✕</button></div>
+    <div class="mbody">
+      <div class="conv-section">
+        <h4>Transcrição em tempo real</h4>
+        <button class="mic-btn" id="micBtn" onclick="toggleMic()">🎙 Iniciar gravação</button>
+        <div class="transcript-box" id="transcriptBox">A transcrição aparecerá aqui enquanto você fala…</div>
+      </div>
+      <div class="conv-section" id="summarySection" style="display:none">
+        <h4>Resumo detectado</h4>
+        <div class="summary-box" id="summaryBox"></div>
+        <div class="apply-row" style="margin-top:8px">
+          <button class="btn-apply" onclick="applyTranscript('name')">→ Nome</button>
+          <button class="btn-apply" onclick="applyTranscript('notes')">→ Notas</button>
+          <button class="btn-apply" onclick="applyTranscript('all')">→ Aplicar tudo</button>
+        </div>
+      </div>
+      <button class="btn-save" onclick="closeMic();toast('Transcrição salva!','ok')">✅ Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MODAL: ENCOUNTER ADD ══════════ -->
+<div class="overlay" id="encOverlay">
+  <div class="modal">
+    <div class="mhandle"></div>
+    <div class="mhead"><span class="mtitle" id="encTitle">Novo Encontro</span><button class="btn-x" onclick="closeModal('encOverlay')">✕</button></div>
+    <div class="mbody">
+      <div class="field"><label>Pessoa</label><input type="text" id="encPerson" placeholder="Nome" readonly style="opacity:.7"></div>
+      <div class="row2">
+        <div class="field"><label>Local</label><input type="text" id="encLocation" placeholder="Onde?"></div>
+        <div class="field"><label>Modo</label>
+          <select id="encMode"><option value="Manual">Manual</option><option value="Automático">Automático</option></select>
+        </div>
+      </div>
+      <div class="field"><label>Contexto / Resumo da conversa</label><textarea id="encContext" placeholder="Do que vocês falaram? O que aconteceu?" style="min-height:100px"></textarea></div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <button class="btn-capture" style="flex:1" onclick="openEncMic()">🎙 Gravar conversa</button>
+      </div>
+      <div class="transcript-box" id="encTranscript" style="display:none;margin-bottom:8px"></div>
+      <button class="btn-save" onclick="saveEncounter()">💾 Salvar Encontro</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ CONFIRM DELETE ══════════ -->
+<div class="overlay" id="confirmOverlay">
+  <div class="modal">
+    <div class="cbox">
+      <h3>Excluir contato?</h3>
+      <p id="confirmName">Esta ação não pode ser desfeita.</p>
+      <div class="cbtns">
+        <button class="btn-no" onclick="closeModal('confirmOverlay')">Cancelar</button>
+        <button class="btn-yes" onclick="doDelete()">Excluir</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const PROXY = "https://facecontext-10a8c066.base44.app/functions/fcProxy";
+
+function vcToken(){var k='vc_device_token',v='';try{if(/[?&]resettoken=1\b/.test(location.search))localStorage.removeItem(k);v=localStorage.getItem(k)||'';}catch(e){}
+if(!v){v=(prompt('VisualContext — cole o token do aparelho (VC_DEVICE_TOKEN):')||'').trim();try{if(v)localStorage.setItem(k,v);}catch(e){}}return v;}
+var _f0=window.fetch.bind(window);
+window.fetch=function(u,o){if(typeof u==='string'&&u.indexOf(PROXY)===0){o=o||{};var h={};Object.keys(o.headers||{}).forEach(function(k){h[k]=o.headers[k];});
+var t=vcToken();if(t)h['x-vc-token']=t;o.headers=h;return _f0(u,o).then(function(r){if(r.status===401){try{localStorage.removeItem('vc_device_token');}catch(e){}}return r;});}return _f0(u,o);};
+const APP_ID = "6a11083db49430b410a8c066";
+
+var contacts = [], encounters = [], filterStatus = "all", filterRelation = "all";
+var editingId = null, currentTags = [], photoFile = null, photoDataUrl = null;
+var deleteId = null;
+var mergeA = null, mergeB = null;
+var ocrStream = null, ocrText = "";
+var recognition = null, isRecording = false, transcript = "", encPersonId = null;
+
+// ── helpers ──────────────────────────────────────────────────
+function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
+function initials(name){return (name||"?").split(" ").map(w=>w[0]).slice(0,2).join("").toUpperCase()}
+function relIcon(r){return {Amigo:"🤝",Familiar:"👪","Colega de trabalho":"💼",Cliente:"🛒",Fornecedor:"📦",Conhecido:"👋",Outro:"🔵"}[r]||"👤"}
+function fmtDate(d){if(!d)return "";try{return new Date(d).toLocaleDateString("pt-BR",{day:"2-digit",month:"short",year:"numeric"})}catch{return d}}
+
+function toast(msg,type){
+  var el=document.getElementById("toast");
+  el.textContent=msg; el.className="toast "+(type||"");
+  el.classList.add("show"); setTimeout(()=>el.classList.remove("show"),3000);
+}
+function setStatus(online,msg){
+  var b=document.getElementById("statusBar"),s=document.getElementById("statusMsg");
+  b.className="sbar "+(online?"online":"offline"); s.textContent=msg;
+}
+
+// ── pages ─────────────────────────────────────────────────────
+function showPage(id){
+  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+  document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active"));
+  document.getElementById("page-"+id).classList.add("active");
+  document.querySelector('[data-page="'+id+'"]').classList.add("active");
+  if(id==="encounters") renderEncounters();
+  if(id==="merge") renderMergeList("A"), renderMergeList("B");
+}
+function closeModal(id){document.getElementById(id).classList.remove("open")}
+
+// ── load data ─────────────────────────────────────────────────
+async function loadAll(){
+  try{
+    var r=await fetch(PROXY);
+    if(!r.ok) throw new Error(r.status);
+    contacts=await r.json();
+    localStorage.setItem("fc_c",JSON.stringify(contacts));
+    setStatus(true,"☁ "+contacts.length+" contatos sincronizados");
+  }catch(e){
+    var c=localStorage.getItem("fc_c");
+    contacts=c?JSON.parse(c):[];
+    setStatus(false,"⚠ Offline — "+contacts.length+" contatos locais");
+  }
+  renderContacts(); renderPending(); renderMergeList("A"); renderMergeList("B");
+  document.getElementById("cntBadge").textContent=contacts.length;
+}
+
+async function loadEncounters(){
+  try{
+    var r=await fetch("https://facecontext-10a8c066.base44.app/functions/fcProxy?entity=FaceContextEncounter");
+    encounters= r.ok ? await r.json() : [];
+  }catch{ encounters=[]; }
+  renderEncounters();
+}
+
+// ── contacts page ─────────────────────────────────────────────
+function setFilter(f,el){
+  filterStatus=(f==="all"||f==="Amigo"||f==="Familiar"||f==="Colega de trabalho"||f==="Cliente"||f==="Fornecedor"||f==="Conhecido")
+    ? f : f;
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+  el.classList.add("active"); applyFilters();
+}
+function applyFilters(){
+  var q=document.getElementById("searchInput").value.toLowerCase();
+  var f=filterStatus;
+  var filtered=contacts.filter(c=>{
+    var matchStatus = f==="all" || c.status===f || c.relation===f;
+    var matchQ = !q || (c.name||"").toLowerCase().includes(q)||(c.company||"").toLowerCase().includes(q)||
+                 (c.role||"").toLowerCase().includes(q)||((c.tags||[]).join(" ")).toLowerCase().includes(q)||
+                 (c.contact_email||"").toLowerCase().includes(q);
+    return matchStatus && matchQ;
+  });
+  document.getElementById("cntBadge").textContent=filtered.length+"/"+contacts.length;
+  if(!filtered.length){
+    document.getElementById("contactList").innerHTML='<div class="empty"><div class="ei">🔍</div><p>Nenhum resultado.</p></div>';
+    return;
+  }
+  document.getElementById("contactList").innerHTML=filtered.map(c=>{
+    var av=c.photo_url?`<img src="${esc(c.photo_url)}" loading="lazy">`:(initials(c.name));
+    var sub=[c.role,c.company].filter(Boolean).join(" · ")||c.relation||"";
+    var tags=(c.tags||[]).filter(t=>t!=="gmail").slice(0,3).map(t=>`<span class="tag">${esc(t)}</span>`).join("");
+    return `<div class="ccard" onclick="openDetail('${c.id}')">
+      <div class="av">${av}</div>
+      <div class="ci">
+        <div class="cn">${esc(c.name||"Sem nome")}</div>
+        ${sub?`<div class="cs">${esc(sub)}</div>`:""}
+        ${tags?`<div class="ctags">${tags}</div>`:""}
+      </div>
+      <div class="dot ${esc(c.status||"Pendente")}"></div>
+    </div>`;
+  }).join("");
+}
+function renderContacts(){ applyFilters(); }
+
+// ── pending page ─────────────────────────────────────────────
+function renderPending(){
+  var pending=contacts.filter(c=>c.status==="Pendente");
+  document.getElementById("pendBadge").textContent=pending.length;
+  if(!pending.length){
+    document.getElementById("pendingList").innerHTML='<div class="empty"><div class="ei">✅</div><p>Nenhum rosto pendente!</p></div>';
+    return;
+  }
+  document.getElementById("pendingList").innerHTML=
+    '<div class="section-title">Rostos não identificados ('+pending.length+')</div>'+
+    pending.map(c=>{
+      var av=initials(c.name||"?");
+      var candidates=findSimilar(c,3);
+      return `<div class="pending-card" onclick="openMergeSuggestion('${c.id}')">
+        <div class="pending-row">
+          <div class="av">${av}</div>
+          <div class="pending-info">
+            <div class="pending-label">${esc(c.name||"Desconhecido")}</div>
+            <div class="pending-sub">${candidates.length?`Possíveis matches: ${candidates.map(x=>x.name).join(", ")}`:"Sem matches sugeridos"}</div>
+          </div>
+          <button class="btn-merge">Vincular</button>
+        </div>
+      </div>`;
+    }).join("");
+}
+
+function findSimilar(c,n){
+  // Busca contatos com nome parecido ou mesma empresa
+  return contacts.filter(x=>x.id!==c.id && x.status!=="Pendente")
+    .map(x=>{
+      var score=0;
+      var aName=(c.name||"").toLowerCase().split(" ");
+      var bName=(x.name||"").toLowerCase().split(" ");
+      aName.forEach(w=>{ if(w.length>2&&bName.some(bw=>bw.includes(w)||w.includes(bw))) score+=2; });
+      if(c.company&&x.company&&c.company.toLowerCase()===x.company.toLowerCase()) score+=3;
+      return {score,...x};
+    })
+    .filter(x=>x.score>0)
+    .sort((a,b)=>b.score-a.score)
+    .slice(0,n);
+}
+
+function openMergeSuggestion(pendingId){
+  var c=contacts.find(x=>x.id===pendingId);
+  if(!c) return;
+  var similar=findSimilar(c,5);
+  var html=`
+    <div style="text-align:center;margin-bottom:16px">
+      <div class="av" style="width:60px;height:60px;font-size:22px;margin:0 auto 10px">${initials(c.name||"?")}</div>
+      <div style="font-size:16px;font-weight:700">${esc(c.name||"Desconhecido")}</div>
+      <div style="font-size:13px;color:var(--muted)">Capturado em: ${fmtDate(c.last_seen_date)||"data desconhecida"}</div>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Isso é uma das pessoas abaixo, ou um novo contato?</p>`;
+
+  if(similar.length){
+    html+=similar.map(s=>`
+      <div class="merge-candidate" onclick="quickMerge('${pendingId}','${s.id}',this)">
+        <div class="av">${s.photo_url?`<img src="${esc(s.photo_url)}">`:(initials(s.name||"?"))}</div>
+        <div style="flex:1">
+          <div style="font-size:15px;font-weight:600">${esc(s.name||"?")}</div>
+          <div style="font-size:12px;color:var(--muted)">${esc([s.role,s.company].filter(Boolean).join(" · ")||s.relation||"")}</div>
+        </div>
+        <div class="dot ${esc(s.status||"Pendente")}"></div>
+      </div>`).join('<div class="merge-or">ou</div>');
+  } else {
+    html+='<div style="text-align:center;padding:16px;color:var(--muted);font-size:14px">Nenhum match sugerido encontrado.</div>';
+  }
+
+  html+=`<button class="btn-new-contact" onclick="createFromPending('${pendingId}')">➕ É um contato novo — preencher perfil</button>
+         <button class="btn-save" style="background:rgba(255,80,80,0.15);color:#ff6b6b;border:1px solid rgba(255,80,80,0.3)" onclick="closeModal('mergeOverlay')">Ignorar por agora</button>`;
+
+  document.getElementById("mergeBody").innerHTML=html;
+  document.getElementById("mergeOverlay").classList.add("open");
+}
+
+async function quickMerge(fromId, toId, el){
+  document.querySelectorAll(".merge-candidate").forEach(e=>e.classList.remove("selected"));
+  el.classList.add("selected");
+  if(!confirm("Confirma: vincular este rosto pendente ao contato selecionado?")) return;
+  var from=contacts.find(x=>x.id===fromId);
+  var to=contacts.find(x=>x.id===toId);
+  if(!from||!to) return;
+  // Atualiza o contato principal com dados do pendente
+  var merged={
+    face_embedding: from.face_embedding||to.face_embedding,
+    last_seen_date: from.last_seen_date||to.last_seen_date,
+    last_seen_context: from.last_seen_context||to.last_seen_context,
+    notes: [to.notes, from.notes].filter(Boolean).join("\n---\n")||null,
+    photo_url: to.photo_url||from.photo_url,
+  };
+  try{
+    await fetch(PROXY+"?id="+toId, {method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(merged)});
+    await fetch(PROXY+"?id="+fromId, {method:"DELETE"});
+    contacts=contacts.filter(x=>x.id!==fromId);
+    var idx=contacts.findIndex(x=>x.id===toId);
+    if(idx>=0) contacts[idx]={...contacts[idx],...merged};
+    localStorage.setItem("fc_c",JSON.stringify(contacts));
+    closeModal("mergeOverlay");
+    renderContacts(); renderPending();
+    toast("✅ Rosto vinculado a "+to.name,"ok");
+  }catch(e){ toast("Erro ao vincular","err"); }
+}
+
+function createFromPending(id){
+  var c=contacts.find(x=>x.id===id);
+  if(!c) return;
+  closeModal("mergeOverlay");
+  editingId=id; fillForm(c);
+  document.getElementById("addTitle").textContent="Completar Perfil";
+  document.getElementById("addOverlay").classList.add("open");
+}
+
+// ── encounters ────────────────────────────────────────────────
+function renderEncounters(){
+  // Usa contacts.last_seen como proxy de encontros enquanto FaceContextEncounter estiver vazio
+  var withSeen=contacts.filter(c=>c.last_seen_date||c.last_seen_context||c.notes).sort((a,b)=>{
+    return (b.last_seen_date||"").localeCompare(a.last_seen_date||"");
+  });
+  document.getElementById("encBadge").textContent=withSeen.length;
+  if(!withSeen.length){
+    document.getElementById("encList").innerHTML='<div class="empty"><div class="ei">💬</div><p>Nenhum encontro registrado.</p></div>';
+    return;
+  }
+  document.getElementById("encList").innerHTML=
+    '<div class="section-title">Últimas interações</div>'+
+    withSeen.map(c=>`
+      <div class="enc-card" onclick="openDetail('${c.id}')">
+        <div class="enc-header">
+          <div class="enc-avatar">${c.photo_url?`<img src="${esc(c.photo_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:(initials(c.name||"?"))}</div>
+          <div style="flex:1">
+            <div class="enc-name">${esc(c.name||"?")}</div>
+            <div class="enc-date">${c.last_seen_date?fmtDate(c.last_seen_date):"Data não registrada"}</div>
+          </div>
+          <button style="background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.25);color:var(--green);border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer" onclick="event.stopPropagation();openAddEncounter('${c.id}','${esc(c.name||"")}')">+ Encontro</button>
+        </div>
+        ${c.last_seen_context?`<div class="enc-text">📍 ${esc(c.last_seen_context)}</div>`:""}
+        ${c.notes?`<div class="enc-text" style="margin-top:4px">📝 ${esc(c.notes.slice(0,120))}${c.notes.length>120?"…":""}</div>`:""}
+      </div>`).join("");
+}
+
+function openAddEncounter(personId, personName){
+  encPersonId=personId;
+  document.getElementById("encTitle").textContent="Novo Encontro — "+personName;
+  document.getElementById("encPerson").value=personName;
+  document.getElementById("encLocation").value="";
+  document.getElementById("encContext").value="";
+  document.getElementById("encTranscript").style.display="none";
+  document.getElementById("encOverlay").classList.add("open");
+}
+
+async function saveEncounter(){
+  var ctx=document.getElementById("encContext").value.trim();
+  var loc=document.getElementById("encLocation").value.trim();
+  if(!ctx&&!loc){ toast("Preencha ao menos o contexto","err"); return; }
+  var c=contacts.find(x=>x.id===encPersonId);
+  var now=new Date().toISOString();
+  // Atualiza last_seen no perfil
+  try{
+    var upd={last_seen_date:now, last_seen_context:loc||ctx,
+             notes:[c?.notes, ctx].filter(Boolean).join("\n\n["+new Date().toLocaleDateString("pt-BR")+"] ")};
+    await fetch(PROXY+"?id="+encPersonId,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(upd)});
+    var idx=contacts.findIndex(x=>x.id===encPersonId);
+    if(idx>=0) contacts[idx]={...contacts[idx],...upd};
+    localStorage.setItem("fc_c",JSON.stringify(contacts));
+    closeModal("encOverlay");
+    renderEncounters(); renderContacts();
+    toast("Encontro registrado! ✅","ok");
+  }catch(e){ toast("Erro ao salvar","err"); }
+}
+
+// ── merge page ─────────────────────────────────────────────────
+function renderMergeList(ab){
+  var inp=document.getElementById("mergeSearch"+ab);
+  var q=(inp?.value||"").toLowerCase();
+  var list=document.getElementById("mergeList"+ab);
+  var filtered=contacts.filter(c=>!q||((c.name||"").toLowerCase().includes(q)||(c.company||"").toLowerCase().includes(q)));
+  list.innerHTML=filtered.slice(0,30).map(c=>{
+    var sel=(ab==="A"&&mergeA===c.id)||(ab==="B"&&mergeB===c.id);
+    return `<div class="ccard" style="${sel?"border-color:var(--green);background:rgba(0,255,136,0.06)":""}" onclick="selectMerge('${ab}','${c.id}')">
+      <div class="av" style="width:36px;height:36px;font-size:13px">${c.photo_url?`<img src="${esc(c.photo_url)}">`:(initials(c.name))}</div>
+      <div class="ci"><div class="cn" style="font-size:14px">${esc(c.name||"?")}</div><div class="cs">${esc([c.role,c.company].filter(Boolean).join(" · ")||"")}</div></div>
+      ${sel?'<span style="color:var(--green);font-size:18px">✓</span>':""}
+    </div>`;
+  }).join("")||'<div style="padding:12px;color:var(--muted);text-align:center">Nenhum resultado</div>';
+}
+
+function selectMerge(ab,id){
+  if(ab==="A") mergeA=id; else mergeB=id;
+  renderMergeList("A"); renderMergeList("B");
+  if(mergeA&&mergeB&&mergeA!==mergeB){
+    var a=contacts.find(x=>x.id===mergeA), b=contacts.find(x=>x.id===mergeB);
+    var merged=mergePreview(a,b);
+    document.getElementById("mergePreview").style.display="block";
+    document.getElementById("mergePreviewContent").innerHTML=
+      `<b>Nome:</b> ${esc(merged.name)}<br>`+
+      `<b>Empresa:</b> ${esc(merged.company||"—")}<br>`+
+      `<b>Email:</b> ${esc(merged.contact_email||"—")}<br>`+
+      `<b>Tags:</b> ${esc((merged.tags||[]).join(", ")||"—")}<br>`+
+      `<b>Notas:</b> ${esc((merged.notes||"").slice(0,100))}`;
+    document.getElementById("btnDoMerge").style.display="block";
+  } else {
+    document.getElementById("mergePreview").style.display="none";
+    document.getElementById("btnDoMerge").style.display="none";
+  }
+}
+
+function mergePreview(a,b){
+  return {
+    name: a.name||b.name,
+    nickname: a.nickname||b.nickname,
+    company: a.company||b.company,
+    role: a.role||b.role,
+    relation: a.relation||b.relation,
+    relation_context: a.relation_context||b.relation_context,
+    status: a.status==="Identificado"?"Identificado":b.status,
+    tags: [...new Set([...(a.tags||[]),...(b.tags||[])])],
+    contact_email: a.contact_email||b.contact_email,
+    contact_whatsapp: a.contact_whatsapp||b.contact_whatsapp,
+    contact_linkedin: a.contact_linkedin||b.contact_linkedin,
+    photo_url: a.photo_url||b.photo_url,
+    face_embedding: a.face_embedding||b.face_embedding,
+    last_seen_date: [a.last_seen_date,b.last_seen_date].filter(Boolean).sort().reverse()[0]||null,
+    notes: [a.notes,b.notes].filter(Boolean).join("\n---\n")||null,
+  };
+}
+
+async function doMerge(){
+  if(!mergeA||!mergeB||mergeA===mergeB){ toast("Selecione dois contatos diferentes","err"); return; }
+  var a=contacts.find(x=>x.id===mergeA), b=contacts.find(x=>x.id===mergeB);
+  var merged=mergePreview(a,b);
+  if(!confirm(`Mesclar "${b.name}" em "${a.name}"?\n\nO contato secundário será excluído.`)) return;
+  try{
+    await fetch(PROXY+"?id="+mergeA,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(merged)});
+    await fetch(PROXY+"?id="+mergeB,{method:"DELETE"});
+    contacts=contacts.filter(x=>x.id!==mergeB);
+    var idx=contacts.findIndex(x=>x.id===mergeA);
+    if(idx>=0) contacts[idx]={...contacts[idx],...merged};
+    localStorage.setItem("fc_c",JSON.stringify(contacts));
+    mergeA=null; mergeB=null;
+    renderMergeList("A"); renderMergeList("B"); renderContacts();
+    document.getElementById("mergePreview").style.display="none";
+    document.getElementById("btnDoMerge").style.display="none";
+    toast("✅ Contatos mesclados com sucesso!","ok");
+  }catch(e){ toast("Erro ao mesclar","err"); }
+}
+
+// ── detail ────────────────────────────────────────────────────
+function openDetail(id){
+  var c=contacts.find(x=>x.id===id); if(!c) return;
+  var av=c.photo_url?`<img src="${esc(c.photo_url)}">`:(initials(c.name||"?"));
+  var tags=(c.tags||[]).filter(t=>t!=="gmail");
+  var html=`
+    <div class="det-top">
+      <div class="det-av">${av}</div>
+      <div class="det-name">${esc(c.name||"Sem nome")}</div>
+      <div class="det-sub"><span class="sbadge ${esc(c.status||"Pendente")}">${esc(c.status||"Pendente")}</span></div>
+      ${tags.length?`<div style="display:flex;justify-content:center;flex-wrap:wrap;gap:5px;padding:8px 0">${tags.map(t=>`<span class="tag">${esc(t)}</span>`).join("")}</div>`:""}
+    </div>
+    <div class="det-actions">
+      <button class="btn-act" onclick="closeModal('detOverlay');openEdit('${id}')">✏️ Editar</button>
+      <button class="btn-act" onclick="closeModal('detOverlay');openAddEncounter('${id}','${esc(c.name||"")}')">💬 Encontro</button>
+      <button class="btn-act danger" onclick="closeModal('detOverlay');confirmDelete('${id}')">🗑 Excluir</button>
+    </div>
+    <div class="det-section">`;
+  if(c.relation) html+=`<h3>Relação</h3>`+dRow(relIcon(c.relation),c.relation+(c.relation_context?" · "+c.relation_context:""));
+  if(c.company||c.role){html+=`<h3>Profissional</h3>`;if(c.role)html+=dRow("💼",c.role);if(c.company)html+=dRow("🏢",c.company);}
+  if(c.contact_email||c.contact_whatsapp||c.contact_linkedin){
+    html+=`<h3>Contato</h3>`;
+    if(c.contact_whatsapp) html+=dRow("📱",`<a href="https://wa.me/${(c.contact_whatsapp).replace(/\D/g,"")}">${esc(c.contact_whatsapp)}</a>`);
+    if(c.contact_email) html+=dRow("✉️",`<a href="mailto:${esc(c.contact_email)}">${esc(c.contact_email)}</a>`);
+    if(c.contact_linkedin) html+=dRow("💼",`<a href="${esc(c.contact_linkedin)}" target="_blank">LinkedIn</a>`);
+  }
+  if(c.last_seen_date||c.last_seen_context){
+    html+=`<h3>Último encontro</h3>`;
+    if(c.last_seen_date) html+=dRow("📅",fmtDate(c.last_seen_date));
+    if(c.last_seen_context) html+=dRow("📍",c.last_seen_context);
+  }
+  if(c.notes) html+=`<h3>Notas / Resumo de conversa</h3>`+dRow("📝",c.notes);
+  html+="</div>";
+  document.getElementById("detContent").innerHTML=html;
+  document.getElementById("detOverlay").classList.add("open");
+}
+function dRow(icon,val){ return `<div class="det-row"><span class="det-icon">${icon}</span><span class="det-val">${val}</span></div>`; }
+
+// ── add / edit ────────────────────────────────────────────────
+function openAdd(){
+  editingId=null; currentTags=[]; photoFile=null; photoDataUrl=null;
+  ["fName","fNickname","fCompany","fRole","fRelContext","fWA","fEmail","fLI","fNotes"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("fRelation").value="";
+  document.getElementById("fStatus").value="Identificado";
+  document.getElementById("photoPreview").innerHTML="📷";
+  renderTags();
+  document.getElementById("addTitle").textContent="Novo Contato";
+  document.getElementById("addOverlay").classList.add("open");
+  setTimeout(()=>document.getElementById("fName").focus(),350);
+}
+function openEdit(id){
+  var c=contacts.find(x=>x.id===id); if(!c) return;
+  editingId=id; fillForm(c);
+  document.getElementById("addTitle").textContent="Editar — "+c.name;
+  document.getElementById("addOverlay").classList.add("open");
+}
+function fillForm(c){
+  document.getElementById("fName").value=c.name||"";
+  document.getElementById("fNickname").value=c.nickname||"";
+  document.getElementById("fCompany").value=c.company||"";
+  document.getElementById("fRole").value=c.role||"";
+  document.getElementById("fRelation").value=c.relation||"";
+  document.getElementById("fStatus").value=c.status||"Identificado";
+  document.getElementById("fRelContext").value=c.relation_context||"";
+  document.getElementById("fWA").value=c.contact_whatsapp||"";
+  document.getElementById("fEmail").value=c.contact_email||"";
+  document.getElementById("fLI").value=c.contact_linkedin||"";
+  document.getElementById("fNotes").value=c.notes||"";
+  currentTags=c.tags?[...c.tags.filter(t=>t!=="gmail")]:[];
+  photoFile=null; photoDataUrl=c.photo_url||null;
+  document.getElementById("photoPreview").innerHTML=photoDataUrl?`<img src="${esc(photoDataUrl)}">`:"📷";
+  renderTags();
+}
+
+// ── tags ──────────────────────────────────────────────────────
+function renderTags(){
+  var box=document.getElementById("tagsBox");
+  box.innerHTML="";
+  currentTags.forEach((t,i)=>{
+    var s=document.createElement("span"); s.className="tag-chip";
+    s.innerHTML=esc(t)+`<button onclick="removeTag(${i})">×</button>`; box.appendChild(s);
+  });
+  var inp=document.createElement("input"); inp.className="tag-inp"; inp.id="tagInp";
+  inp.placeholder=currentTags.length?"":"Digite e Enter…";
+  inp.addEventListener("keydown",e=>{
+    if(e.key==="Enter"||e.key===","){e.preventDefault();var v=inp.value.trim().replace(/,/g,"");if(v&&!currentTags.includes(v)){currentTags.push(v);renderTags();}else inp.value="";}
+    else if(e.key==="Backspace"&&!inp.value.length&&currentTags.length){currentTags.pop();renderTags();}
+  }); box.appendChild(inp);
+}
+function removeTag(i){ currentTags.splice(i,1); renderTags(); }
+
+// ── photo ─────────────────────────────────────────────────────
+document.getElementById("photoInput").addEventListener("change",function(e){
+  var f=e.target.files[0]; if(!f) return; photoFile=f;
+  var r=new FileReader(); r.onload=ev=>{
+    photoDataUrl=ev.target.result;
+    document.getElementById("photoPreview").innerHTML=`<img src="${photoDataUrl}">`;
+  }; r.readAsDataURL(f);
+});
+
+// ── save ──────────────────────────────────────────────────────
+async function saveContact(){
+  var name=document.getElementById("fName").value.trim();
+  if(!name){ toast("Nome é obrigatório","err"); return; }
+  var btn=document.getElementById("btnSave"); btn.disabled=true; btn.textContent="Salvando…";
+  try{
+    var pUrl=photoDataUrl;
+    if(photoFile&&photoDataUrl?.startsWith("data:")){
+      try{
+        var blob=await fetch(photoDataUrl).then(r=>r.blob());
+        var fd=new FormData(); fd.append("file",blob,photoFile.name);
+        var up=await fetch(`https://base44.app/api/apps/${APP_ID}/files/upload`,{method:"POST",body:fd});
+        if(up.ok){ var j=await up.json(); pUrl=j.file_url||j.url||pUrl; }
+      }catch(e){}
+    }
+    var payload={
+      name, nickname:document.getElementById("fNickname").value.trim()||null,
+      company:document.getElementById("fCompany").value.trim()||null,
+      role:document.getElementById("fRole").value.trim()||null,
+      relation:document.getElementById("fRelation").value||null,
+      relation_context:document.getElementById("fRelContext").value.trim()||null,
+      status:document.getElementById("fStatus").value||"Identificado",
+      tags:currentTags,
+      contact_whatsapp:document.getElementById("fWA").value.trim()||null,
+      contact_email:document.getElementById("fEmail").value.trim()||null,
+      contact_linkedin:document.getElementById("fLI").value.trim()||null,
+      notes:document.getElementById("fNotes").value.trim()||null,
+      photo_url:pUrl||null,
+    };
+    if(editingId){
+      var r=await fetch(PROXY+"?id="+editingId,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+      if(!r.ok) throw new Error("Erro ao atualizar");
+      var updated=await r.json();
+      var idx=contacts.findIndex(x=>x.id===editingId);
+      if(idx>=0) contacts[idx]={...contacts[idx],...updated};
+      toast("Contato atualizado! ✅","ok");
+    } else {
+      var created=await fetch(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)}).then(r=>r.json());
+      contacts.unshift(created);
+      toast("Contato salvo! ✅","ok");
+    }
+    localStorage.setItem("fc_c",JSON.stringify(contacts));
+    closeModal("addOverlay"); renderContacts(); renderPending();
+  }catch(err){ toast("Erro: "+err.message,"err"); }
+  finally{ btn.disabled=false; btn.textContent="💾 Salvar"; }
+}
+
+// ── delete ────────────────────────────────────────────────────
+function confirmDelete(id){
+  deleteId=id;
+  var c=contacts.find(x=>x.id===id);
+  document.getElementById("confirmName").textContent=c?`"${c.name}"` :"Este contato";
+  document.getElementById("confirmOverlay").classList.add("open");
+}
+async function doDelete(){
+  closeModal("confirmOverlay");
+  if(!deleteId) return;
+  try{
+    await fetch(PROXY+"?id="+deleteId,{method:"DELETE"});
+    contacts=contacts.filter(x=>x.id!==deleteId);
+    localStorage.setItem("fc_c",JSON.stringify(contacts));
+    renderContacts(); renderPending();
+    toast("Contato excluído","");
+  }catch(e){ toast("Erro ao excluir","err"); }
+  deleteId=null;
+}
+
+// ── OCR ───────────────────────────────────────────────────────
+async function openOCR(){
+  document.getElementById("ocrOverlay").classList.add("open");
+  try{
+    ocrStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
+    document.getElementById("ocrVideo").srcObject=ocrStream;
+  }catch(e){ document.getElementById("ocrResult").textContent="Câmera não disponível: "+e.message; }
+}
+function closeOCR(){
+  if(ocrStream) ocrStream.getTracks().forEach(t=>t.stop()); ocrStream=null;
+  closeModal("ocrOverlay");
+}
+async function captureOCR(){
+  var video=document.getElementById("ocrVideo");
+  var canvas=document.getElementById("ocrCanvas");
+  canvas.width=video.videoWidth||640; canvas.height=video.videoHeight||480;
+  canvas.getContext("2d").drawImage(video,0,0);
+  document.getElementById("ocrResult").textContent="🔄 Processando…";
+  // Web-based OCR via Tesseract (CDN lazy load)
+  if(!window.Tesseract){
+    var s=document.createElement("script");
+    s.src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
+    document.head.appendChild(s); await new Promise(res=>s.onload=res);
+  }
+  try{
+    var result=await Tesseract.recognize(canvas,"por+eng",{logger:m=>{
+      if(m.status==="recognizing text") document.getElementById("ocrResult").textContent=`🔄 ${Math.round(m.progress*100)}%…`;
+    }});
+    ocrText=result.data.text.trim();
+    document.getElementById("ocrResult").textContent=ocrText||"Nenhum texto detectado.";
+    if(ocrText) document.getElementById("applyRow").style.display="flex";
+  }catch(e){ document.getElementById("ocrResult").textContent="Erro: "+e.message; }
+}
+function applyOCR(field){
+  if(!ocrText) return;
+  var lines=ocrText.split("\n").filter(l=>l.trim().length>2);
+  if(field==="all"||field==="name") document.getElementById("fName").value=lines[0]||"";
+  if(field==="all"||field==="company") document.getElementById("fCompany").value=lines[1]||"";
+  if(field==="all"||field==="role") document.getElementById("fRole").value=lines[2]||"";
+  closeOCR();
+  toast("Texto aplicado ao formulário ✅","ok");
+}
+
+// ── MIC / SPEECH ──────────────────────────────────────────────
+function openMic(){ document.getElementById("micOverlay").classList.add("open"); }
+function closeMic(){
+  if(recognition&&isRecording){recognition.stop();isRecording=false;}
+  closeModal("micOverlay");
+}
+function toggleMic(){
+  if(!("webkitSpeechRecognition" in window||"SpeechRecognition" in window)){
+    toast("Reconhecimento de fala não suportado neste browser","err"); return;
+  }
+  if(isRecording){ recognition.stop(); isRecording=false;
+    document.getElementById("micBtn").textContent="🎙 Iniciar gravação";
+    document.getElementById("micBtn").classList.remove("recording");
+    processSpeech(transcript); return;
+  }
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  recognition=new SR(); recognition.lang="pt-BR"; recognition.continuous=true; recognition.interimResults=true;
+  transcript="";
+  recognition.onresult=e=>{
+    var interim="",final="";
+    for(var i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal) final+=e.results[i][0].transcript+" ";
+      else interim+=e.results[i][0].transcript;
+    }
+    transcript+=final;
+    document.getElementById("transcriptBox").textContent=(transcript+interim)||"Ouvindo…";
+  };
+  recognition.onerror=e=>{ toast("Erro no microfone: "+e.error,"err"); isRecording=false; };
+  recognition.onend=()=>{ if(isRecording){ recognition.start(); } };
+  recognition.start(); isRecording=true;
+  document.getElementById("micBtn").textContent="⏹ Parar gravação";
+  document.getElementById("micBtn").classList.add("recording");
+}
+function processSpeech(text){
+  if(!text.trim()) return;
+  // Detecta padrões: nome, empresa, cargo
+  var summary={name:null,company:null,role:null,raw:text.trim()};
+  var nameMatch=text.match(/(?:(?:me chamo|meu nome[eé]|sou[ao]?)\s+)([A-ZÀ-Ú][a-zà-ú]+(?:\s+[A-ZÀ-Ú][a-zà-ú]+){1,3})/i);
+  if(nameMatch) summary.name=nameMatch[1];
+  var compMatch=text.match(/(?:trabalho na|da empresa|sou da)\s+([A-ZÀ-Ú][^\s,\.]+(?:\s+[A-ZÀ-Ú][^\s,\.]+)?)/i);
+  if(compMatch) summary.company=compMatch[1];
+  var roleMatch=text.match(/(?:sou\s+|trabalho como\s+)([A-ZÀ-Úa-zà-ú]+(?:\s+[a-zà-ú]+)?)/i);
+  if(roleMatch&&!nameMatch) summary.role=roleMatch[1];
+
+  var summaryText=[
+    summary.name?"👤 Nome: "+summary.name:"",
+    summary.company?"🏢 Empresa: "+summary.company:"",
+    summary.role?"💼 Cargo: "+summary.role:"",
+  ].filter(Boolean).join("\n")||(text.slice(0,200));
+
+  document.getElementById("summaryBox").textContent=summaryText;
+  document.getElementById("summarySection").style.display="block";
+  window._speechData=summary;
+}
+function applyTranscript(field){
+  var d=window._speechData||{};
+  if(field==="all"||field==="name") if(d.name) document.getElementById("fName").value=d.name;
+  if(field==="all"||field==="notes") document.getElementById("fNotes").value=(document.getElementById("fNotes").value?"\n\n":"")+d.raw;
+  if(field==="all") if(d.company) document.getElementById("fCompany").value=d.company;
+  closeMic();
+  toast("Dados aplicados ao formulário ✅","ok");
+}
+
+// ── ENC MIC ───────────────────────────────────────────────────
+var encRecognition=null, encRecording=false, encTranscriptText="";
+function openEncMic(){
+  if(!("webkitSpeechRecognition" in window||"SpeechRecognition" in window)){
+    toast("Reconhecimento de fala não suportado","err"); return;
+  }
+  if(encRecording){ encRecognition.stop(); encRecording=false; return; }
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  encRecognition=new SR(); encRecognition.lang="pt-BR"; encRecognition.continuous=true; encRecognition.interimResults=true;
+  encTranscriptText="";
+  encRecognition.onresult=e=>{
+    var f="";for(var i=e.resultIndex;i<e.results.length;i++)if(e.results[i].isFinal)f+=e.results[i][0].transcript+" ";
+    encTranscriptText+=f;
+    var box=document.getElementById("encTranscript");
+    box.style.display="block"; box.textContent=encTranscriptText;
+    document.getElementById("encContext").value=encTranscriptText.slice(0,500);
+  };
+  encRecognition.onend=()=>{ if(encRecording) encRecognition.start(); };
+  encRecognition.start(); encRecording=true;
+  toast("🎙 Gravando conversa…","ok");
+}
+
+// ── close on backdrop ─────────────────────────────────────────
+document.querySelectorAll(".overlay").forEach(o=>{
+  o.addEventListener("click",e=>{ if(e.target===o) o.classList.remove("open"); });
+});
+
+// ── INIT ─────────────────────────────────────────────────────
+loadAll();
+setInterval(()=>{ if(navigator.onLine) loadAll(); },60000);
+</script>
+</body>
+</html>
