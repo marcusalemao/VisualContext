@@ -32,11 +32,19 @@ Approved by Marcus on 11/10. Visual reference: the canvas "VisualContext Manager
 - The chips disappear while the user types; then the scope box takes over.
 - Visually distinct from the category pills: suggestion chips are dashed outlines; filter pills are solid.
 
-### 1d. Distance and directions only when finding something (11/10)
-- Lists, timeline and cards answer **where and when** ("theatre · Rua Paim · you passed by on 06/10"). They never show live distance or map buttons.
-- Distance ("350 m from here, about 4 min on foot") and the walk action ("Walk to the motorbike", "Open in map") appear only in **finding mode**: the user asked where something is ("Where did I leave the motorbike?") or opened that thing or place on purpose.
-- On the glasses, finding mode never opens during an encounter or conversation. If one starts, directions step aside and come back after.
-- Distance needs the phone's location; without it, show only the address.
+### 1d. Finding mode lives on the glasses (11/10, revised)
+- **Phone and web:** lists and cards show where and when, no live distance in the rows. Opening a place or thing shows the map and "Open in map" freely: the phone is the place to explore.
+- **Glasses, finding mode:** only in standby (no encounter being recorded). The user asks by voice ("Where did I leave my motorbike?") and a fuller card appears:
+  - the last frame where the motorbike was seen **parked** (not a frame from riding, with hands on the handlebar);
+  - address and time ("Rua Paim, 210 · today 8:30");
+  - one action: "See on map".
+- If an encounter starts, the card steps aside and comes back after.
+- **The right photo comes from the parking moment, not from a search later.** When the phone's speed drops from riding to zero and then walking, save the location and take a short burst. A voice command ("remember where I parked") does the same by hand.
+- **What "See on map" does, in order of preference:**
+  1. our own arrow + distance on the HUD (head heading from the Places app + phone GPS); for a few hundred metres this beats turn-by-turn;
+  2. hand the coordinates to a glasses navigation app (`geo:` intent), if one accepts it — to be tested: rokid-ar-navigation (voice, walking HUD), Rokid-GMaps;
+  3. open Google Maps on the phone.
+- Without the phone: address only, no distance (the glasses have no GPS).
 
 ### 2. Settings
 - **On the glasses:** the 4 main switches (Faces, Places, Things, Memories). No sub-settings.
@@ -119,11 +127,19 @@ Aprovado pelo Marcus em 11/10. Referência visual: o canvas "VisualContext Manag
 - As pílulas somem enquanto a pessoa digita; aí entra a caixa de escopo.
 - Visualmente diferentes das pílulas de categoria: as sugestões são contornos tracejados; os filtros são cheios.
 
-### 1d. Distância e caminho só na hora de achar algo (11/10)
-- Listas, linha do tempo e cards respondem **onde e quando** ("teatro · Rua Paim · você passou aqui em 06/10"). Nunca mostram distância ao vivo nem botão de mapa.
-- A distância ("350 m daqui, uns 4 min a pé") e a ação de ir ("Ir até a moto", "Abrir no mapa") aparecem só no **modo achar**: a pessoa perguntou onde algo está ("Onde deixei a moto?") ou abriu aquela coisa ou lugar de propósito.
-- Nos óculos, o modo achar nunca abre durante um encontro ou conversa. Se uma conversa começa, o caminho sai da frente e volta depois.
-- A distância precisa da localização do celular; sem ela, mostra só o endereço.
+### 1d. O modo achar mora nos óculos (11/10, revisado)
+- **Celular e web:** listas e cards mostram onde e quando, sem distância ao vivo nas linhas. Ao abrir um lugar ou coisa, mapa e "Abrir no mapa" aparecem à vontade: o celular é o lugar de explorar.
+- **Óculos, modo achar:** só em standby (sem encontro sendo gravado). A pessoa pede por voz ("Onde deixei minha moto?") e aparece um card mais completo:
+  - o último quadro em que a moto foi vista **estacionada** (não um quadro pilotando, com as mãos no guidão);
+  - endereço e hora ("Rua Paim, 210 · hoje 8:30");
+  - uma ação: "Ver no mapa".
+- Se um encontro começa, o card sai da frente e volta depois.
+- **A foto certa vem da hora de estacionar, não de uma busca depois.** Quando a velocidade do celular cai de pilotando para zero e depois para caminhada, guarda o local e faz uma rajada curta. Um comando de voz ("lembra onde parei") faz o mesmo na mão.
+- **O que "Ver no mapa" faz, em ordem de preferência:**
+  1. nossa própria seta + distância no HUD (direção da cabeça do app de Lugares + GPS do celular); para algumas centenas de metros é melhor que navegação curva a curva;
+  2. passar as coordenadas para um app de navegação nos óculos (intent `geo:`), se algum aceitar — a testar: rokid-ar-navigation (voz, HUD a pé), Rokid-GMaps;
+  3. abrir o Google Maps no celular.
+- Sem o celular: só o endereço, sem distância (os óculos não têm GPS).
 
 ### 2. Ajustes
 - **Nos óculos:** as 4 chaves principais (Rostos, Lugares, Coisas, Memórias). Sem subconfigurações.
