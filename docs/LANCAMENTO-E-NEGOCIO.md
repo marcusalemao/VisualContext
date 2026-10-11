@@ -57,6 +57,19 @@
 - **Stay in Nexus as a distribution channel even after going standalone.** Skills (who_is_here, ask_memory, last_encounter) let other Nexus apps and the Nexus assistant use VisualContext's memory. That's visibility we would not get alone.
 - **Money:** nothing in the ecosystem forbids a commercial plugin (see above). Charging works through an external license key, same as before.
 
+### Update 10/10 (22:41) — Two editions: free (bring your own keys) and ready-to-use (paid)
+
+**Marcus's decision:**
+- Code stays open (not closed), on Nexus.
+- **Free edition (developer/community):** everyone fills in their own API keys and endpoints. Marcus's keys are never given away for free. Donations welcome.
+- **Paid edition ("easy"/"professional", name TBD):** everything comes configured and working. The Nexus listing links to it.
+
+**Claude's notes:**
+- **One app, not two.** The same build; a license key unlocks the ready-to-use mode. Two apps double the bugs, the tests and the releases.
+- **Name:** "Developer" suggests you need to code, and anyone can paste a key. Suggestion: **Community** (free, your own keys) and **Plus** (ready to use).
+- **Watch the value of the paid edition:** Google gives a free Gemini key in 2 minutes, so "keys included" alone is weak. Plus should also carry what is hard to do alone: encrypted cloud backup/sync, the hosted Manager on the laptop, better models, updates without setup.
+- **The community should accept it:** the Nexus Assistant itself is bring-your-own-key, and awesome-rokid accepts commercial projects labeled `· Commercial`. Free + open + your own keys is the friendliest model there is.
+
 ---
 
 ## PT — Português
@@ -113,3 +126,16 @@
 - **Dá para instalar sem o Nexus:** pelo botão "Instalar um novo app" do Hi Rokid, ou pelo nosso próprio app no celular pareando o ADB por Wi-Fi do mesmo jeito que o Nexus faz (Kadb, Apache-2.0).
 - **Ficar no Nexus como canal de distribuição mesmo depois de ser independente.** As Skills (quem está aqui, perguntar à memória, último encontro) deixam outros apps do Nexus e o assistente dele usarem a memória do VisualContext. É visibilidade que sozinhos não teríamos.
 - **Dinheiro:** nada no ecossistema proíbe um plugin comercial (ver acima). A cobrança funciona por chave de licença externa, como já estava previsto.
+
+### Atualização 10/10 (22:41) — Duas edições: grátis (com as suas chaves) e pronta (paga)
+
+**Decisão do Marcus:**
+- O código fica aberto (não fechar), no Nexus.
+- **Edição grátis (desenvolvedor/comunidade):** cada um coloca as próprias chaves de API e endpoints. As chaves do Marcus nunca são dadas de graça. Doações são bem-vindas.
+- **Edição paga ("easy"/"profissional", nome a definir):** já vem tudo configurado e funcionando. A página do Nexus aponta para ela.
+
+**Notas do Claude:**
+- **Um app só, não dois.** O mesmo app; uma chave de licença libera o modo pronto. Dois apps dobram os bugs, os testes e as versões.
+- **Nome:** "Developer" sugere que é preciso programar, mas qualquer pessoa consegue colar uma chave. Sugestão: **Community** (grátis, suas chaves) e **Plus** (pronto para usar).
+- **Atenção ao valor da edição paga:** o Google dá uma chave grátis do Gemini em 2 minutos, então só "chave incluída" vale pouco. O Plus deve trazer também o que é difícil fazer sozinho: backup e sincronização criptografados na nuvem, o Manager hospedado para usar no laptop, modelos melhores, atualizações sem configurar nada.
+- **A comunidade deve aceitar:** o próprio Assistant do Nexus funciona com a chave do usuário, e o awesome-rokid aceita projetos comerciais marcados com `· Commercial`. Grátis, aberto e com as suas chaves é o modelo mais amigável que existe.
