@@ -33,7 +33,12 @@ Approved by Marcus on 11/10. Visual reference: the canvas "VisualContext Manager
 - Visually distinct from the category pills: suggestion chips are dashed outlines; filter pills are solid.
 
 ### 1d. Recall mode on the glasses (11/10, revised)
-- **Two verbs, never mixed:** "Save" stores ("save: key here"); "Recall" asks. "Remember" is ambiguous in English (save or ask?), so the mode is called Recall.
+- **Free speech, three intents.** No fixed command words: the AI reads the intent of what was said.
+  - **Register a thing:** "this is my key", "this is my motorbike, remember it" → creates the thing (photos + signature), i.e. the automatic skill.
+  - **Save where it is:** "key here", "parked here".
+  - **Recall:** any question ("where…?", "what was the name…?").
+  - "Remember" fits both register and ask; context decides (thing in hand or in front = register; a question = recall). If still unclear, the card asks back in one line.
+- **MVP: only two things, key and motorbike.** More things come after these two work well.
 - **Phone and web:** lists and cards show where and when, no live distance in the rows. Opening a place or thing shows the map and "Open in map" freely: the phone is the place to explore.
 - **Glasses, Recall mode:** for any question, only in standby (no encounter being recorded): "What was the name of the person I just talked to?", "What was the address of the building I visited?", "Where did I leave my motorbike?". A fuller card appears, shaped by the answer: a person → the face card; a place → photo + address; a thing → last photos + where. The map button appears only when the answer is a location. Each memory keeps the location of the moment it was recorded, so a place answer works even with the day timeline off. Example, the motorbike:
   - the last frame where the motorbike was seen **parked** (not a frame from riding, with hands on the handlebar);
@@ -56,6 +61,12 @@ Approved by Marcus on 11/10. Visual reference: the canvas "VisualContext Manager
 - **Show the last 2–3 sightings**, not only one: the latest frame may be wrong, or the key moved after it.
 - **Capture:** the camera can't stay on all day (heat, battery). Plan: a low-resolution frame every few seconds while the user moves around, checked on the phone against registered things only; frames with no registered thing are discarded at once; kept sightings expire after a few days. Plus a voice shortcut: "save: key here".
 - **Today's code** (rvLearnSkill) learns from text only. It needs to accept photos and store the visual signature.
+
+### 1f. Places you pass by: ambient cards (11/10)
+- Landmarks, museums and cafés you pass by (MASP, Café da Paim) always show a small card. It is decoration, not a task, and it goes to the timeline.
+- Turned off with the Places switch in Settings. No sub-settings.
+- During an encounter, place cards stay quiet: they never cover the person you are talking to.
+- **Later version:** if you keep looking at a place (head heading held for a few seconds), the card expands with a web search: current exhibitions or, if there is nothing current, a short note about the building. Only the place name goes to the search, never the photo.
 
 ### 2. Settings
 - **On the glasses:** the 4 main switches (Faces, Places, Things, Memories). No sub-settings.
@@ -139,7 +150,12 @@ Aprovado pelo Marcus em 11/10. Referência visual: o canvas "VisualContext Manag
 - Visualmente diferentes das pílulas de categoria: as sugestões são contornos tracejados; os filtros são cheios.
 
 ### 1d. Modo Recordar nos óculos (11/10, revisado)
-- **Dois verbos, nunca misturados:** "Guarda" registra ("guarda: chave aqui"); "Recordar" pergunta. "Lembra" serve para os dois sentidos em português, então fica fora dos comandos.
+- **Fala livre, três intenções.** Sem palavras de comando fixas: a IA entende a intenção do que foi dito.
+  - **Cadastrar uma coisa:** "essa é a minha chave", "essa é a minha moto, lembre dela" → cria a coisa (fotos + assinatura), ou seja, a skill automática.
+  - **Guardar onde está:** "chave aqui", "parei aqui".
+  - **Recordar:** qualquer pergunta ("onde…?", "qual era o nome…?").
+  - "Lembre" serve para cadastrar e para perguntar; o contexto decide (coisa na mão ou na frente = cadastrar; pergunta = recordar). Se ainda ficar dúvida, o card pergunta de volta numa linha.
+- **MVP: só duas coisas, chave e moto.** Outras coisas entram depois que essas duas funcionarem bem.
 - **Celular e web:** listas e cards mostram onde e quando, sem distância ao vivo nas linhas. Ao abrir um lugar ou coisa, mapa e "Abrir no mapa" aparecem à vontade: o celular é o lugar de explorar.
 - **Óculos, modo Recordar:** para qualquer pergunta, só em standby (sem encontro sendo gravado): "Qual o nome da pessoa com quem falei agora há pouco?", "Qual o endereço do prédio que visitei?", "Onde deixei minha moto?". Aparece um card mais completo, no formato da resposta: pessoa → o card do rosto; lugar → foto + endereço; coisa → últimas fotos + onde. O botão de mapa só aparece quando a resposta é um local. Cada memória guarda o local do momento em que foi registrada, então a resposta de lugar funciona mesmo com a linha do tempo do dia desligada. Exemplo, a moto:
   - o último quadro em que a moto foi vista **estacionada** (não um quadro pilotando, com as mãos no guidão);
@@ -162,6 +178,12 @@ Aprovado pelo Marcus em 11/10. Referência visual: o canvas "VisualContext Manag
 - **Mostrar as 2–3 últimas vezes**, não só uma: o último quadro pode estar errado, ou a chave mudou de lugar depois.
 - **Captura:** a câmera não pode ficar ligada o dia todo (calor, bateria). Plano: um quadro em baixa resolução a cada poucos segundos enquanto a pessoa se move, conferido no celular só contra as coisas cadastradas; quadro sem coisa cadastrada é descartado na hora; os avistamentos guardados expiram em poucos dias. Mais um atalho de voz: "guarda: chave aqui".
 - **O código de hoje** (rvLearnSkill) aprende só por texto. Precisa aceitar fotos e guardar a assinatura visual.
+
+### 1f. Lugares por onde você passa: cards de ambiente (11/10)
+- Pontos conhecidos, museus e cafés por onde você passa (MASP, Café da Paim) sempre mostram um card pequeno. É enfeite, não tarefa, e vai para a linha do tempo.
+- Desliga com a chave Lugares nos Ajustes. Sem subconfigurações.
+- Durante um encontro, os cards de lugar ficam quietos: nunca cobrem a pessoa com quem você está falando.
+- **Versão futura:** se você fica olhando para um lugar (a cabeça parada naquela direção por alguns segundos), o card se expande com uma busca na web: as exposições em cartaz ou, se não houver nada atual, uma nota curta sobre o prédio. Só o nome do lugar vai para a busca, nunca a foto.
 
 ### 2. Ajustes
 - **Nos óculos:** as 4 chaves principais (Rostos, Lugares, Coisas, Memórias). Sem subconfigurações.
