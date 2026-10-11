@@ -1,0 +1,35 @@
+{
+  "properties": {
+    "assigned_name": {
+      "description": "Nome atribuído à pessoa (ex: 'Carlos Engenharia')",
+      "type": "string"
+    },
+    "conversation_summary": {
+      "description": "Tópicos abordados e acordos feitos",
+      "type": "string"
+    },
+    "end_time": {
+      "description": "Fim da interação (ISO 8601)",
+      "type": "string",
+      "format": "date-time"
+    },
+    "start_time": {
+      "description": "Início da interação (ISO 8601)",
+      "type": "string",
+      "format": "date-time"
+    },
+    "temp_identifier": {
+      "description": "Identificador temporário (ex: 'Pessoa 1')",
+      "type": "string"
+    },
+    "visual_anchors": {
+      "description": "Características visuais transitórias: cor da roupa, óculos, acessórios",
+      "type": "string"
+    }
+  },
+  "required": [
+    "temp_identifier"
+  ],
+  "type": "object",
+  "name": "PersonInteraction"
+}

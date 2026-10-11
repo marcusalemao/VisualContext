@@ -1,0 +1,32 @@
+{
+  "properties": {
+    "source_entity": {
+      "description": "Entidade de origem no app do Beto (ex: EpisodicMemory)",
+      "type": "string"
+    },
+    "source_id": {
+      "description": "ID do registro no app do Beto",
+      "type": "string"
+    },
+    "target_app": {
+      "description": "ID do app de destino (Live Companion)",
+      "type": "string"
+    },
+    "target_entity": {
+      "description": "Entidade de destino no Live Companion (ex: EpisodicMemory)",
+      "type": "string"
+    },
+    "target_id": {
+      "description": "ID do registro espelhado no Live Companion",
+      "type": "string"
+    }
+  },
+  "required": [
+    "source_entity",
+    "source_id",
+    "target_entity",
+    "target_id"
+  ],
+  "type": "object",
+  "name": "SyncMap"
+}

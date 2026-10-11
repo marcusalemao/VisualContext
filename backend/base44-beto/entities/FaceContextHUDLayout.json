@@ -1,0 +1,66 @@
+{
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "is_default": {
+      "type": "boolean"
+    },
+    "background_opacity": {
+      "type": "number"
+    },
+    "theme": {
+      "type": "string",
+      "enum": [
+        "Dark",
+        "Light",
+        "Minimal",
+        "Neon"
+      ]
+    },
+    "widgets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "field": {
+            "type": "string"
+          },
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          },
+          "width": {
+            "type": "number"
+          },
+          "height": {
+            "type": "number"
+          },
+          "font_size": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          },
+          "bold": {
+            "type": "boolean"
+          },
+          "visible": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  },
+  "required": [],
+  "name": "FaceContextHUDLayout"
+}

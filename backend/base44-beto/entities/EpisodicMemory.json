@@ -1,0 +1,49 @@
+{
+  "name": "EpisodicMemory",
+  "properties": {
+    "audio_context": {
+      "description": "Resumo da conversa/áudio captado no momento (opcional)",
+      "type": "string"
+    },
+    "captured_at": {
+      "description": "Momento em que o objeto foi pousado/estacionado (ISO 8601)",
+      "format": "date-time",
+      "type": "string"
+    },
+    "category": {
+      "description": "Categoria do item memorizado",
+      "enum": [
+        "objeto_pessoal",
+        "veiculo",
+        "documento",
+        "lugar",
+        "outro"
+      ],
+      "type": "string"
+    },
+    "coordinates_lat": {
+      "description": "Latitude opcional do ponto",
+      "type": "number"
+    },
+    "coordinates_lng": {
+      "description": "Longitude opcional do ponto",
+      "type": "number"
+    },
+    "item_name": {
+      "description": "Nome do item (ex: chaves, motocicleta, carro, carteira)",
+      "type": "string"
+    },
+    "location_description": {
+      "description": "Descrição semântica detalhada do ponto de referência espacial",
+      "type": "string"
+    },
+    "snapshot_url": {
+      "description": "Frame monocromático comprimido em 1-bit dithering do momento da captura",
+      "type": "string"
+    }
+  },
+  "required": [
+    "item_name"
+  ],
+  "type": "object"
+}

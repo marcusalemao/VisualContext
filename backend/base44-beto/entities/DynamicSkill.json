@@ -1,0 +1,31 @@
+{
+  "properties": {
+    "action_type": {
+      "description": "Ação a executar (ex: salvar_nota, alerta_hud, adicionar_tarefa)",
+      "type": "string"
+    },
+    "extraction_schema": {
+      "description": "Campos a serem extraídos da cena (JSON)",
+      "type": "object"
+    },
+    "is_active": {
+      "default": true,
+      "description": "Se a skill está ativa",
+      "type": "boolean"
+    },
+    "skill_name": {
+      "description": "Nome da skill aprendida",
+      "type": "string"
+    },
+    "trigger_instruction": {
+      "description": "O que ativa a regra (voz ou detecção visual)",
+      "type": "string"
+    }
+  },
+  "required": [
+    "skill_name",
+    "trigger_instruction"
+  ],
+  "type": "object",
+  "name": "DynamicSkill"
+}
