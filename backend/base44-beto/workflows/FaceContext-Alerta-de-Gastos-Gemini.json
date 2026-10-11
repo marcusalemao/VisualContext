@@ -1,0 +1,33 @@
+{
+  "social_post": null,
+  "id": "6a981cdf0a1aeb2cf1ba1c9a",
+  "app_id": "6a11083db49430b410a8c066",
+  "file_key": "FaceContext — Alerta de Gastos Gemini",
+  "name": "FaceContext — Alerta de Gastos Gemini",
+  "description": "I will check the Gemini API usage for the current month via the fcProxy function (?action=usage), calculate how much of the R$100 budget has been spent, and send a WhatsApp message to the owner with a summary: total spent in BRL, % of budget used, remaining budget, and number of API calls. If usage is above 80%, I will add a warning alert.",
+  "status": "active",
+  "status_reason": null,
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "0 12 * * 1",
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    },
+    "id": "a8af2e6622a54e32"
+  },
+  "total_runs": 19,
+  "consecutive_failures": 0,
+  "last_run_at": "2026-10-05T12:06:59.627000Z",
+  "last_run_status": "success",
+  "created_date": "2026-06-27T13:26:22.206000Z"
+}

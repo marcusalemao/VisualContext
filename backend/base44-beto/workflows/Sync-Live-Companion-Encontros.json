@@ -1,0 +1,28 @@
+{
+  "social_post": null,
+  "id": "6aa8c48cb3ff18b1a5dd1b55",
+  "app_id": "6a11083db49430b410a8c066",
+  "file_key": "Sync Live Companion — Encontros",
+  "name": "Sync Live Companion — Encontros",
+  "description": "Espelha cada encontro novo/atualizado/apagado (FaceContextEncounter) no app Live Companion como Encounter, com remapeamento do vínculo de pessoa.",
+  "status": "active",
+  "status_reason": null,
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "entity",
+      "events": [
+        "create",
+        "update",
+        "delete"
+      ],
+      "entity_name": "FaceContextEncounter"
+    },
+    "id": "428bd9c9e3554f0c"
+  },
+  "total_runs": 20,
+  "consecutive_failures": 0,
+  "last_run_at": "2026-10-10T09:26:59.710000Z",
+  "last_run_status": "success",
+  "created_date": "2026-09-15T04:07:40.830000Z"
+}

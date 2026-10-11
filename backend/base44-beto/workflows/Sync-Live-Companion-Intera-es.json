@@ -1,0 +1,28 @@
+{
+  "social_post": null,
+  "id": "6aa8c48fb3ff18b1a5dd1b58",
+  "app_id": "6a11083db49430b410a8c066",
+  "file_key": "Sync Live Companion — Interações",
+  "name": "Sync Live Companion — Interações",
+  "description": "Espelha cada interação nova/atualizada/apagada (PersonInteraction) no app Live Companion, para as interações captadas pelos óculos aparecerem no manager automaticamente.",
+  "status": "active",
+  "status_reason": null,
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "entity",
+      "events": [
+        "create",
+        "update",
+        "delete"
+      ],
+      "entity_name": "PersonInteraction"
+    },
+    "id": "0193b11a5a154b49"
+  },
+  "total_runs": 0,
+  "consecutive_failures": 0,
+  "last_run_at": null,
+  "last_run_status": null,
+  "created_date": "2026-09-15T04:07:43.736000Z"
+}

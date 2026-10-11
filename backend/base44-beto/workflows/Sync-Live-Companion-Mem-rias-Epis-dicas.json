@@ -1,0 +1,28 @@
+{
+  "social_post": null,
+  "id": "6aa8c46eb3ff18b1a5dd1b4b",
+  "app_id": "6a11083db49430b410a8c066",
+  "file_key": "Sync Live Companion — Memórias Episódicas",
+  "name": "Sync Live Companion — Memórias Episódicas",
+  "description": "Espelha cada memória episódica nova/atualizada/apagada (EpisodicMemory) no app Live Companion, para o Marcus ver as memórias dos óculos aparecendo no manager automaticamente.",
+  "status": "active",
+  "status_reason": null,
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "entity",
+      "events": [
+        "create",
+        "update",
+        "delete"
+      ],
+      "entity_name": "EpisodicMemory"
+    },
+    "id": "1a4bca66f71e4320"
+  },
+  "total_runs": 1,
+  "consecutive_failures": 0,
+  "last_run_at": "2026-09-15T04:13:03.680000Z",
+  "last_run_status": "success",
+  "created_date": "2026-09-15T04:07:10.449000Z"
+}
