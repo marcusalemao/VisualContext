@@ -40,6 +40,7 @@ Approved by Marcus on 11/10. Visual reference: the canvas "VisualContext Manager
   - one action: "See on map".
 - If an encounter starts, the card steps aside and comes back after.
 - **The right photo comes from the parking moment, not from a search later.** When the phone's speed drops from riding to zero and then walking, save the location and take a short burst. A voice command ("remember where I parked") does the same by hand.
+- **At the parking moment, keep two photos:** one with the motorbike (if the signature finds it) and one of the surroundings, even without the bike: a shop front, a sign, the corner. The address alone is often not enough; the picture says "it was there". Signs and shop names in that photo are read (OCR) and added to the card: "Rua Paim, 210 · in front of Padaria Boa".
 - **What "See on map" does, in order of preference:**
   1. our own arrow + distance on the HUD (head heading from the Places app + phone GPS); for a few hundred metres this beats turn-by-turn;
   2. hand the coordinates to a glasses navigation app (`geo:` intent), if one accepts it — to be tested: rokid-ar-navigation (voice, walking HUD), Rokid-GMaps;
@@ -144,6 +145,7 @@ Aprovado pelo Marcus em 11/10. Referência visual: o canvas "VisualContext Manag
   - uma ação: "Ver no mapa".
 - Se um encontro começa, o card sai da frente e volta depois.
 - **A foto certa vem da hora de estacionar, não de uma busca depois.** Quando a velocidade do celular cai de pilotando para zero e depois para caminhada, guarda o local e faz uma rajada curta. Um comando de voz ("lembra onde parei") faz o mesmo na mão.
+- **Na hora de estacionar, guardar duas fotos:** uma com a moto (se a assinatura achar) e uma do entorno, mesmo sem a moto: a fachada de uma loja, uma placa, a esquina. Só o endereço muitas vezes não basta; a imagem diz "foi aí". Placas e nomes de loja nessa foto são lidos (OCR) e entram no card: "Rua Paim, 210 · em frente à Padaria Boa".
 - **O que "Ver no mapa" faz, em ordem de preferência:**
   1. nossa própria seta + distância no HUD (direção da cabeça do app de Lugares + GPS do celular); para algumas centenas de metros é melhor que navegação curva a curva;
   2. passar as coordenadas para um app de navegação nos óculos (intent `geo:`), se algum aceitar — a testar: rokid-ar-navigation (voz, HUD a pé), Rokid-GMaps;
