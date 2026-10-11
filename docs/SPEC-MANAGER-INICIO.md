@@ -32,6 +32,12 @@ Approved by Marcus on 11/10. Visual reference: the canvas "VisualContext Manager
 - The chips disappear while the user types; then the scope box takes over.
 - Visually distinct from the category pills: suggestion chips are dashed outlines; filter pills are solid.
 
+### 1d. Distance and directions only when finding something (11/10)
+- Lists, timeline and cards answer **where and when** ("theatre · Rua Paim · you passed by on 06/10"). They never show live distance or map buttons.
+- Distance ("350 m from here, about 4 min on foot") and the walk action ("Walk to the motorbike", "Open in map") appear only in **finding mode**: the user asked where something is ("Where did I leave the motorbike?") or opened that thing or place on purpose.
+- On the glasses, finding mode never opens during an encounter or conversation. If one starts, directions step aside and come back after.
+- Distance needs the phone's location; without it, show only the address.
+
 ### 2. Settings
 - **On the glasses:** the 4 main switches (Faces, Places, Things, Memories). No sub-settings.
 - **Encounter recording:** "Needs speech" / "A look is enough".
@@ -112,6 +118,12 @@ Aprovado pelo Marcus em 11/10. Referência visual: o canvas "VisualContext Manag
 - **Respostas com ação** (agenda, tarefa, mapa) mostram um botão por item ("Pôr na agenda", "Criar tarefa", "Abrir no mapa"). Nada é criado sem esse toque, mantendo a regra de que os óculos nunca agem sozinhos.
 - As pílulas somem enquanto a pessoa digita; aí entra a caixa de escopo.
 - Visualmente diferentes das pílulas de categoria: as sugestões são contornos tracejados; os filtros são cheios.
+
+### 1d. Distância e caminho só na hora de achar algo (11/10)
+- Listas, linha do tempo e cards respondem **onde e quando** ("teatro · Rua Paim · você passou aqui em 06/10"). Nunca mostram distância ao vivo nem botão de mapa.
+- A distância ("350 m daqui, uns 4 min a pé") e a ação de ir ("Ir até a moto", "Abrir no mapa") aparecem só no **modo achar**: a pessoa perguntou onde algo está ("Onde deixei a moto?") ou abriu aquela coisa ou lugar de propósito.
+- Nos óculos, o modo achar nunca abre durante um encontro ou conversa. Se uma conversa começa, o caminho sai da frente e volta depois.
+- A distância precisa da localização do celular; sem ela, mostra só o endereço.
 
 ### 2. Ajustes
 - **Nos óculos:** as 4 chaves principais (Rostos, Lugares, Coisas, Memórias). Sem subconfigurações.
