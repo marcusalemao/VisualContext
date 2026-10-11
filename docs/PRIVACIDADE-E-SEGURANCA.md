@@ -127,7 +127,7 @@ Glasses on Wi-Fi without the phone need the glasses' own app (the Nexus plugin r
 
 **10.2 Offline queue.** What is captured without a connection waits on the glasses, with a fixed size limit and a HUD warning near it. It uploads through whichever link comes back first (Wi-Fi or phone). An item is deleted from the glasses only after the destination confirms it arrived.
 
-**10.3 Places needs the phone.** Checked on the glasses on 11/10: Android location there uses only Wi-Fi and Bluetooth; there is no GPS chip. Wi-Fi positioning is tens of meters at best (and may not work at all without a location provider), and there is no compass. Building cards need the phone's GPS. The neighborhood map can be cached; the position cannot.
+**10.3 Places needs the phone.** Checked on the glasses on 11/10: the location screen only offers Wi-Fi and Bluetooth scanning, and published specs list no GPS. Almost certainly no GPS chip; final proof is `adb shell pm list features | grep -i location`. Wi-Fi positioning is tens of meters at best (and may not work at all without a location provider), and there is no compass. Building cards need the phone's GPS. The neighborhood map can be cached; the position cannot.
 
 **10.4 Open: two conflicts with sections 3 and 4 (Marcus decides).**
 - **a) The glasses used to keep nothing on disk (section 3).** Offline use needs signatures, cards and the queue on the glasses. Proposal: encrypted on the glasses; the key lives only in RAM while the glasses are worn; taking them off locks it, and the next phone unlock opens it again. Result: offline works for as long as you keep the glasses on.
@@ -260,7 +260,7 @@ O Marcus escolheu não focar em leis agora. Quando o app for para lojas no mundo
 
 **10.2 Fila offline.** O que é capturado sem conexão espera nos óculos, com um limite fixo de espaço e um aviso no visor perto dele. Sobe pelo primeiro caminho que voltar (Wi-Fi ou celular). Um item só é apagado dos óculos depois que o destino confirma que recebeu.
 
-**10.3 Lugares precisa do celular.** Conferido nos óculos em 11/10: a localização do Android ali usa só Wi-Fi e Bluetooth; não há chip de GPS. A posição por Wi-Fi erra dezenas de metros no melhor caso (e pode nem funcionar sem um provedor de localização), e não há bússola. Os cards de prédios precisam do GPS do celular. O mapa do bairro dá para guardar; a posição, não.
+**10.3 Lugares precisa do celular.** Conferido nos óculos em 11/10: a tela de localização só oferece busca por Wi-Fi e Bluetooth, e as especificações publicadas não citam GPS. Quase certamente não há chip de GPS; a prova final é `adb shell pm list features | grep -i location`. A posição por Wi-Fi erra dezenas de metros no melhor caso (e pode nem funcionar sem um provedor de localização), e não há bússola. Os cards de prédios precisam do GPS do celular. O mapa do bairro dá para guardar; a posição, não.
 
 **10.4 Em aberto: dois conflitos com as seções 3 e 4 (o Marcus decide).**
 - **a) Os óculos não guardavam nada em disco (seção 3).** O uso offline precisa de assinaturas, cards e da fila nos óculos. Proposta: criptografados nos óculos; a chave fica só na RAM enquanto os óculos estão no rosto; tirar os óculos trava, e o próximo desbloqueio no celular abre de novo. Resultado: o offline funciona enquanto você não tirar os óculos.
