@@ -13,7 +13,8 @@ import java.util.concurrent.TimeUnit
  * Cliente HTTP do backend RokidLive (Base44 backend functions).
  * Endpoints validados e no ar desde 14/09/2026.
  *
- * Contrato (POST, JSON, sem auth de header — CORS liberado):
+ * Contrato (POST, JSON). Autenticação: header x-vc-token = VC_DEVICE_TOKEN
+ * (o mesmo do fcProxy). Defina com [deviceToken]; vazio = sem header.
  *  - rvFrameIngest { frame_base64, snapshot_base64?, timestamp?, lat?, lng?, audio_transcript_chunk? }
  *      → { ok, detections: {objects, people}, hud_alert? }
  *  - rvAskMemory { question?, item_name?, lat?, lng? } → { ok, answer, hud_alert? }
@@ -35,6 +36,9 @@ object ApiClient {
         .build()
 
     private val JSON = "application/json; charset=utf-8".toMediaType()
+
+    /** VC_DEVICE_TOKEN. Preenchido pela HudActivity a partir das preferências. */
+    @Volatile var deviceToken: String = ""
 
     /** Envia um frame JPEG (base64 cru, sem prefixo data:) ao pipeline de visão. */
     suspend fun ingestFrame(
@@ -72,10 +76,11 @@ object ApiClient {
     private suspend fun post(fn: String, jsonBody: String): JSONObject? =
         withContext(Dispatchers.IO) {
             runCatching {
-                val req = Request.Builder()
+                val builder = Request.Builder()
                     .url(BASE + fn)
                     .post(jsonBody.toRequestBody(JSON))
-                    .build()
+                deviceToken.takeIf { it.isNotBlank() }?.let { builder.header("x-vc-token", it) }
+                val req = builder.build()
                 http.newCall(req).execute().use { resp ->
                     val body = resp.body?.string() ?: return@use null
                     if (!resp.isSuccessful) null else JSONObject(body)
