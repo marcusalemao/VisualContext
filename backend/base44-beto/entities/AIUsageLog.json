@@ -1,0 +1,36 @@
+{
+  "type": "object",
+  "properties": {
+    "action": {
+      "type": "string",
+      "description": "ex: ai_summary, ai_detect_name"
+    },
+    "model": {
+      "type": "string"
+    },
+    "input_tokens": {
+      "type": "number"
+    },
+    "output_tokens": {
+      "type": "number"
+    },
+    "cost_usd": {
+      "type": "number"
+    },
+    "cost_brl": {
+      "type": "number"
+    },
+    "person_name": {
+      "type": "string"
+    },
+    "success": {
+      "type": "boolean"
+    },
+    "month_key": {
+      "type": "string",
+      "description": "ex: 2026-06"
+    }
+  },
+  "required": [],
+  "name": "AIUsageLog"
+}

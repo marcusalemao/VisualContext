@@ -1,0 +1,28 @@
+{
+  "social_post": null,
+  "id": "6aa8c474b3ff18b1a5dd1b4f",
+  "app_id": "6a11083db49430b410a8c066",
+  "file_key": "Sync Live Companion — Pessoas",
+  "name": "Sync Live Companion — Pessoas",
+  "description": "Espelha cada pessoa nova/atualizada/apagada (FaceContextPerson) no app Live Companion como Person, para os contatos reconhecidos pelos óculos aparecerem no manager automaticamente.",
+  "status": "active",
+  "status_reason": null,
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "entity",
+      "events": [
+        "create",
+        "update",
+        "delete"
+      ],
+      "entity_name": "FaceContextPerson"
+    },
+    "id": "cd407096594b4b43"
+  },
+  "total_runs": 72,
+  "consecutive_failures": 7,
+  "last_run_at": "2026-10-11T02:15:54.464000Z",
+  "last_run_status": "failed",
+  "created_date": "2026-09-15T04:07:16.324000Z"
+}

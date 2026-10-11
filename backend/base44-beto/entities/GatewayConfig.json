@@ -1,0 +1,16 @@
+{
+  "properties": {
+    "conversation_id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "type": "object",
+  "required": [],
+  "name": "GatewayConfig"
+}

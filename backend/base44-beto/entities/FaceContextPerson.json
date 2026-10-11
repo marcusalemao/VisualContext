@@ -1,0 +1,79 @@
+{
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "nickname": {
+      "type": "string"
+    },
+    "company": {
+      "type": "string"
+    },
+    "role": {
+      "type": "string"
+    },
+    "relation": {
+      "type": "string",
+      "enum": [
+        "Amigo",
+        "Colega de trabalho",
+        "Cliente",
+        "Fornecedor",
+        "Familiar",
+        "Conhecido",
+        "Outro"
+      ]
+    },
+    "relation_context": {
+      "type": "string"
+    },
+    "photo_url": {
+      "type": "string"
+    },
+    "face_embedding": {
+      "type": "string"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "contact_whatsapp": {
+      "type": "string"
+    },
+    "contact_email": {
+      "type": "string"
+    },
+    "contact_phone": {
+      "type": "string"
+    },
+    "contact_linkedin": {
+      "type": "string"
+    },
+    "last_seen_date": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "last_seen_context": {
+      "type": "string"
+    },
+    "custom_fields": {
+      "type": "object"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Identificado",
+        "Pendente",
+        "Arquivado"
+      ]
+    }
+  },
+  "required": [],
+  "name": "FaceContextPerson"
+}

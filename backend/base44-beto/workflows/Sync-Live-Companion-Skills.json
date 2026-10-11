@@ -1,0 +1,28 @@
+{
+  "social_post": null,
+  "id": "6aa8c523b3ff18b1a5dd1b93",
+  "app_id": "6a11083db49430b410a8c066",
+  "file_key": "Sync Live Companion — Skills",
+  "name": "Sync Live Companion — Skills",
+  "description": "Espelha cada skill dinâmica nova/atualizada/apagada (DynamicSkill) no app Live Companion, para as skills aprendidas pelo assistente aparecerem no manager automaticamente.",
+  "status": "active",
+  "status_reason": null,
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "entity",
+      "events": [
+        "create",
+        "update",
+        "delete"
+      ],
+      "entity_name": "DynamicSkill"
+    },
+    "id": "bac9f60fee804b4f"
+  },
+  "total_runs": 0,
+  "consecutive_failures": 0,
+  "last_run_at": null,
+  "last_run_status": null,
+  "created_date": "2026-09-15T04:10:11.784000Z"
+}

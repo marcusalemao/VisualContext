@@ -1,0 +1,39 @@
+{
+  "name": "HUDNotification",
+  "properties": {
+    "content_type": {
+      "description": "Tipo de conteúdo para renderização no HUD",
+      "enum": [
+        "live_dialogue",
+        "memory_card",
+        "line_art_table",
+        "metric",
+        "alert",
+        "task_item"
+      ],
+      "type": "string"
+    },
+    "created_at": {
+      "description": "Momento de criação (ISO 8601)",
+      "format": "date-time",
+      "type": "string"
+    },
+    "displayed": {
+      "default": false,
+      "description": "Se já foi exibida no HUD",
+      "type": "boolean"
+    },
+    "payload": {
+      "description": "Dados estruturados para renderização em HUD",
+      "type": "object"
+    },
+    "title": {
+      "description": "Título curto da notificação",
+      "type": "string"
+    }
+  },
+  "required": [
+    "title"
+  ],
+  "type": "object"
+}

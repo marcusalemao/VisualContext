@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Rokid Vision Bridge — RokidLive</title>
+  <meta name="theme-color" content="#000000" />
+  <link rel="manifest" href="https://media.base44.com/files/public/6a11083db49430b410a8c066/0bcf31b4c_manifest.json" />
+  <link rel="icon" href="https://media.base44.com/files/public/6a11083db49430b410a8c066/30f0b9a63_icon-192.png" />
+  <style>
+    /* Design System otimizado para Micro-OLED Waveguide (Preto = Transparente) */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #000000;
+      color: #00FF66;
+      font-family: -apple-system, BlinkMacSystemFont, "Courier New", monospace;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 16px;
+    }
+
+    /* Top Bar: Status de Conexão e Sensores */
+    #hud-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      letter-spacing: 1px;
+      border-bottom: 1px solid #00FF66;
+      padding-bottom: 6px;
+    }
+
+    /* Área Central: Visualização de Alertas e Memória (quadrante direito) */
+    #hud-center {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 10px;
+    }
+
+    .hud-card {
+      border: 1px solid #00FF66;
+      background: rgba(0, 0, 0, 0.85);
+      padding: 8px 12px;
+      max-width: 280px;
+      font-size: 13px;
+      line-height: 1.4;
+      text-transform: uppercase;
+      box-shadow: 0 0 4px #00FF66;
+    }
+
+    .hud-card .title {
+      font-weight: bold;
+      border-bottom: 1px dashed #00FF66;
+      margin-bottom: 4px;
+      padding-bottom: 2px;
+    }
+
+    /* Painel de Controle Inferior (Glanceable) */
+    #hud-controls { display: flex; gap: 8px; }
+
+    button {
+      flex: 1;
+      background: transparent;
+      border: 1px solid #00FF66;
+      color: #00FF66;
+      padding: 10px;
+      font-weight: bold;
+      cursor: pointer;
+      font-family: inherit;
+      touch-action: manipulation;
+      user-select: none;
+    }
+    button:active, button.pressed { background: #00FF66; color: #000000; }
+    button:disabled { opacity: 0.3; }
+
+    video, canvas { display: none; }
+  </style>
+</head>
+<body>
+
+  <!-- Top Status -->
+  <div id="debug-log" style="font-size:10px; color:#ffaa00; padding:2px 4px; border-bottom:1px dashed #ffaa00;">DBG: aguardando toque...</div>
+  <div id="hud-header">
+    <span id="net-status">API: OFFLINE</span>
+    <span id="gps-status">GPS: --</span>
+    <span id="fps-counter">1 FPS | IDLE</span>
+  </div>
+
+  <!-- HUD Notificações / Cartões AR -->
+  <div id="hud-center">
+    <div class="hud-card" id="active-card">
+      <div class="title">Beto Vision</div>
+      <div id="card-body">Aguardando inicialização da câmera...</div>
+    <div id="hud-alert" style="display:none; position:fixed; top:38%; left:0; right:0; text-align:center; font-size:34px; font-weight:bold; color:#00ff41; text-shadow:0 0 12px #00ff41; z-index:999; pointer-events:none; letter-spacing:2px;"></div>
+    </div>
+  </div>
+
+  <!-- Controles do Aplicativo -->
+  <div id="hud-controls">
+    <button id="btn-start">INICIAR CAPTURA</button>
+    <button id="btn-ask">PERGUNTAR</button>
+    <button id="btn-stop" disabled>PAUSAR</button>
+  </div>
+
+  <!-- Canvas e Vídeo invisíveis para amostragem -->
+  <video id="video-source" playsinline autoplay muted></video>
+  <canvas id="processing-canvas" width="640" height="480"></canvas>
+
+  <script>
+    // ===== Configuração =====
+    // Backend = Superagent Beto (Base44). Sem WebSocket: cada frame é um
+    // POST HTTP direto no pipeline de visão; alertas chegam por polling.
+    const API_BASE = "https://base44.app/api/apps/6a11083db49430b410a8c066/functions";
+    const URL_FRAME  = API_BASE + "/rvFrameIngest";
+    const URL_ASK    = API_BASE + "/rvAskMemory";
+    const URL_HUD    = API_BASE + "/rvHudFeed";
+
+    const FRAME_RATE_MS = 1000;        // 1 FPS
+    const DIFF_THRESHOLD = 15.0;      // descarte de quadros parados (client-side)
+    const HUD_POLL_MS = 5000;         // polling de alertas do HUD
+
+    let stream = null;
+    let timerId = null;
+    let hudTimerId = null;
+    let lastFrameData = null;
+    let lastSendAt = 0;
+    let currentCoords = { lat: null, lng: null };
+
+    const videoEl = document.getElementById("video-source");
+    const canvasEl = document.getElementById("processing-canvas");
+    const ctx = canvasEl.getContext("2d", { willReadFrequently: true });
+    const netStatusEl = document.getElementById("net-status");
+    const gpsStatusEl = document.getElementById("gps-status");
+    const fpsCounterEl = document.getElementById("fps-counter");
+    const cardBodyEl = document.getElementById("card-body");
+
+    // Padrão de botão mobile: touchstart/touchend + fallback click
+    function dbg(msg) {
+      var el = document.getElementById("debug-log");
+      if (el) el.innerText = "DBG: " + msg;
+      console.log("[bindTap]", msg);
+    }
+
+    function bindTap(id, fn) {
+      var el = document.getElementById(id);
+      if (!el) { return; }
+      var lastFire = 0;
+      function fire(src) {
+        dbg(id + " <- " + src);
+        var now = Date.now();
+        if (now - lastFire < 500) { dbg(id + " debounced (" + src + ")"); return; }
+        lastFire = now;
+        fn();
+      }
+      el.addEventListener("touchstart", function(e) {
+        dbg(id + " touchstart");
+        e.preventDefault();
+        el.classList.add("pressed");
+      }, { passive: false });
+      el.addEventListener("touchend", function(e) {
+        e.preventDefault();
+        el.classList.remove("pressed");
+        fire("touchend");
+      }, { passive: false });
+      el.addEventListener("touchcancel", function() {
+        dbg(id + " touchcancel");
+        el.classList.remove("pressed");
+        setTimeout(function() { fire("touchcancel-fallback"); }, 50);
+      });
+      el.addEventListener("click", function() {
+        el.classList.remove("pressed");
+        fire("click");
+      });
+    }
+
+    var hudAlertTimer = null;
+    function enterFullscreen() {
+      var el = document.documentElement;
+      var fn = el.requestFullscreen || el.webkitRequestFullscreen;
+      if (fn) { try { fn.call(el); } catch (e) { /* ignora */ } }
+    }
+    function showHudAlert(text) {
+      var el = document.getElementById("hud-alert");
+      if (!el) return;
+      el.innerText = String(text).slice(0, 48);
+      el.style.display = "block";
+      if (hudAlertTimer) clearTimeout(hudAlertTimer);
+      hudAlertTimer = setTimeout(function() { el.style.display = "none"; }, 4000);
+    }
+
+    async function apiPost(url, payload) {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      netStatusEl.innerText = "API: ONLINE";
+      netStatusEl.style.color = "#00FF66";
+      return res.json();
+    }
+
+    function apiFail(err) {
+      netStatusEl.innerText = "API: OFFLINE";
+      netStatusEl.style.color = "#FF3333";
+      console.warn("API:", err);
+    }
+
+    // 1. GPS contínuo (registra locais de estacionamento)
+    function startLocationWatch() {
+      if ("geolocation" in navigator) {
+        navigator.geolocation.watchPosition(
+          (pos) => {
+            currentCoords.lat = pos.coords.latitude;
+            currentCoords.lng = pos.coords.longitude;
+            gpsStatusEl.innerText = "GPS: " + currentCoords.lat.toFixed(4) + "," + currentCoords.lng.toFixed(4);
+          },
+          (err) => console.warn("GPS:", err.message),
+          { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
+        );
+      }
+    }
+
+    // 2. Sensores (câmera traseira do Rokid)
+    // Seleção de câmera: enumera dispositivos (enumerateDevices) e prefere a
+    // traseira (environment). Se o usuário já escolheu uma (localStorage),
+    // usa o deviceId salvo — cobre o caso Rokid-UVC e multicâmera.
+    async function getCameraConstraints() {
+      let devices = [];
+      try { devices = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === "videoinput"); }
+      catch (e) { /* sem permissão ainda: enumerate volta sem labels */ }
+
+      const savedId = localStorage.getItem("rv_camera_id");
+      const saved = devices.find(d => d.deviceId === savedId);
+      if (saved) return { deviceId: { exact: saved.deviceId }, width: { ideal: 640 }, height: { ideal: 480 } };
+
+      const back = devices.find(d => /traseira|back|environment|rear/i.test(d.label));
+      if (back) return { deviceId: { exact: back.deviceId }, width: { ideal: 640 }, height: { ideal: 480 } };
+
+      return { facingMode: "environment", width: { ideal: 640 }, height: { ideal: 480 } };
+    }
+
+    async function initPipeline() {
+      try {
+        startLocationWatch();
+        cardBodyEl.innerText = "Solicitando câmera...";
+
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: await getCameraConstraints(),
+          audio: false // TODO: chunks de áudio (STT) numa próxima fase
+        });
+        // após a permissão, labels ficam visíveis: salva a câmera usada
+        const track = stream.getVideoTracks()[0];
+        try {
+          const devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === "videoinput");
+          const chosen = devs.find(d => d.label === track.label);
+          if (chosen) localStorage.setItem("rv_camera_id", chosen.deviceId);
+        } catch (e) { /* não crítico */ }
+        videoEl.srcObject = stream;
+        await videoEl.play();
+
+        timerId = setInterval(captureAndSendFrame, FRAME_RATE_MS);
+        hudTimerId = setInterval(pollHud, HUD_POLL_MS);
+
+        document.getElementById("btn-start").disabled = true;
+        document.getElementById("btn-stop").disabled = false;
+        fpsCounterEl.innerText = "1 FPS | TRANSMITINDO";
+        cardBodyEl.innerText = "Visão ativa. Monitorando objetos e contexto...";
+      } catch (err) {
+        cardBodyEl.innerText = "Câmera bloqueada: toque no 🔒 da barra de endereço e permita.";
+        console.error("getUserMedia:", err);
+      }
+    }
+
+    // 3. Captura 1 FPS + Frame-Differencing (descarta cena estática ANTES de gastar rede/budget)
+    async function captureAndSendFrame() {
+      ctx.drawImage(videoEl, 0, 0, canvasEl.width, canvasEl.height);
+      const imgData = ctx.getImageData(0, 0, canvasEl.width, canvasEl.height);
+
+      if (lastFrameData && !hasSceneChanged(imgData.data, lastFrameData.data, DIFF_THRESHOLD)) {
+        fpsCounterEl.innerText = "1 FPS | PULADO (ESTÁTICO)";
+        return;
+      }
+      lastFrameData = imgData;
+      fpsCounterEl.innerText = "1 FPS | ENVIANDO";
+
+      // JPEG 60% — envia base64 puro (sem prefixo data:)
+      const dataUrl = canvasEl.toDataURL("image/jpeg", 0.6);
+      const frame_base64 = dataUrl.split(",")[1];
+
+      // Thumbnail 160x120 do mesmo frame — snapshot compacto para o registro de memória
+      const snapCanvas = document.createElement("canvas");
+      snapCanvas.width = 160; snapCanvas.height = 120;
+      snapCanvas.getContext("2d").drawImage(videoEl, 0, 0, 160, 120);
+      const snapshot_base64 = snapCanvas.toDataURL("image/jpeg", 0.5).split(",")[1];
+
+      try {
+        const resp = await apiPost(URL_FRAME, {
+          frame_base64,
+          snapshot_base64,
+          timestamp: new Date().toISOString(),
+          lat: currentCoords.lat,
+          lng: currentCoords.lng,
+        });
+        if (resp.analyzed) {
+          const d = resp.detections || {};
+          const total = (d.objects || 0) + (d.people || 0) + (d.skill_alerts || 0);
+          if (total > 0) {
+            cardBodyEl.innerText = "Detectado: " + total + " evento(s) memorizado(s).";
+          }
+          // Confirmação instantânea no HUD (flash grande, some em 4s)
+          if (resp.hud_alert) showHudAlert(resp.hud_alert);
+          fpsCounterEl.innerText = "1 FPS | " + (resp.latency_ms || 0) + "ms";
+        } else {
+          // backend também faz frame-diff/rate-limit — normal
+          fpsCounterEl.innerText = "1 FPS | " + (resp.reason === "static_frame" ? "ESTÁTICO" : "AGUARDANDO");
+        }
+      } catch (err) { apiFail(err); }
+    }
+
+    // Algoritmo de verificação de mudança de cena
+    function hasSceneChanged(currentPixels, previousPixels, threshold) {
+      let totalDiff = 0;
+      const step = 4 * 16;
+      let sampledCount = 0;
+      for (let i = 0; i < currentPixels.length; i += step) {
+        const diffR = Math.abs(currentPixels[i] - previousPixels[i]);
+        const diffG = Math.abs(currentPixels[i + 1] - previousPixels[i + 1]);
+        const diffB = Math.abs(currentPixels[i + 2] - previousPixels[i + 2]);
+        totalDiff += (diffR + diffG + diffB) / 3;
+        sampledCount++;
+      }
+      return (totalDiff / sampledCount) > threshold;
+    }
+
+    // 4. Polling de alertas HUD (substitui o WebSocket recebedor)
+    async function pollHud() {
+      try {
+        const resp = await apiPost(URL_HUD, { action: "poll" });
+        if (resp.count > 0) {
+          const n = resp.notifications[0];
+          let text = n.title || "";
+          const rows = n.payload && n.payload.rows;
+          if (rows) text = rows.map(r => r[0] + ": " + r[1]).join(" | ");
+          cardBodyEl.innerText = text.slice(0, 180);
+        }
+      } catch (err) { /* silencioso: HUD não pede atenção */ }
+    }
+
+    // 5. Q&A por voz — "Onde deixei minha chave?"
+    async function askMemory() {
+      const question = prompt("O que você quer saber? (ex: onde deixei as chaves?)");
+      if (!question) return;
+      cardBodyEl.innerText = "Pensando...";
+      try {
+        const resp = await apiPost(URL_ASK, { question });
+        cardBodyEl.innerText = (resp.answer || "Sem resposta.").slice(0, 180);
+      } catch (err) { apiFail(err); cardBodyEl.innerText = "Falha na pergunta."; }
+    }
+
+    // 6. Encerramento
+    function stopPipeline() {
+      clearInterval(timerId);
+      clearInterval(hudTimerId);
+      if (stream) stream.getTracks().forEach((t) => t.stop());
+      document.getElementById("btn-start").disabled = false;
+      document.getElementById("btn-stop").disabled = true;
+      fpsCounterEl.innerText = "1 FPS | PARADO";
+      cardBodyEl.innerText = "Captura encerrada.";
+    }
+
+    // bind touch-safe
+    bindTap("btn-start", function() { enterFullscreen(); initPipeline(); });
+    bindTap("btn-stop", stopPipeline);
+    bindTap("btn-ask", askMemory);
+  </script>
+</body>
+</html>

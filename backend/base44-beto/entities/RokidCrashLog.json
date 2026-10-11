@@ -1,0 +1,19 @@
+{
+  "properties": {
+    "app_version": {
+      "description": "Versão do RokidPhone (ex: 30)",
+      "type": "string"
+    },
+    "crash_log": {
+      "description": "Stack trace completo capturado pelo uncaught handler",
+      "type": "string"
+    },
+    "device": {
+      "description": "Modelo do aparelho + Android (ex: SM-F766B / Android 16)",
+      "type": "string"
+    }
+  },
+  "type": "object",
+  "required": [],
+  "name": "RokidCrashLog"
+}

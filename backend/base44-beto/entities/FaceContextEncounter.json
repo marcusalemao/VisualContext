@@ -1,0 +1,39 @@
+{
+  "type": "object",
+  "properties": {
+    "person_id": {
+      "type": "string"
+    },
+    "person_name": {
+      "type": "string"
+    },
+    "date": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "location": {
+      "type": "string"
+    },
+    "context": {
+      "type": "string"
+    },
+    "speech_captured": {
+      "type": "string"
+    },
+    "ocr_captured": {
+      "type": "string"
+    },
+    "capture_mode": {
+      "type": "string",
+      "enum": [
+        "Manual",
+        "Automático"
+      ]
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [],
+  "name": "FaceContextEncounter"
+}

@@ -1,0 +1,35 @@
+{
+  "properties": {
+    "data_base64": {
+      "type": "string",
+      "description": "Base64-encoded image bytes from the glasses camera snapshot"
+    },
+    "mime": {
+      "type": "string",
+      "description": "Image MIME type, e.g. image/jpeg"
+    },
+    "processed": {
+      "type": "boolean",
+      "description": "Whether the agent already consumed this capture"
+    },
+    "request_id": {
+      "type": "string",
+      "description": "Gateway request id (x-request-id)"
+    },
+    "size_bytes": {
+      "type": "number",
+      "description": "Decoded image size in bytes"
+    },
+    "source_path": {
+      "type": "string",
+      "description": "JSON path in the request where the image was found"
+    },
+    "user_text": {
+      "type": "string",
+      "description": "User utterance that accompanied the snapshot"
+    }
+  },
+  "type": "object",
+  "required": [],
+  "name": "GatewayCapture"
+}
