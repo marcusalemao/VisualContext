@@ -23,6 +23,15 @@ Approved by Marcus on 11/10. Visual reference: the canvas "VisualContext Manager
 - **Route and times (like Google's timeline) are a separate step, opt-in:** asked once at first use ("Should VisualContext remember where you go?"), tied to the Places switch, not a sub-setting. Store stops ("Café da Paim, 12:40–13:30"), not the raw trail; on the device only; raw stops deleted after 30 days, the day summary kept.
 - No automatic photos and no nightly notification: the card is there when the user wants it.
 
+### 1c. Suggested questions (11/10)
+- Under the ask field, a row of 3–4 dashed chips with ✦, like Read.ai and Scribbl: people often don't know what to ask.
+- Examples: "How was my day yesterday?" · "Summary of my last encounter" · "Next steps for my calendar" · "Where did I leave the motorbike?"
+- **They change with context:** morning → "What do I have today?"; after an encounter → "Summary of the encounter with Rafael"; open follow-ups → "What is still pending?". First use shows generic ones.
+- Tapping a chip asks at once and shows the answer card with its source.
+- **Action answers** (calendar, task, map) show one button per item ("Add to calendar", "Create task", "Open in map"). Nothing is created without that tap, keeping the rule that the glasses never act on their own.
+- The chips disappear while the user types; then the scope box takes over.
+- Visually distinct from the category pills: suggestion chips are dashed outlines; filter pills are solid.
+
 ### 2. Settings
 - **On the glasses:** the 4 main switches (Faces, Places, Things, Memories). No sub-settings.
 - **Encounter recording:** "Needs speech" / "A look is enough".
@@ -64,6 +73,14 @@ Approved by Marcus on 11/10. Visual reference: the canvas "VisualContext Manager
 - **Places needs the phone nearby** (the glasses have no GPS). Say it plainly in onboarding and next to the Places switch.
 - Technical rules (what the glasses keep, caps, queue): privacy spec, section 10.
 
+### 7. Built on the existing dashboard (11/10)
+The current Manager is **visualcontext.base44.app/dashboard** (code in the private repo `visualcontext-app`; published version from 15/09). This Home evolves it instead of replacing it:
+- Its 5 tabs map to the new pills: **Pessoas** = Person; **Coisas** and **Lugares** = EpisodicMemory split by its existing `category` (lugar → Lugares); **Lembranças** = encounters, interactions and "Registra isso" notes.
+- **Skills** and **Notificações** move to Settings (configuration, not memory), so the four pills match the four main switches.
+- Keep what works: memory cards with "Ver no mapa", the memory form, duplicate review, circular photo crop.
+- Fix while at it: the "Óculos conectados" indicator is fake (it flips at random every 8 s) → show the real status or nothing; delete asks for confirmation; remove the leftover "Live Companion" name; one ask field instead of a separate text filter per tab.
+- Publish only when the new Home is ready, after a checkpoint and a preview test.
+
 ---
 
 ## PT — Português
@@ -86,6 +103,15 @@ Aprovado pelo Marcus em 11/10. Referência visual: o canvas "VisualContext Manag
 - **Feito só com o que já foi registrado:** encontros, cards de lugares vistos, coisas, notas. Nada é capturado a mais para ele.
 - **Trajeto e horários (como a linha do tempo do Google) são um passo à parte, opcional:** perguntado uma vez no primeiro uso ("Quer que o VisualContext lembre por onde você passa?"), ligado à chave Lugares, sem virar subconfiguração. Guardar paradas ("Café da Paim, 12:40–13:30"), não o rastro; só no aparelho; paradas brutas apagadas em 30 dias, o resumo do dia fica.
 - Sem fotos automáticas e sem notificação à noite: o card está lá quando a pessoa quiser.
+
+### 1c. Perguntas sugeridas (11/10)
+- Abaixo do campo de pergunta, uma fileira de 3–4 pílulas tracejadas com ✦, como no Read.ai e no Scribbl: muitas vezes a pessoa não sabe o que perguntar.
+- Exemplos: "Como foi meu dia ontem?" · "Resumo do último encontro" · "Próximos passos para a agenda" · "Onde deixei a moto?"
+- **Mudam com o contexto:** de manhã → "O que tenho hoje?"; depois de um encontro → "Resumo do encontro com o Rafael"; com pendências abertas → "O que ficou pendente?". No primeiro uso aparecem as genéricas.
+- Tocar numa pílula já pergunta e mostra o card de resposta com a fonte.
+- **Respostas com ação** (agenda, tarefa, mapa) mostram um botão por item ("Pôr na agenda", "Criar tarefa", "Abrir no mapa"). Nada é criado sem esse toque, mantendo a regra de que os óculos nunca agem sozinhos.
+- As pílulas somem enquanto a pessoa digita; aí entra a caixa de escopo.
+- Visualmente diferentes das pílulas de categoria: as sugestões são contornos tracejados; os filtros são cheios.
 
 ### 2. Ajustes
 - **Nos óculos:** as 4 chaves principais (Rostos, Lugares, Coisas, Memórias). Sem subconfigurações.
@@ -127,3 +153,11 @@ Aprovado pelo Marcus em 11/10. Referência visual: o canvas "VisualContext Manag
 - **A busca ("Pergunte qualquer coisa") e o card expandido** precisam do celular ou do Wi-Fi. Offline, os óculos mostram o card curto e os encontros recentes.
 - **Lugares precisa do celular por perto** (os óculos não têm GPS). Dizer isso com clareza no primeiro uso e ao lado da chave Lugares.
 - Regras técnicas (o que os óculos guardam, tetos, fila): spec de privacidade, seção 10.
+
+### 7. Em cima do dashboard que já existe (11/10)
+O Manager atual é o **visualcontext.base44.app/dashboard** (código no repositório privado `visualcontext-app`; versão publicada de 15/09). Esta tela inicial evolui ele em vez de substituir:
+- As 5 abas viram as novas pílulas: **Pessoas** = Person; **Coisas** e **Lugares** = EpisodicMemory separada pela `category` que já existe (lugar → Lugares); **Lembranças** = encontros, interações e notas do "Registra isso".
+- **Skills** e **Notificações** vão para Ajustes (são configuração, não memória), e as quatro pílulas ficam iguais às quatro chaves principais.
+- Manter o que funciona: cards de memória com "Ver no mapa", o formulário de memória, a revisão de duplicados, o recorte circular da foto.
+- Corrigir junto: o indicador "Óculos conectados" é falso (troca sozinho a cada 8 s) → mostrar o status real ou nada; apagar pede confirmação; tirar o nome antigo "Live Companion"; um campo de pergunta único em vez de um filtro de texto separado em cada aba.
+- Publicar só quando a nova tela inicial estiver pronta, depois de um ponto de restauração e de um teste na prévia.
