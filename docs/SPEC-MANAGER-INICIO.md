@@ -32,14 +32,15 @@ Approved by Marcus on 11/10. Visual reference: the canvas "VisualContext Manager
 - The chips disappear while the user types; then the scope box takes over.
 - Visually distinct from the category pills: suggestion chips are dashed outlines; filter pills are solid.
 
-### 1d. Finding mode lives on the glasses (11/10, revised)
+### 1d. Recall mode on the glasses (11/10, revised)
+- **Two verbs, never mixed:** "Save" stores ("save: key here"); "Recall" asks. "Remember" is ambiguous in English (save or ask?), so the mode is called Recall.
 - **Phone and web:** lists and cards show where and when, no live distance in the rows. Opening a place or thing shows the map and "Open in map" freely: the phone is the place to explore.
-- **Glasses, finding mode:** only in standby (no encounter being recorded). The user asks by voice ("Where did I leave my motorbike?") and a fuller card appears:
+- **Glasses, Recall mode:** for any question, only in standby (no encounter being recorded): "What was the name of the person I just talked to?", "What was the address of the building I visited?", "Where did I leave my motorbike?". A fuller card appears, shaped by the answer: a person → the face card; a place → photo + address; a thing → last photos + where. The map button appears only when the answer is a location. Each memory keeps the location of the moment it was recorded, so a place answer works even with the day timeline off. Example, the motorbike:
   - the last frame where the motorbike was seen **parked** (not a frame from riding, with hands on the handlebar);
   - address and time ("Rua Paim, 210 · today 8:30");
   - one action: "See on map".
 - If an encounter starts, the card steps aside and comes back after.
-- **The right photo comes from the parking moment, not from a search later.** When the phone's speed drops from riding to zero and then walking, save the location and take a short burst. A voice command ("remember where I parked") does the same by hand.
+- **The right photo comes from the parking moment, not from a search later.** When the phone's speed drops from riding to zero and then walking, save the location and take a short burst. A voice command ("save: parked here") does the same by hand.
 - **At the parking moment, keep two photos:** one with the motorbike (if the signature finds it) and one of the surroundings, even without the bike: a shop front, a sign, the corner. The address alone is often not enough; the picture says "it was there". Signs and shop names in that photo are read (OCR) and added to the card: "Rua Paim, 210 · in front of Padaria Boa".
 - **What "See on map" does, in order of preference:**
   1. our own arrow + distance on the HUD (head heading from the Places app + phone GPS); for a few hundred metres this beats turn-by-turn;
@@ -53,7 +54,7 @@ Approved by Marcus on 11/10. Visual reference: the canvas "VisualContext Manager
 - **Which house:** the Wi-Fi network name (home, office, a friend's) says which building, without GPS.
 - **Which room (optional):** teach each room once ("this is the bedroom"); after that the scene says the room. Without it, the AI describes the spot ("on the bed", "inside the fridge").
 - **Show the last 2–3 sightings**, not only one: the latest frame may be wrong, or the key moved after it.
-- **Capture:** the camera can't stay on all day (heat, battery). Plan: a low-resolution frame every few seconds while the user moves around, checked on the phone against registered things only; frames with no registered thing are discarded at once; kept sightings expire after a few days. Plus a voice shortcut: "remember: key here".
+- **Capture:** the camera can't stay on all day (heat, battery). Plan: a low-resolution frame every few seconds while the user moves around, checked on the phone against registered things only; frames with no registered thing are discarded at once; kept sightings expire after a few days. Plus a voice shortcut: "save: key here".
 - **Today's code** (rvLearnSkill) learns from text only. It needs to accept photos and store the visual signature.
 
 ### 2. Settings
@@ -137,14 +138,15 @@ Aprovado pelo Marcus em 11/10. Referência visual: o canvas "VisualContext Manag
 - As pílulas somem enquanto a pessoa digita; aí entra a caixa de escopo.
 - Visualmente diferentes das pílulas de categoria: as sugestões são contornos tracejados; os filtros são cheios.
 
-### 1d. O modo achar mora nos óculos (11/10, revisado)
+### 1d. Modo Recordar nos óculos (11/10, revisado)
+- **Dois verbos, nunca misturados:** "Guarda" registra ("guarda: chave aqui"); "Recordar" pergunta. "Lembra" serve para os dois sentidos em português, então fica fora dos comandos.
 - **Celular e web:** listas e cards mostram onde e quando, sem distância ao vivo nas linhas. Ao abrir um lugar ou coisa, mapa e "Abrir no mapa" aparecem à vontade: o celular é o lugar de explorar.
-- **Óculos, modo achar:** só em standby (sem encontro sendo gravado). A pessoa pede por voz ("Onde deixei minha moto?") e aparece um card mais completo:
+- **Óculos, modo Recordar:** para qualquer pergunta, só em standby (sem encontro sendo gravado): "Qual o nome da pessoa com quem falei agora há pouco?", "Qual o endereço do prédio que visitei?", "Onde deixei minha moto?". Aparece um card mais completo, no formato da resposta: pessoa → o card do rosto; lugar → foto + endereço; coisa → últimas fotos + onde. O botão de mapa só aparece quando a resposta é um local. Cada memória guarda o local do momento em que foi registrada, então a resposta de lugar funciona mesmo com a linha do tempo do dia desligada. Exemplo, a moto:
   - o último quadro em que a moto foi vista **estacionada** (não um quadro pilotando, com as mãos no guidão);
   - endereço e hora ("Rua Paim, 210 · hoje 8:30");
   - uma ação: "Ver no mapa".
 - Se um encontro começa, o card sai da frente e volta depois.
-- **A foto certa vem da hora de estacionar, não de uma busca depois.** Quando a velocidade do celular cai de pilotando para zero e depois para caminhada, guarda o local e faz uma rajada curta. Um comando de voz ("lembra onde parei") faz o mesmo na mão.
+- **A foto certa vem da hora de estacionar, não de uma busca depois.** Quando a velocidade do celular cai de pilotando para zero e depois para caminhada, guarda o local e faz uma rajada curta. Um comando de voz ("guarda: parei aqui") faz o mesmo na mão.
 - **Na hora de estacionar, guardar duas fotos:** uma com a moto (se a assinatura achar) e uma do entorno, mesmo sem a moto: a fachada de uma loja, uma placa, a esquina. Só o endereço muitas vezes não basta; a imagem diz "foi aí". Placas e nomes de loja nessa foto são lidos (OCR) e entram no card: "Rua Paim, 210 · em frente à Padaria Boa".
 - **O que "Ver no mapa" faz, em ordem de preferência:**
   1. nossa própria seta + distância no HUD (direção da cabeça do app de Lugares + GPS do celular); para algumas centenas de metros é melhor que navegação curva a curva;
@@ -158,7 +160,7 @@ Aprovado pelo Marcus em 11/10. Referência visual: o canvas "VisualContext Manag
 - **Qual casa:** o nome da rede Wi-Fi (casa, escritório, casa de um amigo) diz em que lugar, sem GPS.
 - **Qual cômodo (opcional):** ensinar cada cômodo uma vez ("esse é o quarto"); depois a cena diz o cômodo. Sem isso, a IA descreve o ponto ("em cima da cama", "dentro da geladeira").
 - **Mostrar as 2–3 últimas vezes**, não só uma: o último quadro pode estar errado, ou a chave mudou de lugar depois.
-- **Captura:** a câmera não pode ficar ligada o dia todo (calor, bateria). Plano: um quadro em baixa resolução a cada poucos segundos enquanto a pessoa se move, conferido no celular só contra as coisas cadastradas; quadro sem coisa cadastrada é descartado na hora; os avistamentos guardados expiram em poucos dias. Mais um atalho de voz: "lembra: chave aqui".
+- **Captura:** a câmera não pode ficar ligada o dia todo (calor, bateria). Plano: um quadro em baixa resolução a cada poucos segundos enquanto a pessoa se move, conferido no celular só contra as coisas cadastradas; quadro sem coisa cadastrada é descartado na hora; os avistamentos guardados expiram em poucos dias. Mais um atalho de voz: "guarda: chave aqui".
 - **O código de hoje** (rvLearnSkill) aprende só por texto. Precisa aceitar fotos e guardar a assinatura visual.
 
 ### 2. Ajustes
