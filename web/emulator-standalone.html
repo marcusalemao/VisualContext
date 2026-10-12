@@ -713,7 +713,8 @@ function confirmNewPerson() {
     _enc.person = p;
     if (_enc.pendingQR) applyQR(p, _enc.pendingQR, _enc);
     else if (_enc.pendingName) { renamePerson(p, _enc.pendingName, _enc.pendingAlias); _enc.namedHere = true; }
-    else _enc.transcript.some(function(l){ var nm = detectName(l.replace(/^\d\d:\d\d: /, '')); if (nm) { renamePerson(p, nm); return true; } });
+    // the name came from this encounter's own speech, so later lines may still correct it (bug 11/10: corrections stopped after the first)
+    else _enc.transcript.slice().reverse().some(function(l){ var nm = detectName(l.replace(/^\d\d:\d\d: /, '')); if (nm) { renamePerson(p, nm); _enc.namedHere = true; return true; } });
     startRecording();
   }, desc);
   });
