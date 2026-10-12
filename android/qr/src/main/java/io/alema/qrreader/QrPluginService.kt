@@ -34,6 +34,10 @@ class QrPluginService : NexusPluginService() {
     private var state = State.IDLE
     private var scanStartedAt = 0L
     private var attempts = 0
+    private var photos = 0          // snapshots that arrived
+    private var errors = 0
+    private var lastError = ""
+    private var waitingFor = 0      // attempt number whose photo has not arrived yet (0 = none)
     private var card: Card? = null
     private var revision = 0
     private var generation = 0   // bumps on every new scan, so late results from an old scan are ignored
@@ -89,6 +93,9 @@ class QrPluginService : NexusPluginService() {
         state = State.SCANNING
         card = null
         attempts = 0
+        photos = 0
+        errors = 0
+        lastError = ""
         scanStartedAt = SystemClock.elapsedRealtime()
         show("Leitor QR", listOf("olhe para o QR code", "de perto, sem pressa"), "lendo… · voltar: fechar")
         captureNext(generation)
@@ -98,12 +105,16 @@ class QrPluginService : NexusPluginService() {
         if (gen != generation || state != State.SCANNING) return
         if (SystemClock.elapsedRealtime() - scanStartedAt > SCAN_WINDOW_MS) {
             state = State.GAVE_UP
-            show("Leitor QR", listOf("não achei um QR code", "chegue mais perto", "ou melhore a luz"), "toque: tentar de novo · voltar: fechar")
+            // Say what actually happened: no photos at all is a camera problem, not a distance problem.
+            val lines = if (photos == 0) listOf("a câmera não mandou fotos", "pedidos: $attempts · erros: $errors", lastError.ifBlank { "sem resposta do Nexus" })
+                else listOf("não achei um QR code", "chegue mais perto ou melhore a luz", "fotos lidas: $photos")
+            show("Leitor QR", lines, "toque: tentar de novo · voltar: fechar")
             return
         }
         attempts++
         val s = nexusSnapshotSession(object : NexusSnapshotCallbacks {
             override fun onSnapshotCaptured(jpeg: ByteArray) {
+                main.post { if (gen == generation) { photos++; waitingFor = 0 } }
                 io.execute {
                     val raw = QrDecoder.decode(jpeg)   // jpeg is dropped right after this line
                     main.post { onDecoded(gen, raw) }
@@ -116,12 +127,23 @@ class QrPluginService : NexusPluginService() {
         })
         snapshot = s
         val r = s?.capture() ?: NexusSdkResult.NOT_REGISTERED
-        if (r != NexusSdkResult.SENT) onCaptureRefused(r)
+        if (r != NexusSdkResult.SENT) { onCaptureRefused(r); return }
+        // Watchdog: a photo that never comes back (no result, no error) must not freeze the scan.
+        val mine = attempts
+        waitingFor = mine
+        main.postDelayed({
+            if (gen == generation && state == State.SCANNING && waitingFor == mine) {
+                errors++; lastError = "último erro: sem resposta"
+                snapshot?.cancel()
+                captureNext(gen)
+            }
+        }, PHOTO_TIMEOUT_MS)
     }
 
     private fun onDecoded(gen: Int, raw: String?) {
         if (gen != generation || state != State.SCANNING) return
         if (raw.isNullOrBlank()) {
+            if (photos % 5 == 1) show("Leitor QR", listOf("olhe para o QR code", "de perto, sem pressa", "lendo… $photos fotos"), "voltar: fechar")
             main.postDelayed({ captureNext(gen) }, BETWEEN_SHOTS_MS)
             return
         }
@@ -133,6 +155,9 @@ class QrPluginService : NexusPluginService() {
 
     private fun onSnapshotFailed(gen: Int, error: NexusSnapshotError) {
         if (gen != generation || state != State.SCANNING) return
+        waitingFor = 0
+        errors++
+        lastError = "último erro: " + error.name.lowercase()
         when (error) {
             NexusSnapshotError.BUSY, NexusSnapshotError.TIMEOUT, NexusSnapshotError.CAPTURE_FAILED ->
                 main.postDelayed({ captureNext(gen) }, RETRY_MS)
@@ -185,8 +210,9 @@ class QrPluginService : NexusPluginService() {
 
     companion object {
         private const val SURFACE_ID = "leitor-qr"
-        private const val SCAN_WINDOW_MS = 25_000L
+        private const val SCAN_WINDOW_MS = 45_000L
         private const val BETWEEN_SHOTS_MS = 350L
         private const val RETRY_MS = 800L
+        private const val PHOTO_TIMEOUT_MS = 6_000L
     }
 }
