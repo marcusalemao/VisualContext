@@ -12,8 +12,8 @@ import java.io.ByteArrayOutputStream
  * Draws one VisualContext card as a single PNG for the Nexus image surface.
  * HUD grammar (decided with Marcus): monochrome green, black = transparent on the waveguide,
  * NO fill (11/10: any fill reads as an opaque green block on the lens), every stroke 2 px.
- * The image is taller than the card and mostly black, so the card sits in the lower part
- * of the view instead of the middle (black is transparent, so the empty top costs nothing).
+ * The image is taller than the card and mostly black; the card sits at the TOP of it.
+ * Tested on the glasses (12/10): a card at the bottom is cut in half — the wearer sees the upper part.
  */
 object HudCard {
     const val WIDTH = 480
@@ -28,8 +28,8 @@ object HudCard {
         val bmp = Bitmap.createBitmap(WIDTH, HEIGHT, Bitmap.Config.ARGB_8888)
         val c = Canvas(bmp)
         c.drawColor(Color.BLACK)
-        val top = (HEIGHT - CARD_H - 4).toFloat()
-        val box = RectF(2f, top, WIDTH - 2f, HEIGHT - 2f)
+        val top = 2f
+        val box = RectF(2f, top, WIDTH - 2f, top + CARD_H)
         c.drawRoundRect(box, 14f, 14f, Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = STROKE; style = Paint.Style.STROKE; strokeWidth = 2f
         })
@@ -46,7 +46,7 @@ object HudCard {
             c.drawText(ellipsize(line, lineP, WIDTH - 40f), 20f, y, lineP)
             y += 28f
         }
-        if (!footer.isNullOrBlank()) c.drawText(ellipsize(footer, footP, WIDTH - 40f), 20f, HEIGHT - 20f, footP)
+        if (!footer.isNullOrBlank()) c.drawText(ellipsize(footer, footP, WIDTH - 40f), 20f, top + CARD_H - 16f, footP)
         val out = ByteArrayOutputStream()
         bmp.compress(Bitmap.CompressFormat.PNG, 100, out)
         bmp.recycle()
