@@ -1558,6 +1558,11 @@ function loadEmbeddings() {
       if (Array.isArray(arr) && arr.length === 128) _descriptors.push({ profile: p, descriptor: new Float32Array(arr) });
       else bad++;
     } catch(e) { bad++; }
+    // more looks of the same person (merged duplicates, other light or angle): any of them can match
+    var extra = p.custom_fields && p.custom_fields.extra_embeddings;
+    if (Array.isArray(extra)) extra.slice(0, 8).forEach(function(x){
+      if (Array.isArray(x) && x.length === 128) _descriptors.push({ profile: p, descriptor: new Float32Array(x) });
+    });
   });
   log('✓ ' + _descriptors.length + ' recognisable faces' + (bad ? ' (' + bad + ' invalid — re-enrol)' : ''), true);
 }
