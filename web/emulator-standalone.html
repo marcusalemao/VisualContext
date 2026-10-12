@@ -33,7 +33,7 @@ html,body{background:#000;height:100%;overflow:hidden;font-family:monospace;colo
   flex-shrink:0;
 }
 #vid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
-#cnv{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#cnv{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none}  /* same crop as the video, or the face box gets stretched */
 
 /* ── HUD STAGE ──
    The real display is 640×480. Everything inside #stage is in DISPLAY pixels and the stage is
