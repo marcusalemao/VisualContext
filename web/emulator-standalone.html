@@ -930,6 +930,8 @@ function onSpeech(text) {
   var found = detectNameFull(text, { bare: Date.now() - _enc.startedAt < 30000 });
   var nm = found ? found.name : '';
   var fix = (_enc.person && !isUnnamed(_enc.person)) ? spellingFix(text, _enc.person.name) : '';
+  var corr = CORRECTION_RE.exec(text);                          // "não, é Marcus" / "na verdade é Marcus" / "o certo é Marcus"
+  if (corr && _enc.person) { var cn = cleanName(String(corr[1] || corr[2]).split(/\s+/).map(titleCase).join(" ")); if (cn && !NOT_A_NAME.test(cn)) { renamePerson(_enc.person, cn); _enc.namedHere = true; return; } }
   if (fix) renamePerson(_enc.person, fix);                      // "Marcus com u": spelling confirmed
   else if (nm && _enc.person && (isUnnamed(_enc.person) || _enc.namedHere)) {   // a later correction in the same encounter wins
     renamePerson(_enc.person, nm, found.alias);
@@ -948,7 +950,9 @@ var NAME_RE = new RegExp(
   NAME_WORD + "(?:\\s+(?:(?:de|da|do|dos|das|e)\\s+)?" + NAME_WORD + "){0,3})");
 // strong cues ("meu nome é", "me chamo", "my name is") also accept lowercase speech output
 var STRONG_RE = /(?:meu nome é|me chamo|pode me chamar de|my name is|call me)\s+([a-zà-ÿ'’-]+(?:\s+(?:(?:de|da|do|dos|das)\s+)?[a-zà-ÿ'’-]+){0,3})/i;
-var NAME_STOP = /^(e|eu|trabalho|sou|tenho|moro|and|i|i'm|work|from|aqui|tudo|prazer|muito|com|na|no|em)$/i;
+var NAME_STOP = /^(e|é|eu|trabalho|sou|tenho|moro|and|i|i'm|work|from|aqui|tudo|prazer|muito|com|na|no|em|né|ne|aí|ai|tipo|então|entao|ah|eh|uh|hum|hm|tá|ta|ok|beleza|certo|sabe|assim|mesmo|mano|cara)$/i;
+// spoken fillers that speech-to-text glues onto a name ("Marcus né aí é")
+var FILLER = /^(né|ne|aí|ai|é|e|tipo|então|entao|ah|eh|uh|hum|hm|tá|ta|ok|beleza|certo|sabe|assim|mesmo|mano|cara|viu|olha)$/i;
 function titleCase(w) { return /^(de|da|do|dos|das)$/i.test(w) ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1); }
 // Brazilian introductions are short: "Marcos, prazer", "Prazer, Ana", "esse é o Rafa".
 // Cues, strongest first. Talk ABOUT someone ("o João me disse", "sua mãe, a Karin",
@@ -977,6 +981,9 @@ var CUES = [
   { re: new RegExp("(?:[Mm]ucho gusto|[Ee]ncantad[oa]|[Uu]n placer)\\s*,?\\s*(?:(?:yo\\s+)?soy\\s+)?" + NAME_GROUP, 'g') },
   { re: new RegExp(NAME_GROUP + "\\s*,?\\s*(?:mucho gusto|encantad[oa]|un placer)", 'g') }
 ];
+// An explicit correction renames the person in front even if the name came from an earlier encounter.
+// Several corrections in a row are fine: the last one wins.
+var CORRECTION_RE = /(?:^|[.!?,]\s*|\s)(?:não|nao|no)\s*,?\s*(?:(?:é|eh|sou|eu sou|meu nome é|my name is|it's|soy)\s+(?:[oa]\s+)?)([a-zà-ÿ'’-]{2,}(?:\s+(?:(?:de|da|do|dos|das)\s+)?[a-zà-ÿ'’-]{2,}){0,2})|(?:na verdade (?:é|eu sou|sou|meu nome é)(?:\s+[oa](?=\s))?|o certo é|corrigindo,?|corrige(?:\s+(?:o nome|pra|para))*|actually it's)\s+([a-zà-ÿ'’-]{2,}(?:\s+(?:(?:de|da|do|dos|das)\s+)?[a-zà-ÿ'’-]{2,}){0,2})/i;
 var CUE_SPELL = new RegExp("(" + NAME_WORD + ")\\s*,?\\s+com\\s+(?:[a-zà-ú]|dois\\s+[a-z]|duas\\s+[a-z])\\b");
 var CUE_PRAZER_LOWER = /([a-zà-ÿ'’-]{2,}(?:\s+(?:(?:de|da|do|dos|das)\s+)?[a-zà-ÿ'’-]{2,}){0,2})(?:\s*,?\s*(?:é|né|então|ok|tá))*\s*,?\s*(?:muito\s+)?prazer\b/i;
 var THIRD_PARTY = /(?:mãe|mae|pai|irmã|irmão|irmao|avó|avô|tia|tio|filh[oa]|espos[oa]|marido|namorad[oa]|amig[oa]|chefe|primo|prima|mom|mum|mother|dad|father|sister|brother|wife|husband|son|daughter|boss|friend|aunt|uncle|madre|padre|hermana|hermano|hij[oa]|jefe|novi[oa])\s*,?\s*(?:[oa]|the|la|el)?\s*$/i;
@@ -984,6 +991,9 @@ var AFTER_NOT_HIM = /^\s*,?\s*(?:não\b|nao\b|no\b(?!\s*\?)|not\b|é\s+[oa]\s+(?
 function cleanName(n) {
   var w = String(n || '').trim().replace(/^(?:Mr|Mrs|Ms|Miss|Dr|Dra|Sr|Sra|Srta|Prof|Profa)\.?\s+/, '').split(/\s+/);
   while (w.length && NOT_A_NAME.test(w[0])) w.shift();
+  // cut at the first filler: everything after "né", "aí", "tipo"… is not part of the name
+  var cut = w.findIndex(function(x, i){ return i > 0 && (FILLER.test(x) || NOT_A_NAME.test(x)); });
+  if (cut > 0) w = w.slice(0, cut);
   while (w.length && /^(de|da|do|dos|das|e)$/.test(w[w.length-1])) w.pop();
   return w.join(' ');
 }
@@ -1116,7 +1126,8 @@ function describeLook(frame, box, clothing) {
   }).then(function(r){
     var who = t('lk_p'), age = '';
     if (r) {
-      var a = Math.round(r.age / 5) * 5, band = r.age < 25 ? 1 : (r.age < 55 ? 2 : 3);
+      var a = Math.max(5, Math.floor((r.age - 2) / 5) * 5),   // round DOWN with a buffer: estimating someone older hurts, younger doesn't
+          band = r.age < 25 ? 1 : (r.age < 55 ? 2 : 3);
       if (r.genderProbability >= 0.7) who = t((r.gender === 'female' ? 'lk_f' : 'lk_m') + band);
       age = t('lk_age', { a: a });
     }
