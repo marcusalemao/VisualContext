@@ -24,16 +24,21 @@ internal class ZapContacts(private val context: Context) {
 
     /**
      * Everyone the wearer can message: people learned from WhatsApp
-     * notifications, plus the address book when the wearer chose to import it.
+     * notifications, an imported contacts file, and the address book when
+     * the wearer turned it on.
      * The same person found both ways appears once, under the address-book name.
      */
     fun directory(): List<ZapContact> {
         val recents = ZapRecents(context)
         val learned = ZapPeople(context).all(recents)
-        if (!ZapSettings(context).importAddressBook()) return learned
-        val book = loadAddressBook()
-        val known = book.flatMap { it.waIds }.toSet()
-        return book + learned.filter { contact -> contact.waIds.none { it in known } }
+        val imported = ZapImported(context).all(recents)
+        val book = if (ZapSettings(context).importAddressBook()) loadAddressBook() else emptyList()
+        // Address book first (its names are the wearer's own), then people learned, then imports; each number once.
+        val known = mutableSetOf<String>()
+        return (book + learned + imported).filter { contact ->
+            val ids = contact.waIds.ifEmpty { listOfNotNull(contact.target()) }
+            if (ids.any { it in known }) false else { known += ids; true }
+        }
     }
 
     fun loadAddressBook(): List<ZapContact> {

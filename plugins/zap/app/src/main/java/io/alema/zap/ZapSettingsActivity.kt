@@ -53,6 +53,28 @@ class ZapSettingsActivity : Activity() {
         render()
     }
 
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != REQUEST_FILE || resultCode != RESULT_OK) return
+        val uri = data?.data ?: return
+        val text = runCatching {
+            contentResolver.openInputStream(uri)?.use { it.readBytes().take(MAX_FILE_BYTES).toByteArray() }?.toString(Charsets.UTF_8)
+        }.getOrNull()
+        val entries = text?.let { io.alema.zap.core.ContactFile.parse(it) }.orEmpty()
+        val added = ZapImported(this).add(entries)
+        android.widget.Toast.makeText(
+            this,
+            when {
+                text == null -> t("Não consegui abrir o arquivo", "Couldn't open the file")
+                entries.isEmpty() -> t("Nenhum contato com nome e celular no arquivo", "No contacts with name and phone in the file")
+                else -> t("$added contato(s) novo(s), ${entries.size} no arquivo", "$added new contact(s), ${entries.size} in the file")
+            },
+            android.widget.Toast.LENGTH_LONG,
+        ).show()
+        render()
+    }
+
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQUEST_CONTACTS) {
@@ -70,12 +92,12 @@ class ZapSettingsActivity : Activity() {
             t(
                 "Nos óculos, abra o menu do Nexus e escolha Zap. Ele abre nas suas conversas, como o WhatsApp no celular.\n\n" +
                     "• Toque numa conversa para ler. Ali estão Responder e Ouvir de novo.\n" +
-                    "• Nova mensagem, no topo: escolha alguém recente ou toque em \"Dizer o nome\" e fale, por exemplo, \"mensagem pro Bruno, tô chegando\".\n" +
+                    "• Nova mensagem, no topo: escolha alguém da lista ou toque em \"Dizer o nome\". Primeiro diga só o nome; se houver nomes parecidos, escolha na lista. Depois diga a mensagem.\n" +
                     "• Antes de sair, o texto aparece para você conferir. Nada é enviado sem você tocar em Enviar.\n\n" +
                     "As conversas aparecem conforme as mensagens chegam com o Zap ligado. Mensagens que você manda para você mesmo não contam: o WhatsApp não avisa delas.",
                 "On the glasses, open the Nexus menu and pick Zap. It opens on your chats, like WhatsApp on the phone.\n\n" +
                     "• Tap a chat to read it. Reply and Listen again are there.\n" +
-                    "• New message, at the top: pick someone recent or tap \"Say the name\" and say, for example, \"message Bruno, on my way\".\n" +
+                    "• New message, at the top: pick someone from the list or tap \"Say the name\". Say just the name first; if names are alike, pick from the list. Then say the message.\n" +
                     "• Before it goes, the text is shown for you to check. Nothing is sent until you tap Send.\n\n" +
                     "Chats appear as messages arrive while Zap is on. Messages you send to yourself don't count: WhatsApp doesn't notify about them.",
             ),
@@ -97,8 +119,8 @@ class ZapSettingsActivity : Activity() {
                 t("Ligado. Quem te manda mensagem no WhatsApp entra na sua lista do Zap.", "On. People who message you on WhatsApp join your Zap list.")
             } else {
                 t(
-                    "Monta a sua lista de pessoas a partir de quem te manda mensagem no WhatsApp. Guarda só o nome e o número, nunca o texto.",
-                    "Builds your people list from who messages you on WhatsApp. Keeps only the name and number, never the text.",
+                    "Mostra suas conversas do WhatsApp nos óculos e monta sua lista de pessoas com quem te escreve. As mensagens ficam só neste celular, criptografadas.",
+                    "Shows your WhatsApp chats on the glasses and builds your people list from who writes to you. Messages stay on this phone only, encrypted.",
                 )
             },
             intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS),
@@ -199,9 +221,16 @@ class ZapSettingsActivity : Activity() {
         )
 
         section(t("Pessoas", "People"))
+        infoCard(
+            t("Sua lista de pessoas", "Your people list"),
+            t(
+                "O Zap monta a lista sozinho com quem te manda mensagem no WhatsApp. Para escrever também para quem ainda não te escreveu, use a agenda do celular ou importe um arquivo de contatos.",
+                "Zap builds the list by itself from who messages you on WhatsApp. To also write to people who haven't messaged you yet, use the phone's contacts or import a contacts file.",
+            ),
+        )
         switchCard(
             title = t("Usar a agenda do celular", "Use the phone's contacts"),
-            subtitle = t("Para escrever também para quem ainda não te mandou mensagem", "To also write to people who haven't messaged you yet"),
+            subtitle = t("Os contatos ficam no celular; o Zap só lê nome e número", "Contacts stay on the phone; Zap reads only name and number"),
             checked = settings.importAddressBook() && ZapContacts(this).hasPermission(),
         ) { on ->
             if (on && !ZapContacts(this).hasPermission()) {
@@ -210,7 +239,33 @@ class ZapSettingsActivity : Activity() {
                 settings.setImportAddressBook(on)
             }
         }
+        val imported = ZapImported(this).count()
+        infoCard(
+            t("Importar arquivo de contatos", "Import a contacts file"),
+            t(
+                "Um arquivo .vcf (exportado pelo app Contatos ou pelo Google Contatos) ou uma planilha .csv com nome e celular. Só o nome e o número são guardados." +
+                    if (imported > 0) "\n\n$imported contato(s) importado(s)." else "",
+                "A .vcf file (exported from the Contacts app or Google Contacts) or a .csv sheet with name and phone. Only the name and number are kept." +
+                    if (imported > 0) "\n\n$imported contact(s) imported." else "",
+            ),
+            action = t("Escolher arquivo", "Choose file") to Intent(Intent.ACTION_OPEN_DOCUMENT)
+                .addCategory(Intent.CATEGORY_OPENABLE)
+                .setType("*/*")
+                .putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("text/x-vcard", "text/vcard", "text/csv", "text/comma-separated-values", "text/plain")),
+            requestCode = REQUEST_FILE,
+        )
         gap(8)
+        if (imported > 0) {
+            content.addView(
+                NexusUi.textButton(this, t("Apagar contatos importados", "Delete imported contacts"), danger = true).apply {
+                    setOnClickListener {
+                        ZapImported(this@ZapSettingsActivity).clear()
+                        render()
+                    }
+                },
+                NexusUi.block(),
+            )
+        }
         content.addView(
             NexusUi.textButton(this, t("Apagar a lista aprendida", "Clear the learned list"), danger = true).apply {
                 setOnClickListener {
@@ -244,7 +299,7 @@ class ZapSettingsActivity : Activity() {
 
     private fun gap(dp: Int) = content.addView(BusTheme.gap(this, dp))
 
-    private fun infoCard(title: String, body: String, action: Pair<String, Intent>? = null) {
+    private fun infoCard(title: String, body: String, action: Pair<String, Intent>? = null, requestCode: Int? = null) {
         content.addView(
             NexusUi.card(this).apply {
                 addView(NexusUi.cardTitle(this@ZapSettingsActivity, title))
@@ -254,7 +309,11 @@ class ZapSettingsActivity : Activity() {
                     addView(BusTheme.gap(this@ZapSettingsActivity, 10))
                     addView(
                         NexusUi.outlinePillButton(this@ZapSettingsActivity, action.first).apply {
-                            setOnClickListener { runCatching { startActivity(action.second) } }
+                            setOnClickListener {
+                                runCatching {
+                                    if (requestCode != null) startActivityForResult(action.second, requestCode) else startActivity(action.second)
+                                }
+                            }
                         },
                         LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT),
                     )
@@ -343,5 +402,7 @@ class ZapSettingsActivity : Activity() {
 
     private companion object {
         const val REQUEST_CONTACTS = 7
+        const val REQUEST_FILE = 8
+        const val MAX_FILE_BYTES = 5 * 1024 * 1024
     }
 }

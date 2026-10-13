@@ -65,6 +65,38 @@ internal class ZapPeople(context: Context) {
 }
 
 /**
+ * People from a contacts file the wearer imported (vCard or CSV): name and
+ * number only. Kept apart from [ZapPeople] so an import never shows up as
+ * "recent" and can be removed on its own.
+ */
+internal class ZapImported(context: Context) {
+    private val prefs = context.getSharedPreferences("zap_imported", Context.MODE_PRIVATE)
+
+    fun add(entries: List<io.alema.zap.core.ContactFile.Entry>): Int {
+        val editor = prefs.edit()
+        val room = (MAX - prefs.all.size).coerceAtLeast(0)
+        val fresh = entries.filter { !prefs.contains(it.digits) }.take(room)
+        fresh.forEach { editor.putString(it.digits, it.name) }
+        entries.filter { prefs.contains(it.digits) }.forEach { editor.putString(it.digits, it.name) }
+        editor.apply()
+        return fresh.size
+    }
+
+    fun count(): Int = prefs.all.size
+
+    fun clear() = prefs.edit().clear().apply()
+
+    fun all(recents: ZapRecents): List<ZapContact> = prefs.all.mapNotNull { (digits, name) ->
+        val id = ZapPeople.idFor(digits)
+        (name as? String)?.let { ZapContact(id, it, waIds = listOf(digits), lastUsedMs = recents.lastUsed(id)) }
+    }
+
+    private companion object {
+        const val MAX = 5000
+    }
+}
+
+/**
  * Watches WhatsApp notifications (and only WhatsApp's) to build the inbox
  * and learn who wrote.
  *
