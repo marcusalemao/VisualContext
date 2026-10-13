@@ -38,6 +38,25 @@ internal object Text {
         return previous[b.length]
     }
 
+    /**
+     * How a folded word sounds, roughly, in Portuguese, Spanish and English
+     * names: speech-to-text writes "Marcos" for "Marcus", "Filipe" for
+     * "Phillipe", "Kaio" for "Caio". Two words with the same key are treated
+     * as the same name.
+     */
+    fun soundKey(word: String): String {
+        var w = fold(word).replace(" ", "")
+        if (w.isEmpty()) return w
+        w = w.replace("ph", "f").replace("th", "t").replace("sh", "x").replace("ch", "x")
+            .replace("qu", "c").replace("k", "c").replace("w", "v").replace("y", "i")
+            .replace("z", "s").replace("ss", "s")
+        if (w.startsWith("h")) w = w.drop(1)
+        w = w.replace(Regex("(.)\\1+"), "$1") // double letters: "Matteus" -> "mateus"
+        // Unstressed endings drift: Marcus/Marcos, Mateus/Mateos, Kelly/Keli.
+        w = w.replace(Regex("[ou](s?)$"), "o$1").replace(Regex("[ei]$"), "i")
+        return w
+    }
+
     fun similarity(a: String, b: String): Double {
         val longest = maxOf(a.length, b.length)
         if (longest == 0) return 1.0

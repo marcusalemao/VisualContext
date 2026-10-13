@@ -68,6 +68,7 @@ class ContactMatcher(contacts: List<ZapContact>) {
 
     private fun wordScore(spoken: String, part: String): Double = when {
         spoken == part -> 1.0
+        Text.soundKey(spoken) == Text.soundKey(part) -> 0.95
         spoken.length >= 3 && part.startsWith(spoken) -> 0.9
         else -> Text.similarity(spoken, part).let { if (it >= 0.7) it * 0.85 else 0.0 }
     }

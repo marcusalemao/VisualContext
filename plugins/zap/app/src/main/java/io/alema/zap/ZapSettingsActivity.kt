@@ -46,6 +46,8 @@ class ZapSettingsActivity : Activity() {
         setContentView(root)
     }
 
+    private val settings by lazy { ZapSettings(this) }
+
     override fun onResume() {
         super.onResume()
         render()
@@ -64,18 +66,18 @@ class ZapSettingsActivity : Activity() {
 
         section(t("Como usar", "How to use"))
         infoCard(
-            t("Escrever para alguém pelos óculos", "Write to someone from the glasses"),
+            t("Seu WhatsApp nos óculos", "Your WhatsApp on the glasses"),
             t(
-                "1. Nos óculos, abra o menu do Nexus e escolha Zap.\n" +
-                    "2. Toque em \"Ditar mensagem\" e diga para quem e o quê, numa frase só:\n" +
-                    "    \"mensagem pro Bruno, tô chegando\".\n" +
-                    "3. Confira o texto. Toque em Enviar, ou em Ouvir para escutar antes.\n\n" +
-                    "Também dá para escolher alguém da lista e ditar só a mensagem. Nada é enviado sem você tocar em Enviar.",
-                "1. On the glasses, open the Nexus menu and pick Zap.\n" +
-                    "2. Tap \"Dictate message\" and say who and what, in one sentence:\n" +
-                    "    \"message Bruno, on my way\".\n" +
-                    "3. Check the text. Tap Send, or Listen to hear it first.\n\n" +
-                    "You can also pick someone from the list and dictate only the message. Nothing is sent until you tap Send.",
+                "Nos óculos, abra o menu do Nexus e escolha Zap. Ele abre nas suas conversas, como o WhatsApp no celular.\n\n" +
+                    "• Toque numa conversa para ler. Ali estão Responder e Ouvir de novo.\n" +
+                    "• Nova mensagem, no topo: escolha alguém recente ou toque em \"Dizer o nome\" e fale, por exemplo, \"mensagem pro Bruno, tô chegando\".\n" +
+                    "• Antes de sair, o texto aparece para você conferir. Nada é enviado sem você tocar em Enviar.\n\n" +
+                    "As conversas aparecem conforme as mensagens chegam com o Zap ligado. Mensagens que você manda para você mesmo não contam: o WhatsApp não avisa delas.",
+                "On the glasses, open the Nexus menu and pick Zap. It opens on your chats, like WhatsApp on the phone.\n\n" +
+                    "• Tap a chat to read it. Reply and Listen again are there.\n" +
+                    "• New message, at the top: pick someone recent or tap \"Say the name\" and say, for example, \"message Bruno, on my way\".\n" +
+                    "• Before it goes, the text is shown for you to check. Nothing is sent until you tap Send.\n\n" +
+                    "Chats appear as messages arrive while Zap is on. Messages you send to yourself don't count: WhatsApp doesn't notify about them.",
             ),
         )
 
@@ -141,8 +143,32 @@ class ZapSettingsActivity : Activity() {
             )
         }
 
+        section(t("Conversas", "Chats"))
+        choiceCard(
+            title = t("Guardar mensagens por", "Keep messages for"),
+            subtitle = t("Só neste celular, criptografadas", "Only on this phone, encrypted"),
+            options = listOf(1, 7, 30),
+            label = { if (it == 1) t("1 dia", "1 day") else t("$it dias", "$it days") },
+            current = settings.keepDays(),
+        ) { settings.setKeepDays(it) }
+        choiceCard(
+            title = t("Mostrar até", "Show up to"),
+            subtitle = t("Conversas na lista dos óculos", "Chats in the glasses list"),
+            options = listOf(20, 40, 60),
+            label = { t("$it conversas", "$it chats") },
+            current = settings.maxConversations(),
+        ) { settings.setMaxConversations(it) }
+        content.addView(
+            NexusUi.textButton(this, t("Apagar as conversas guardadas", "Delete saved chats"), danger = true).apply {
+                setOnClickListener {
+                    ZapInbox.clear(this@ZapSettingsActivity)
+                    render()
+                }
+            },
+            NexusUi.block(),
+        )
+
         section(t("Pessoas", "People"))
-        val settings = ZapSettings(this)
         switchCard(
             title = t("Usar a agenda do celular", "Use the phone's contacts"),
             subtitle = t("Para escrever também para quem ainda não te mandou mensagem", "To also write to people who haven't messaged you yet"),
@@ -238,6 +264,46 @@ class ZapSettingsActivity : Activity() {
             },
             NexusUi.block(),
         )
+    }
+
+    /** A row of choices; the current one is the filled pill, like Nexus's own speed picker. */
+    private fun choiceCard(
+        title: String,
+        subtitle: String,
+        options: List<Int>,
+        label: (Int) -> String,
+        current: Int,
+        onPick: (Int) -> Unit,
+    ) {
+        content.addView(
+            NexusUi.card(this).apply {
+                addView(NexusUi.rowTitle(this@ZapSettingsActivity, title))
+                addView(BusTheme.gap(this@ZapSettingsActivity, 4))
+                addView(NexusUi.rowSub(this@ZapSettingsActivity, subtitle))
+                addView(BusTheme.gap(this@ZapSettingsActivity, 10))
+                addView(
+                    LinearLayout(this@ZapSettingsActivity).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        options.forEach { value ->
+                            val button = if (value == current) {
+                                NexusUi.pillButton(this@ZapSettingsActivity, label(value))
+                            } else {
+                                NexusUi.outlinePillButton(this@ZapSettingsActivity, label(value))
+                            }
+                            button.setOnClickListener {
+                                onPick(value)
+                                render()
+                            }
+                            addView(button, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                                marginEnd = NexusUi.dp(this@ZapSettingsActivity, 6)
+                            })
+                        }
+                    },
+                )
+            },
+            NexusUi.block(),
+        )
+        gap(8)
     }
 
     private fun t(portuguese: String, english: String) = if (pt) portuguese else english

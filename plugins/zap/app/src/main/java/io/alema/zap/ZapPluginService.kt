@@ -24,7 +24,9 @@ import io.alema.zap.core.Effect
 import io.alema.zap.core.Note
 import io.alema.zap.core.SendOutcome
 import io.alema.zap.core.Step
-import io.alema.zap.core.ZapContact
+import io.alema.zap.core.Recipient
+import io.alema.zap.core.ZapConversation
+import io.alema.zap.core.ZapMessage
 
 /**
  * Start a WhatsApp message from the glasses, to anyone.
@@ -57,15 +59,27 @@ class ZapPluginService : NexusPluginService() {
     /** Why the last dictation ended, for test builds only (never shown in release). */
     private var speechDetail: String? = null
 
+    private var unobserveInbox: (() -> Unit)? = null
+
     override fun onNexusOpen() {
         contacts = ZapContacts(this)
-        flow = ComposeFlow({ contacts.directory() })
-        flow.open(contacts.shortlist(contacts.directory(), SHORTLIST))
+        flow = ComposeFlow(
+            directory = { contacts.directory() },
+            recentPeople = { contacts.shortlist(contacts.directory(), SHORTLIST) },
+        )
+        flow.open(ZapInbox.list(this))
+        unobserveInbox = ZapInbox.observe {
+            if (!::flow.isInitialized || surface == null) return@observe
+            flow.refresh(ZapInbox.list(this))
+            render()
+        }
         surface = nexusSurfaceSession(SURFACE_ID)
         render(show = true)
     }
 
     override fun onNexusClose() {
+        unobserveInbox?.invoke()
+        unobserveInbox = null
         stopListening()
         tts?.close()
         tts = null
@@ -93,9 +107,10 @@ class ZapPluginService : NexusPluginService() {
             when (effect) {
                 Effect.StartListening -> startListening()
                 Effect.StopListening -> stopListening()
-                is Effect.Speak -> speak(text.spoken(effect.contact.name, effect.body))
+                is Effect.SpeakDraft -> speak(text.spoken(effect.recipient.name, effect.body))
+                is Effect.SpeakMessage -> speak(text.heard(senderLabel(effect.message), effect.message.text))
                 Effect.StopSpeaking -> stopSpeaking()
-                is Effect.Send -> send(effect.contact, effect.digits, effect.body)
+                is Effect.Send -> send(effect.recipient, effect.body)
                 Effect.Close -> {
                     surface?.hide()
                     return
@@ -210,10 +225,11 @@ class ZapPluginService : NexusPluginService() {
 
     // --- sending ---------------------------------------------------------
 
-    private fun send(contact: ZapContact, digits: String, body: String) {
-        ZapRecents(this).touch(contact.id)
-        ZapSender.send(this, digits, body) { outcome ->
-            if (!::flow.isInitialized) return@send
+    private fun send(recipient: Recipient, body: String) {
+        recipient.contactId?.let { ZapRecents(this).touch(it) }
+        recipient.digits?.let { ZapRecents(this).touch(ZapPeople.idFor(it)) }
+        ZapSender.deliver(this, recipient, body) { outcome ->
+            if (!::flow.isInitialized) return@deliver
             flow.onSendOutcome(outcome)
             render()
         }
@@ -223,13 +239,15 @@ class ZapPluginService : NexusPluginService() {
 
     private fun render(show: Boolean = false) {
         val card = when (val step = flow.step) {
-            is Step.Home -> homeCard(step)
+            is Step.Inbox -> inboxCard(step)
+            is Step.Thread -> threadCard(step.conversation)
+            is Step.NewMessage -> newMessageCard(step)
             is Step.Listening -> NexusCard(
-                title = step.contact?.let { text.to(it.name) } ?: text.whoTitle,
+                title = fitTitle(step.recipient?.let { text.to(it.name) } ?: text.whoTitle),
                 lines = emptyList(),
                 richLines = listOf(
                     NexusCardLine(
-                        text = fit(step.partial.ifBlank { if (step.contact == null) text.sayWhoAndWhat else text.sayMessage }),
+                        text = fit(step.partial.ifBlank { if (step.recipient == null) text.sayWhoAndWhat else text.sayMessage }),
                         tone = if (step.partial.isBlank()) NexusRowTone.DIM else NexusRowTone.BODY,
                     ),
                 ),
@@ -249,7 +267,7 @@ class ZapPluginService : NexusPluginService() {
                 handlesBack = true,
             )
             is Step.Review -> NexusCard(
-                title = fitTitle(text.to(step.contact.name)),
+                title = fitTitle(text.to(step.recipient.name)),
                 lines = emptyList(),
                 richLines = listOf(NexusCardLine(text = fit(step.body), tone = NexusRowTone.BODY)) +
                     listOf(text.send, text.listen, text.redo).mapIndexed { index, label ->
@@ -261,7 +279,7 @@ class ZapPluginService : NexusPluginService() {
                 handlesBack = true,
             )
             is Step.Sending -> NexusCard(
-                title = fitTitle(text.to(step.contact.name)),
+                title = fitTitle(text.to(step.recipient.name)),
                 lines = emptyList(),
                 richLines = listOf(NexusCardLine(text = fit(step.body), tone = NexusRowTone.BODY)),
                 subtitle = text.sending,
@@ -273,15 +291,70 @@ class ZapPluginService : NexusPluginService() {
         if (show) current.showCard(card) else current.updateCard(card)
     }
 
-    private fun homeCard(step: Step.Home): NexusCard {
+    /** Home: "New message", then one row per chat — name on top, last message under it. */
+    private fun inboxCard(step: Step.Inbox): NexusCard {
         val rows = buildList {
-            add(NexusCardLine(text = text.speak, selected = flow.selected == 0))
-            step.shortlist.take(MAX_ROWS - 2).forEachIndexed { index, contact ->
-                add(NexusCardLine(text = fit(contact.name), selected = flow.selected == index + 1))
+            add(NexusCardLine(text = text.newMessage, selected = flow.selected == 0))
+            step.conversations.take(MAX_ROWS - 1).forEachIndexed { index, chat ->
+                add(
+                    NexusCardLine(
+                        text = fit(chat.title, LIST_CHARS),
+                        sub = chat.last?.let { fit(preview(chat, it), PREVIEW_CHARS) },
+                        selected = flow.selected == index + 1,
+                    ),
+                )
             }
-            if (step.shortlist.isEmpty()) add(NexusCardLine(text = text.emptyPeople, tone = NexusRowTone.DIM))
+            if (step.conversations.isEmpty()) add(NexusCardLine(text = text.emptyInbox, tone = NexusRowTone.DIM))
         }
-        return NexusCard(title = text.newMessage, lines = emptyList(), richLines = rows)
+        return NexusCard(title = text.inboxTitle, lines = emptyList(), richLines = rows)
+    }
+
+    /** One chat: its latest messages, then Reply · Listen again. Reply is always there. */
+    private fun threadCard(chat: ZapConversation): NexusCard {
+        val rows = buildList {
+            chat.messages.takeLast(THREAD_MESSAGES).forEach { message ->
+                add(
+                    NexusCardLine(
+                        text = fit(message.text),
+                        badge = badgeFor(chat, message),
+                        tone = NexusRowTone.BODY,
+                    ),
+                )
+            }
+            listOf(text.reply, text.listenAgain).forEachIndexed { index, label ->
+                add(NexusCardLine(text = label, selected = flow.selected == index))
+            }
+            if (ttsProblem) add(NexusCardLine(text = text.voiceHelp, tone = NexusRowTone.DIM))
+        }
+        return NexusCard(title = fitTitle(chat.title), lines = emptyList(), richLines = rows, handlesBack = true)
+    }
+
+    /** New message: "Say the name" first, then recent people for one tap. */
+    private fun newMessageCard(step: Step.NewMessage): NexusCard {
+        val rows = buildList {
+            add(NexusCardLine(text = text.sayName, selected = flow.selected == 0))
+            step.recent.take(MAX_ROWS - 2).forEachIndexed { index, contact ->
+                add(NexusCardLine(text = fit(contact.name, LIST_CHARS), selected = flow.selected == index + 1))
+            }
+            if (step.recent.isEmpty()) add(NexusCardLine(text = text.noRecent, tone = NexusRowTone.DIM))
+        }
+        return NexusCard(title = text.newMessage, lines = emptyList(), richLines = rows, handlesBack = true)
+    }
+
+    private fun senderLabel(message: ZapMessage): String =
+        if (message.sender == ZapInbox.ME) text.me else message.sender
+
+    /** In a one-to-one chat only the wearer's own lines need a label; in a group every line does. */
+    private fun badgeFor(chat: ZapConversation, message: ZapMessage): String? = when {
+        message.sender == ZapInbox.ME -> text.me
+        chat.isGroup -> message.sender.take(MAX_BADGE)
+        else -> null
+    }
+
+    private fun preview(chat: ZapConversation, message: ZapMessage): String = when {
+        message.sender == ZapInbox.ME -> "${text.me}: ${message.text}"
+        chat.isGroup -> "${message.sender}: ${message.text}"
+        else -> message.text
     }
 
     private fun doneCard(step: Step.Done): NexusCard {
@@ -293,6 +366,7 @@ class ZapPluginService : NexusPluginService() {
             step.outcome == SendOutcome.FAILED -> text.failed
             step.note == Note.NO_CONTACT -> text.noContact(step.spoken.orEmpty())
             step.note == Note.NO_NUMBER -> text.noNumber
+            step.note == Note.REPLY_ON_PHONE -> text.replyOnPhone
             step.note == Note.NO_SPEECH -> text.noSpeech
             else -> text.speechUnavailable
         }
@@ -307,14 +381,14 @@ class ZapPluginService : NexusPluginService() {
             add(NexusCardLine(text = if (problem) text.tryAgain else text.newMessage, selected = true))
         }
         return NexusCard(
-            title = fitTitle(step.contact?.let { text.to(it.name) } ?: text.appTitle),
+            title = fitTitle(step.recipient?.let { text.to(it.name) } ?: text.appTitle),
             lines = emptyList(),
             richLines = rows,
             handlesBack = true,
         )
     }
 
-    private fun fit(value: String) = if (value.length <= MAX_LINE) value else value.take(MAX_LINE - 1) + "…"
+    private fun fit(value: String, max: Int = MAX_LINE) = if (value.length <= max) value else value.take(max - 1) + "…"
     private fun fitTitle(value: String) = if (value.length <= MAX_TITLE) value else value.take(MAX_TITLE - 1) + "…"
 
     private companion object {
@@ -325,5 +399,10 @@ class ZapPluginService : NexusPluginService() {
         const val MAX_ROWS = 64
         const val MAX_LINE = 240
         const val MAX_TITLE = 48
+        const val MAX_BADGE = 24
+        /** Same widths Relay measured on the optics for list rows and their sub line. */
+        const val LIST_CHARS = 26
+        const val PREVIEW_CHARS = 40
+        const val THREAD_MESSAGES = 6
     }
 }

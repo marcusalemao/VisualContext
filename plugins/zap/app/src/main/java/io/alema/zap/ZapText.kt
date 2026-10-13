@@ -13,6 +13,15 @@ internal class ZapText(private val pt: Boolean = Locale.getDefault().language ==
     val emptyPeople get() = if (pt) "Sua lista se forma com quem te manda mensagem" else "Your list fills with people who message you"
     val whoTitle get() = if (pt) "Para quem e o quê?" else "Who, and what?"
     val listening get() = if (pt) "Ouvindo…" else "Listening…"
+    val inboxTitle get() = if (pt) "Conversas" else "Chats"
+    val emptyInbox get() = if (pt) "As conversas aparecem aqui quando chegarem mensagens" else "Chats appear here as messages arrive"
+    val sayName get() = if (pt) "Dizer o nome" else "Say the name"
+    val noRecent get() = if (pt) "Ainda sem contatos recentes" else "No recent contacts yet"
+    val reply get() = if (pt) "Responder" else "Reply"
+    val listenAgain get() = if (pt) "Ouvir de novo" else "Listen again"
+    val me get() = if (pt) "Você" else "You"
+    val replyOnPhone get() = if (pt) "Responda este grupo pelo celular" else "Answer this group on the phone"
+    fun heard(sender: String, text: String) = "$sender: $text"
     fun pickTitle(name: String) = if (pt) "Qual $name?" else "Which $name?"
     fun to(name: String) = if (pt) "Para $name" else "To $name"
     val sayMessage get() = if (pt) "Diga a mensagem" else "Say the message"
@@ -52,6 +61,20 @@ internal class ZapText(private val pt: Boolean = Locale.getDefault().language ==
 internal class ZapSettings(context: Context) {
     private val prefs = context.getSharedPreferences("zap_settings", Context.MODE_PRIVATE)
 
+    /** How long the inbox keeps messages on this phone. */
+    fun keepDays(): Int = prefs.getInt(KEY_KEEP_DAYS, io.alema.zap.core.InboxRules.DEFAULT_KEEP_DAYS)
+
+    fun setKeepDays(days: Int) {
+        prefs.edit().putInt(KEY_KEEP_DAYS, days).apply()
+    }
+
+    /** How many conversations the inbox lists. */
+    fun maxConversations(): Int = prefs.getInt(KEY_MAX_CHATS, io.alema.zap.core.InboxRules.DEFAULT_MAX_CONVERSATIONS)
+
+    fun setMaxConversations(count: Int) {
+        prefs.edit().putInt(KEY_MAX_CHATS, count).apply()
+    }
+
     /** Off by default: the people list starts from who messaged you, no contacts permission. */
     fun importAddressBook(): Boolean = prefs.getBoolean(KEY_IMPORT, false)
 
@@ -61,5 +84,7 @@ internal class ZapSettings(context: Context) {
 
     private companion object {
         const val KEY_IMPORT = "import_address_book"
+        const val KEY_KEEP_DAYS = "keep_days"
+        const val KEY_MAX_CHATS = "max_conversations"
     }
 }

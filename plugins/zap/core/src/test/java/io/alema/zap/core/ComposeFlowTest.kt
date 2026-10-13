@@ -11,93 +11,148 @@ class ComposeFlowTest {
     private val noNumber = ZapContact("4", "Zeca", phones = listOf("98765-4321"))
     private val people = listOf(bruno, bruna, leo, noNumber)
 
-    private fun flow() = ComposeFlow({ people }).also { it.open(listOf(leo)) }
+    private val leoChat = ZapConversation(
+        key = "5511987650003", title = "Leo", waDigits = "5511987650003", isGroup = false,
+        messages = listOf(ZapMessage("Leo", "Bora almoçar?", 1_000L), ZapMessage("Leo", "Tô no centro", 2_000L)),
+    )
+    private val family = ZapConversation(
+        key = "Família", title = "Família", waDigits = null, isGroup = true,
+        messages = listOf(ZapMessage("Mãe", "Domingo tem almoço", 3_000L)),
+    )
+
+    private fun flow() = ComposeFlow({ people }, { listOf(leo) }).also { it.open(listOf(family, leoChat)) }
 
     @Test
-    fun `one sentence goes straight to review, and nothing is sent before Send`() {
+    fun `the inbox is home, with new message first`() {
         val f = flow()
-        assertEquals(listOf(Effect.StartListening), f.tap()) // "Speak" row
-        val effects = f.onSpeechFinal("mensagem pro leo tô chegando")
-        assertTrue(effects.none { it is Effect.Send })
-        assertEquals(Step.Review(leo, "Tô chegando"), f.step)
+        assertEquals(Step.Inbox(listOf(family, leoChat)), f.step)
+        assertEquals(3, f.choiceCount())
+        f.tap()
+        assertEquals(Step.NewMessage(listOf(leo)), f.step)
+    }
 
-        val send = f.tap() // Send is the first choice
-        assertEquals(Effect.Send(leo, "5511987650003", "Tô chegando"), send.last())
-        assertTrue(f.step is Step.Sending)
+    @Test
+    fun `open a conversation, listen again, reply`() {
+        val f = flow()
+        f.move(2) // Leo's chat
+        f.tap()
+        assertEquals(Step.Thread(leoChat), f.step)
+
+        f.move(1) // Listen again
+        assertEquals(listOf(Effect.SpeakMessage(ZapMessage("Leo", "Tô no centro", 2_000L))), f.tap())
+
+        f.move(-1) // Reply
+        assertEquals(Effect.StartListening, f.tap().last())
+        f.onSpeechFinal("chego em dez minutos")
+        val review = f.step as Step.Review
+        assertEquals("5511987650003", review.recipient.digits)
+        assertEquals("5511987650003", review.recipient.conversationKey)
+        assertEquals("Chego em dez minutos", review.body)
+
+        val effects = f.tap() // Send
+        assertEquals(Effect.Send(review.recipient, "Chego em dez minutos"), effects.last())
         f.onSendOutcome(SendOutcome.SENT)
         assertEquals(SendOutcome.SENT, (f.step as Step.Done).outcome)
     }
 
     @Test
-    fun `tapping a person from the list asks only for the message`() {
+    fun `a group without a live reply says to answer on the phone`() {
         val f = flow()
-        f.move(1) // first person in the shortlist
-        f.tap()
-        assertEquals(Step.Listening(leo), f.step)
-        f.onSpeechFinal("já vou")
-        assertEquals(Step.Review(leo, "Já vou"), f.step)
-    }
-
-    @Test
-    fun `listen speaks the draft and keeps it`() {
-        val f = flow()
-        f.tap()
-        f.onSpeechFinal("leo tô chegando")
         f.move(1)
-        assertEquals(listOf(Effect.Speak(leo, "Tô chegando")), f.tap())
-        assertTrue(f.step is Step.Review)
+        f.tap()
+        f.tap() // Reply
+        assertEquals(Note.REPLY_ON_PHONE, (f.step as Step.Done).note)
     }
 
     @Test
-    fun `say it again re-listens for the same person`() {
+    fun `a group with a live reply can be answered`() {
+        val f = ComposeFlow({ people }).also { it.open(listOf(family.copy(canReplyLive = true))) }
+        f.move(1)
+        f.tap()
+        assertEquals(Effect.StartListening, f.tap().last())
+    }
+
+    @Test
+    fun `new message by voice in one sentence, nothing sent before Send`() {
+        val f = flow()
+        f.tap() // New message
+        f.tap() // Say the name
+        val effects = f.onSpeechFinal("mensagem pro leo tô chegando")
+        assertTrue(effects.none { it is Effect.Send })
+        assertEquals(Step.Review(Recipient.of(leo), "Tô chegando"), f.step)
+    }
+
+    @Test
+    fun `new message to someone from the recent list asks only for the text`() {
         val f = flow()
         f.tap()
-        f.onSpeechFinal("leo tô chegando")
-        f.move(2)
-        val effects = f.tap()
-        assertEquals(listOf(Effect.StopSpeaking, Effect.StartListening), effects)
-        assertEquals(Step.Listening(leo), f.step)
+        f.move(1)
+        f.tap()
+        assertEquals(Step.Listening(Recipient.of(leo)), f.step)
+    }
+
+    @Test
+    fun `Marcos finds Marcus`() {
+        val marcus = ZapContact("9", "Marcus Alemão", waIds = listOf("5511900000009"))
+        val f = ComposeFlow({ listOf(marcus, bruno) }).also { it.open(emptyList()) }
+        f.tap()
+        f.tap()
+        f.onSpeechFinal("mensagem pro marcos teste")
+        assertEquals(Step.Review(Recipient.of(marcus), "Teste"), f.step)
     }
 
     @Test
     fun `an ambiguous name asks which one and keeps the message`() {
         val f = flow()
         f.tap()
+        f.tap()
         f.onSpeechFinal("mensagem pra brun: oi")
         val pick = f.step as Step.Pick
         assertTrue(bruno in pick.choices && bruna in pick.choices)
         f.move(pick.choices.indexOf(bruna))
         f.tap()
-        assertEquals(Step.Review(bruna, "Oi"), f.step)
+        assertEquals(Step.Review(Recipient.of(bruna), "Oi"), f.step)
     }
 
     @Test
     fun `unknown name and missing number end with a reason, not a guess`() {
         val f = flow()
-        f.tap()
+        f.tap(); f.tap()
         f.onSpeechFinal("mensagem pro joaquim oi")
         assertEquals(Note.NO_CONTACT, (f.step as Step.Done).note)
 
         val g = flow()
-        g.tap()
+        g.tap(); g.tap()
         g.onSpeechFinal("mensagem pro zeca: oi")
         assertEquals(Note.NO_NUMBER, (g.step as Step.Done).note)
     }
 
     @Test
-    fun `back stops listening and returns home, back at home closes`() {
+    fun `back returns to where the wearer came from`() {
         val f = flow()
-        f.tap()
+        f.move(2); f.tap() // thread
+        f.tap() // reply → listening
         assertEquals(listOf(Effect.StopListening), f.back())
-        assertEquals(Step.Home(listOf(leo)), f.step)
+        assertEquals(Step.Thread(leoChat), f.step)
+        f.back()
+        assertTrue(f.step is Step.Inbox)
         assertEquals(listOf(Effect.Close), f.back())
+    }
+
+    @Test
+    fun `a new message refreshes the open thread`() {
+        val f = flow()
+        f.move(2); f.tap()
+        val updated = leoChat.copy(messages = leoChat.messages + ZapMessage("Leo", "Cadê você?", 4_000L))
+        f.refresh(listOf(updated, family))
+        assertEquals(Step.Thread(updated), f.step)
     }
 
     @Test
     fun `a locked phone reports waiting, then sent`() {
         val f = flow()
-        f.tap()
-        f.onSpeechFinal("leo: oi")
+        f.move(2); f.tap(); f.tap()
+        f.onSpeechFinal("oi")
         f.tap()
         f.onSendOutcome(SendOutcome.WAITING_FOR_UNLOCK)
         f.onSendOutcome(SendOutcome.SENT)
@@ -107,7 +162,7 @@ class ComposeFlowTest {
     @Test
     fun `silence is reported`() {
         val f = flow()
-        f.tap()
+        f.tap(); f.tap()
         f.onSpeechFinal("  ")
         assertEquals(Note.NO_SPEECH, (f.step as Step.Done).note)
     }

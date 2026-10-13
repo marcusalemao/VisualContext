@@ -1,6 +1,5 @@
 package io.alema.zap
 
-import android.app.Notification
 import android.content.Context
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
@@ -66,26 +65,38 @@ internal class ZapPeople(context: Context) {
 }
 
 /**
- * Watches WhatsApp notifications only to learn who wrote (see [ZapPeople]).
+ * Watches WhatsApp notifications (and only WhatsApp's) to build the inbox
+ * and learn who wrote.
  *
  * WhatsApp gives each chat a conversation shortcut whose id is the WhatsApp id
- * ("5511…@s.whatsapp.net"); group chats end in "@g.us" and are skipped, since a
- * group cannot be opened from a link. To confirm on the device: if a WhatsApp
- * build stops exposing the id there, this learns nothing and the address-book
- * import still works.
+ * ("5511…@s.whatsapp.net"; groups end in "@g.us"). One-to-one chats feed the
+ * people list with name and number; their messages go to the encrypted
+ * inbox. To confirm on the device: if a WhatsApp build stops exposing that
+ * id, chats are keyed by title and Reply works only while the notification
+ * is live.
  */
 class ZapNotificationListener : NotificationListenerService() {
+    override fun onListenerConnected() {
+        // After a restart the live reply tokens are gone; rebuild them from what is still showing.
+        runCatching { activeNotifications }.getOrNull()?.forEach { capture(it) }
+    }
+
+    override fun onListenerDisconnected() {
+        ZapInbox.releaseAll()
+        super.onListenerDisconnected()
+    }
+
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
-        sbn ?: return
+        capture(sbn ?: return)
+    }
+
+    override fun onNotificationRemoved(sbn: StatusBarNotification?) {
+        ZapInbox.released(sbn ?: return)
+    }
+
+    private fun capture(sbn: StatusBarNotification) {
         if (sbn.packageName != WhatsAppLink.PACKAGE && sbn.packageName != WhatsAppLink.BUSINESS_PACKAGE) return
-        val notification = sbn.notification ?: return
-        if (notification.flags and Notification.FLAG_GROUP_SUMMARY != 0) return
-        val extras = notification.extras ?: return
-        if (extras.getBoolean(Notification.EXTRA_IS_GROUP_CONVERSATION, false)) return
-        val digits = notification.shortcutId?.let(PhoneNumbers::fromWhatsAppJid) ?: return
-        val name = extras.getCharSequence(Notification.EXTRA_CONVERSATION_TITLE)?.toString()
-            ?: extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()
-            ?: return
-        ZapPeople(this).remember(digits, name)
+        val chat = ZapInbox.capture(this, sbn) ?: return
+        if (!chat.isGroup) chat.waDigits?.let { ZapPeople(this).remember(it, chat.title) }
     }
 }

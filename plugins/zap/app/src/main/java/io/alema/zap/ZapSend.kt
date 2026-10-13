@@ -12,6 +12,7 @@ import android.os.Looper
 import android.provider.Settings
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import io.alema.zap.core.Recipient
 import io.alema.zap.core.SendOutcome
 import io.alema.zap.core.WhatsAppLink
 
@@ -31,6 +32,21 @@ internal object ZapSender {
         }
 
     fun canStartFromBackground(context: Context): Boolean = Settings.canDrawOverlays(context)
+
+    /**
+     * One Reply, two routes the wearer never sees: WhatsApp's own reply action
+     * while the notification is alive, otherwise the chat reopened with the
+     * text typed (and pressed Send by the helper, when enabled).
+     */
+    fun deliver(context: Context, recipient: Recipient, text: String, onDone: (SendOutcome) -> Unit) {
+        val key = recipient.conversationKey
+        if (key != null && ZapInbox.replyLive(context, key, text)) return onDone(SendOutcome.SENT)
+        val digits = recipient.digits ?: return onDone(SendOutcome.FAILED)
+        send(context, digits, text) { outcome ->
+            if (outcome == SendOutcome.SENT) ZapInbox.recordSent(context, key, text)
+            onDone(outcome)
+        }
+    }
 
     fun send(context: Context, digits: String, text: String, onDone: (SendOutcome) -> Unit) {
         val pkg = whatsAppPackage(context) ?: return onDone(SendOutcome.NOT_INSTALLED)
