@@ -242,7 +242,7 @@ class ZapPluginService : NexusPluginService() {
             }
             if (step.shortlist.isEmpty()) add(NexusCardLine(text = text.emptyPeople, tone = NexusRowTone.DIM))
         }
-        return NexusCard(title = text.appTitle, lines = emptyList(), richLines = rows, subtitle = text.newMessage)
+        return NexusCard(title = text.newMessage, lines = emptyList(), richLines = rows)
     }
 
     private fun doneCard(step: Step.Done): NexusCard {
