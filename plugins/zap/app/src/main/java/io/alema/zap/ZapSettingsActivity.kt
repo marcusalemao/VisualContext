@@ -91,8 +91,8 @@ class ZapSettingsActivity : Activity() {
         val nexus = packageManager.getLaunchIntentForPackage(NEXUS_PACKAGE)
         val voiceRow = row(
             if (pt) "Voz: ditar e ouvir" else "Voice: dictate and listen",
-            if (pt) "O Zap usa a voz configurada no Rokid Nexus, para entender o que você fala e para ler as mensagens em voz alta. Se não estiver funcionando, escolha e teste um motor de voz nos ajustes do Nexus."
-            else "Zap uses the voice set up in Rokid Nexus, both to understand what you say and to read messages aloud. If it is not working, choose and test a voice engine in Nexus settings.",
+            if (pt) "O Zap usa a voz configurada no Rokid Nexus. Para entender o que você fala: Settings › Glasses › Speech (teste em \"Try it\"). Para ler as mensagens em voz alta: Settings › Glasses › Voice (teste em \"Hear it\"). Se algum não funcionar, troque ali."
+            else "Zap uses the voice set up in Rokid Nexus. To understand what you say: Settings › Glasses › Speech (test it under \"Try it\"). To read messages aloud: Settings › Glasses › Voice (test it with \"Hear it\"). If either does not work, change it there.",
             null,
         )
         if (nexus != null) {

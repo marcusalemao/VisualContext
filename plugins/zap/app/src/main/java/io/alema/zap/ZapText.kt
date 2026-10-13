@@ -34,7 +34,7 @@ internal class ZapText(private val pt: Boolean = Locale.getDefault().language ==
      * the wearer configured in Rokid Nexus. When either fails, point there —
      * without recommending a provider; that choice is the wearer's.
      */
-    val voiceHelp get() = if (pt) "Confira a voz nos ajustes do Rokid Nexus" else "Check voice in Rokid Nexus settings"
+    val voiceHelp get() = if (pt) "Confira Speech e Voice nos ajustes do Nexus" else "Check Speech and Voice in Nexus settings"
     val tryAgain get() = if (pt) "Tentar de novo" else "Try again"
 
     /** What the glasses say for "Listen": the recipient, then the message. */
