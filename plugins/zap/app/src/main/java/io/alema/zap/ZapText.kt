@@ -92,6 +92,13 @@ internal class ZapSettings(context: Context) {
         prefs.edit().putInt(KEY_MAX_CHATS, count).apply()
     }
 
+    /** A short notice on the glasses when a WhatsApp message arrives. On by default. */
+    fun announceArrivals(): Boolean = prefs.getBoolean(KEY_ANNOUNCE, true)
+
+    fun setAnnounceArrivals(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_ANNOUNCE, enabled).apply()
+    }
+
     /** Off by default: the people list starts from who messaged you, no contacts permission. */
     fun importAddressBook(): Boolean = prefs.getBoolean(KEY_IMPORT, false)
 
@@ -101,6 +108,7 @@ internal class ZapSettings(context: Context) {
 
     private companion object {
         const val KEY_IMPORT = "import_address_book"
+        const val KEY_ANNOUNCE = "announce_arrivals"
         const val KEY_KEEP_DAYS = "keep_days"
         const val KEY_MAX_CHATS = "max_conversations"
     }

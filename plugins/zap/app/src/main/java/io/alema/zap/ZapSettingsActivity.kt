@@ -165,6 +165,15 @@ class ZapSettingsActivity : Activity() {
         }
 
         section(t("Conversas", "Chats"))
+        switchCard(
+            title = t("Avisar nos óculos quando chegar", "Show a notice when a message arrives"),
+            subtitle = t(
+                "Quem escreveu e o começo da mensagem, por 4 segundos. Se o Relay também avisa o WhatsApp, desligue um dos dois.",
+                "Who wrote and the start of the message, for 4 seconds. If Relay also shows WhatsApp, turn one of them off.",
+            ),
+            checked = settings.announceArrivals(),
+        ) { settings.setAnnounceArrivals(it) }
+        gap(8)
         choiceCard(
             title = t("Guardar mensagens por", "Keep messages for"),
             subtitle = t("Só neste celular, criptografadas", "Only on this phone, encrypted"),

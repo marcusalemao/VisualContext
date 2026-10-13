@@ -62,6 +62,8 @@ class ZapPluginService : NexusPluginService() {
     private var unobserveInbox: (() -> Unit)? = null
 
     override fun onNexusOpen() {
+        ZapNotifier.inboxOpen = true
+        ZapNotifier.release()
         contacts = ZapContacts(this)
         flow = ComposeFlow(
             directory = { contacts.directory() },
@@ -78,6 +80,7 @@ class ZapPluginService : NexusPluginService() {
     }
 
     override fun onNexusClose() {
+        ZapNotifier.inboxOpen = false
         unobserveInbox?.invoke()
         unobserveInbox = null
         stopListening()

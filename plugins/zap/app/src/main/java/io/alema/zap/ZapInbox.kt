@@ -40,6 +40,7 @@ internal object ZapInbox {
     private const val TAG = "ZapInbox"
     private const val FILE = "inbox.bin"
     private const val KEY_ALIAS = "zap_inbox"
+    private const val FRESH_MS = 2 * 60_000L
 
     private val main = Handler(Looper.getMainLooper())
     private val lock = Any()
@@ -74,12 +75,22 @@ internal object ZapInbox {
 
     // --- capture --------------------------------------------------------------
 
-    /** Called for every WhatsApp notification. Returns the chat it updated, if any. */
-    fun capture(context: Context, sbn: StatusBarNotification): ZapConversation? {
+    /** What a notification changed: the chat, and the newest message from someone else if it is new. */
+    data class Captured(val chat: ZapConversation, val fresh: ZapMessage?)
+
+    /** Called for every WhatsApp notification. Returns what it updated, if anything. */
+    fun capture(context: Context, sbn: StatusBarNotification): Captured? {
         val incoming = parse(sbn) ?: return null
         val action = replyAction(sbn.notification)
+        var fresh: ZapMessage? = null
         synchronized(lock) {
             ensureLoaded(context)
+            val before = chats[incoming.key]?.lastTimeMs ?: 0L
+            // "New" = from someone else, newer than what was stored, and recent:
+            // a listener reconnect replays old notifications that must not ring again.
+            fresh = incoming.messages
+                .filter { it.sender != ME && it.timeMs > before && System.currentTimeMillis() - it.timeMs < FRESH_MS }
+                .maxByOrNull { it.timeMs }
             val merged = InboxRules.merge(chats[incoming.key], incoming)
             chats.remove(incoming.key)
             chats[incoming.key] = merged
@@ -87,7 +98,7 @@ internal object ZapInbox {
             save(context)
         }
         notifyChanged()
-        return incoming
+        return Captured(incoming, fresh)
     }
 
     /** The notification is gone (read on the phone, dismissed): Reply falls back to reopening the chat. */
