@@ -304,7 +304,11 @@ class ZapPluginService : NexusPluginService() {
                     ),
                 )
             }
-            if (step.conversations.isEmpty()) add(NexusCardLine(text = text.emptyInbox, tone = NexusRowTone.DIM))
+            if (step.conversations.isEmpty()) {
+                // The commonest empty inbox is a missing permission, not a quiet phone: say which.
+                val message = if (ZapSendService.isNotificationAccessGranted(this@ZapPluginService)) text.emptyInbox else text.noAccess
+                add(NexusCardLine(text = message, tone = if (message == text.noAccess) NexusRowTone.ALERT else NexusRowTone.DIM))
+            }
         }
         return NexusCard(title = text.inboxTitle, lines = emptyList(), richLines = rows)
     }

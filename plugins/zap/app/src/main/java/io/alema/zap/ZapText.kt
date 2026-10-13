@@ -15,6 +15,7 @@ internal class ZapText(private val pt: Boolean = Locale.getDefault().language ==
     val listening get() = if (pt) "Ouvindo…" else "Listening…"
     val inboxTitle get() = if (pt) "Conversas" else "Chats"
     val emptyInbox get() = if (pt) "As conversas aparecem aqui quando chegarem mensagens" else "Chats appear here as messages arrive"
+    val noAccess get() = if (pt) "Zap sem acesso às notificações: libere nos ajustes do Zap, no celular" else "Zap can't see notifications: allow it in Zap's settings on the phone"
     val sayName get() = if (pt) "Dizer o nome" else "Say the name"
     val noRecent get() = if (pt) "Ainda sem contatos recentes" else "No recent contacts yet"
     val reply get() = if (pt) "Responder" else "Reply"
@@ -56,6 +57,20 @@ internal class ZapText(private val pt: Boolean = Locale.getDefault().language ==
     companion object {
         fun of(@Suppress("UNUSED_PARAMETER") context: Context) = ZapText()
     }
+}
+
+/**
+ * Two timestamps that tell apart "Android never hands Zap a WhatsApp
+ * notification" (access off, or restricted) from "it does, but Zap could not
+ * read it" — the first question when the inbox stays empty.
+ */
+internal class ZapHealth(context: Context) {
+    private val prefs = context.getSharedPreferences("zap_health", Context.MODE_PRIVATE)
+
+    fun sawWhatsApp() = prefs.edit().putLong("seen", System.currentTimeMillis()).apply()
+    fun captured() = prefs.edit().putLong("captured", System.currentTimeMillis()).apply()
+    fun lastSeen(): Long = prefs.getLong("seen", 0L)
+    fun lastCaptured(): Long = prefs.getLong("captured", 0L)
 }
 
 internal class ZapSettings(context: Context) {

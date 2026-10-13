@@ -103,6 +103,27 @@ class ZapSettingsActivity : Activity() {
             },
             intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS),
         )
+        if (notifications) {
+            val health = ZapHealth(this)
+            val chats = ZapInbox.list(this).size
+            infoCard(
+                t("Conferência", "Check"),
+                when {
+                    health.lastSeen() == 0L -> t(
+                        "Nenhuma notificação do WhatsApp chegou ao Zap ainda. Peça para alguém te mandar uma mensagem (mensagens para você mesmo não geram notificação). Se mesmo assim nada aparecer, desligue e ligue de novo \"Saber quem te escreve\".",
+                        "No WhatsApp notification has reached Zap yet. Ask someone to message you (messages to yourself don't notify). If still nothing, turn \"Know who messages you\" off and on again.",
+                    )
+                    health.lastCaptured() == 0L -> t(
+                        "O WhatsApp avisou o Zap às ${time(health.lastSeen())}, mas o Zap não conseguiu ler a mensagem. Me mande um print desta tela.",
+                        "WhatsApp notified Zap at ${time(health.lastSeen())}, but Zap couldn't read the message. Send me a screenshot of this screen.",
+                    )
+                    else -> t(
+                        "Funcionando. Última mensagem às ${time(health.lastCaptured())}; $chats conversa(s) guardada(s).",
+                        "Working. Last message at ${time(health.lastCaptured())}; $chats chat(s) saved.",
+                    )
+                },
+            )
+        }
         val autoSend = ZapSendService.isEnabled(this)
         accessCard(
             granted = autoSend,
@@ -305,6 +326,9 @@ class ZapSettingsActivity : Activity() {
         )
         gap(8)
     }
+
+    private fun time(ms: Long): String =
+        java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date(ms))
 
     private fun t(portuguese: String, english: String) = if (pt) portuguese else english
 

@@ -96,7 +96,10 @@ class ZapNotificationListener : NotificationListenerService() {
 
     private fun capture(sbn: StatusBarNotification) {
         if (sbn.packageName != WhatsAppLink.PACKAGE && sbn.packageName != WhatsAppLink.BUSINESS_PACKAGE) return
+        val health = ZapHealth(this)
+        health.sawWhatsApp()
         val chat = ZapInbox.capture(this, sbn) ?: return
+        health.captured()
         if (!chat.isGroup) chat.waDigits?.let { ZapPeople(this).remember(it, chat.title) }
     }
 }
