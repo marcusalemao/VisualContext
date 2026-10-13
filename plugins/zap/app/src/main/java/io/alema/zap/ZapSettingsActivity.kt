@@ -114,7 +114,7 @@ class ZapSettingsActivity : Activity() {
         val notifications = ZapSendService.isNotificationAccessGranted(this)
         accessCard(
             granted = notifications,
-            title = t("Saber quem te escreve", "Know who messages you"),
+            title = t("Acesso às notificações", "Notification access"),
             body = if (notifications) {
                 t("Ligado. Quem te manda mensagem no WhatsApp entra na sua lista do Zap.", "On. People who message you on WhatsApp join your Zap list.")
             } else {
@@ -132,8 +132,8 @@ class ZapSettingsActivity : Activity() {
                 t("Conferência", "Check"),
                 when {
                     health.lastSeen() == 0L -> t(
-                        "Nenhuma notificação do WhatsApp chegou ao Zap ainda. Peça para alguém te mandar uma mensagem (mensagens para você mesmo não geram notificação). Se mesmo assim nada aparecer, desligue e ligue de novo \"Saber quem te escreve\".",
-                        "No WhatsApp notification has reached Zap yet. Ask someone to message you (messages to yourself don't notify). If still nothing, turn \"Know who messages you\" off and on again.",
+                        "Nenhuma notificação do WhatsApp chegou ao Zap ainda. Peça para alguém te mandar uma mensagem (mensagens para você mesmo não geram notificação). Se mesmo assim nada aparecer, desligue e ligue de novo o acesso às notificações do Zap.",
+                        "No WhatsApp notification has reached Zap yet. Ask someone to message you (messages to yourself don't notify). If still nothing, turn Zap's notification access off and on again.",
                     )
                     health.lastCaptured() == 0L -> t(
                         "O WhatsApp avisou o Zap às ${time(health.lastSeen())}, mas o Zap não conseguiu ler a mensagem. Me mande um print desta tela.",
