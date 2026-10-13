@@ -1,6 +1,18 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
 }
+
+/**
+ * Release signing lives outside the repo: ~/.zap/signing.properties (or the
+ * ZAP_* environment variables). Never commit the keystore or its passwords.
+ */
+val signing = Properties().apply {
+    val file = File(System.getProperty("user.home"), ".zap/signing.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+fun secret(key: String): String? = System.getenv(key) ?: signing.getProperty(key)
 
 android {
     namespace = "io.alema.zap"
@@ -11,8 +23,33 @@ android {
         // Nexus phone hub supports Android 11+; do not ask for more.
         minSdk = 30
         targetSdk = 36
-        versionCode = 9
-        versionName = "0.3.1"
+        versionCode = 10
+        versionName = "0.3.2"
+    }
+
+    signingConfigs {
+        create("release") {
+            secret("ZAP_KEYSTORE")?.let { storeFile = File(it) }
+            storePassword = secret("ZAP_KEYSTORE_PASSWORD")
+            keyAlias = secret("ZAP_KEY_ALIAS")
+            keyPassword = secret("ZAP_KEY_PASSWORD")
+        }
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release").takeIf { secret("ZAP_KEYSTORE") != null }
+        }
+    }
+
+    // Same app, two packagings: "site" (download page; has a phone launcher icon) and
+    // "nexus" (RokidBrew registry; no launcher icon, which the registry rejects).
+    // Same id and key, so either installs over the other without losing data.
+    flavorDimensions += "channel"
+    productFlavors {
+        create("site") { dimension = "channel" }
+        create("nexus") { dimension = "channel" }
     }
 
     buildFeatures {

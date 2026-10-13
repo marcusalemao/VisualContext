@@ -22,12 +22,13 @@
 
     <application
         android:allowBackup="false"
-        android:icon="@drawable/nexus_glyph_zap"
+        android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.Zap">
 
-        <!-- Settings only; no launcher entry, as the Nexus registry requires. -->
+        <!-- Settings. The Nexus build has no launcher entry (the registry rejects one);
+             the site build adds one in src/site/AndroidManifest.xml. -->
         <activity
             android:name=".ZapSettingsActivity"
             android:exported="true" />
