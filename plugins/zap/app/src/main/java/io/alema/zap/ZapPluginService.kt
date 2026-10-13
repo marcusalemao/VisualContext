@@ -6,6 +6,7 @@ import android.util.Log
 import android.view.KeyEvent
 import com.anezium.rokidbus.client.plugin.NexusCard
 import com.anezium.rokidbus.client.plugin.NexusCardLine
+import com.anezium.rokidbus.client.plugin.NexusImage
 import com.anezium.rokidbus.client.plugin.NexusPluginService
 import com.anezium.rokidbus.client.plugin.NexusRowTone
 import com.anezium.rokidbus.client.plugin.NexusSdkResult
@@ -242,8 +243,16 @@ class ZapPluginService : NexusPluginService() {
 
     // --- drawing ---------------------------------------------------------
 
+    /** True while the glasses show a photo: going back to a card then needs show, not update. */
+    private var showingPhoto = false
+
     private fun render(show: Boolean = false) {
-        val card = when (val step = flow.step) {
+        val step0 = flow.step
+        if (step0 is Step.Photo) {
+            showPhoto(step0)
+            return
+        }
+        val card = when (val step = step0) {
             is Step.Inbox -> inboxCard(step)
             is Step.Thread -> threadCard(step.conversation)
             is Step.NewMessage -> newMessageCard(step)
@@ -292,9 +301,11 @@ class ZapPluginService : NexusPluginService() {
                 handlesBack = true,
             )
             is Step.Done -> doneCard(step)
+            is Step.Photo -> return
         }
         val current = surface ?: return
-        if (show) current.showCard(card) else current.updateCard(card)
+        if (show || showingPhoto) current.showCard(card) else current.updateCard(card)
+        showingPhoto = false
     }
 
     /** Home: "New message", then one row per chat — name on top, last message under it. */
@@ -331,7 +342,8 @@ class ZapPluginService : NexusPluginService() {
                     ),
                 )
             }
-            listOf(text.reply, text.listenAgain).forEachIndexed { index, label ->
+            val choices = listOf(text.reply, text.listenAgain) + listOfNotNull(text.seePhotos(chat.photos.size).takeIf { chat.photos.isNotEmpty() })
+            choices.forEachIndexed { index, label ->
                 add(NexusCardLine(text = label, selected = flow.selected == index))
             }
             if (ttsProblem) add(NexusCardLine(text = text.voiceHelp, tone = NexusRowTone.DIM))
@@ -350,6 +362,45 @@ class ZapPluginService : NexusPluginService() {
         }
         return NexusCard(title = text.newMessage, lines = emptyList(), richLines = rows, handlesBack = true)
     }
+
+    /** One photo, full screen; swipe for the others in this chat. */
+    private fun showPhoto(step: Step.Photo) {
+        val current = surface ?: return
+        val message = step.message
+        val photo = message.image?.let { ZapPhotos.load(this, it) }
+        if (photo == null) {
+            current.showCard(
+                NexusCard(
+                    title = fitTitle(step.conversation.title),
+                    lines = emptyList(),
+                    richLines = listOf(NexusCardLine(text = text.photoGone, tone = NexusRowTone.DIM)),
+                    handlesBack = true,
+                ),
+            )
+            showingPhoto = true // the next card must be shown, not updated
+            return
+        }
+        val caption = message.text.takeIf { it.isNotBlank() && it != ZapInbox.PHOTO }
+        val image = NexusImage(
+            contentKey = "zap-${message.image}",
+            mimeType = "image/jpeg",
+            pixelWidth = photo.width,
+            pixelHeight = photo.height,
+            title = fitTitle(if (step.conversation.isGroup) "${step.conversation.title} · ${senderLabel(message)}" else senderLabel(message)).take(120),
+            caption = caption?.take(240),
+            footer = if (step.conversation.photos.size > 1) "${step.index + 1}/${step.conversation.photos.size}" else null,
+            handlesBack = true,
+        )
+        val result = if (showingPhoto) current.updateImage(image, photo.bytes) else current.showImage(image, photo.bytes)
+        showingPhoto = true
+        // Swiping fast can outrun the glasses' image rate limit: show the photo the wearer stopped on.
+        if (result == NexusSdkResult.IMAGE_RATE_LIMITED) {
+            main.removeCallbacks(retryPhoto)
+            main.postDelayed(retryPhoto, PHOTO_RETRY_MS)
+        }
+    }
+
+    private val retryPhoto = Runnable { (flow.step as? Step.Photo)?.let { showPhoto(it) } }
 
     private fun senderLabel(message: ZapMessage): String =
         if (message.sender == ZapInbox.ME) text.me else message.sender
@@ -414,5 +465,6 @@ class ZapPluginService : NexusPluginService() {
         const val LIST_CHARS = 26
         const val PREVIEW_CHARS = 40
         const val THREAD_MESSAGES = 6
+        const val PHOTO_RETRY_MS = 450L
     }
 }

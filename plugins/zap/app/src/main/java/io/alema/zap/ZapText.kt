@@ -21,6 +21,12 @@ internal class ZapText(private val pt: Boolean = Locale.getDefault().language ==
     val reply get() = if (pt) "Responder" else "Reply"
     val listenAgain get() = if (pt) "Ouvir de novo" else "Listen again"
     val me get() = if (pt) "Você" else "You"
+    fun seePhotos(count: Int) = when {
+        count <= 1 -> if (pt) "Ver foto" else "See photo"
+        pt -> "Ver fotos ($count)"
+        else -> "See photos ($count)"
+    }
+    val photoGone get() = if (pt) "Esta foto não está mais guardada no celular" else "This photo is no longer saved on the phone"
     val replyOnPhone get() = if (pt) "Responda este grupo pelo celular" else "Answer this group on the phone"
     fun heard(sender: String, text: String) = "$sender: $text"
     fun pickTitle(name: String) = if (pt) "Qual ${capitalized(name)}?" else "Which ${capitalized(name)}?"

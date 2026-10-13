@@ -52,6 +52,9 @@ internal object ZapInbox {
     /** "You" as a sender: WhatsApp leaves the sender empty on the wearer's own messages. */
     const val ME = ""
 
+    /** Text for a photo sent without a caption. */
+    const val PHOTO = "📷 Foto"
+
     fun list(context: Context): List<ZapConversation> = synchronized(lock) {
         ensureLoaded(context)
         val settings = ZapSettings(context)
@@ -69,6 +72,7 @@ internal object ZapInbox {
             chats.clear()
             liveReplies.clear()
             File(context.filesDir, FILE).delete()
+            ZapPhotos.clear(context)
         }
         notifyChanged()
     }
@@ -80,7 +84,7 @@ internal object ZapInbox {
 
     /** Called for every WhatsApp notification. Returns what it updated, if anything. */
     fun capture(context: Context, sbn: StatusBarNotification): Captured? {
-        val parsed = parse(sbn) ?: return null
+        val parsed = parse(context, sbn) ?: return null
         // No number in WhatsApp's id (private "@lid" ids): ask the notification's sender link and the address book.
         val incoming = if (parsed.isGroup || parsed.waDigits != null) parsed else {
             parsed.copy(waDigits = ZapContacts(context).digitsFor(senderUri(sbn.notification.extras), parsed.title))
@@ -181,7 +185,7 @@ internal object ZapInbox {
         return ZapPeople.cleanName(raw).ifBlank { null }
     }
 
-    private fun parse(sbn: StatusBarNotification): ZapConversation? {
+    private fun parse(context: Context, sbn: StatusBarNotification): ZapConversation? {
         if (!isWhatsApp(sbn.packageName)) return null
         val n = sbn.notification ?: return null
         if (n.flags and Notification.FLAG_GROUP_SUMMARY != 0) return null
@@ -192,22 +196,30 @@ internal object ZapInbox {
             n.shortcutId?.endsWith("@g.us") == true
         val digits = if (isGroup) null else n.shortcutId?.let(PhoneNumbers::fromWhatsAppJid)
 
-        val messages = messagingStyle(extras, fallbackTimeMs = sbn.postTime)
+        var messages = messagingStyle(context, extras, fallbackTimeMs = sbn.postTime)
             .ifEmpty {
                 val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()?.trim().orEmpty()
                 if (text.isEmpty()) emptyList() else listOf(ZapMessage(title, text, sbn.postTime))
             }
+        // Some builds attach the photo as a big picture instead: it belongs to the newest message.
+        if (messages.isNotEmpty() && messages.none { it.image != null }) {
+            ZapPhotos.fromBigPicture(context, extras)?.let { key ->
+                val newest = messages.maxBy { it.timeMs }
+                messages = messages.map { if (it === newest) it.copy(image = key) else it }
+            }
+        }
         if (messages.isEmpty()) return null
         return ZapConversation(key, title, digits, isGroup, messages)
     }
 
     /** MessagingStyle messages, read from the raw bundles so no support library is needed. */
-    private fun messagingStyle(extras: Bundle, fallbackTimeMs: Long): List<ZapMessage> {
+    private fun messagingStyle(context: Context, extras: Bundle, fallbackTimeMs: Long): List<ZapMessage> {
         @Suppress("DEPRECATION")
         val bundles = extras.getParcelableArray(Notification.EXTRA_MESSAGES) ?: return emptyList()
         return bundles.mapNotNull { item ->
             val b = item as? Bundle ?: return@mapNotNull null
-            val text = b.getCharSequence("text")?.toString()?.trim().orEmpty()
+            val image = ZapPhotos.fromMessage(context, b)
+            val text = b.getCharSequence("text")?.toString()?.trim().orEmpty().ifEmpty { if (image != null) PHOTO else "" }
             if (text.isEmpty()) return@mapNotNull null
             @Suppress("DEPRECATION")
             val person = b.getParcelable<Person>("sender_person")
@@ -218,6 +230,7 @@ internal object ZapInbox {
                 text = text,
                 // A missing time would read as 1970 and be pruned at once.
                 timeMs = b.getLong("time").takeIf { it > 0 } ?: fallbackTimeMs,
+                image = image,
             )
         }
     }
@@ -250,7 +263,7 @@ internal object ZapInbox {
         runCatching {
             val bytes = file.readBytes()
             val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-            cipher.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, bytes.copyOfRange(0, 12)))
+            cipher.init(Cipher.DECRYPT_MODE, secretKey(), GCMParameterSpec(128, bytes.copyOfRange(0, 12)))
             val json = JSONArray(String(cipher.doFinal(bytes.copyOfRange(12, bytes.size)), Charsets.UTF_8))
             for (i in 0 until json.length()) fromJson(json.getJSONObject(i))?.let { chats[it.key] = it }
         }.onFailure { Log.w(TAG, "inbox unreadable, starting empty", it) }
@@ -261,10 +274,11 @@ internal object ZapInbox {
         val kept = InboxRules.prune(chats.values, System.currentTimeMillis(), settings.keepDays(), settings.maxConversations())
         chats.clear()
         kept.asReversed().forEach { chats[it.key] = it }
+        ZapPhotos.keepOnly(context, kept.flatMap { c -> c.messages.mapNotNull { it.image } }.toSet())
         runCatching {
             val plain = JSONArray().apply { kept.forEach { put(toJson(it)) } }.toString().toByteArray(Charsets.UTF_8)
             val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-            cipher.init(Cipher.ENCRYPT_MODE, key())
+            cipher.init(Cipher.ENCRYPT_MODE, secretKey())
             val out = cipher.iv + cipher.doFinal(plain)
             val tmp = File(context.filesDir, "$FILE.tmp")
             tmp.writeBytes(out)
@@ -272,7 +286,8 @@ internal object ZapInbox {
         }.onFailure { Log.w(TAG, "could not save inbox", it) }
     }
 
-    private fun key(): SecretKey {
+    /** The inbox key (Android Keystore). Also encrypts stored photos. */
+    internal fun secretKey(): SecretKey {
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
         (store.getEntry(KEY_ALIAS, null) as? KeyStore.SecretKeyEntry)?.let { return it.secretKey }
         val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
@@ -289,12 +304,16 @@ internal object ZapInbox {
     private fun toJson(c: ZapConversation) = JSONObject()
         .put("key", c.key).put("title", c.title).put("digits", c.waDigits ?: JSONObject.NULL).put("group", c.isGroup)
         .put("messages", JSONArray().apply {
-            c.messages.forEach { put(JSONObject().put("s", it.sender).put("t", it.text).put("at", it.timeMs)) }
+            c.messages.forEach { m ->
+                put(JSONObject().put("s", m.sender).put("t", m.text).put("at", m.timeMs).apply { m.image?.let { put("img", it) } })
+            }
         })
 
     private fun fromJson(o: JSONObject): ZapConversation? = runCatching {
         val messages = o.getJSONArray("messages").let { a ->
-            (0 until a.length()).map { i -> a.getJSONObject(i).let { ZapMessage(it.optString("s"), it.optString("t"), it.optLong("at")) } }
+            (0 until a.length()).map { i ->
+                a.getJSONObject(i).let { ZapMessage(it.optString("s"), it.optString("t"), it.optLong("at"), it.optString("img").ifEmpty { null }) }
+            }
         }
         ZapConversation(
             key = o.getString("key"),

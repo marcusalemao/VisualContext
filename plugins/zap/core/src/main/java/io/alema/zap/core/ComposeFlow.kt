@@ -10,8 +10,13 @@ sealed interface Step {
     /** Home: "New message" first, then the conversations, newest first. */
     data class Inbox(val conversations: List<ZapConversation>) : Step
 
-    /** One conversation open: its last messages, then Reply · Listen again. */
+    /** One conversation open: its last messages, then Reply · Listen again (· See photo, when it has one). */
     data class Thread(val conversation: ZapConversation) : Step
+
+    /** A photo from the conversation, full screen. Swipe for the others; back to the conversation. */
+    data class Photo(val conversation: ZapConversation, val index: Int) : Step {
+        val message: ZapMessage get() = conversation.photos[index]
+    }
 
     /** "Say the name" first, then the people the wearer wrote to or heard from lately. */
     data class NewMessage(val recent: List<ZapContact>) : Step
@@ -104,13 +109,19 @@ class ComposeFlow(
                 step = Step.Thread(it)
                 base = step
             }
+            is Step.Photo -> inbox.firstOrNull { it.key == s.conversation.key }?.let { fresh ->
+                // Keep showing the same photo even if newer ones arrived.
+                val index = fresh.photos.indexOfFirst { it.image == s.message.image }
+                if (index >= 0) step = Step.Photo(fresh, index)
+            }
             else -> Unit
         }
     }
 
     fun choiceCount(): Int = when (val s = step) {
         is Step.Inbox -> 1 + s.conversations.size
-        is Step.Thread -> THREAD_CHOICES
+        is Step.Thread -> if (s.conversation.photos.isEmpty()) THREAD_CHOICES else THREAD_CHOICES + 1
+        is Step.Photo -> s.conversation.photos.size
         is Step.NewMessage -> 1 + s.recent.size
         is Step.Pick -> s.choices.size + 1
         is Step.Review -> REVIEW_CHOICES
@@ -119,6 +130,12 @@ class ComposeFlow(
     }
 
     fun move(delta: Int) {
+        (step as? Step.Photo)?.let { s ->
+            // Photos don't wrap around: the ends are where the conversation's photos end.
+            val next = (s.index + delta).coerceIn(0, s.conversation.photos.size - 1)
+            step = s.copy(index = next)
+            return
+        }
         val count = choiceCount()
         if (count > 0) selected = Math.floorMod(selected + delta, count)
     }
@@ -133,6 +150,10 @@ class ComposeFlow(
         }
         is Step.Thread -> when (selected) {
             THREAD_REPLY -> reply(s.conversation)
+            THREAD_PHOTO -> {
+                go(Step.Photo(s.conversation, s.conversation.photos.size - 1))
+                listOf(Effect.StopSpeaking)
+            }
             else -> s.conversation.last?.let { listOf(Effect.SpeakMessage(it)) } ?: emptyList()
         }
         is Step.NewMessage -> if (selected == 0) {
@@ -146,6 +167,10 @@ class ComposeFlow(
             REVIEW_LISTEN -> listOf(Effect.SpeakDraft(s.recipient, s.body))
             else -> listOf(Effect.StopSpeaking) + listen(s.recipient)
         }
+        is Step.Photo -> {
+            // Tapping a photo reads its caption, if any, like Listen again.
+            if (s.message.text.isNotBlank()) listOf(Effect.SpeakMessage(s.message)) else emptyList()
+        }
         is Step.Done -> if (s.canRetry) {
             listen(s.recipient)
         } else {
@@ -155,8 +180,13 @@ class ComposeFlow(
         is Step.Listening, is Step.Sending -> emptyList()
     }
 
-    fun back(): List<Effect> = when (step) {
+    fun back(): List<Effect> = when (val s = step) {
         is Step.Inbox -> listOf(Effect.Close)
+        is Step.Photo -> {
+            step = Step.Thread(s.conversation)
+            selected = THREAD_PHOTO
+            listOf(Effect.StopSpeaking)
+        }
         is Step.Thread, is Step.NewMessage -> {
             go(Step.Inbox(conversations), asBase = true)
             listOf(Effect.StopSpeaking)
@@ -260,6 +290,7 @@ class ComposeFlow(
     companion object {
         const val THREAD_REPLY = 0
         const val THREAD_LISTEN = 1
+        const val THREAD_PHOTO = 2
         private const val THREAD_CHOICES = 2
         const val REVIEW_SEND = 0
         const val REVIEW_LISTEN = 1

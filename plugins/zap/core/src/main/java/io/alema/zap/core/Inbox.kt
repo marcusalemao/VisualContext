@@ -5,6 +5,8 @@ data class ZapMessage(
     val sender: String,
     val text: String,
     val timeMs: Long,
+    /** Key of a photo stored on the phone (encrypted), when the message carries one. */
+    val image: String? = null,
 )
 
 /**
@@ -25,6 +27,9 @@ data class ZapConversation(
 ) {
     val lastTimeMs: Long get() = messages.maxOfOrNull { it.timeMs } ?: 0L
     val last: ZapMessage? get() = messages.maxByOrNull { it.timeMs }
+
+    /** Messages with a photo, oldest first. */
+    val photos: List<ZapMessage> get() = messages.filter { it.image != null }
 
     /** Something to reply to by voice: live reply, or a number to open a fresh chat with. */
     val canReply: Boolean get() = canReplyLive || waDigits != null
@@ -60,7 +65,7 @@ object InboxRules {
      */
     fun merge(stored: ZapConversation?, incoming: ZapConversation, maxMessages: Int = MAX_MESSAGES): ZapConversation {
         val all = (stored?.messages.orEmpty() + incoming.messages)
-            .distinctBy { Triple(it.sender, it.text, it.timeMs / 60_000) }
+            .distinctBy { listOf(it.sender, it.text, it.timeMs / 60_000, it.image) }
             .sortedBy { it.timeMs }
             .takeLast(maxMessages)
         return incoming.copy(

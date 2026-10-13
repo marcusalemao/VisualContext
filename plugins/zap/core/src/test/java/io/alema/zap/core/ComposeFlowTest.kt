@@ -203,4 +203,34 @@ class ComposeFlowTest {
         f.onSpeechFinal("  ")
         assertEquals(Note.NO_SPEECH, (f.step as Step.Done).note)
     }
+
+    @Test
+    fun `photos open from the conversation, swipe between them, back returns`() {
+        val chat = leoChat.copy(messages = leoChat.messages + listOf(
+            ZapMessage("Leo", "📷 Foto", 5_000L, image = "a"),
+            ZapMessage("Leo", "Olha isso", 6_000L, image = "b"),
+        ))
+        val f = ComposeFlow({ people }).also { it.open(listOf(chat)) }
+        f.move(1); f.tap() // open the chat
+        assertEquals(3, f.choiceCount()) // Reply · Listen again · See photo
+        f.move(ComposeFlow.THREAD_PHOTO)
+        f.tap()
+        assertEquals("b", (f.step as Step.Photo).message.image) // newest first
+        f.move(-1)
+        assertEquals("a", (f.step as Step.Photo).message.image)
+        f.move(-1) // no wrap past the first photo
+        assertEquals("a", (f.step as Step.Photo).message.image)
+        f.back()
+        assertEquals(Step.Thread(chat), f.step)
+        assertEquals(ComposeFlow.THREAD_PHOTO, f.selected)
+    }
+
+    @Test
+    fun `two photos in the same minute are both kept`() {
+        val merged = InboxRules.merge(null, leoChat.copy(messages = listOf(
+            ZapMessage("Leo", "📷 Foto", 60_000L, image = "a"),
+            ZapMessage("Leo", "📷 Foto", 61_000L, image = "b"),
+        )))
+        assertEquals(2, merged.photos.size)
+    }
 }
