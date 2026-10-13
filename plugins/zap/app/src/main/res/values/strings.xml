@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Zap</string>
+    <string name="send_service_label">Zap — enviar pelo WhatsApp</string>
+    <string name="send_service_description">Aperta o botão Enviar do WhatsApp só depois que você confirma uma mensagem nos óculos. Não lê suas conversas e não faz nada sozinho.</string>
+</resources>
