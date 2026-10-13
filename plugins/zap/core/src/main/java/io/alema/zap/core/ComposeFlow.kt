@@ -16,11 +16,14 @@ sealed interface Step {
     /** "Say the name" first, then the people the wearer wrote to or heard from lately. */
     data class NewMessage(val recent: List<ZapContact>) : Step
 
-    /** Listening for "name + message" (no recipient yet) or only the message. */
+    /**
+     * Two separate questions, never one: with no recipient yet it listens for
+     * the name only; with a recipient it listens for the message only.
+     */
     data class Listening(val recipient: Recipient?, val partial: String = "") : Step
 
-    /** The spoken name fits more than one person. */
-    data class Pick(val spoken: String, val choices: List<ZapContact>, val body: String?) : Step
+    /** The name fits more than one person, or fits one only loosely: the wearer picks, or says it again (last row). */
+    data class Pick(val spoken: String, val choices: List<ZapContact>) : Step
 
     /** Send · Listen first · Say it again. */
     data class Review(val recipient: Recipient, val body: String) : Step
@@ -33,8 +36,13 @@ sealed interface Step {
         val outcome: SendOutcome? = null,
         val note: Note? = null,
         val spoken: String? = null,
-    ) : Step
+    ) : Step {
+        /** Nothing reached anyone and asking again could fix it: the one row listens again. */
+        val canRetry: Boolean get() = outcome == null && note in RETRYABLE
+    }
 }
+
+private val RETRYABLE = setOf(Note.NO_SPEECH, Note.NO_CONTACT, Note.SPEECH_UNAVAILABLE)
 
 sealed interface Effect {
     object StartListening : Effect
@@ -104,7 +112,7 @@ class ComposeFlow(
         is Step.Inbox -> 1 + s.conversations.size
         is Step.Thread -> THREAD_CHOICES
         is Step.NewMessage -> 1 + s.recent.size
-        is Step.Pick -> s.choices.size
+        is Step.Pick -> s.choices.size + 1
         is Step.Review -> REVIEW_CHOICES
         is Step.Done -> 1
         is Step.Listening, is Step.Sending -> 0
@@ -130,15 +138,17 @@ class ComposeFlow(
         is Step.NewMessage -> if (selected == 0) {
             listen(null)
         } else {
-            choose(s.recent[selected - 1], body = null)
+            choose(s.recent[selected - 1])
         }
-        is Step.Pick -> choose(s.choices[selected], s.body)
+        is Step.Pick -> if (selected < s.choices.size) choose(s.choices[selected]) else listen(null)
         is Step.Review -> when (selected) {
             REVIEW_SEND -> send(s.recipient, s.body)
             REVIEW_LISTEN -> listOf(Effect.SpeakDraft(s.recipient, s.body))
             else -> listOf(Effect.StopSpeaking) + listen(s.recipient)
         }
-        is Step.Done -> {
+        is Step.Done -> if (s.canRetry) {
+            listen(s.recipient)
+        } else {
             go(Step.Inbox(conversations), asBase = true)
             emptyList()
         }
@@ -177,17 +187,15 @@ class ComposeFlow(
         val recipient = s.recipient
         if (recipient != null) return review(recipient, ComposeParser.tidyBody(text))
 
-        val people = directory()
-        val matcher = ContactMatcher(people)
-        val request = ComposeParser(matcher).parse(text)
-            ?: return done(Step.Done(null, null, note = Note.NO_SPEECH))
+        // Name step: only a name is expected; greetings and trailing words are tolerated.
+        val matcher = ContactMatcher(RecentPeople.withDirectory(recentPeople(), directory(), defaultCountryCode))
+        val (spoken, matches) = matcher.findName(text)
         return when {
-            request.matches.isEmpty() ->
-                done(Step.Done(null, request.body, note = Note.NO_CONTACT, spoken = request.recipient))
-            request.matches.size == 1 || matcher.isConfident(request.matches) ->
-                choose(request.matches.first().contact, request.body)
+            matches.isEmpty() -> done(Step.Done(null, null, note = Note.NO_CONTACT, spoken = text.trim()))
+            // One person, clearly: straight to "say the message". Anything else is shown to compare.
+            matches.size == 1 && matcher.isStrong(matches.first()) -> choose(matches.first().contact)
             else -> {
-                go(Step.Pick(request.recipient, request.matches.map { it.contact }, request.body))
+                go(Step.Pick(spoken, matches.map { it.contact }))
                 emptyList()
             }
         }
@@ -215,10 +223,12 @@ class ComposeFlow(
         return listOf(Effect.StopSpeaking) + listen(conversation.recipient())
     }
 
-    private fun choose(contact: ZapContact, body: String?): List<Effect> {
+    private fun choose(contact: ZapContact): List<Effect> {
         val recipient = Recipient.of(contact, defaultCountryCode)
-        if (recipient.digits == null) return done(Step.Done(recipient, body, note = Note.NO_NUMBER))
-        return if (body.isNullOrBlank()) listen(recipient) else review(recipient, body)
+        // Without a number, only a chat whose WhatsApp reply is still live on the phone can be reached.
+        val live = recipient.conversationKey?.let { key -> conversations.any { it.key == key && it.canReplyLive } } == true
+        if (recipient.digits == null && !live) return done(Step.Done(recipient, null, note = Note.NO_NUMBER))
+        return listen(recipient)
     }
 
     private fun listen(recipient: Recipient?): List<Effect> {

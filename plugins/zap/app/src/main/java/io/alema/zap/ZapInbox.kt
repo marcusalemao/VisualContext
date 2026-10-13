@@ -80,7 +80,11 @@ internal object ZapInbox {
 
     /** Called for every WhatsApp notification. Returns what it updated, if anything. */
     fun capture(context: Context, sbn: StatusBarNotification): Captured? {
-        val incoming = parse(sbn) ?: return null
+        val parsed = parse(sbn) ?: return null
+        // No number in WhatsApp's id (private "@lid" ids): ask the notification's sender link and the address book.
+        val incoming = if (parsed.isGroup || parsed.waDigits != null) parsed else {
+            parsed.copy(waDigits = ZapContacts(context).digitsFor(senderUri(sbn.notification.extras), parsed.title))
+        }
         val action = replyAction(sbn.notification)
         var fresh: ZapMessage? = null
         synchronized(lock) {
@@ -215,6 +219,20 @@ internal object ZapInbox {
                 // A missing time would read as 1970 and be pruned at once.
                 timeMs = b.getLong("time").takeIf { it > 0 } ?: fallbackTimeMs,
             )
+        }
+    }
+
+    /** The sender's link, when WhatsApp attaches one ("tel:…" or an address-book contact). */
+    private fun senderUri(extras: Bundle?): String? {
+        extras ?: return null
+        @Suppress("DEPRECATION")
+        val people = extras.getParcelableArrayList<Person>(Notification.EXTRA_PEOPLE_LIST).orEmpty()
+        people.firstNotNullOfOrNull { it.uri }?.let { return it }
+        @Suppress("DEPRECATION")
+        val bundles = extras.getParcelableArray(Notification.EXTRA_MESSAGES) ?: return null
+        return bundles.asList().asReversed().firstNotNullOfOrNull { item ->
+            @Suppress("DEPRECATION")
+            (item as? Bundle)?.getParcelable<Person>("sender_person")?.uri
         }
     }
 

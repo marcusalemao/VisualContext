@@ -25,6 +25,7 @@ import io.alema.zap.core.Note
 import io.alema.zap.core.SendOutcome
 import io.alema.zap.core.Step
 import io.alema.zap.core.Recipient
+import io.alema.zap.core.RecentPeople
 import io.alema.zap.core.ZapConversation
 import io.alema.zap.core.ZapMessage
 
@@ -67,7 +68,8 @@ class ZapPluginService : NexusPluginService() {
         contacts = ZapContacts(this)
         flow = ComposeFlow(
             directory = { contacts.directory() },
-            recentPeople = { contacts.shortlist(contacts.directory(), SHORTLIST) },
+            // Strictly who you talked to lately, newest first — no favourites, no frequency mix.
+            recentPeople = { RecentPeople.build(ZapInbox.list(this), contacts.directory(), SHORTLIST) },
         )
         flow.open(ZapInbox.list(this))
         unobserveInbox = ZapInbox.observe {
@@ -250,7 +252,7 @@ class ZapPluginService : NexusPluginService() {
                 lines = emptyList(),
                 richLines = listOf(
                     NexusCardLine(
-                        text = fit(step.partial.ifBlank { if (step.recipient == null) text.sayWhoAndWhat else text.sayMessage }),
+                        text = fit(step.partial.ifBlank { if (step.recipient == null) text.sayOnlyName else text.sayMessage }),
                         tone = if (step.partial.isBlank()) NexusRowTone.DIM else NexusRowTone.BODY,
                     ),
                 ),
@@ -260,13 +262,14 @@ class ZapPluginService : NexusPluginService() {
             is Step.Pick -> NexusCard(
                 title = fitTitle(text.pickTitle(step.spoken)),
                 lines = emptyList(),
-                richLines = step.choices.take(MAX_ROWS).mapIndexed { index, contact ->
+                richLines = step.choices.take(MAX_ROWS - 1).mapIndexed { index, contact ->
                     NexusCardLine(
-                        text = fit(contact.name),
-                        sub = text.numberHint(contact.target()),
+                        text = fit(contact.name, LIST_CHARS),
+                        // The end of the number tells two people with the same name apart.
+                        sub = text.numberHint(contact.target()) ?: text.fromChat.takeIf { contact.conversationKey != null },
                         selected = index == flow.selected,
                     )
-                },
+                } + NexusCardLine(text = text.sayNameAgain, selected = flow.selected == step.choices.size),
                 handlesBack = true,
             )
             is Step.Review -> NexusCard(
@@ -385,7 +388,7 @@ class ZapPluginService : NexusPluginService() {
             if (BuildConfig.DEBUG && step.note != null) {
                 speechDetail?.let { add(NexusCardLine(text = fit("test: $it"), tone = NexusRowTone.DIM)) }
             }
-            add(NexusCardLine(text = if (problem) text.tryAgain else text.newMessage, selected = true))
+            add(NexusCardLine(text = if (step.canRetry) text.tryAgain else text.backToChats, selected = true))
         }
         return NexusCard(
             title = fitTitle(step.recipient?.let { text.to(it.name) } ?: text.appTitle),

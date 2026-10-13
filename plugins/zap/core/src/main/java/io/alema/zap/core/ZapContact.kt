@@ -17,6 +17,8 @@ data class ZapContact(
     val starred: Boolean = false,
     /** Last time the wearer messaged this person through Zap, epoch ms; 0 if never. */
     val lastUsedMs: Long = 0L,
+    /** The inbox chat with this person, when there is one: lets Zap answer through it even without a number. */
+    val conversationKey: String? = null,
 ) {
     val onWhatsApp: Boolean get() = waIds.isNotEmpty()
 

@@ -41,7 +41,7 @@ data class Recipient(
 ) {
     companion object {
         fun of(contact: ZapContact, defaultCountryCode: String = PhoneNumbers.BRAZIL) =
-            Recipient(contact.name, contact.target(defaultCountryCode), contactId = contact.id)
+            Recipient(contact.name, contact.target(defaultCountryCode), contact.conversationKey, contact.id)
     }
 }
 

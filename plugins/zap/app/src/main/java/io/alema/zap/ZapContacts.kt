@@ -3,6 +3,7 @@ package io.alema.zap
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.provider.ContactsContract
 import io.alema.zap.core.PhoneNumbers
 import io.alema.zap.core.ZapContact
@@ -72,16 +73,53 @@ internal class ZapContacts(private val context: Context) {
         return byId.values.map { it.build(recents.lastUsed(it.id)) }
     }
 
-    /** Recently messaged first, then starred, then everyone else on WhatsApp — the home list. */
-    fun shortlist(all: List<ZapContact>, limit: Int): List<ZapContact> = all
-        .filter { it.onWhatsApp || it.target() != null }
-        .sortedWith(
-            compareByDescending<ZapContact> { it.lastUsedMs }
-                .thenByDescending { it.starred }
-                .thenBy { it.name.lowercase() },
-        )
-        .filter { it.lastUsedMs > 0 || it.starred }
-        .take(limit)
+    /**
+     * The number behind a chat WhatsApp identified without one (newer
+     * WhatsApp builds use private "@lid" ids). Tries the sender's own link
+     * in the notification, then — only with contacts permission — the one
+     * address-book contact with exactly this name. Never guesses between two.
+     */
+    fun digitsFor(personUri: String?, name: String): String? {
+        if (personUri != null && personUri.startsWith("tel:")) {
+            PhoneNumbers.toWhatsAppDigits(Uri.decode(personUri.removePrefix("tel:")))?.let { return it }
+        }
+        if (!hasPermission()) return null
+        val resolver = context.contentResolver
+        val contactId: String? = personUri?.takeIf { it.startsWith("content://") }?.let { uri ->
+            runCatching {
+                resolver.query(Uri.parse(uri), arrayOf(ContactsContract.Contacts._ID), null, null, null)
+                    ?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+            }.getOrNull()
+        }
+        val (selection, args) = if (contactId != null) {
+            "${ContactsContract.Data.CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} IN (?, ?, ?)" to
+                arrayOf(contactId, WHATSAPP_PROFILE, WHATSAPP_BUSINESS_PROFILE, ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
+        } else {
+            "${ContactsContract.Data.DISPLAY_NAME} = ? AND ${ContactsContract.Data.MIMETYPE} IN (?, ?, ?)" to
+                arrayOf(name, WHATSAPP_PROFILE, WHATSAPP_BUSINESS_PROFILE, ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
+        }
+        val found = mutableMapOf<String, MutableList<String>>()
+        runCatching {
+            resolver.query(
+                ContactsContract.Data.CONTENT_URI,
+                arrayOf(ContactsContract.Data.CONTACT_ID, ContactsContract.Data.MIMETYPE, ContactsContract.Data.DATA1),
+                selection, args, null,
+            )?.use { c ->
+                while (c.moveToNext()) {
+                    val id = c.getString(0) ?: continue
+                    val value = c.getString(2) ?: continue
+                    val digits = when (c.getString(1)) {
+                        WHATSAPP_PROFILE, WHATSAPP_BUSINESS_PROFILE -> PhoneNumbers.fromWhatsAppJid(value)
+                        else -> PhoneNumbers.toWhatsAppDigits(value)
+                    } ?: continue
+                    // WhatsApp's own row first: it is a number WhatsApp confirmed.
+                    val list = found.getOrPut(id) { mutableListOf() }
+                    if (c.getString(1) == ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE) list += digits else list.add(0, digits)
+                }
+            }
+        }
+        return found.values.singleOrNull()?.firstOrNull()
+    }
 
     private class Builder(val id: String, val name: String) {
         var starred = false

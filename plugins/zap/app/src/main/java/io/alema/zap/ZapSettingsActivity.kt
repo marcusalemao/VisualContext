@@ -120,7 +120,7 @@ class ZapSettingsActivity : Activity() {
                     else -> t(
                         "Funcionando. Última mensagem às ${time(health.lastCaptured())}; $chats conversa(s) guardada(s).",
                         "Working. Last message at ${time(health.lastCaptured())}; $chats chat(s) saved.",
-                    )
+                    ) + (health.lastIdKind()?.takeIf { BuildConfig.DEBUG }?.let { "\n(id: $it)" } ?: "")
                 },
             )
         }

@@ -98,6 +98,16 @@ class ZapNotificationListener : NotificationListenerService() {
         if (sbn.packageName != WhatsAppLink.PACKAGE && sbn.packageName != WhatsAppLink.BUSINESS_PACKAGE) return
         val health = ZapHealth(this)
         health.sawWhatsApp()
+        val id = sbn.notification?.shortcutId
+        health.sawIdKind(
+            when {
+                id == null -> "title"
+                id.endsWith("@s.whatsapp.net") -> "phone"
+                id.endsWith("@lid") -> "lid"
+                id.endsWith("@g.us") -> "group"
+                else -> "other"
+            },
+        )
         val captured = try {
             ZapInbox.capture(this, sbn)
         } catch (e: RuntimeException) {

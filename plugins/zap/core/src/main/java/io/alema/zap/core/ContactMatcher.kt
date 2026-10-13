@@ -41,6 +41,25 @@ class ContactMatcher(contacts: List<ZapContact>) {
         return best.score - second.score >= MARGIN
     }
 
+    /** Good enough to go on without showing a list, when it is the only candidate. */
+    fun isStrong(match: ContactMatch): Boolean = match.score >= CONFIDENT
+
+    /**
+     * The name step: the wearer was asked for a name only, but people say
+     * "oi Beto" or "Beto, tudo bem". Leading greetings and command words are
+     * dropped, then the longest run of first words that still names someone
+     * wins ("ana paula" before "ana"). Returns what was taken as the name.
+     */
+    fun findName(utterance: String, limit: Int = 5): Pair<String, List<ContactMatch>> {
+        val words = Text.tokens(utterance).dropWhile { it in LEAD_WORDS || it in FILLER }
+        for (n in minOf(words.size, MAX_NAME_WORDS) downTo 1) {
+            val query = words.take(n).joinToString(" ")
+            val found = match(query, limit)
+            if (found.isNotEmpty()) return query to found
+        }
+        return words.joinToString(" ") to emptyList()
+    }
+
     private fun score(query: List<String>, name: List<String>, contact: ZapContact): Double? {
         var total = 0.0
         val used = BooleanArray(name.size)
@@ -79,6 +98,15 @@ class ContactMatcher(contacts: List<ZapContact>) {
             "o", "a", "os", "as", "pro", "pra", "para", "pros", "pras", "ao", "aos", "com",
             "the", "to", "for", "el", "la", "al", "para",
         )
+        /** Said before a name and never part of it: greetings and "send a message to". */
+        val LEAD_WORDS = setOf(
+            "oi", "ola", "ei", "eai", "e", "ai", "opa", "alo", "bom", "boa", "dia", "tarde", "noite",
+            "mensagem", "manda", "mande", "mandar", "envia", "envie", "enviar", "escreve", "escrever",
+            "fala", "falar", "uma", "um",
+            "hi", "hey", "hello", "send", "message", "text", "write", "a",
+            "hola", "mensaje", "manda", "envia",
+        )
+        private const val MAX_NAME_WORDS = 4
         private const val WORD_FLOOR = 0.55
         private const val CONFIDENT = 0.85
         private const val MARGIN = 0.08
