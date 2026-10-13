@@ -27,7 +27,14 @@ internal class ZapText(private val pt: Boolean = Locale.getDefault().language ==
     fun noContact(name: String) = if (pt) "Ninguém chamado \"$name\"" else "No one called \"$name\""
     val noNumber get() = if (pt) "Sem número de WhatsApp" else "No WhatsApp number"
     val noSpeech get() = if (pt) "Não ouvi nada" else "Didn't hear anything"
-    val speechUnavailable get() = if (pt) "Voz indisponível agora" else "Voice unavailable right now"
+    val speechUnavailable get() = if (pt) "Voz indisponível" else "Voice unavailable"
+
+    /**
+     * Zap keeps no speech keys: dictation and the read-back voice are whatever
+     * the wearer configured in Rokid Nexus. When either fails, point there —
+     * without recommending a provider; that choice is the wearer's.
+     */
+    val voiceHelp get() = if (pt) "Confira a voz nos ajustes do Rokid Nexus" else "Check voice in Rokid Nexus settings"
     val tryAgain get() = if (pt) "Tentar de novo" else "Try again"
 
     /** What the glasses say for "Listen": the recipient, then the message. */

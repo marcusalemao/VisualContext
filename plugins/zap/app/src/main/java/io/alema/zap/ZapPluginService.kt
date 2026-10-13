@@ -47,6 +47,9 @@ class ZapPluginService : NexusPluginService() {
     private var tts: NexusTtsSession? = null
     private var ttsCounter = 0
 
+    /** Set when the Nexus voice could not speak; the review card then shows where to fix it. */
+    private var ttsProblem = false
+
     override fun onNexusOpen() {
         contacts = ZapContacts(this)
         flow = ComposeFlow({ contacts.directory() })
@@ -147,8 +150,8 @@ class ZapPluginService : NexusPluginService() {
     // --- speech out ------------------------------------------------------
 
     private fun speak(sentence: String) {
-        val session = tts ?: nexusTtsSession(ttsCallbacks)?.also { tts = it } ?: return
-        session.speak(sentence, "zap-${++ttsCounter}")
+        val session = tts ?: nexusTtsSession(ttsCallbacks)?.also { tts = it }
+        ttsProblem = session == null || session.speak(sentence, "zap-${++ttsCounter}") != NexusSdkResult.SENT
     }
 
     private fun stopSpeaking() {
@@ -157,7 +160,13 @@ class ZapPluginService : NexusPluginService() {
 
     private val ttsCallbacks = object : NexusTtsCallbacks {
         override fun onTtsStarted(utteranceId: String) = Unit
-        override fun onTtsDone(utteranceId: String, reason: NexusTtsDoneReason) = Unit
+        override fun onTtsDone(utteranceId: String, reason: NexusTtsDoneReason) {
+            if (reason != NexusTtsDoneReason.UNAVAILABLE) return
+            main.post {
+                ttsProblem = true
+                if (::flow.isInitialized) render()
+            }
+        }
     }
 
     // --- sending ---------------------------------------------------------
@@ -206,7 +215,10 @@ class ZapPluginService : NexusPluginService() {
                 richLines = listOf(NexusCardLine(text = fit(step.body), tone = NexusRowTone.BODY)) +
                     listOf(text.send, text.listen, text.redo).mapIndexed { index, label ->
                         NexusCardLine(text = label, selected = index == flow.selected)
-                    },
+                    } +
+                    listOfNotNull(
+                        NexusCardLine(text = text.voiceHelp, tone = NexusRowTone.DIM).takeIf { ttsProblem },
+                    ),
                 handlesBack = true,
             )
             is Step.Sending -> NexusCard(
@@ -249,6 +261,7 @@ class ZapPluginService : NexusPluginService() {
             step.body?.takeIf { it.isNotBlank() }?.let { add(NexusCardLine(text = fit(it), tone = NexusRowTone.BODY)) }
             val problem = step.outcome != SendOutcome.SENT
             add(NexusCardLine(text = fit(status), tone = if (problem) NexusRowTone.ALERT else NexusRowTone.NORMAL))
+            if (step.note == Note.SPEECH_UNAVAILABLE) add(NexusCardLine(text = text.voiceHelp, tone = NexusRowTone.DIM))
             add(NexusCardLine(text = if (problem) text.tryAgain else text.newMessage, selected = true))
         }
         return NexusCard(

@@ -86,6 +86,23 @@ class ZapSettingsActivity : Activity() {
             action = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")),
         )
 
+        // Voice: Zap keeps no keys. Dictation and the read-back voice follow
+        // the engine the wearer picked in Rokid Nexus; Zap only points there.
+        val nexus = packageManager.getLaunchIntentForPackage(NEXUS_PACKAGE)
+        val voiceRow = row(
+            if (pt) "Voz: ditar e ouvir" else "Voice: dictate and listen",
+            if (pt) "O Zap usa a voz configurada no Rokid Nexus, para entender o que você fala e para ler as mensagens em voz alta. Se não estiver funcionando, escolha e teste um motor de voz nos ajustes do Nexus."
+            else "Zap uses the voice set up in Rokid Nexus, both to understand what you say and to read messages aloud. If it is not working, choose and test a voice engine in Nexus settings.",
+            null,
+        )
+        if (nexus != null) {
+            voiceRow.addView(Button(this).apply {
+                text = if (pt) "Abrir o Rokid Nexus" else "Open Rokid Nexus"
+                setOnClickListener { runCatching { startActivity(nexus) } }
+            })
+        }
+        column.addView(voiceRow)
+
         val settings = ZapSettings(this)
         toggle(
             checked = settings.importAddressBook() && ZapContacts(this).hasPermission(),
@@ -178,6 +195,7 @@ class ZapSettingsActivity : Activity() {
 
     private companion object {
         const val REQUEST_CONTACTS = 7
+        const val NEXUS_PACKAGE = "com.anezium.rokidbus.phone"
         val GREEN = Color.parseColor("#71FF97")
         val TEXT = Color.parseColor("#D8F5E0")
         val DIM = Color.parseColor("#8FB39A")
