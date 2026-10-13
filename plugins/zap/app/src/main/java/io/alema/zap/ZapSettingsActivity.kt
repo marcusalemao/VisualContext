@@ -222,14 +222,14 @@ class ZapSettingsActivity : Activity() {
         )
 
         section(t("Voz", "Voice"))
-        val nexus = packageManager.getLaunchIntentForPackage(NEXUS_PACKAGE)
+        // No "open Nexus" button: these settings are reached from inside Nexus, and Nexus does not
+        // expose its Speech/Voice screens to other apps, so a button could only land on Nexus's home.
         infoCard(
             t("Usa a voz do Rokid Nexus", "Uses Rokid Nexus voice"),
             t(
-                "O Zap não tem ajuste de voz próprio. Para entender o que você fala: Nexus › Settings › Speech. Para ler em voz alta: Nexus › Settings › Voice. Se algum não funcionar, teste e troque lá.",
-                "Zap has no voice settings of its own. To understand what you say: Nexus › Settings › Speech. To read aloud: Nexus › Settings › Voice. If either doesn't work, test and change it there.",
+                "O Zap não tem ajuste de voz próprio: entende e lê em voz alta com o que você escolheu no Nexus. Para mudar, volte aos ajustes do Nexus: Speech (entender o que você fala) e Voice (ler em voz alta).",
+                "Zap has no voice settings of its own: it listens and reads aloud with what you chose in Nexus. To change it, go back to Nexus settings: Speech (understanding you) and Voice (reading aloud).",
             ),
-            action = nexus?.let { t("Abrir o Rokid Nexus", "Open Rokid Nexus") to it },
         )
         gap(24)
     }
@@ -343,6 +343,5 @@ class ZapSettingsActivity : Activity() {
 
     private companion object {
         const val REQUEST_CONTACTS = 7
-        const val NEXUS_PACKAGE = "com.anezium.rokidbus.phone"
     }
 }
