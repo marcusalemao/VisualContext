@@ -8,7 +8,8 @@ internal class ZapText(private val pt: Boolean = Locale.getDefault().language ==
     val appTitle = "Zap"
     val newMessage get() = if (pt) "Nova mensagem" else "New message"
     val speak get() = if (pt) "Ditar mensagem" else "Dictate message"
-    val speakExample get() = if (pt) "Ex.: pro Bruno, tô chegando" else "E.g. to Sarah, running late"
+    /** The listening card's hint: an instruction, never a sample message that could pass for a real one. */
+    val sayWhoAndWhat get() = if (pt) "Diga o nome e a mensagem" else "Say the name and the message"
     val emptyPeople get() = if (pt) "Sua lista se forma com quem te manda mensagem" else "Your list fills with people who message you"
     val whoTitle get() = if (pt) "Para quem e o quê?" else "Who, and what?"
     val listening get() = if (pt) "Ouvindo…" else "Listening…"

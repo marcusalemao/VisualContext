@@ -2,6 +2,7 @@ package io.alema.zap
 
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.KeyEvent
 import com.anezium.rokidbus.client.plugin.NexusCard
 import com.anezium.rokidbus.client.plugin.NexusCardLine
@@ -49,6 +50,12 @@ class ZapPluginService : NexusPluginService() {
 
     /** Set when the Nexus voice could not speak; the review card then shows where to fix it. */
     private var ttsProblem = false
+
+    /** What the flow asked for after a final transcript, run once the hub closes the session. */
+    private var pendingEffects: List<Effect> = emptyList()
+
+    /** Why the last dictation ended, for test builds only (never shown in release). */
+    private var speechDetail: String? = null
 
     override fun onNexusOpen() {
         contacts = ZapContacts(this)
@@ -100,9 +107,11 @@ class ZapPluginService : NexusPluginService() {
 
     // --- speech in -------------------------------------------------------
 
-    private fun startListening() {
+    private fun startListening(retriedBusy: Boolean = false) {
         stopListening()
         stopSpeaking() // the microphone must not take the glasses' own voice
+        speechDetail = null
+        var finalReceived = false
         val generation = ++speechGeneration
         val session = nexusSpeechSession(object : NexusSpeechCallbacks {
             override fun onSpeechStarted(realtime: Boolean) = Unit
@@ -114,30 +123,60 @@ class ZapPluginService : NexusPluginService() {
             }
 
             override fun onSpeechFinal(text: String) = onMain(generation) {
-                speech = null
-                run(flow.onSpeechFinal(text))
+                finalReceived = true
+                // The hub keeps this session open until its "ended" event; a
+                // follow-up dictation started now would be refused as busy.
+                // So the next step waits for onSpeechStopped (see below).
+                pendingEffects = flow.onSpeechFinal(text)
+                render()
             }
 
             override fun onSpeechStopped(reason: NexusSpeechStopReason, error: NexusSpeechError?) =
                 onMain(generation) {
                     speech = null
-                    if (reason == NexusSpeechStopReason.CANCELLED || reason == NexusSpeechStopReason.COMPLETED) return@onMain
-                    val note = if (reason == NexusSpeechStopReason.NO_SPEECH) Note.NO_SPEECH else Note.SPEECH_UNAVAILABLE
-                    run(flow.onSpeechFailed(note))
+                    speechDetail = listOfNotNull(reason.name, error?.kind, error?.provider, error?.detail).joinToString(" · ")
+                    Log.i(TAG, "speech stopped: $speechDetail final=$finalReceived")
+                    val queued = pendingEffects
+                    pendingEffects = emptyList()
+                    when {
+                        queued.isNotEmpty() -> run(queued)
+                        finalReceived && reason == NexusSpeechStopReason.COMPLETED -> render()
+                        reason == NexusSpeechStopReason.CANCELLED -> Unit
+                        reason == NexusSpeechStopReason.DENIED_BUSY && !retriedBusy ->
+                            // The previous session may still be closing: try once more.
+                            main.postDelayed({ if (generation == speechGeneration) startListening(retriedBusy = true) }, BUSY_RETRY_MS)
+                        else -> run(flow.onSpeechFailed(noteFor(reason, error, finalReceived)))
+                    }
                 }
         })
         if (session == null) {
+            speechDetail = "no session"
             run(flow.onSpeechFailed(Note.SPEECH_UNAVAILABLE))
             return
         }
         speech = session
-        if (session.start() != NexusSdkResult.SENT) {
+        val result = session.start()
+        if (result != NexusSdkResult.SENT) {
             speech = null
+            speechDetail = "start: ${result.name}"
+            Log.w(TAG, "speech start refused: $result")
             run(flow.onSpeechFailed(Note.SPEECH_UNAVAILABLE))
         }
     }
 
+    /** "Heard nothing" is not "voice broken": only the second points the wearer at Nexus settings. */
+    private fun noteFor(reason: NexusSpeechStopReason, error: NexusSpeechError?, finalReceived: Boolean): Note {
+        val kind = error?.kind.orEmpty().uppercase()
+        return when {
+            reason == NexusSpeechStopReason.NO_SPEECH -> Note.NO_SPEECH
+            reason == NexusSpeechStopReason.COMPLETED && !finalReceived -> Note.NO_SPEECH
+            "NO_SPEECH" in kind || "NO_MATCH" in kind || "TIMEOUT" in kind -> Note.NO_SPEECH
+            else -> Note.SPEECH_UNAVAILABLE
+        }
+    }
+
     private fun stopListening() {
+        pendingEffects = emptyList()
         speechGeneration++
         speech?.stop()
         speech = null
@@ -190,7 +229,7 @@ class ZapPluginService : NexusPluginService() {
                 lines = emptyList(),
                 richLines = listOf(
                     NexusCardLine(
-                        text = fit(step.partial.ifBlank { if (step.contact == null) text.speakExample else text.sayMessage }),
+                        text = fit(step.partial.ifBlank { if (step.contact == null) text.sayWhoAndWhat else text.sayMessage }),
                         tone = if (step.partial.isBlank()) NexusRowTone.DIM else NexusRowTone.BODY,
                     ),
                 ),
@@ -236,7 +275,7 @@ class ZapPluginService : NexusPluginService() {
 
     private fun homeCard(step: Step.Home): NexusCard {
         val rows = buildList {
-            add(NexusCardLine(text = text.speak, sub = text.speakExample, selected = flow.selected == 0))
+            add(NexusCardLine(text = text.speak, selected = flow.selected == 0))
             step.shortlist.take(MAX_ROWS - 2).forEachIndexed { index, contact ->
                 add(NexusCardLine(text = fit(contact.name), selected = flow.selected == index + 1))
             }
@@ -262,6 +301,9 @@ class ZapPluginService : NexusPluginService() {
             val problem = step.outcome != SendOutcome.SENT
             add(NexusCardLine(text = fit(status), tone = if (problem) NexusRowTone.ALERT else NexusRowTone.NORMAL))
             if (step.note == Note.SPEECH_UNAVAILABLE) add(NexusCardLine(text = text.voiceHelp, tone = NexusRowTone.DIM))
+            if (BuildConfig.DEBUG && step.note != null) {
+                speechDetail?.let { add(NexusCardLine(text = fit("test: $it"), tone = NexusRowTone.DIM)) }
+            }
             add(NexusCardLine(text = if (problem) text.tryAgain else text.newMessage, selected = true))
         }
         return NexusCard(
@@ -276,7 +318,9 @@ class ZapPluginService : NexusPluginService() {
     private fun fitTitle(value: String) = if (value.length <= MAX_TITLE) value else value.take(MAX_TITLE - 1) + "…"
 
     private companion object {
+        const val TAG = "Zap"
         const val SURFACE_ID = "zap"
+        const val BUSY_RETRY_MS = 700L
         const val SHORTLIST = 8
         const val MAX_ROWS = 64
         const val MAX_LINE = 240
