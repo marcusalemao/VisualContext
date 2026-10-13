@@ -116,7 +116,7 @@ class ZapSettingsActivity : Activity() {
                     health.lastCaptured() == 0L -> t(
                         "O WhatsApp avisou o Zap às ${time(health.lastSeen())}, mas o Zap não conseguiu ler a mensagem. Me mande um print desta tela.",
                         "WhatsApp notified Zap at ${time(health.lastSeen())}, but Zap couldn't read the message. Send me a screenshot of this screen.",
-                    )
+                    ) + (health.lastError()?.let { "\n\n($it)" } ?: "")
                     else -> t(
                         "Funcionando. Última mensagem às ${time(health.lastCaptured())}; $chats conversa(s) guardada(s).",
                         "Working. Last message at ${time(health.lastCaptured())}; $chats chat(s) saved.",

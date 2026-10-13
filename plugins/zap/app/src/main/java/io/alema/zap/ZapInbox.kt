@@ -177,7 +177,7 @@ internal object ZapInbox {
             n.shortcutId?.endsWith("@g.us") == true
         val digits = if (isGroup) null else n.shortcutId?.let(PhoneNumbers::fromWhatsAppJid)
 
-        val messages = messagingStyle(extras)
+        val messages = messagingStyle(extras, fallbackTimeMs = sbn.postTime)
             .ifEmpty {
                 val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()?.trim().orEmpty()
                 if (text.isEmpty()) emptyList() else listOf(ZapMessage(title, text, sbn.postTime))
@@ -187,7 +187,7 @@ internal object ZapInbox {
     }
 
     /** MessagingStyle messages, read from the raw bundles so no support library is needed. */
-    private fun messagingStyle(extras: Bundle): List<ZapMessage> {
+    private fun messagingStyle(extras: Bundle, fallbackTimeMs: Long): List<ZapMessage> {
         @Suppress("DEPRECATION")
         val bundles = extras.getParcelableArray(Notification.EXTRA_MESSAGES) ?: return emptyList()
         return bundles.mapNotNull { item ->
@@ -201,7 +201,8 @@ internal object ZapInbox {
                 // No sender at all means the wearer wrote it.
                 sender = sender?.let(ZapPeople::cleanName)?.ifBlank { null } ?: ME,
                 text = text,
-                timeMs = b.getLong("time"),
+                // A missing time would read as 1970 and be pruned at once.
+                timeMs = b.getLong("time").takeIf { it > 0 } ?: fallbackTimeMs,
             )
         }
     }

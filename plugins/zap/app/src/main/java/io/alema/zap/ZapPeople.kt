@@ -98,7 +98,13 @@ class ZapNotificationListener : NotificationListenerService() {
         if (sbn.packageName != WhatsAppLink.PACKAGE && sbn.packageName != WhatsAppLink.BUSINESS_PACKAGE) return
         val health = ZapHealth(this)
         health.sawWhatsApp()
-        val chat = ZapInbox.capture(this, sbn) ?: return
+        val chat = try {
+            ZapInbox.capture(this, sbn)
+        } catch (e: RuntimeException) {
+            // Never let one odd notification take the listener down; keep the reason for the Check card.
+            health.failed("${e.javaClass.simpleName}: ${e.message}")
+            return
+        } ?: return health.failed("unreadable notification (${sbn.notification?.extras?.keySet()?.sorted()?.joinToString()})")
         health.captured()
         if (!chat.isGroup) chat.waDigits?.let { ZapPeople(this).remember(it, chat.title) }
     }

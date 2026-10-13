@@ -71,6 +71,8 @@ internal class ZapHealth(context: Context) {
     fun captured() = prefs.edit().putLong("captured", System.currentTimeMillis()).apply()
     fun lastSeen(): Long = prefs.getLong("seen", 0L)
     fun lastCaptured(): Long = prefs.getLong("captured", 0L)
+    fun failed(reason: String) = prefs.edit().putString("error", reason.take(300)).apply()
+    fun lastError(): String? = prefs.getString("error", null)
 }
 
 internal class ZapSettings(context: Context) {
