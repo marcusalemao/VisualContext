@@ -12,6 +12,9 @@
 #   ./rokid-mirror.sh pair 192.168.0.23:41234 123456
 #   ./rokid-mirror.sh connect 192.168.0.23:37000     (the connect port the plugin shows)
 # After that:
+#   ./rokid-mirror.sh espelho           the easy one: finds the glasses, opens the lens window and
+#                                       keeps screenshots coming for Claude. Also leaves an
+#                                       "Espelhar óculos.command" here to double-click next time.
 #   ./rokid-mirror.sh view              live window (the HUD as apps draw it, in color)
 #   ./rokid-mirror.sh lens              live window as the lens shows it: green, one color
 #   ./rokid-mirror.sh camera            live window of the glasses camera (what you look at)
@@ -87,6 +90,34 @@ cmd="${1:-help}"
 shift || true
 
 case "$cmd" in
+  espelho|mirror)
+    need adb "brew install --cask android-platform-tools"
+    need ffplay "brew install ffmpeg"
+    # Next time: a double-click in Finder instead of typing.
+    launcher="$DIR/Espelhar óculos.command"
+    if [ ! -x "$launcher" ]; then
+      printf '#!/bin/bash\nexec bash "%s" espelho\n' "$DIR/rokid-mirror.sh" > "$launcher"
+      chmod +x "$launcher"
+    fi
+    adb start-server >/dev/null 2>&1
+    sleep 2 # adb finds paired glasses on the Wi-Fi by itself; give it a moment
+    if ! dev="$(ensure_connected 2>/dev/null)"; then
+      say ""
+      say "Não achei os óculos."
+      say "  1. Óculos e Mac no mesmo Wi-Fi."
+      say "  2. Nos óculos, abra o Rokid Nexus > plugin Wireless ADB (deixe ligado)."
+      say "  3. Rode de novo (ou clique duas vezes em 'Espelhar óculos')."
+      exit 1
+    fi
+    say "óculos encontrados ($dev)"
+    say "abrindo a janela da lente; capturas em $DIR/watch para o Claude ver."
+    say "para parar: clique nesta janela do Terminal e aperte Control + C."
+    bash "$0" watch 3 >/dev/null 2>&1 &
+    watcher=$!
+    trap 'kill $watcher 2>/dev/null; exit 0' INT TERM EXIT
+    bash "$0" lens
+    ;;
+
   pair)
     need adb "brew install --cask android-platform-tools"
     [ $# -eq 2 ] || die "usage: pair IP:PAIR_PORT CODE"
