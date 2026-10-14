@@ -39,9 +39,9 @@ chmod +x rokid-mirror.sh
 | `./rokid-mirror.sh lens` | janela ao vivo **como a lente mostra**: tudo verde, uma cor só, preto = nada |
 | `./rokid-mirror.sh camera` | janela ao vivo da **câmera dos óculos** (o que você está olhando) |
 | `./rokid-mirror.sh demo zap` | grava HUD e câmera juntos; Ctrl+C termina e monta o vídeo **"através da lente"** (a luz verde do HUD somada ao mundo) |
-| `./rokid-mirror.sh record zap` | janela ao vivo + vídeo em `~/RokidMirror/videos` |
-| `./rokid-mirror.sh snap` | um print em `~/RokidMirror/shots` |
-| `./rokid-mirror.sh watch 3` | um print a cada 3 s em `~/RokidMirror/watch` (`latest.png` é sempre o mais novo; guarda os 40 últimos) |
+| `./rokid-mirror.sh record zap` | janela ao vivo + vídeo em `a pasta do script/videos` |
+| `./rokid-mirror.sh snap` | um print em `a pasta do script/shots` |
+| `./rokid-mirror.sh watch 3` | um print a cada 3 s em `a pasta do script/watch` (`latest.png` é sempre o mais novo; guarda os 40 últimos) |
 | `./rokid-mirror.sh compose cena.mp4 hud.mp4` | o mesmo visual "através da lente", a partir de dois vídeos que você já tem |
 | `./rokid-mirror.sh off` | desconecta |
 

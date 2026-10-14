@@ -23,12 +23,13 @@
 #   ./rokid-mirror.sh compose scene.mp4 hud.mp4 [out.mp4]   same look, from two videos you have
 #   ./rokid-mirror.sh off               disconnect
 #
-# Files go to ~/RokidMirror (change with ROKID_MIRROR_DIR). Connect that folder
-# to Claude and it can look at what the glasses show.
+# Files go into the folder this script is in (change with ROKID_MIRROR_DIR).
+# Connect that folder to Claude and it can look at what the glasses show.
 
 set -u
 
-DIR="${ROKID_MIRROR_DIR:-$HOME/RokidMirror}"
+# Files land next to this script (e.g. Documents/Rokid Mirror), unless ROKID_MIRROR_DIR says otherwise.
+DIR="${ROKID_MIRROR_DIR:-$(cd "$(dirname "$0")" && pwd)}"
 STATE="$HOME/.rokid-mirror"
 mkdir -p "$DIR/shots" "$DIR/videos" "$DIR/watch"
 
