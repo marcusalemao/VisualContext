@@ -103,4 +103,11 @@ class ScreenMakerTest {
         assertEquals(ScreenMaker.LIST_CHARS, row.text.length)
         assertTrue(row.text.endsWith("…"))
     }
+
+    @Test
+    fun `read aloud says a photo in words, not the emoji`() {
+        val text = ZapText(pt = true)
+        assertEquals("Leo: mandou uma foto", text.heard("Leo", ZapMessage.PHOTO))
+        assertEquals("Leo: oi", text.heard("Leo", "oi"))
+    }
 }

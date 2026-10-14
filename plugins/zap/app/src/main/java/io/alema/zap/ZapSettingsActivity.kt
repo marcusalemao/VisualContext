@@ -187,15 +187,22 @@ class ZapSettingsActivity : Activity() {
         }
 
         section(t("Conversas", "Chats"))
-        switchCard(
-            title = t("Avisar nos óculos quando chegar", "Show a notice when a message arrives"),
+        choiceCard(
+            title = t("Quando chegar mensagem", "When a message arrives"),
             subtitle = t(
-                "Quem escreveu e o começo da mensagem, por 4 segundos. Se o Relay também avisa o WhatsApp, desligue um dos dois.",
-                "Who wrote and the start of the message, for 4 seconds. If Relay also shows WhatsApp, turn one of them off.",
+                "Aviso: quem escreveu e o começo, por 4 segundos. Aviso + voz: a mensagem inteira na frente de tudo, lida em voz alta na hora — nos óculos ou fones, nunca no alto-falante do celular. Se o Relay também avisa o WhatsApp, desligue um dos dois.",
+                "Notice: who wrote and the start, for 4 seconds. Notice + voice: the whole message over everything, read aloud at once — on the glasses or earbuds, never the phone's speaker. If Relay also shows WhatsApp, turn one of them off.",
             ),
-            checked = settings.announceArrivals(),
-        ) { settings.setAnnounceArrivals(it) }
-        gap(8)
+            options = listOf(ZapSettings.ARRIVAL_OFF, ZapSettings.ARRIVAL_NOTICE, ZapSettings.ARRIVAL_READ),
+            label = {
+                when (it) {
+                    ZapSettings.ARRIVAL_OFF -> t("Nada", "Nothing")
+                    ZapSettings.ARRIVAL_NOTICE -> t("Aviso", "Notice")
+                    else -> t("Aviso + voz", "Notice + voice")
+                }
+            },
+            current = settings.arrivalMode(),
+        ) { settings.setArrivalMode(it) }
         choiceCard(
             title = t("Guardar mensagens por", "Keep messages for"),
             subtitle = t("Só neste celular, criptografadas", "Only on this phone, encrypted"),

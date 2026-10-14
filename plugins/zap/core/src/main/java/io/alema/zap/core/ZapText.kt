@@ -36,7 +36,9 @@ class ZapText(private val pt: Boolean = Locale.getDefault().language == "pt") {
     }
     val photoGone get() = if (pt) "Esta foto não está mais guardada no celular" else "This photo is no longer saved on the phone"
     val replyOnPhone get() = if (pt) "Responda este grupo pelo celular" else "Answer this group on the phone"
-    fun heard(sender: String, text: String) = "$sender: $text"
+    fun heard(sender: String, text: String) = "$sender: ${if (text == ZapMessage.PHOTO) photoSaid else text}"
+    /** Said instead of the photo placeholder, which a voice would read as an emoji. */
+    val photoSaid get() = if (pt) "mandou uma foto" else "sent a photo"
     fun pickTitle(name: String) = if (pt) "Qual ${capitalized(name)}?" else "Which ${capitalized(name)}?"
     val sayNameAgain get() = if (pt) "Dizer o nome de novo" else "Say the name again"
     /** Under a recent person Zap knows only through the chat, not by number. */

@@ -39,11 +39,19 @@ internal class ZapSettings(context: Context) {
         prefs.edit().putInt(KEY_MAX_CHATS, count).apply()
     }
 
-    /** A short notice on the glasses when a WhatsApp message arrives. On by default. */
-    fun announceArrivals(): Boolean = prefs.getBoolean(KEY_ANNOUNCE, true)
+    /**
+     * What the glasses do when a WhatsApp message arrives while Zap is closed:
+     * nothing, a short notice (default), or the whole message shown over a
+     * dark backdrop and read aloud at once — for when messages can be urgent.
+     */
+    fun arrivalMode(): Int = prefs.getInt(
+        KEY_ARRIVAL,
+        // Before 0.4.2 this was an on/off switch.
+        if (prefs.getBoolean(KEY_ANNOUNCE, true)) ARRIVAL_NOTICE else ARRIVAL_OFF,
+    )
 
-    fun setAnnounceArrivals(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_ANNOUNCE, enabled).apply()
+    fun setArrivalMode(mode: Int) {
+        prefs.edit().putInt(KEY_ARRIVAL, mode.coerceIn(ARRIVAL_OFF, ARRIVAL_READ)).apply()
     }
 
     /** Off by default: the people list starts from who messaged you, no contacts permission. */
@@ -53,10 +61,14 @@ internal class ZapSettings(context: Context) {
         prefs.edit().putBoolean(KEY_IMPORT, enabled).apply()
     }
 
-    private companion object {
-        const val KEY_IMPORT = "import_address_book"
-        const val KEY_ANNOUNCE = "announce_arrivals"
-        const val KEY_KEEP_DAYS = "keep_days"
-        const val KEY_MAX_CHATS = "max_conversations"
+    companion object {
+        const val ARRIVAL_OFF = 0
+        const val ARRIVAL_NOTICE = 1
+        const val ARRIVAL_READ = 2
+        private const val KEY_ARRIVAL = "arrival_mode"
+        private const val KEY_IMPORT = "import_address_book"
+        private const val KEY_ANNOUNCE = "announce_arrivals"
+        private const val KEY_KEEP_DAYS = "keep_days"
+        private const val KEY_MAX_CHATS = "max_conversations"
     }
 }
