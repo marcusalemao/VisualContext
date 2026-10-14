@@ -204,12 +204,13 @@ class ZapSettingsActivity : Activity() {
             },
             current = settings.arrivalMode(),
         ) { settings.setArrivalMode(it) }
-        val photos = ZapGallery.hasPermission(this)
+        // Videos need their own Android permission: someone who allowed photos in 0.5 is asked again.
+        val photos = ZapGallery.hasPhotosAndVideos(this)
         switchCard(
-            title = t("Enviar fotos do celular", "Send photos from the phone"),
+            title = t("Enviar fotos e vídeos", "Send photos and videos"),
             subtitle = t(
-                "Em \"Enviar foto\" os óculos mostram suas fotos mais novas; as tiradas pelos óculos vêm primeiro, quando estão no celular. O Zap só abre a foto que você escolher.",
-                "\"Send a photo\" shows your newest photos on the glasses; the ones taken by the glasses come first, when they're on the phone. Zap only opens the photo you pick.",
+                "Em \"Enviar foto ou vídeo\", primeiro aparece o que você fotografou ou filmou com os óculos (o Zap pede ao Nexus para trazer na hora), depois o que está no celular. O Zap só abre o que você escolher.",
+                "In \"Send photo or video\", what you shot with the glasses comes first (Zap asks Nexus to bring it over right then), then what's on the phone. Zap only opens what you pick.",
             ),
             checked = photos,
         ) { on ->

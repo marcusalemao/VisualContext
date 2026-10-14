@@ -71,7 +71,7 @@ class ScreenMakerTest {
     @Test
     fun `a tap on the chat brings its choices`() {
         val choices = card(maker.make(Step.Thread(leoChat, reading = false), selected = 0))
-        assertEquals(listOf("Responder", "Ouvir de novo", "Enviar foto", "Ver fotos (2)"), choices.rows.map { it.text })
+        assertEquals(listOf("Responder", "Ouvir de novo", "Enviar foto ou vídeo", "Ver fotos (2)"), choices.rows.map { it.text })
         assertTrue(choices.rows[0].selected)
     }
 
@@ -116,5 +116,14 @@ class ScreenMakerTest {
         val withVersion = ScreenMaker(ZapText(pt = true), version = "0.5.2")
         assertEquals("Zap 0.5.2", card(withVersion.make(Step.Inbox(emptyList()), 0)).footer)
         assertNull(card(withVersion.make(Step.Thread(leoChat, reading = false), 0)).footer)
+    }
+
+    @Test
+    fun `choosing a shot says glasses or phone, and marks videos`() {
+        val pick = maker.make(Step.ChoosePhoto(leoChat.recipient(), listOf("g:o:v:9", "g:c:i:1"), index = 0), 0) as Screen.Picture
+        assertEquals("Óculos · 1/2", pick.footer)
+        assertEquals("▶ Vídeo", pick.caption)
+        val review = card(maker.make(Step.Review(leoChat.recipient(), "", "g:o:v:9"), 0))
+        assertTrue(review.rows.any { it.text == "🎬 Vídeo anexado" })
     }
 }

@@ -1,6 +1,10 @@
 package io.alema.zap
 
+import android.database.ContentObserver
 import android.os.Handler
+import android.provider.MediaStore
+import com.anezium.rokidbus.shared.plugin.PluginCapability
+import org.json.JSONObject
 import android.os.Looper
 import android.util.Log
 import android.view.KeyEvent
@@ -84,12 +88,44 @@ class ZapPluginService : NexusPluginService() {
             flow.refresh(ZapInbox.list(this))
             render()
         }
+        contentResolver.registerContentObserver(MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL), true, galleryChanged)
         surface = nexusSurfaceSession(SURFACE_ID)
         shown = Shown.NOTHING
         render(show = true)
     }
 
+    // --- photos and videos from the glasses --------------------------------
+
+    /**
+     * Ask Nexus' photo sync to bring over what the glasses shot since last time.
+     * Each photo takes a few seconds over Bluetooth; as they land in the gallery
+     * the list being browsed grows by itself (see [galleryChanged]).
+     */
+    private fun pullGlassesMedia() {
+        val client = nexusClient ?: return
+        if (!client.hasCapability(PluginCapability.MEDIA_SYNC)) return
+        val sent = client.send(MEDIA_SYNC_NOW, java.util.UUID.randomUUID().toString(), JSONObject().put("version", MEDIA_SYNC_VERSION))
+        Log.i(TAG, "glasses media pull sent=$sent")
+    }
+
+    private val galleryChanged = object : ContentObserver(main) {
+        override fun onChange(selfChange: Boolean) {
+            if (!::flow.isInitialized || flow.step !is Step.ChoosePhoto) return
+            main.removeCallbacks(refreshGallery)
+            main.postDelayed(refreshGallery, GALLERY_SETTLE_MS)
+        }
+    }
+
+    private val refreshGallery = Runnable {
+        if (!::flow.isInitialized || flow.step !is Step.ChoosePhoto) return@Runnable
+        val before = flow.step
+        flow.refreshPhotos(ZapGallery.recent(this))
+        if (flow.step != before) render()
+    }
+
     override fun onNexusClose() {
+        runCatching { contentResolver.unregisterContentObserver(galleryChanged) }
+        main.removeCallbacks(refreshGallery)
         ZapNotifier.inboxOpen = false
         unobserveInbox?.invoke()
         unobserveInbox = null
@@ -124,6 +160,7 @@ class ZapPluginService : NexusPluginService() {
                 is Effect.SpeakMessage -> speak(text.heard(screens.senderLabel(effect.message), effect.message.text))
                 Effect.StopSpeaking -> stopSpeaking()
                 is Effect.Send -> send(effect.recipient, effect.body, effect.photo)
+                Effect.PullGlassesMedia -> pullGlassesMedia()
                 Effect.Close -> {
                     surface?.hide()
                     return
@@ -361,5 +398,8 @@ class ZapPluginService : NexusPluginService() {
         const val BUSY_RETRY_MS = 700L
         const val SHORTLIST = 8
         const val PHOTO_RETRY_MS = 450L
+        const val GALLERY_SETTLE_MS = 600L
+        const val MEDIA_SYNC_NOW = "/mediasync/now"
+        const val MEDIA_SYNC_VERSION = 2
     }
 }

@@ -11,6 +11,7 @@
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <!-- Photos to attach: only read when the wearer chooses "Send a photo". -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <!-- No INTERNET permission: Zap never talks to a server. -->
@@ -83,10 +84,10 @@
             <meta-data android:name="com.anezium.rokidbus.plugin.ICON_DRAWABLE" android:resource="@drawable/nexus_glyph_zap" />
             <meta-data android:name="com.anezium.rokidbus.plugin.GLYPHS" android:resource="@array/nexus_glyphs" />
             <meta-data android:name="com.anezium.rokidbus.plugin.API_VERSION" android:value="3" />
-            <meta-data android:name="com.anezium.rokidbus.plugin.CAPABILITIES" android:value="surfaces,stt,tts" />
+            <meta-data android:name="com.anezium.rokidbus.plugin.CAPABILITIES" android:value="surfaces,stt,tts,mediasync" />
             <meta-data
                 android:name="com.anezium.rokidbus.plugin.RECEIVE_PREFIXES"
-                android:value="/plugin/zap,/system/plugin,/stt,/tts/started,/tts/done" />
+                android:value="/plugin/zap,/system/plugin,/stt,/tts/started,/tts/done,/mediasync/status" />
             <meta-data android:name="com.anezium.rokidbus.plugin.SETTINGS_ACTIVITY" android:value=".ZapSettingsActivity" />
             <meta-data android:name="com.anezium.rokidbus.plugin.LAUNCHABLE" android:value="true" />
         </service>

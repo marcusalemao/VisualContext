@@ -37,8 +37,13 @@ class ScreenMaker(
         is Step.ChoosePhoto -> Screen.Picture(
             photoKey = step.photo,
             title = fitTitle(text.to(step.recipient.name)),
-            caption = step.body.ifBlank { null }?.take(MAX_CAPTION),
-            footer = if (step.photos.size > 1) "${step.index + 1}/${step.photos.size}" else null,
+            caption = listOfNotNull(text.video.takeIf { GalleryKey.isVideo(step.photo) }, step.body.ifBlank { null })
+                .joinToString(" · ").ifBlank { null }?.take(MAX_CAPTION),
+            // Where it came from, and how far along: "Óculos · 2/7".
+            footer = listOfNotNull(
+                GalleryKey.parse(step.photo)?.let { if (it.fromGlasses) text.fromGlasses else text.fromPhone },
+                "${step.index + 1}/${step.photos.size}".takeIf { step.photos.size > 1 },
+            ).joinToString(" · ").ifBlank { null },
             missing = Screen.Card(title = fitTitle(text.to(step.recipient.name)), rows = listOf(Row(text = text.photoGone, tone = Tone.DIM))),
         )
         is Step.NewMessage -> newMessage(step, selected)
@@ -220,7 +225,7 @@ class ScreenMaker(
     /** What is about to go: the text, and a line for the photo when one is attached. */
     private fun draft(body: String, photo: String?): List<Row> = listOfNotNull(
         Row(text = fit(body), tone = Tone.BODY).takeIf { body.isNotBlank() },
-        Row(text = text.photoAttached, tone = Tone.BODY).takeIf { photo != null },
+        Row(text = if (GalleryKey.isVideo(photo)) text.videoAttached else text.photoAttached, tone = Tone.BODY).takeIf { photo != null },
     )
 
     fun senderLabel(message: ZapMessage): String = if (message.sender == ZapMessage.ME) text.me else message.sender

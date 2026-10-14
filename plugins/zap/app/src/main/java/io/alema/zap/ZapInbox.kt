@@ -137,6 +137,9 @@ internal object ZapInbox {
      * replying from the notification shade. Returns false when no live action
      * exists (the caller then reopens the chat instead).
      */
+    /** WhatsApp's own reply action for this chat is still alive on the phone. */
+    fun canReplyLive(key: String): Boolean = synchronized(lock) { liveReplies.containsKey(key) }
+
     fun replyLive(context: Context, key: String, text: String): Boolean {
         val action = synchronized(lock) { liveReplies[key] } ?: return false
         val inputs = action.remoteInputs?.filter { it.allowFreeFormInput } ?: return false

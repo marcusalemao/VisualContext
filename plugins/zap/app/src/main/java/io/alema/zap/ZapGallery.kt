@@ -9,86 +9,115 @@ import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import android.util.Log
+import android.util.Size
+import io.alema.zap.core.GalleryKey
 import java.io.File
 import kotlin.math.max
 import kotlin.math.roundToInt
 
 /**
- * Photos on the phone the wearer can attach to a message.
+ * Photos and videos the wearer can attach to a message.
  *
- * Glasses photos first: when the phone holds pictures in a folder named after
- * Rokid (where the companion app saves what the glasses shoot), only those are
- * offered; otherwise the phone's newest photos. Keys are "g:<MediaStore id>";
+ * What the glasses shot comes first: Rokid Nexus' photo sync (and Hi Rokid's
+ * own imports) put those in the phone's "Download/Hi Rokid" folder. Then the
+ * phone's newest photos and videos. Keys are [GalleryKey]s ("g:o:v:123"):
  * nothing is copied until the wearer actually sends one.
  */
 internal object ZapGallery {
     private const val TAG = "ZapGallery"
-    private const val PREFIX = "g:"
-    private const val LIMIT = 24
+    private const val LIMIT = 30
+    /** WhatsApp takes long videos, but copying one for it must stay quick and cheap. */
+    private const val MAX_SHARE_BYTES = 300L * 1024 * 1024
 
-    fun isKey(key: String) = key.startsWith(PREFIX)
+    fun isKey(key: String) = GalleryKey.parse(key) != null
 
     fun permissions(): Array<String> = when {
-        Build.VERSION.SDK_INT >= 34 -> arrayOf(Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED)
-        Build.VERSION.SDK_INT >= 33 -> arrayOf(Manifest.permission.READ_MEDIA_IMAGES)
+        Build.VERSION.SDK_INT >= 34 -> arrayOf(
+            Manifest.permission.READ_MEDIA_IMAGES,
+            Manifest.permission.READ_MEDIA_VIDEO,
+            Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED,
+        )
+        Build.VERSION.SDK_INT >= 33 -> arrayOf(Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VIDEO)
         else -> arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+    }
+
+    /** Photos and videos both allowed (or Android 14's "selected only"): what the settings switch shows. */
+    fun hasPhotosAndVideos(context: Context): Boolean {
+        fun granted(p: String) = context.checkSelfPermission(p) == PackageManager.PERMISSION_GRANTED
+        return when {
+            Build.VERSION.SDK_INT >= 34 && granted(Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED) -> true
+            Build.VERSION.SDK_INT >= 33 -> granted(Manifest.permission.READ_MEDIA_IMAGES) && granted(Manifest.permission.READ_MEDIA_VIDEO)
+            else -> granted(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
     }
 
     /** Any access at all — Android 14's "selected photos only" counts. */
     fun hasPermission(context: Context): Boolean =
         permissions().any { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }
 
-    /** Newest first. Glasses photos when there are any, else every recent photo. */
+    /** Newest first: the glasses' shots, then the phone's. */
     fun recent(context: Context): List<String> {
         if (!hasPermission(context)) return emptyList()
-        val glasses = query(context, glassesOnly = true)
-        return (glasses.ifEmpty { query(context, glassesOnly = false) }).map { "$PREFIX$it" }
+        val glasses = query(context, glasses = true)
+        val phone = query(context, glasses = false)
+        return (glasses + phone).map(GalleryKey::toString)
     }
 
-    private fun query(context: Context, glassesOnly: Boolean): List<Long> = runCatching {
-        val selection = if (glassesOnly) {
-            "${MediaStore.Images.Media.BUCKET_DISPLAY_NAME} LIKE ? OR ${MediaStore.Images.Media.RELATIVE_PATH} LIKE ?"
-        } else {
-            null
-        }
-        val args = if (glassesOnly) arrayOf("%rokid%", "%rokid%") else null
+    private fun query(context: Context, glasses: Boolean): List<GalleryKey> = runCatching {
+        val files = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL)
+        val type = MediaStore.Files.FileColumns.MEDIA_TYPE
+        val path = MediaStore.MediaColumns.RELATIVE_PATH
+        val bucket = MediaStore.MediaColumns.BUCKET_DISPLAY_NAME
+        val kinds = "($type = ${MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE} OR $type = ${MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO})"
+        val fromGlasses = "($path LIKE ? OR $bucket LIKE ?)"
+        val selection = if (glasses) "$kinds AND $fromGlasses" else "$kinds AND NOT $fromGlasses"
         context.contentResolver.query(
-            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-            arrayOf(MediaStore.Images.Media._ID),
+            files,
+            arrayOf(MediaStore.Files.FileColumns._ID, type),
             selection,
-            args,
-            "${MediaStore.Images.Media.DATE_ADDED} DESC",
+            arrayOf("%rokid%", "%rokid%"),
+            "${MediaStore.MediaColumns.DATE_ADDED} DESC",
         )?.use { cursor ->
             buildList {
-                while (cursor.moveToNext() && size < LIMIT) add(cursor.getLong(0))
+                while (cursor.moveToNext() && size < LIMIT) {
+                    add(GalleryKey(glasses, cursor.getInt(1) == MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO, cursor.getLong(0)))
+                }
             }
         }.orEmpty()
     }.onFailure { Log.w(TAG, "gallery query failed", it) }.getOrDefault(emptyList())
 
-    fun uri(key: String): Uri? = key.removePrefix(PREFIX).toLongOrNull()
-        ?.let { ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, it) }
+    fun uri(key: String): Uri? = GalleryKey.parse(key)?.let {
+        val base = if (it.video) MediaStore.Video.Media.EXTERNAL_CONTENT_URI else MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+        ContentUris.withAppendedId(base, it.id)
+    }
 
     private val thumbs = object : LinkedHashMap<String, ZapPhotos.Photo>(8, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ZapPhotos.Photo>?) = size > 8
     }
 
-    /** A small JPEG of the photo for the glasses (≤512 px, ≤64 KB), kept in memory only. */
+    /** A small JPEG for the glasses (≤512 px, ≤64 KB) — a video shows its first frame. Memory only. */
     fun thumbnail(context: Context, key: String): ZapPhotos.Photo? {
         synchronized(thumbs) { thumbs[key] }?.let { return it }
         val uri = uri(key) ?: return null
         val bitmap = runCatching {
-            ImageDecoder.decodeBitmap(ImageDecoder.createSource(context.contentResolver, uri)) { decoder, info, _ ->
-                decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
-                val longest = max(info.size.width, info.size.height)
-                val target = ZapPhotos.MAX_EDGE * 2
-                if (longest > target) {
-                    val scale = target.toFloat() / longest
-                    decoder.setTargetSize((info.size.width * scale).roundToInt().coerceAtLeast(1), (info.size.height * scale).roundToInt().coerceAtLeast(1))
+            if (GalleryKey.isVideo(key)) {
+                context.contentResolver.loadThumbnail(uri, Size(ZapPhotos.MAX_EDGE * 2, ZapPhotos.MAX_EDGE * 2), null)
+            } else {
+                ImageDecoder.decodeBitmap(ImageDecoder.createSource(context.contentResolver, uri)) { decoder, info, _ ->
+                    decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+                    val longest = max(info.size.width, info.size.height)
+                    val target = ZapPhotos.MAX_EDGE * 2
+                    if (longest > target) {
+                        val scale = target.toFloat() / longest
+                        decoder.setTargetSize((info.size.width * scale).roundToInt().coerceAtLeast(1), (info.size.height * scale).roundToInt().coerceAtLeast(1))
+                    }
                 }
             }
-        }.onFailure { Log.w(TAG, "could not read photo", it) }.getOrNull() ?: return null
+        }.onFailure { Log.w(TAG, "could not read photo or video", it) }.getOrNull() ?: return null
         return ZapPhotos.thumbnail(bitmap)?.also { photo -> synchronized(thumbs) { thumbs[key] = photo } }
     }
+
+    fun mimeType(key: String) = if (GalleryKey.isVideo(key)) "video/mp4" else "image/jpeg"
 
     /**
      * A copy WhatsApp may read, through Zap's own [ZapShareProvider]: WhatsApp then
@@ -96,38 +125,47 @@ internal object ZapGallery {
      */
     fun shareable(context: Context, key: String): Uri? {
         val source = uri(key) ?: return null
+        val video = GalleryKey.isVideo(key)
         return runCatching {
+            val size = context.contentResolver.openAssetFileDescriptor(source, "r")?.use { it.length } ?: -1L
+            if (size > MAX_SHARE_BYTES) {
+                Log.w(TAG, "too big to hand over: $size bytes")
+                return null
+            }
             val dir = File(context.cacheDir, ZapShareProvider.DIR).apply { deleteRecursively(); mkdirs() }
-            val file = File(dir, ZapShareProvider.FILE)
+            val file = File(dir, ZapShareProvider.fileName(video))
             context.contentResolver.openInputStream(source)?.use { input -> file.outputStream().use { input.copyTo(it) } }
                 ?: return null
-            ZapShareProvider.uri(context)
-        }.onFailure { Log.w(TAG, "could not prepare photo for WhatsApp", it) }.getOrNull()
+            ZapShareProvider.uri(context, video)
+        }.onFailure { Log.w(TAG, "could not prepare it for WhatsApp", it) }.getOrNull()
     }
 }
 
 /**
- * Hands WhatsApp the one photo the wearer just chose to send — read-only, and
- * only to the app Zap granted it to. Not exported; nothing else is served.
+ * Hands WhatsApp the one photo or video the wearer just chose to send —
+ * read-only, and only to the app Zap granted it to. Not exported.
  */
 class ZapShareProvider : android.content.ContentProvider() {
     override fun onCreate() = true
 
-    private fun file(): File? = context?.let { File(File(it.cacheDir, DIR), FILE) }?.takeIf { it.exists() }
+    private fun file(uri: Uri): File? {
+        val name = uri.lastPathSegment?.takeIf { it == fileName(false) || it == fileName(true) } ?: return null
+        return context?.let { File(File(it.cacheDir, DIR), name) }?.takeIf { it.exists() }
+    }
 
-    override fun getType(uri: Uri) = "image/jpeg"
+    override fun getType(uri: Uri) = if (uri.lastPathSegment == fileName(true)) "video/mp4" else "image/jpeg"
 
     override fun openFile(uri: Uri, mode: String): android.os.ParcelFileDescriptor {
         if (mode != "r") throw SecurityException("read only")
-        val file = file() ?: throw java.io.FileNotFoundException(uri.toString())
+        val file = file(uri) ?: throw java.io.FileNotFoundException(uri.toString())
         return android.os.ParcelFileDescriptor.open(file, android.os.ParcelFileDescriptor.MODE_READ_ONLY)
     }
 
     override fun query(uri: Uri, projection: Array<out String>?, selection: String?, args: Array<out String>?, sort: String?): android.database.Cursor {
-        val file = file()
+        val file = file(uri)
         val columns = arrayOf(android.provider.OpenableColumns.DISPLAY_NAME, android.provider.OpenableColumns.SIZE)
         return android.database.MatrixCursor(columns).apply {
-            if (file != null) addRow(arrayOf<Any>(FILE, file.length()))
+            if (file != null) addRow(arrayOf<Any>(file.name, file.length()))
         }
     }
 
@@ -137,7 +175,7 @@ class ZapShareProvider : android.content.ContentProvider() {
 
     companion object {
         const val DIR = "share"
-        const val FILE = "zap-photo.jpg"
-        fun uri(context: Context): Uri = Uri.parse("content://${context.packageName}.share/$FILE")
+        fun fileName(video: Boolean) = if (video) "zap-video.mp4" else "zap-photo.jpg"
+        fun uri(context: Context, video: Boolean): Uri = Uri.parse("content://${context.packageName}.share/${fileName(video)}")
     }
 }

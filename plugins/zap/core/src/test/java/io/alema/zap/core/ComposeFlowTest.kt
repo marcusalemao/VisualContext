@@ -283,4 +283,25 @@ class ComposeFlowTest {
         empty.move(ComposeFlow.THREAD_SEND_PHOTO); empty.tap()
         assertEquals(Note.NO_PHOTOS, (empty.step as Step.Done).note)
     }
+
+    @Test
+    fun `choosing asks the glasses for new shots, and fresh ones keep the wearer on the same photo`() {
+        var gallery = listOf("g:c:i:2", "g:c:i:1")
+        val f = ComposeFlow({ people }, gallery = { gallery }).also { it.open(listOf(leoChat)) }
+        f.move(1); f.tap(); f.tap()
+        f.move(ComposeFlow.THREAD_SEND_PHOTO)
+        assertTrue(Effect.PullGlassesMedia in f.tap())
+        f.move(1) // on g:c:i:1
+        gallery = listOf("g:o:v:9", "g:o:i:8") + gallery // the glasses' shots arrive, newest first
+        f.refreshPhotos(gallery)
+        assertEquals("g:c:i:1", (f.step as Step.ChoosePhoto).photo)
+        assertEquals(3, (f.step as Step.ChoosePhoto).index)
+    }
+
+    @Test
+    fun `gallery keys say where a shot came from and whether it is a video`() {
+        assertEquals(GalleryKey(fromGlasses = true, video = true, id = 9), GalleryKey.parse("g:o:v:9"))
+        assertEquals("g:c:i:12", GalleryKey(false, false, 12).toString())
+        assertEquals(null, GalleryKey.parse("photo-key"))
+    }
 }

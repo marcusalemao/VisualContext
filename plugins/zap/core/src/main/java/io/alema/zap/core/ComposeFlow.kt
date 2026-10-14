@@ -82,6 +82,9 @@ sealed interface Effect {
     data class SpeakMessage(val message: ZapMessage) : Effect
     object StopSpeaking : Effect
 
+    /** Ask the glasses to send over what they shot since the last time (it may take a few seconds). */
+    object PullGlassesMedia : Effect
+
     /**
      * Send through WhatsApp's live reply when [Recipient.conversationKey] still
      * has one, else open the chat. With a [photo] (a key from the gallery) it
@@ -258,6 +261,17 @@ class ComposeFlow(
         }
     }
 
+    /**
+     * New photos arrived from the glasses (or the gallery changed) while the
+     * wearer is choosing: show the fresh list, staying on the photo they had up.
+     */
+    fun refreshPhotos(photos: List<String>) {
+        val s = step as? Step.ChoosePhoto ?: return
+        if (photos.isEmpty() || photos == s.photos) return
+        val keep = photos.indexOf(s.photo).takeIf { it >= 0 } ?: 0
+        step = s.copy(photos = photos, index = keep)
+    }
+
     fun onSpeechPartial(text: String) {
         val s = step as? Step.Listening ?: return
         step = s.copy(partial = text)
@@ -327,9 +341,9 @@ class ComposeFlow(
     private fun choosePhoto(recipient: Recipient, body: String, previous: String?): List<Effect> {
         if (recipient.digits == null) return done(Step.Done(recipient, null, note = Note.NO_NUMBER))
         val photos = gallery()
-        if (photos.isEmpty()) return done(Step.Done(recipient, null, note = Note.NO_PHOTOS))
+        if (photos.isEmpty()) return listOf(Effect.PullGlassesMedia) + done(Step.Done(recipient, null, note = Note.NO_PHOTOS))
         go(Step.ChoosePhoto(recipient, photos, index = 0, body = body, previousPhoto = previous))
-        return emptyList()
+        return listOf(Effect.PullGlassesMedia)
     }
 
     private fun send(recipient: Recipient, body: String, photo: String? = null): List<Effect> {

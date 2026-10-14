@@ -73,7 +73,7 @@ internal object ZapSender {
         val pkg = whatsAppPackage(context) ?: return onDone(SendOutcome.NOT_INSTALLED)
         val uri = ZapGallery.shareable(context, photo) ?: return onDone(SendOutcome.FAILED)
         val intent = Intent(Intent.ACTION_SEND)
-            .setType("image/jpeg")
+            .setType(ZapGallery.mimeType(photo))
             .setPackage(pkg)
             .putExtra(Intent.EXTRA_STREAM, uri)
             .putExtra("jid", "$digits@s.whatsapp.net")

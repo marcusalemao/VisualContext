@@ -152,7 +152,7 @@ class ZapNotificationListener : NotificationListenerService() {
         if (!chat.isGroup) chat.waDigits?.let { ZapPeople(this).remember(it, chat.title) }
         captured.fresh?.let { message ->
             val sender = if (chat.isGroup) "${chat.title} · ${message.sender}" else chat.title
-            ZapNotifier.announce(this, sender, message.text)
+            ZapNotifier.announce(this, sender, message.text, chat.recipient().takeIf { chat.canReply || ZapInbox.canReplyLive(chat.key) })
         }
     }
 }
