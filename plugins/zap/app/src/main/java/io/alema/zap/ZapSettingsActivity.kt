@@ -34,7 +34,7 @@ class ZapSettingsActivity : Activity() {
                     this@ZapSettingsActivity,
                     R.drawable.nexus_glyph_zap,
                     "Zap",
-                    t("Nova mensagem no WhatsApp, pela voz", "New WhatsApp messages, by voice"),
+                    t("Seu WhatsApp nos óculos", "Your WhatsApp on the glasses") + " · v${BuildConfig.VERSION_NAME}",
                 ),
                 NexusUi.block(),
             )

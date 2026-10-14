@@ -16,6 +16,8 @@ class ScreenMaker(
     private val text: ZapText = ZapText(),
     private val zone: ZoneId = ZoneId.systemDefault(),
     private val now: () -> Long = System::currentTimeMillis,
+    /** Shown small at the bottom of home, so the wearer can tell which Zap is installed. */
+    private val version: String? = null,
 ) {
 
     /** Phone-side facts a screen may need to mention. */
@@ -100,7 +102,7 @@ class ScreenMaker(
                 )
             }
         }
-        return Screen.Card(title = text.inboxTitle, rows = rows, handlesBack = false)
+        return Screen.Card(title = text.inboxTitle, rows = rows, handlesBack = false, footer = version?.let { "Zap $it" })
     }
 
     /**

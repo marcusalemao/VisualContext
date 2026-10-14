@@ -47,7 +47,7 @@ import io.alema.zap.core.ZapText
 class ZapPluginService : NexusPluginService() {
     private val main = Handler(Looper.getMainLooper())
     private val text = ZapText()
-    private val screens = ScreenMaker(text)
+    private val screens = ScreenMaker(text, version = BuildConfig.VERSION_NAME)
     private lateinit var contacts: ZapContacts
     private lateinit var flow: ComposeFlow
 
@@ -254,6 +254,7 @@ class ZapPluginService : NexusPluginService() {
     private enum class Shown { NOTHING, CARD, READER, PHOTO }
     private var shown = Shown.NOTHING
     private var lastSubtitle: String? = null
+    private var lastFooter: String? = null
 
     /** What to show comes from the core; this plug only turns it into Nexus cards and images. */
     private fun render(show: Boolean = false) {
@@ -274,10 +275,11 @@ class ZapPluginService : NexusPluginService() {
         val nexus = card.toNexus()
         // Nexus merges an update into the card on screen: a subtitle or footer left
         // out stays from before ("Listening…" stuck on the inbox). Dropping one needs a fresh card.
-        val drops = (lastSubtitle != null && card.subtitle == null)
+        val drops = (lastSubtitle != null && card.subtitle == null) || (lastFooter != null && card.footer == null)
         if (show || shown != Shown.CARD || drops) current.showCard(nexus) else current.updateCard(nexus)
         shown = Shown.CARD
         lastSubtitle = card.subtitle
+        lastFooter = card.footer
     }
 
     /** A whole chat, every message in full: the glasses wrap and scroll it. */
@@ -342,6 +344,7 @@ class ZapPluginService : NexusPluginService() {
             NexusCardLine(text = row.text, sub = row.sub, badge = row.badge, tone = row.tone.toNexus(), selected = row.selected)
         },
         subtitle = subtitle,
+        footer = footer,
         handlesBack = handlesBack,
     )
 

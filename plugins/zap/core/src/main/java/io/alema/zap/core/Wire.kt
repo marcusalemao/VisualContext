@@ -34,7 +34,7 @@ object Wire {
     private fun screenJson(screen: Screen): Raw = when (screen) {
         is Screen.Card -> obj(
             "v" to VERSION, "t" to "card", "title" to screen.title, "sub" to screen.subtitle,
-            "back" to screen.handlesBack,
+            "back" to screen.handlesBack, "foot" to screen.footer,
             "rows" to screen.rows.map { row ->
                 obj("x" to row.text, "s" to row.sub, "b" to row.badge, "tone" to row.tone.name, "sel" to row.selected.takeIf { it })
             },
@@ -71,6 +71,7 @@ object Wire {
             },
             subtitle = m.str("sub"),
             handlesBack = m["back"] != false,
+            footer = m.str("foot"),
         )
         "reader" -> Screen.Reader(
             title = m.str("title") ?: "",

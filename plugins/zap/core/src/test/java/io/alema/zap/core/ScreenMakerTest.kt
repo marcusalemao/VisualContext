@@ -110,4 +110,11 @@ class ScreenMakerTest {
         assertEquals("Leo: mandou uma foto", text.heard("Leo", ZapMessage.PHOTO))
         assertEquals("Leo: oi", text.heard("Leo", "oi"))
     }
+
+    @Test
+    fun `home shows the installed version at the bottom, other screens don't`() {
+        val withVersion = ScreenMaker(ZapText(pt = true), version = "0.5.2")
+        assertEquals("Zap 0.5.2", card(withVersion.make(Step.Inbox(emptyList()), 0)).footer)
+        assertNull(card(withVersion.make(Step.Thread(leoChat, reading = false), 0)).footer)
+    }
 }

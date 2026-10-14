@@ -17,6 +17,8 @@ sealed interface Screen {
         val subtitle: String? = null,
         /** False only at home: there, back leaves Zap. Elsewhere back stays inside Zap. */
         val handlesBack: Boolean = true,
+        /** One quiet line at the bottom (home shows Zap's version). */
+        val footer: String? = null,
     ) : Screen
 
     /**
