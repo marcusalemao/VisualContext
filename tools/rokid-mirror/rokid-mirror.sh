@@ -58,17 +58,27 @@ through_lens() { # scene.mp4 hud.mp4 out.mp4
 }
 
 device() {
-  [ -f "$STATE" ] || die "no glasses yet: run 'pair' and 'connect' first (see the top of this file)"
-  cat "$STATE"
+  if [ -f "$STATE" ]; then cat "$STATE"; return; fi
+  # Never connected by hand: take any glasses adb already sees.
+  local found
+  found="$(adb devices 2>/dev/null | awk 'NR>1 && $2=="device" {print $1; exit}')"
+  [ -n "$found" ] || die "no glasses yet: run 'pair' and 'connect' first (see the top of this file)"
+  printf '%s' "$found"
 }
 
 ensure_connected() {
-  local dev
-  dev="$(device)"
-  if ! adb devices | grep -q "^$dev[[:space:]]*device"; then
+  local dev online
+  dev="$(device)" || exit 1
+  online() { adb devices | awk -v d="$1" '$1==d && $2=="device" {found=1} END {exit !found}'; }
+  if ! online "$dev"; then
     adb connect "$dev" >/dev/null 2>&1
-    adb devices | grep -q "^$dev[[:space:]]*device" \
-      || die "glasses not reachable at $dev. Same Wi-Fi? The connect port changes after a restart: open Wireless ADB in Nexus and run 'connect' again."
+  fi
+  if ! online "$dev"; then
+    # The port changes when the glasses restart, but once paired, adb also finds
+    # them by name on the Wi-Fi (adb-…_adb-tls-connect). Use whatever is online.
+    dev="$(adb devices | awk 'NR>1 && $2=="device" {print $1; exit}')"
+    [ -n "$dev" ] || die "glasses not reachable. Same Wi-Fi? Open Wireless ADB in Nexus and run 'connect IP:PORT' with the port it shows."
+    printf '%s' "$dev" > "$STATE"
   fi
   printf '%s' "$dev"
 }
@@ -93,13 +103,13 @@ case "$cmd" in
 
   view)
     need scrcpy "brew install scrcpy"
-    dev="$(ensure_connected)"
+    dev="$(ensure_connected)" || exit 1
     scrcpy -s "$dev" --no-audio --window-title "Rokid HUD" --stay-awake
     ;;
 
   lens)
     need ffplay "brew install ffmpeg"
-    dev="$(ensure_connected)"
+    dev="$(ensure_connected)" || exit 1
     say "lens view — Ctrl+C to stop"
     trap 'exit 0' INT
     # Android's own screen recorder streams the HUD; ffplay shows it tinted.
@@ -113,20 +123,20 @@ case "$cmd" in
 
   camera)
     need scrcpy "brew install scrcpy"
-    dev="$(ensure_connected)"
+    dev="$(ensure_connected)" || exit 1
     scrcpy -s "$dev" --video-source=camera --camera-facing=back --no-audio --window-title "Rokid camera" \
       || die "the glasses camera didn't open. Close apps using it, or see './rokid-mirror.sh cameras'."
     ;;
 
   cameras)
     need scrcpy "brew install scrcpy"
-    dev="$(ensure_connected)"
+    dev="$(ensure_connected)" || exit 1
     scrcpy -s "$dev" --list-cameras
     ;;
 
   demo)
     need scrcpy "brew install scrcpy"
-    dev="$(ensure_connected)"
+    dev="$(ensure_connected)" || exit 1
     name="${1:-demo}_$(stamp)"
     hud="$DIR/videos/${name}_hud.mp4"
     cam="$DIR/videos/${name}_camera.mp4"
@@ -150,7 +160,7 @@ case "$cmd" in
 
   record)
     need scrcpy "brew install scrcpy"
-    dev="$(ensure_connected)"
+    dev="$(ensure_connected)" || exit 1
     file="$DIR/videos/${1:-hud}_$(stamp).mp4"
     say "recording to $file — close the window (or Ctrl+C) to stop"
     scrcpy -s "$dev" --no-audio --window-title "Rokid HUD (recording)" --stay-awake --record "$file"
@@ -158,13 +168,13 @@ case "$cmd" in
     ;;
 
   snap)
-    dev="$(ensure_connected)"
+    dev="$(ensure_connected)" || exit 1
     file="$DIR/shots/${1:-hud}_$(stamp).png"
     adb -s "$dev" exec-out screencap -p > "$file" && say "saved: $file"
     ;;
 
   watch)
-    dev="$(ensure_connected)"
+    dev="$(ensure_connected)" || exit 1
     every="${1:-3}"
     say "a screenshot every ${every}s in $DIR/watch (latest.png is always the newest). Ctrl+C to stop."
     while true; do
