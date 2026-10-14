@@ -4,7 +4,7 @@ package io.alema.zap.core
 enum class SendOutcome { SENT, OPENED_FOR_THUMB, WAITING_FOR_UNLOCK, NOT_INSTALLED, FAILED }
 
 /** Why the flow stopped somewhere other than a sent message. */
-enum class Note { NO_SPEECH, SPEECH_UNAVAILABLE, NO_CONTACT, NO_NUMBER, REPLY_ON_PHONE, NO_PHOTOS }
+enum class Note { NO_SPEECH, SPEECH_UNAVAILABLE, NO_CONTACT, NO_NUMBER, REPLY_ON_PHONE, NO_PHOTOS, CAMERA_FAILED }
 
 sealed interface Step {
     /** Home: "New message" first, then the conversations, newest first. */
@@ -13,7 +13,7 @@ sealed interface Step {
     /**
      * One conversation open. [reading]: the whole chat as a document the wearer
      * scrolls, every message in full. A tap brings up the choices instead:
-     * Reply · Listen again · Send a photo (· See photos, when it has some). Back from the
+     * Reply · Listen again · Send a photo or video (· See photos, when it has some). Back from the
      * choices returns to reading; back from reading returns home.
      */
     data class Thread(val conversation: ZapConversation, val reading: Boolean = true) : Step
@@ -37,6 +37,16 @@ sealed interface Step {
     ) : Step {
         val photo: String get() = photos[index]
     }
+
+    /**
+     * Where the attachment comes from: Camera (a photo now, with the glasses)
+     * or Gallery (what the glasses and the phone already have). [body] and
+     * [previousPhoto] come along from a review card, so back returns to it.
+     */
+    data class AttachFrom(val recipient: Recipient, val body: String = "", val previousPhoto: String? = null) : Step
+
+    /** The glasses' camera is taking a photo for [recipient]; it shows up to check before attaching. */
+    data class Snapping(val recipient: Recipient, val body: String = "", val previousPhoto: String? = null) : Step
 
     /** "Say the name" first, then the people the wearer wrote to or heard from lately. */
     data class NewMessage(val recent: List<ZapContact>) : Step
@@ -81,6 +91,9 @@ sealed interface Effect {
     /** Read a received message aloud: "Bruno: on my way". */
     data class SpeakMessage(val message: ZapMessage) : Effect
     object StopSpeaking : Effect
+
+    /** Take a photo with the glasses' camera now. */
+    object TakeSnapshot : Effect
 
     /** Ask the glasses to send over what they shot since the last time (it may take a few seconds). */
     object PullGlassesMedia : Effect
@@ -158,11 +171,12 @@ class ComposeFlow(
         }
         is Step.Photo -> s.conversation.photos.size
         is Step.ChoosePhoto -> s.photos.size
+        is Step.AttachFrom -> ATTACH_CHOICES
         is Step.NewMessage -> 1 + s.recent.size
         is Step.Pick -> s.choices.size + 1
         is Step.Review -> REVIEW_CHOICES
         is Step.Done -> 1
-        is Step.Listening, is Step.Sending -> 0
+        is Step.Listening, is Step.Sending, is Step.Snapping -> 0
     }
 
     fun move(delta: Int) {
@@ -193,7 +207,7 @@ class ComposeFlow(
             emptyList()
         } else when (selected) {
             THREAD_REPLY -> reply(s.conversation)
-            THREAD_SEND_PHOTO -> choosePhoto(s.conversation.recipient(), body = "", previous = null)
+            THREAD_SEND_PHOTO -> attachFrom(s.conversation.recipient(), body = "", previous = null)
             THREAD_PHOTO -> {
                 go(Step.Photo(s.conversation, s.conversation.photos.size - 1))
                 listOf(Effect.StopSpeaking)
@@ -209,10 +223,15 @@ class ComposeFlow(
         is Step.Review -> when (selected) {
             REVIEW_SEND -> send(s.recipient, s.body, s.photo)
             REVIEW_LISTEN -> listOf(Effect.SpeakDraft(s.recipient, s.body))
-            REVIEW_PHOTO -> listOf(Effect.StopSpeaking) + choosePhoto(s.recipient, s.body, s.photo)
+            REVIEW_PHOTO -> listOf(Effect.StopSpeaking) + attachFrom(s.recipient, s.body, s.photo)
             else -> listOf(Effect.StopSpeaking) + listen(s.recipient, s.photo)
         }
         is Step.ChoosePhoto -> review(s.recipient, s.body, s.photo)
+        is Step.AttachFrom -> if (selected == ATTACH_CAMERA) {
+            snap(s.recipient, s.body, s.previousPhoto)
+        } else {
+            choosePhoto(s.recipient, s.body, s.previousPhoto)
+        }
         is Step.Photo -> {
             // Tapping a photo reads its caption, if any, like Listen again.
             if (s.message.text.isNotBlank()) listOf(Effect.SpeakMessage(s.message)) else emptyList()
@@ -223,7 +242,7 @@ class ComposeFlow(
             go(Step.Inbox(conversations), asBase = true)
             emptyList()
         }
-        is Step.Listening, is Step.Sending -> emptyList()
+        is Step.Listening, is Step.Sending, is Step.Snapping -> emptyList()
     }
 
     fun back(): List<Effect> = when (val s = step) {
@@ -246,7 +265,10 @@ class ComposeFlow(
             listOf(Effect.StopListening)
         }
         is Step.Sending -> emptyList()
-        is Step.ChoosePhoto -> {
+        // A photo that arrives after back is simply dropped.
+        is Step.Snapping -> backToSource(s.recipient, s.body, s.previousPhoto, ATTACH_CAMERA)
+        is Step.ChoosePhoto -> backToSource(s.recipient, s.body, s.previousPhoto, ATTACH_GALLERY)
+        is Step.AttachFrom -> {
             // From a review card: back to it, as it was. From a chat: back to the chat.
             if (s.body.isNotEmpty() || s.previousPhoto != null) review(s.recipient, s.body, s.previousPhoto) else go(base)
             emptyList()
@@ -270,6 +292,17 @@ class ComposeFlow(
         if (photos.isEmpty() || photos == s.photos) return
         val keep = photos.indexOf(s.photo).takeIf { it >= 0 } ?: 0
         step = s.copy(photos = photos, index = keep)
+    }
+
+    /** The glasses' photo is here: show it, a tap attaches it, back drops it. */
+    fun onSnapshot(key: String) {
+        val s = step as? Step.Snapping ?: return
+        go(Step.ChoosePhoto(s.recipient, listOf(key), body = s.body, previousPhoto = s.previousPhoto))
+    }
+
+    fun onSnapshotFailed() {
+        val s = step as? Step.Snapping ?: return
+        go(Step.Done(s.recipient, s.body.ifEmpty { null }, note = Note.CAMERA_FAILED, photo = s.previousPhoto))
     }
 
     fun onSpeechPartial(text: String) {
@@ -337,13 +370,32 @@ class ComposeFlow(
         return emptyList()
     }
 
-    /** A photo goes through the chat itself, so it needs the person's number; then the phone's photos, newest first. */
-    private fun choosePhoto(recipient: Recipient, body: String, previous: String?): List<Effect> {
+    /** A photo goes through the chat itself, so it needs the person's number; then Camera or Gallery. */
+    private fun attachFrom(recipient: Recipient, body: String, previous: String?): List<Effect> {
         if (recipient.digits == null) return done(Step.Done(recipient, null, note = Note.NO_NUMBER))
+        go(Step.AttachFrom(recipient, body, previous))
+        // Start fetching the glasses' shots now, so the gallery is fresh if the wearer picks it.
+        return listOf(Effect.PullGlassesMedia)
+    }
+
+    /** Camera or gallery, back returns to where the wearer chose between them. */
+    private fun backToSource(recipient: Recipient, body: String, previous: String?, from: Int): List<Effect> {
+        go(Step.AttachFrom(recipient, body, previous))
+        selected = from
+        return emptyList()
+    }
+
+    /** The glasses' and the phone's photos and videos, glasses first, newest first. */
+    private fun choosePhoto(recipient: Recipient, body: String, previous: String?): List<Effect> {
         val photos = gallery()
         if (photos.isEmpty()) return listOf(Effect.PullGlassesMedia) + done(Step.Done(recipient, null, note = Note.NO_PHOTOS))
         go(Step.ChoosePhoto(recipient, photos, index = 0, body = body, previousPhoto = previous))
         return listOf(Effect.PullGlassesMedia)
+    }
+
+    private fun snap(recipient: Recipient, body: String, previous: String?): List<Effect> {
+        go(Step.Snapping(recipient, body, previous))
+        return listOf(Effect.StopSpeaking, Effect.TakeSnapshot)
     }
 
     private fun send(recipient: Recipient, body: String, photo: String? = null): List<Effect> {
@@ -368,6 +420,9 @@ class ComposeFlow(
         const val THREAD_SEND_PHOTO = 2
         const val THREAD_PHOTO = 3
         private const val THREAD_CHOICES = 3
+        const val ATTACH_CAMERA = 0
+        const val ATTACH_GALLERY = 1
+        private const val ATTACH_CHOICES = 2
         const val REVIEW_SEND = 0
         const val REVIEW_LISTEN = 1
         const val REVIEW_REDO = 2

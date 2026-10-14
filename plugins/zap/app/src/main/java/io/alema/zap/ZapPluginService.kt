@@ -18,6 +18,9 @@ import com.anezium.rokidbus.client.plugin.NexusReaderSegment
 import com.anezium.rokidbus.client.plugin.NexusReaderSegmentKind
 import com.anezium.rokidbus.client.plugin.NexusRowTone
 import com.anezium.rokidbus.client.plugin.NexusSdkResult
+import com.anezium.rokidbus.client.plugin.NexusSnapshotCallbacks
+import com.anezium.rokidbus.client.plugin.NexusSnapshotError
+import com.anezium.rokidbus.client.plugin.NexusSnapshotSession
 import com.anezium.rokidbus.client.plugin.NexusSpeechCallbacks
 import com.anezium.rokidbus.client.plugin.NexusSpeechError
 import com.anezium.rokidbus.client.plugin.NexusSpeechSession
@@ -108,6 +111,47 @@ class ZapPluginService : NexusPluginService() {
         Log.i(TAG, "glasses media pull sent=$sent")
     }
 
+    /**
+     * A photo with the glasses' camera, right now. Nexus asks the wearer the
+     * first time; the JPEG comes back over Bluetooth in a second or two.
+     */
+    private fun takeSnapshot() {
+        snapshot?.cancel()
+        val session = runCatching {
+            nexusSnapshotSession(object : NexusSnapshotCallbacks {
+                override fun onSnapshotCaptured(jpeg: ByteArray) {
+                    val key = ZapGallery.saveSnapshot(this@ZapPluginService, jpeg)
+                    main.post {
+                        if (!::flow.isInitialized) return@post
+                        if (key != null) flow.onSnapshot(key) else flow.onSnapshotFailed()
+                        render()
+                    }
+                }
+
+                override fun onSnapshotError(error: NexusSnapshotError) {
+                    Log.w(TAG, "snapshot failed: $error")
+                    main.post {
+                        if (!::flow.isInitialized || error == NexusSnapshotError.CANCELLED) return@post
+                        flow.onSnapshotFailed()
+                        render()
+                    }
+                }
+            })
+        }.onFailure { Log.w(TAG, "no snapshot session", it) }.getOrNull()
+        snapshot = session
+        val result = session?.capture()
+        Log.i(TAG, "snapshot capture=$result")
+        if (result != NexusSdkResult.SENT) {
+            // No camera permission yet, or the link is down: say so instead of waiting forever.
+            main.post {
+                flow.onSnapshotFailed()
+                render()
+            }
+        }
+    }
+
+    private var snapshot: NexusSnapshotSession? = null
+
     private val galleryChanged = object : ContentObserver(main) {
         override fun onChange(selfChange: Boolean) {
             if (!::flow.isInitialized || flow.step !is Step.ChoosePhoto) return
@@ -124,6 +168,8 @@ class ZapPluginService : NexusPluginService() {
     }
 
     override fun onNexusClose() {
+        snapshot?.cancel()
+        snapshot = null
         runCatching { contentResolver.unregisterContentObserver(galleryChanged) }
         main.removeCallbacks(refreshGallery)
         ZapNotifier.inboxOpen = false
@@ -161,6 +207,7 @@ class ZapPluginService : NexusPluginService() {
                 Effect.StopSpeaking -> stopSpeaking()
                 is Effect.Send -> send(effect.recipient, effect.body, effect.photo)
                 Effect.PullGlassesMedia -> pullGlassesMedia()
+                Effect.TakeSnapshot -> takeSnapshot()
                 Effect.Close -> {
                     surface?.hide()
                     return
@@ -324,6 +371,7 @@ class ZapPluginService : NexusPluginService() {
         val current = surface ?: return
         val nexus = NexusReader(
             title = reader.title,
+            subtitle = reader.subtitle,
             footer = reader.footer,
             contentKey = reader.contentKey,
             segments = reader.segments.map { segment ->
@@ -337,7 +385,7 @@ class ZapPluginService : NexusPluginService() {
                     emphasis = segment.emphasis,
                 )
             },
-            anchor = NexusReaderAnchor.BOTTOM, // a chat opens on its newest message
+            anchor = NexusReaderAnchor.TOP, // newest first: a chat opens on its newest message, at the top
         )
         val result = if (show || shown != Shown.READER) current.showReader(nexus) else current.updateReader(nexus)
         if (result != NexusSdkResult.SENT) Log.w(TAG, "reader refused: $result")

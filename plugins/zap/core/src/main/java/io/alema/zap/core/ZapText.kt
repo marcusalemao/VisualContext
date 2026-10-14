@@ -34,6 +34,13 @@ class ZapText(private val pt: Boolean = Locale.getDefault().language == "pt") {
         pt -> "Ver fotos ($count)"
         else -> "See photos ($count)"
     }
+    val attachFrom get() = if (pt) "Anexar de onde?" else "Attach from"
+    val camera get() = if (pt) "📷 Câmera" else "📷 Camera"
+    val cameraHint get() = if (pt) "foto agora, com os óculos" else "a photo now, with the glasses"
+    val gallery get() = if (pt) "🖼 Galeria" else "🖼 Gallery"
+    val galleryHint get() = if (pt) "dos óculos e do celular" else "from the glasses and the phone"
+    val takingPhoto get() = if (pt) "Tirando foto…" else "Taking a photo…"
+    val cameraFailed get() = if (pt) "Não consegui tirar a foto. Confira se o Zap tem acesso à câmera nos ajustes do Nexus" else "Couldn't take the photo. Check that Zap has camera access in Nexus settings"
     val sendPhoto get() = if (pt) "Enviar foto ou vídeo" else "Send photo or video"
     val attachPhoto get() = if (pt) "Anexar foto ou vídeo" else "Attach photo or video"
     val changePhoto get() = if (pt) "Trocar anexo" else "Change attachment"

@@ -23,8 +23,8 @@ android {
         // Nexus phone hub supports Android 11+; do not ask for more.
         minSdk = 30
         targetSdk = 36
-        versionCode = 19
-        versionName = "0.6.0"
+        versionCode = 20
+        versionName = "0.6.1"
     }
 
     signingConfigs {

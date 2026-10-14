@@ -11,13 +11,21 @@ import java.time.format.DateTimeFormatter
  * HUD rules from the VisualContext design: green on black only, no gesture
  * hints (the wearer knows the native gestures), short lines. Widths are the
  * ones Relay measured on the Rokid optics.
+ *
+ * Top-heavy: the lens is 480×640, but for many wearers (Marcus included) the
+ * bottom third is out of sight. So nothing useful lives at the bottom: lists
+ * show only the rows that end above [reach] (the chosen one always among
+ * them, "▴ 3" / "▾ 5" for the rest), hints and the version sit under the
+ * title, and a chat reads newest first, from the top.
  */
 class ScreenMaker(
     private val text: ZapText = ZapText(),
     private val zone: ZoneId = ZoneId.systemDefault(),
     private val now: () -> Long = System::currentTimeMillis,
-    /** Shown small at the bottom of home, so the wearer can tell which Zap is installed. */
+    /** Shown small under the title of home, so the wearer can tell which Zap is installed. */
     private val version: String? = null,
+    /** How far down (in lens pixels, of 640) the wearer reads comfortably; null = the whole lens. */
+    private val reach: Int? = REACH_PX,
 ) {
 
     /** Phone-side facts a screen may need to mention. */
@@ -30,20 +38,30 @@ class ScreenMaker(
         val debugLine: String? = null,
     )
 
-    fun make(step: Step, selected: Int, status: Status = Status()): Screen = when (step) {
+    fun make(step: Step, selected: Int, status: Status = Status()): Screen = when (val screen = build(step, selected, status)) {
+        is Screen.Card -> screen.copy(rows = withinReach(screen.rows, top = if (screen.subtitle != null) TOP_WITH_SUBTITLE_PX else TOP_PX))
+        else -> screen
+    }
+
+    private fun build(step: Step, selected: Int, status: Status): Screen = when (step) {
         is Step.Inbox -> inbox(step, selected, status)
         is Step.Thread -> if (step.reading) reader(step.conversation) else choices(step.conversation, selected, status)
         is Step.Photo -> photo(step)
         is Step.ChoosePhoto -> Screen.Picture(
             photoKey = step.photo,
-            title = fitTitle(text.to(step.recipient.name)),
+            // Where it came from, and how far along, up top: "Para Leo · Óculos 2/7".
+            title = fitTitle(
+                listOfNotNull(
+                    text.to(step.recipient.name),
+                    listOfNotNull(
+                        GalleryKey.parse(step.photo)?.let { if (it.fromGlasses) text.fromGlasses else text.fromPhone },
+                        "${step.index + 1}/${step.photos.size}".takeIf { step.photos.size > 1 },
+                    ).joinToString(" ").ifBlank { null },
+                ).joinToString(" · "),
+            ),
             caption = listOfNotNull(text.video.takeIf { GalleryKey.isVideo(step.photo) }, step.body.ifBlank { null })
                 .joinToString(" · ").ifBlank { null }?.take(MAX_CAPTION),
-            // Where it came from, and how far along: "Óculos · 2/7".
-            footer = listOfNotNull(
-                GalleryKey.parse(step.photo)?.let { if (it.fromGlasses) text.fromGlasses else text.fromPhone },
-                "${step.index + 1}/${step.photos.size}".takeIf { step.photos.size > 1 },
-            ).joinToString(" · ").ifBlank { null },
+            footer = null,
             missing = Screen.Card(title = fitTitle(text.to(step.recipient.name)), rows = listOf(Row(text = text.photoGone, tone = Tone.DIM))),
         )
         is Step.NewMessage -> newMessage(step, selected)
@@ -79,6 +97,19 @@ class ScreenMaker(
                 ).mapIndexed { index, label -> Row(text = label, selected = index == selected) } +
                 listOfNotNull(Row(text = text.voiceHelp, tone = Tone.DIM).takeIf { status.voiceTrouble }),
         )
+        is Step.AttachFrom -> Screen.Card(
+            title = fitTitle(text.attachFrom),
+            rows = listOf(
+                Row(text = text.camera, sub = text.cameraHint, selected = selected == ComposeFlow.ATTACH_CAMERA),
+                Row(text = text.gallery, sub = text.galleryHint, selected = selected == ComposeFlow.ATTACH_GALLERY),
+            ),
+            subtitle = text.to(step.recipient.name),
+        )
+        is Step.Snapping -> Screen.Card(
+            title = fitTitle(text.to(step.recipient.name)),
+            rows = listOf(Row(text = text.takingPhoto, tone = Tone.DIM)),
+            subtitle = text.takingPhoto,
+        )
         is Step.Sending -> Screen.Card(
             title = fitTitle(text.to(step.recipient.name)),
             rows = draft(step.body, step.photo),
@@ -107,52 +138,50 @@ class ScreenMaker(
                 )
             }
         }
-        return Screen.Card(title = text.inboxTitle, rows = rows, handlesBack = false, footer = version?.let { "Zap $it" })
+        return Screen.Card(title = text.inboxTitle, rows = rows, handlesBack = false, subtitle = version?.let { "Zap $it" })
     }
 
     /**
-     * One chat, read like a document: every kept message in full, the glasses
-     * scroll it. A new header whenever the sender changes or time passes.
+     * One chat, read like a document, newest first: every kept message in
+     * full, the glasses scroll it. A new header whenever the sender changes or
+     * time passes.
      */
     private fun reader(chat: ZapConversation): Screen.Reader {
         val today = LocalDate.ofInstant(Instant.ofEpochMilli(now()), zone)
         val built = ArrayList<Segment>()
         var lastSender: String? = null
-        var lastTime = Long.MIN_VALUE
-        for (message in chat.messages.sortedBy { it.timeMs }) {
-            if (message.sender != lastSender || message.timeMs - lastTime > NEW_HEADER_AFTER_MS) {
-                if (built.isNotEmpty()) built += Segment(Segment.Kind.PROSE, "") // paragraph break
-                built += Segment(Segment.Kind.HEADER, "${senderLabel(message)} · ${clock(message.timeMs, today)}", emphasis = message.sender == ZapMessage.ME)
+        var lastTime = Long.MAX_VALUE
+        var cut = false
+        var chars = 0
+        // Newest first: what just arrived sits at the top of the lens, older messages below it.
+        for (message in chat.messages.sortedByDescending { it.timeMs }) {
+            val unit = ArrayList<Segment>(4)
+            if (message.sender != lastSender || lastTime - message.timeMs > NEW_HEADER_AFTER_MS) {
+                if (built.isNotEmpty()) unit += Segment(Segment.Kind.PROSE, "") // paragraph break
+                unit += Segment(Segment.Kind.HEADER, "${senderLabel(message)} · ${clock(message.timeMs, today)}", emphasis = message.sender == ZapMessage.ME)
             }
-            if (message.image != null) built += Segment(Segment.Kind.ASIDE, ZapMessage.PHOTO)
+            if (message.image != null) unit += Segment(Segment.Kind.ASIDE, ZapMessage.PHOTO)
             val body = message.text.takeIf { it.isNotBlank() && !(message.image != null && it == ZapMessage.PHOTO) }
-            body?.let { built += Segment(Segment.Kind.PROSE, it.take(MAX_SEGMENT_CHARS)) }
+            body?.let { unit += Segment(Segment.Kind.PROSE, it.take(MAX_SEGMENT_CHARS)) }
+            // The glasses take 240 segments and 40,000 characters: older messages that don't fit are left out.
+            val unitChars = unit.sumOf { it.text.length }
+            if (built.size + unit.size > MAX_SEGMENTS - 2 || chars + unitChars > MAX_READER_CHARS - 200) {
+                cut = true
+                break
+            }
+            built += unit
+            chars += unitChars
             lastSender = message.sender
             lastTime = message.timeMs
         }
+        if (built.isEmpty()) built += Segment(Segment.Kind.ASIDE, text.emptyChat)
+        if (cut) built += Segment(Segment.Kind.ASIDE, "⋯ ${text.earlier}")
         return Screen.Reader(
             title = fitTitle(chat.title),
-            segments = newestThatFit(built),
-            footer = text.readerFooter(chat.photos.isNotEmpty()),
+            segments = built,
+            subtitle = text.readerFooter(chat.photos.isNotEmpty()),
             contentKey = "zap-chat-${chat.key}".take(128),
         )
-    }
-
-    /** The glasses take 240 segments and 40,000 characters: keep the newest, say when older ones are left out. */
-    private fun newestThatFit(all: List<Segment>): List<Segment> {
-        if (all.isEmpty()) return listOf(Segment(Segment.Kind.ASIDE, text.emptyChat))
-        var chars = 0
-        var from = all.size
-        while (from > 0) {
-            val next = all[from - 1]
-            if (all.size - from + 1 > MAX_SEGMENTS - 1 || chars + next.text.length > MAX_READER_CHARS - 200) break
-            chars += next.text.length
-            from--
-        }
-        // Start on a header, never mid-run.
-        while (from < all.size && all[from].kind != Segment.Kind.HEADER) from++
-        val kept = all.subList(from, all.size)
-        return if (from == 0) kept else listOf(Segment(Segment.Kind.ASIDE, "⋯ ${text.earlier}")) + kept
     }
 
     private fun clock(timeMs: Long, today: LocalDate): String {
@@ -191,9 +220,14 @@ class ScreenMaker(
         val key = message.image ?: return missing
         return Screen.Picture(
             photoKey = key,
-            title = fitTitle(if (chat.isGroup) "${chat.title} · ${senderLabel(message)}" else senderLabel(message)),
+            title = fitTitle(
+                listOfNotNull(
+                    if (chat.isGroup) "${chat.title} · ${senderLabel(message)}" else senderLabel(message),
+                    "${step.index + 1}/${chat.photos.size}".takeIf { chat.photos.size > 1 },
+                ).joinToString(" · "),
+            ),
             caption = message.text.takeIf { it.isNotBlank() && it != ZapMessage.PHOTO }?.take(MAX_CAPTION),
-            footer = if (chat.photos.size > 1) "${step.index + 1}/${chat.photos.size}" else null,
+            footer = null,
             missing = missing,
         )
     }
@@ -209,6 +243,7 @@ class ScreenMaker(
             step.note == Note.NO_NUMBER -> text.noNumber
             step.note == Note.REPLY_ON_PHONE -> text.replyOnPhone
             step.note == Note.NO_PHOTOS -> text.noPhotos
+            step.note == Note.CAMERA_FAILED -> text.cameraFailed
             step.note == Note.NO_SPEECH -> text.noSpeech
             else -> text.speechUnavailable
         }
@@ -236,11 +271,51 @@ class ScreenMaker(
         else -> message.text
     }
 
+    /**
+     * The rows that end above [reach], always including the chosen one: as the
+     * wearer moves down the list it slides along. Hidden rows are counted
+     * ("▴ 2" above, "▾ 7" below) so it's clear there is more.
+     */
+    private fun withinReach(rows: List<Row>, top: Int): List<Row> {
+        val limit = reach ?: return rows
+        val budget = limit - top
+        val heights = rows.map(::rowHeight)
+        if (heights.sum() <= budget) return rows
+        val chosen = rows.indexOfFirst { it.selected }.coerceAtLeast(0)
+        fun cost(from: Int, to: Int) = heights.subList(from, to + 1).sum() +
+            (if (from > 0) MARKER_PX else 0) + (if (to < rows.size - 1) MARKER_PX else 0)
+        var from = 0
+        while (from < chosen && cost(from, chosen) > budget) from++
+        var to = chosen
+        while (to + 1 < rows.size && cost(from, to + 1) <= budget) to++
+        while (from > 0 && cost(from - 1, to) <= budget) from--
+        return buildList {
+            if (from > 0) add(Row(text = "▴ $from", tone = Tone.DIM))
+            addAll(rows.subList(from, to + 1))
+            if (to < rows.size - 1) add(Row(text = "▾ ${rows.size - 1 - to}", tone = Tone.DIM))
+        }
+    }
+
+    /** Lens pixels a row takes, measured on the Nexus card: 34 for one line, 19 more for a sub line, 24 per extra wrapped line. */
+    private fun rowHeight(row: Row): Int {
+        val lines = maxOf(1, (row.text.length + WRAP_CHARS - 1) / WRAP_CHARS)
+        return ROW_PX + (lines - 1) * LINE_PX + (if (row.sub != null) SUB_PX else 0)
+    }
+
     private fun fit(value: String, max: Int = MAX_LINE) = if (value.length <= max) value else value.take(max - 1) + "…"
     private fun fitTitle(value: String) = fit(value, MAX_TITLE)
 
     companion object {
         const val MAX_ROWS = 64
+        /** Most wearers read the top ~70% of the 640 px lens comfortably. */
+        const val REACH_PX = 460
+        const val TOP_PX = 72
+        const val TOP_WITH_SUBTITLE_PX = 92
+        const val ROW_PX = 34
+        const val SUB_PX = 19
+        const val LINE_PX = 24
+        const val MARKER_PX = 34
+        const val WRAP_CHARS = 28
         const val MAX_LINE = 240
         const val MAX_TITLE = 48
         const val MAX_CAPTION = 240

@@ -29,7 +29,35 @@ internal object ZapGallery {
     /** WhatsApp takes long videos, but copying one for it must stay quick and cheap. */
     private const val MAX_SHARE_BYTES = 300L * 1024 * 1024
 
-    fun isKey(key: String) = GalleryKey.parse(key) != null
+    fun isKey(key: String) = GalleryKey.parse(key) != null || key.startsWith(SNAP_PREFIX)
+
+    // --- photos taken just now with the glasses' camera ("snap:<time>") ---------
+
+    private const val SNAP_PREFIX = "snap:"
+    private const val SNAP_DIR = "snaps"
+    private const val SNAP_KEEP_MS = 24 * 60 * 60 * 1000L
+
+    /** Keeps a photo the glasses just took, in Zap's private files, for a day. Its key works like any gallery key. */
+    fun saveSnapshot(context: Context, jpeg: ByteArray): String? = runCatching {
+        init(context)
+        val dir = File(context.filesDir, SNAP_DIR).apply { mkdirs() }
+        val now = System.currentTimeMillis()
+        dir.listFiles()?.filter { now - it.lastModified() > SNAP_KEEP_MS }?.forEach { it.delete() }
+        File(dir, "$now.jpg").writeBytes(jpeg)
+        "$SNAP_PREFIX$now"
+    }.onFailure { Log.w(TAG, "could not keep the glasses' photo", it) }.getOrNull()
+
+    private var filesDir: File? = null
+
+    private fun snapFile(key: String): File? {
+        val time = key.removePrefix(SNAP_PREFIX).takeIf { key.startsWith(SNAP_PREFIX) }?.toLongOrNull() ?: return null
+        return filesDir?.let { File(File(it, SNAP_DIR), "$time.jpg") }?.takeIf { it.exists() }
+    }
+
+    /** Remembers where snapshots live; called once when the plugin starts. */
+    fun init(context: Context) {
+        if (filesDir == null) filesDir = context.applicationContext.filesDir
+    }
 
     fun permissions(): Array<String> = when {
         Build.VERSION.SDK_INT >= 34 -> arrayOf(
@@ -86,7 +114,7 @@ internal object ZapGallery {
         }.orEmpty()
     }.onFailure { Log.w(TAG, "gallery query failed", it) }.getOrDefault(emptyList())
 
-    fun uri(key: String): Uri? = GalleryKey.parse(key)?.let {
+    fun uri(key: String): Uri? = snapFile(key)?.let(Uri::fromFile) ?: GalleryKey.parse(key)?.let {
         val base = if (it.video) MediaStore.Video.Media.EXTERNAL_CONTENT_URI else MediaStore.Images.Media.EXTERNAL_CONTENT_URI
         ContentUris.withAppendedId(base, it.id)
     }
@@ -98,6 +126,7 @@ internal object ZapGallery {
     /** A small JPEG for the glasses (≤512 px, ≤64 KB) — a video shows its first frame. Memory only. */
     fun thumbnail(context: Context, key: String): ZapPhotos.Photo? {
         synchronized(thumbs) { thumbs[key] }?.let { return it }
+        init(context)
         val uri = uri(key) ?: return null
         val bitmap = runCatching {
             if (GalleryKey.isVideo(key)) {
@@ -124,6 +153,7 @@ internal object ZapGallery {
      * needs no access to the wearer's gallery. Only the latest copy is kept.
      */
     fun shareable(context: Context, key: String): Uri? {
+        init(context)
         val source = uri(key) ?: return null
         val video = GalleryKey.isVideo(key)
         return runCatching {

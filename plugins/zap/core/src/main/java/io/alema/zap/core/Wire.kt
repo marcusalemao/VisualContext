@@ -40,7 +40,7 @@ object Wire {
             },
         )
         is Screen.Reader -> obj(
-            "v" to VERSION, "t" to "reader", "title" to screen.title, "foot" to screen.footer, "key" to screen.contentKey,
+            "v" to VERSION, "t" to "reader", "title" to screen.title, "sub" to screen.subtitle, "foot" to screen.footer, "key" to screen.contentKey,
             "seg" to screen.segments.map { seg -> obj("k" to seg.kind.name, "x" to seg.text, "e" to seg.emphasis.takeIf { it }) },
         )
         is Screen.Picture -> obj(
@@ -82,6 +82,7 @@ object Wire {
                 }
             },
             footer = m.str("foot"),
+            subtitle = m.str("sub"),
             contentKey = m.str("key") ?: "",
         )
         "pic" -> m.str("key")?.let { key ->

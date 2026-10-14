@@ -28,8 +28,10 @@ sealed interface Screen {
     data class Reader(
         val title: String,
         val segments: List<Segment>,
-        /** One quiet line at the bottom: what a tap offers. */
+        /** One quiet line at the bottom (kept empty: the bottom of the lens is hard to see). */
         val footer: String? = null,
+        /** One quiet line under the title: what a tap offers. */
+        val subtitle: String? = null,
         /** Same key = same document: the glasses keep the wearer's scroll position on update. */
         val contentKey: String,
     ) : Screen

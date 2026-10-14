@@ -84,10 +84,10 @@
             <meta-data android:name="com.anezium.rokidbus.plugin.ICON_DRAWABLE" android:resource="@drawable/nexus_glyph_zap" />
             <meta-data android:name="com.anezium.rokidbus.plugin.GLYPHS" android:resource="@array/nexus_glyphs" />
             <meta-data android:name="com.anezium.rokidbus.plugin.API_VERSION" android:value="3" />
-            <meta-data android:name="com.anezium.rokidbus.plugin.CAPABILITIES" android:value="surfaces,stt,tts,mediasync" />
+            <meta-data android:name="com.anezium.rokidbus.plugin.CAPABILITIES" android:value="surfaces,stt,tts,mediasync,camera" />
             <meta-data
                 android:name="com.anezium.rokidbus.plugin.RECEIVE_PREFIXES"
-                android:value="/plugin/zap,/system/plugin,/stt,/tts/started,/tts/done,/mediasync/status" />
+                android:value="/plugin/zap,/system/plugin,/stt,/tts/started,/tts/done,/mediasync/status,/camera/snapshot/result,/camera/snapshot/error" />
             <meta-data android:name="com.anezium.rokidbus.plugin.SETTINGS_ACTIVITY" android:value=".ZapSettingsActivity" />
             <meta-data android:name="com.anezium.rokidbus.plugin.LAUNCHABLE" android:value="true" />
         </service>

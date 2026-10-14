@@ -1,6 +1,7 @@
 package io.alema.zap.core
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -218,7 +219,7 @@ class ComposeFlowTest {
         ))
         val f = ComposeFlow({ people }).also { it.open(listOf(chat)) }
         f.move(1); f.tap(); f.tap() // open the chat, then its choices
-        assertEquals(4, f.choiceCount()) // Reply · Listen again · Send a photo · See photos
+        assertEquals(4, f.choiceCount()) // Reply · Listen again · Send a photo or video · See photos
         f.move(ComposeFlow.THREAD_PHOTO)
         f.tap()
         assertEquals("b", (f.step as Step.Photo).message.image) // newest first
@@ -246,6 +247,8 @@ class ComposeFlowTest {
         f.move(1); f.tap(); f.tap() // Leo's chat, its choices
         f.move(ComposeFlow.THREAD_SEND_PHOTO)
         f.tap()
+        assertTrue(f.step is Step.AttachFrom) // Camera / Gallery
+        f.move(ComposeFlow.ATTACH_GALLERY); f.tap()
         assertEquals("g:3", (f.step as Step.ChoosePhoto).photo) // newest first
         f.move(1)
         f.tap() // attach g:2
@@ -265,7 +268,11 @@ class ComposeFlowTest {
         f.onSpeechFinal("chegando")
         f.move(ComposeFlow.REVIEW_PHOTO)
         f.tap()
+        f.move(ComposeFlow.ATTACH_GALLERY); f.tap()
         assertTrue(f.step is Step.ChoosePhoto)
+        f.back() // back to Camera / Gallery, on Gallery
+        assertTrue(f.step is Step.AttachFrom)
+        assertEquals(ComposeFlow.ATTACH_GALLERY, f.selected)
         f.back()
         assertEquals(Step.Review(leoChat.recipient(), "Chegando"), f.step)
     }
@@ -281,6 +288,7 @@ class ComposeFlowTest {
         val empty = ComposeFlow({ people }).also { it.open(listOf(leoChat)) }
         empty.move(1); empty.tap(); empty.tap()
         empty.move(ComposeFlow.THREAD_SEND_PHOTO); empty.tap()
+        empty.move(ComposeFlow.ATTACH_GALLERY); empty.tap()
         assertEquals(Note.NO_PHOTOS, (empty.step as Step.Done).note)
     }
 
@@ -290,7 +298,8 @@ class ComposeFlowTest {
         val f = ComposeFlow({ people }, gallery = { gallery }).also { it.open(listOf(leoChat)) }
         f.move(1); f.tap(); f.tap()
         f.move(ComposeFlow.THREAD_SEND_PHOTO)
-        assertTrue(Effect.PullGlassesMedia in f.tap())
+        assertTrue(Effect.PullGlassesMedia in f.tap()) // already on Camera / Gallery
+        f.move(ComposeFlow.ATTACH_GALLERY); f.tap()
         f.move(1) // on g:c:i:1
         gallery = listOf("g:o:v:9", "g:o:i:8") + gallery // the glasses' shots arrive, newest first
         f.refreshPhotos(gallery)
@@ -303,5 +312,46 @@ class ComposeFlowTest {
         assertEquals(GalleryKey(fromGlasses = true, video = true, id = 9), GalleryKey.parse("g:o:v:9"))
         assertEquals("g:c:i:12", GalleryKey(false, false, 12).toString())
         assertEquals(null, GalleryKey.parse("photo-key"))
+    }
+
+    @Test
+    fun `take a photo with the glasses, check it, attach it`() {
+        val f = ComposeFlow({ people }).also { it.open(listOf(leoChat)) }
+        f.move(1); f.tap(); f.tap()
+        f.move(ComposeFlow.THREAD_SEND_PHOTO); f.tap()
+        assertEquals(ComposeFlow.ATTACH_CAMERA, f.selected) // Camera comes first
+        assertTrue(Effect.TakeSnapshot in f.tap())
+        assertTrue(f.step is Step.Snapping)
+        f.onSnapshot("snap:1")
+        assertEquals("snap:1", (f.step as Step.ChoosePhoto).photo)
+        f.tap()
+        assertEquals(Step.Review(leoChat.recipient(), "", "snap:1"), f.step)
+    }
+
+    @Test
+    fun `a failed or abandoned snapshot never attaches anything`() {
+        val f = ComposeFlow({ people }).also { it.open(listOf(leoChat)) }
+        f.move(1); f.tap(); f.tap(); f.move(ComposeFlow.THREAD_SEND_PHOTO); f.tap(); f.tap()
+        f.onSnapshotFailed()
+        assertEquals(Note.CAMERA_FAILED, (f.step as Step.Done).note)
+        assertFalse((f.step as Step.Done).canRetry)
+        val g = ComposeFlow({ people }).also { it.open(listOf(leoChat)) }
+        g.move(1); g.tap(); g.tap(); g.move(ComposeFlow.THREAD_SEND_PHOTO); g.tap(); g.tap()
+        g.back()
+        assertTrue(g.step is Step.AttachFrom)
+        g.onSnapshot("snap:late")
+        assertFalse(g.step is Step.ChoosePhoto)
+    }
+
+    @Test
+    fun `a camera photo taken from the review card keeps the words already said`() {
+        val f = ComposeFlow({ people }).also { it.open(listOf(leoChat)) }
+        f.move(1); f.tap(); f.tap(); f.tap() // reply
+        f.onSpeechFinal("olha isso")
+        f.move(ComposeFlow.REVIEW_PHOTO); f.tap()
+        f.tap() // Camera
+        f.onSnapshot("snap:2")
+        f.tap() // attach
+        assertEquals(Step.Review(leoChat.recipient(), "Olha isso", "snap:2"), f.step)
     }
 }
