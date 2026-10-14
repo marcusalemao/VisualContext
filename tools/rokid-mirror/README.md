@@ -14,7 +14,7 @@ Veja, grave e fotografe a tela dos Rokid Glasses no Mac — para qualquer projet
 ```
 brew install scrcpy
 brew install --cask android-platform-tools
-brew install ffmpeg          # só para o compose
+brew install ffmpeg          # para lens, demo e compose
 chmod +x rokid-mirror.sh
 ```
 
@@ -35,12 +35,22 @@ chmod +x rokid-mirror.sh
 
 | Comando | O que faz |
 |---|---|
-| `./rokid-mirror.sh view` | janela ao vivo |
+| `./rokid-mirror.sh view` | janela ao vivo, com as cores que o app desenha |
+| `./rokid-mirror.sh lens` | janela ao vivo **como a lente mostra**: tudo verde, uma cor só, preto = nada |
+| `./rokid-mirror.sh camera` | janela ao vivo da **câmera dos óculos** (o que você está olhando) |
+| `./rokid-mirror.sh demo zap` | grava HUD e câmera juntos; Ctrl+C termina e monta o vídeo **"através da lente"** (a luz verde do HUD somada ao mundo) |
 | `./rokid-mirror.sh record zap` | janela ao vivo + vídeo em `~/RokidMirror/videos` |
 | `./rokid-mirror.sh snap` | um print em `~/RokidMirror/shots` |
 | `./rokid-mirror.sh watch 3` | um print a cada 3 s em `~/RokidMirror/watch` (`latest.png` é sempre o mais novo; guarda os 40 últimos) |
-| `./rokid-mirror.sh compose cena.mp4 hud.mp4` | HUD flutuando no canto da cena (o preto vira transparente, como na lente) |
+| `./rokid-mirror.sh compose cena.mp4 hud.mp4` | o mesmo visual "através da lente", a partir de dois vídeos que você já tem |
 | `./rokid-mirror.sh off` | desconecta |
+
+## Por que o `view` não parece a lente
+
+O espelhamento mostra a imagem que o app desenha. A lente dos Rokid é
+transparente e de uma cor só: onde o app desenha luz aparece verde, onde
+desenha preto não aparece nada, e atrás está o mundo real. O `lens` imita a
+cor; o `demo` junta também o mundo (pela câmera dos óculos).
 
 ## Segurança
 
