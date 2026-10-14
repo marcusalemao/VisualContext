@@ -191,15 +191,15 @@ class ZapSettingsActivity : Activity() {
         choiceCard(
             title = t("Quando chegar mensagem", "When a message arrives"),
             subtitle = t(
-                "Aviso: quem escreveu e o começo, por 4 segundos. Aviso + voz: a mensagem inteira na frente de tudo, lida em voz alta na hora — nos óculos ou fones, nunca no alto-falante do celular. Se o Relay também avisa o WhatsApp, desligue um dos dois.",
-                "Notice: who wrote and the start, for 4 seconds. Notice + voice: the whole message over everything, read aloud at once — on the glasses or earbuds, never the phone's speaker. If Relay also shows WhatsApp, turn one of them off.",
+                "Aviso: quem escreveu e o começo, por 4 segundos. Com voz: a mensagem inteira na frente de tudo, lida em voz alta na hora — nos óculos ou fones, nunca no alto-falante do celular. Se o Relay também avisa o WhatsApp, desligue um dos dois.",
+                "Notice: who wrote and the start, for 4 seconds. With voice: the whole message over everything, read aloud at once — on the glasses or earbuds, never the phone's speaker. If Relay also shows WhatsApp, turn one of them off.",
             ),
             options = listOf(ZapSettings.ARRIVAL_OFF, ZapSettings.ARRIVAL_NOTICE, ZapSettings.ARRIVAL_READ),
             label = {
                 when (it) {
                     ZapSettings.ARRIVAL_OFF -> t("Nada", "Nothing")
                     ZapSettings.ARRIVAL_NOTICE -> t("Aviso", "Notice")
-                    else -> t("Aviso + voz", "Notice + voice")
+                    else -> t("Com voz", "With voice")
                 }
             },
             current = settings.arrivalMode(),
@@ -232,7 +232,7 @@ class ZapSettingsActivity : Activity() {
             title = t("Mostrar até", "Show up to"),
             subtitle = t("Conversas na lista dos óculos", "Chats in the glasses list"),
             options = listOf(20, 40, 60),
-            label = { t("$it conversas", "$it chats") },
+            label = { "$it" },
             current = settings.maxConversations(),
         ) { settings.setMaxConversations(it) }
         content.addView(
@@ -399,10 +399,12 @@ class ZapSettingsActivity : Activity() {
                     LinearLayout(this@ZapSettingsActivity).apply {
                         orientation = LinearLayout.HORIZONTAL
                         options.forEach { value ->
+                            // Same case on both pill styles (the outline one capitalises by itself).
+                            val text = label(value).uppercase()
                             val button = if (value == current) {
-                                NexusUi.pillButton(this@ZapSettingsActivity, label(value))
+                                NexusUi.pillButton(this@ZapSettingsActivity, text)
                             } else {
-                                NexusUi.outlinePillButton(this@ZapSettingsActivity, label(value))
+                                NexusUi.outlinePillButton(this@ZapSettingsActivity, text)
                             }
                             button.setOnClickListener {
                                 onPick(value)
