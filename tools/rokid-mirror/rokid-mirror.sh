@@ -177,13 +177,25 @@ case "$cmd" in
     dev="$(ensure_connected)" || exit 1
     every="${1:-3}"
     say "a screenshot every ${every}s in $DIR/watch (latest.png is always the newest). Ctrl+C to stop."
+    trap 'exit 0' INT
+    misses=0
     while true; do
       tmp="$DIR/watch/.next.png"
-      if adb -s "$dev" exec-out screencap -p > "$tmp" 2>/dev/null && [ -s "$tmp" ]; then
+      # Keep only whole pictures: a dropped link leaves an empty or cut file.
+      if adb -s "$dev" exec-out screencap -p > "$tmp" 2>/dev/null && [ "$(wc -c < "$tmp")" -gt 2000 ]; then
         cp "$tmp" "$DIR/watch/$(stamp).png"
         mv "$tmp" "$DIR/watch/latest.png"
+        misses=0
         # keep the last 40 timestamped shots
         ls -1t "$DIR"/watch/20*.png 2>/dev/null | tail -n +41 | while read -r old; do rm -f "$old"; done
+      else
+        rm -f "$tmp"
+        misses=$((misses + 1))
+        # The glasses moved to a new port (restart, Wi-Fi blip): find them again.
+        if [ "$misses" -ge 3 ]; then
+          say "lost the glasses, looking for them again…"
+          dev="$(ensure_connected)" && misses=0
+        fi
       fi
       sleep "$every"
     done
