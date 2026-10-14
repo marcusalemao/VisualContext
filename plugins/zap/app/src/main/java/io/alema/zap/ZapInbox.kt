@@ -55,6 +55,14 @@ internal object ZapInbox {
     /** Text for a photo sent without a caption. */
     const val PHOTO = ZapMessage.PHOTO
 
+    private val NOT_CHATS = setOf(
+        Notification.CATEGORY_SERVICE, Notification.CATEGORY_PROGRESS, Notification.CATEGORY_STATUS,
+        Notification.CATEGORY_SYSTEM, Notification.CATEGORY_CALL, Notification.CATEGORY_MISSED_CALL,
+    )
+
+    /** A chat keyed by the app's own name has no WhatsApp id: it is a status line, not a person. */
+    private val APP_NAMES = setOf("WhatsApp", "WhatsApp Business")
+
     fun list(context: Context): List<ZapConversation> = synchronized(lock) {
         ensureLoaded(context)
         val settings = ZapSettings(context)
@@ -189,6 +197,10 @@ internal object ZapInbox {
         if (!isWhatsApp(sbn.packageName)) return null
         val n = sbn.notification ?: return null
         if (n.flags and Notification.FLAG_GROUP_SUMMARY != 0) return null
+        // WhatsApp's own status lines ("Checking for new messages", backups, calls in
+        // progress) are ongoing/service notifications, never a chat.
+        if (n.flags and (Notification.FLAG_ONGOING_EVENT or Notification.FLAG_FOREGROUND_SERVICE) != 0) return null
+        if (n.category in NOT_CHATS) return null
         val extras = n.extras ?: return null
         val key = keyOf(sbn) ?: return null
         val title = titleOf(n) ?: return null
@@ -266,6 +278,8 @@ internal object ZapInbox {
             cipher.init(Cipher.DECRYPT_MODE, secretKey(), GCMParameterSpec(128, bytes.copyOfRange(0, 12)))
             val json = JSONArray(String(cipher.doFinal(bytes.copyOfRange(12, bytes.size)), Charsets.UTF_8))
             for (i in 0 until json.length()) fromJson(json.getJSONObject(i))?.let { chats[it.key] = it }
+            // Before 0.5.1 WhatsApp's "Checking for new messages" could land as a chat named after the app.
+            APP_NAMES.forEach { chats.remove(it) }
         }.onFailure { Log.w(TAG, "inbox unreadable, starting empty", it) }
     }
 

@@ -253,6 +253,7 @@ class ZapPluginService : NexusPluginService() {
     /** What the glasses show now: switching between card, reader and photo needs show, not update. */
     private enum class Shown { NOTHING, CARD, READER, PHOTO }
     private var shown = Shown.NOTHING
+    private var lastSubtitle: String? = null
 
     /** What to show comes from the core; this plug only turns it into Nexus cards and images. */
     private fun render(show: Boolean = false) {
@@ -271,8 +272,12 @@ class ZapPluginService : NexusPluginService() {
     private fun showCard(card: Screen.Card, show: Boolean) {
         val current = surface ?: return
         val nexus = card.toNexus()
-        if (show || shown != Shown.CARD) current.showCard(nexus) else current.updateCard(nexus)
+        // Nexus merges an update into the card on screen: a subtitle or footer left
+        // out stays from before ("Listening…" stuck on the inbox). Dropping one needs a fresh card.
+        val drops = (lastSubtitle != null && card.subtitle == null)
+        if (show || shown != Shown.CARD || drops) current.showCard(nexus) else current.updateCard(nexus)
         shown = Shown.CARD
+        lastSubtitle = card.subtitle
     }
 
     /** A whole chat, every message in full: the glasses wrap and scroll it. */
