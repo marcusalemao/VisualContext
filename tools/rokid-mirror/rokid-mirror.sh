@@ -194,7 +194,7 @@ case "$cmd" in
         # The glasses moved to a new port (restart, Wi-Fi blip): find them again.
         if [ "$misses" -ge 3 ]; then
           say "lost the glasses, looking for them again…"
-          dev="$(ensure_connected)" && misses=0
+          found="$(ensure_connected 2>/dev/null)" && [ -n "$found" ] && dev="$found" && misses=0
         fi
       fi
       sleep "$every"
