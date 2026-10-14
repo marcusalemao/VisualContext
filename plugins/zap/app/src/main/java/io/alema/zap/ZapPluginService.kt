@@ -8,6 +8,10 @@ import com.anezium.rokidbus.client.plugin.NexusCard
 import com.anezium.rokidbus.client.plugin.NexusCardLine
 import com.anezium.rokidbus.client.plugin.NexusImage
 import com.anezium.rokidbus.client.plugin.NexusPluginService
+import com.anezium.rokidbus.client.plugin.NexusReader
+import com.anezium.rokidbus.client.plugin.NexusReaderAnchor
+import com.anezium.rokidbus.client.plugin.NexusReaderSegment
+import com.anezium.rokidbus.client.plugin.NexusReaderSegmentKind
 import com.anezium.rokidbus.client.plugin.NexusRowTone
 import com.anezium.rokidbus.client.plugin.NexusSdkResult
 import com.anezium.rokidbus.client.plugin.NexusSpeechCallbacks
@@ -28,6 +32,7 @@ import io.alema.zap.core.Recipient
 import io.alema.zap.core.RecentPeople
 import io.alema.zap.core.Screen
 import io.alema.zap.core.ScreenMaker
+import io.alema.zap.core.Segment
 import io.alema.zap.core.Tone
 import io.alema.zap.core.ZapText
 
@@ -79,6 +84,7 @@ class ZapPluginService : NexusPluginService() {
             render()
         }
         surface = nexusSurfaceSession(SURFACE_ID)
+        shown = Shown.NOTHING
         render(show = true)
     }
 
@@ -243,8 +249,9 @@ class ZapPluginService : NexusPluginService() {
 
     // --- drawing ---------------------------------------------------------
 
-    /** True while the glasses show a photo: going back to a card then needs show, not update. */
-    private var showingPhoto = false
+    /** What the glasses show now: switching between card, reader and photo needs show, not update. */
+    private enum class Shown { NOTHING, CARD, READER, PHOTO }
+    private var shown = Shown.NOTHING
 
     /** What to show comes from the core; this plug only turns it into Nexus cards and images. */
     private fun render(show: Boolean = false) {
@@ -255,6 +262,7 @@ class ZapPluginService : NexusPluginService() {
         )
         when (val screen = screens.make(flow.step, flow.selected, status)) {
             is Screen.Card -> showCard(screen, show)
+            is Screen.Reader -> showReader(screen, show)
             is Screen.Picture -> showPicture(screen)
         }
     }
@@ -262,8 +270,33 @@ class ZapPluginService : NexusPluginService() {
     private fun showCard(card: Screen.Card, show: Boolean) {
         val current = surface ?: return
         val nexus = card.toNexus()
-        if (show || showingPhoto) current.showCard(nexus) else current.updateCard(nexus)
-        showingPhoto = false
+        if (show || shown != Shown.CARD) current.showCard(nexus) else current.updateCard(nexus)
+        shown = Shown.CARD
+    }
+
+    /** A whole chat, every message in full: the glasses wrap and scroll it. */
+    private fun showReader(reader: Screen.Reader, show: Boolean) {
+        val current = surface ?: return
+        val nexus = NexusReader(
+            title = reader.title,
+            footer = reader.footer,
+            contentKey = reader.contentKey,
+            segments = reader.segments.map { segment ->
+                NexusReaderSegment(
+                    kind = when (segment.kind) {
+                        Segment.Kind.HEADER -> NexusReaderSegmentKind.HEADER
+                        Segment.Kind.PROSE -> NexusReaderSegmentKind.PROSE
+                        Segment.Kind.ASIDE -> NexusReaderSegmentKind.ASIDE
+                    },
+                    text = segment.text,
+                    emphasis = segment.emphasis,
+                )
+            },
+            anchor = NexusReaderAnchor.BOTTOM, // a chat opens on its newest message
+        )
+        val result = if (show || shown != Shown.READER) current.showReader(nexus) else current.updateReader(nexus)
+        if (result != NexusSdkResult.SENT) Log.w(TAG, "reader refused: $result")
+        shown = Shown.READER
     }
 
     /** One photo, full screen; swipe for the others in this chat. */
@@ -272,7 +305,7 @@ class ZapPluginService : NexusPluginService() {
         val photo = ZapPhotos.load(this, picture.photoKey)
         if (photo == null) {
             current.showCard(picture.missing.toNexus())
-            showingPhoto = true // the next card must be shown, not updated
+            shown = Shown.CARD
             return
         }
         val image = NexusImage(
@@ -285,8 +318,8 @@ class ZapPluginService : NexusPluginService() {
             footer = picture.footer,
             handlesBack = true,
         )
-        val result = if (showingPhoto) current.updateImage(image, photo.bytes) else current.showImage(image, photo.bytes)
-        showingPhoto = true
+        val result = if (shown == Shown.PHOTO) current.updateImage(image, photo.bytes) else current.showImage(image, photo.bytes)
+        shown = Shown.PHOTO
         // Swiping fast can outrun the glasses' image rate limit: show the photo the wearer stopped on.
         if (result == NexusSdkResult.IMAGE_RATE_LIMITED) {
             main.removeCallbacks(retryPhoto)

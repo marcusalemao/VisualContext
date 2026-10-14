@@ -20,6 +20,19 @@ sealed interface Screen {
     ) : Screen
 
     /**
+     * A long document the glasses wrap and scroll themselves — a whole chat,
+     * every message in full. Swipes scroll; only a tap and back reach Zap.
+     */
+    data class Reader(
+        val title: String,
+        val segments: List<Segment>,
+        /** One quiet line at the bottom: what a tap offers. */
+        val footer: String? = null,
+        /** Same key = same document: the glasses keep the wearer's scroll position on update. */
+        val contentKey: String,
+    ) : Screen
+
+    /**
      * One photo, full screen. [photoKey] names the encrypted copy on the phone;
      * the host loads the bytes. When they are gone the host shows [missing].
      */
@@ -42,6 +55,11 @@ data class Row(
     val tone: Tone = Tone.NORMAL,
     val selected: Boolean = false,
 )
+
+/** A piece of a [Screen.Reader]: who spoke and when, what they said, or a quiet event line. */
+data class Segment(val kind: Kind, val text: String, val emphasis: Boolean = false) {
+    enum class Kind { HEADER, PROSE, ASIDE }
+}
 
 /** How a row reads: plain choice, message text, quiet hint, or a problem. */
 enum class Tone { NORMAL, BODY, DIM, ALERT }

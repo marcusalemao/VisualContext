@@ -10,8 +10,13 @@ sealed interface Step {
     /** Home: "New message" first, then the conversations, newest first. */
     data class Inbox(val conversations: List<ZapConversation>) : Step
 
-    /** One conversation open: its last messages, then Reply · Listen again (· See photo, when it has one). */
-    data class Thread(val conversation: ZapConversation) : Step
+    /**
+     * One conversation open. [reading]: the whole chat as a document the wearer
+     * scrolls, every message in full. A tap brings up the choices instead:
+     * Reply · Listen again (· See photos, when it has some). Back from the
+     * choices returns to reading; back from reading returns home.
+     */
+    data class Thread(val conversation: ZapConversation, val reading: Boolean = true) : Step
 
     /** A photo from the conversation, full screen. Swipe for the others; back to the conversation. */
     data class Photo(val conversation: ZapConversation, val index: Int) : Step {
@@ -106,7 +111,7 @@ class ComposeFlow(
                 base = step
             }
             is Step.Thread -> inbox.firstOrNull { it.key == s.conversation.key }?.let {
-                step = Step.Thread(it)
+                step = s.copy(conversation = it)
                 base = step
             }
             is Step.Photo -> inbox.firstOrNull { it.key == s.conversation.key }?.let { fresh ->
@@ -120,7 +125,11 @@ class ComposeFlow(
 
     fun choiceCount(): Int = when (val s = step) {
         is Step.Inbox -> 1 + s.conversations.size
-        is Step.Thread -> if (s.conversation.photos.isEmpty()) THREAD_CHOICES else THREAD_CHOICES + 1
+        is Step.Thread -> when {
+            s.reading -> 0 // the glasses scroll the document themselves
+            s.conversation.photos.isEmpty() -> THREAD_CHOICES
+            else -> THREAD_CHOICES + 1
+        }
         is Step.Photo -> s.conversation.photos.size
         is Step.NewMessage -> 1 + s.recent.size
         is Step.Pick -> s.choices.size + 1
@@ -148,7 +157,10 @@ class ComposeFlow(
             go(Step.Thread(s.conversations[selected - 1]), asBase = true)
             emptyList()
         }
-        is Step.Thread -> when (selected) {
+        is Step.Thread -> if (s.reading) {
+            go(s.copy(reading = false), asBase = true)
+            emptyList()
+        } else when (selected) {
             THREAD_REPLY -> reply(s.conversation)
             THREAD_PHOTO -> {
                 go(Step.Photo(s.conversation, s.conversation.photos.size - 1))
@@ -183,11 +195,15 @@ class ComposeFlow(
     fun back(): List<Effect> = when (val s = step) {
         is Step.Inbox -> listOf(Effect.Close)
         is Step.Photo -> {
-            step = Step.Thread(s.conversation)
+            step = Step.Thread(s.conversation, reading = false)
             selected = THREAD_PHOTO
             listOf(Effect.StopSpeaking)
         }
-        is Step.Thread, is Step.NewMessage -> {
+        is Step.Thread -> {
+            if (s.reading) go(Step.Inbox(conversations), asBase = true) else go(s.copy(reading = true), asBase = true)
+            listOf(Effect.StopSpeaking)
+        }
+        is Step.NewMessage -> {
             go(Step.Inbox(conversations), asBase = true)
             listOf(Effect.StopSpeaking)
         }

@@ -36,7 +36,10 @@ class ComposeFlowTest {
         val f = flow()
         f.move(2) // Leo's chat
         f.tap()
-        assertEquals(Step.Thread(leoChat), f.step)
+        assertEquals(Step.Thread(leoChat), f.step) // reading: the whole chat, scrolled on the glasses
+        assertEquals(0, f.choiceCount())
+        f.tap() // the choices
+        assertEquals(Step.Thread(leoChat, reading = false), f.step)
 
         f.move(1) // Listen again
         assertEquals(listOf(Effect.SpeakMessage(ZapMessage("Leo", "Tô no centro", 2_000L))), f.tap())
@@ -59,7 +62,7 @@ class ComposeFlowTest {
     fun `a group without a live reply says to answer on the phone`() {
         val f = flow()
         f.move(1)
-        f.tap()
+        f.tap(); f.tap() // the chat, its choices
         f.tap() // Reply
         assertEquals(Note.REPLY_ON_PHONE, (f.step as Step.Done).note)
     }
@@ -68,7 +71,7 @@ class ComposeFlowTest {
     fun `a group with a live reply can be answered`() {
         val f = ComposeFlow({ people }).also { it.open(listOf(family.copy(canReplyLive = true))) }
         f.move(1)
-        f.tap()
+        f.tap(); f.tap()
         assertEquals(Effect.StartListening, f.tap().last())
     }
 
@@ -168,8 +171,11 @@ class ComposeFlowTest {
     fun `back returns to where the wearer came from`() {
         val f = flow()
         f.move(2); f.tap() // thread
+        f.tap() // choices
         f.tap() // reply → listening
         assertEquals(listOf(Effect.StopListening), f.back())
+        assertEquals(Step.Thread(leoChat, reading = false), f.step)
+        f.back()
         assertEquals(Step.Thread(leoChat), f.step)
         f.back()
         assertTrue(f.step is Step.Inbox)
@@ -188,7 +194,7 @@ class ComposeFlowTest {
     @Test
     fun `a locked phone reports waiting, then sent`() {
         val f = flow()
-        f.move(2); f.tap(); f.tap()
+        f.move(2); f.tap(); f.tap(); f.tap()
         f.onSpeechFinal("oi")
         f.tap()
         f.onSendOutcome(SendOutcome.WAITING_FOR_UNLOCK)
@@ -211,7 +217,7 @@ class ComposeFlowTest {
             ZapMessage("Leo", "Olha isso", 6_000L, image = "b"),
         ))
         val f = ComposeFlow({ people }).also { it.open(listOf(chat)) }
-        f.move(1); f.tap() // open the chat
+        f.move(1); f.tap(); f.tap() // open the chat, then its choices
         assertEquals(3, f.choiceCount()) // Reply · Listen again · See photo
         f.move(ComposeFlow.THREAD_PHOTO)
         f.tap()
@@ -221,7 +227,7 @@ class ComposeFlowTest {
         f.move(-1) // no wrap past the first photo
         assertEquals("a", (f.step as Step.Photo).message.image)
         f.back()
-        assertEquals(Step.Thread(chat), f.step)
+        assertEquals(Step.Thread(chat, reading = false), f.step)
         assertEquals(ComposeFlow.THREAD_PHOTO, f.selected)
     }
 

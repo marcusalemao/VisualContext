@@ -20,6 +20,15 @@ class ZapText(private val pt: Boolean = Locale.getDefault().language == "pt") {
     val reply get() = if (pt) "Responder" else "Reply"
     val listenAgain get() = if (pt) "Ouvir de novo" else "Listen again"
     val me get() = if (pt) "Você" else "You"
+    /** Under a chat being read: what a tap brings up. */
+    fun readerFooter(photos: Boolean) = when {
+        photos && pt -> "Responder · Ouvir de novo · Fotos"
+        photos -> "Reply · Listen again · Photos"
+        pt -> "Responder · Ouvir de novo"
+        else -> "Reply · Listen again"
+    }
+    val emptyChat get() = if (pt) "Nenhuma mensagem guardada" else "No saved messages"
+    val earlier get() = if (pt) "mensagens anteriores não cabem aqui" else "earlier messages don't fit here"
     fun seePhotos(count: Int) = when {
         count <= 1 -> if (pt) "Ver foto" else "See photo"
         pt -> "Ver fotos ($count)"

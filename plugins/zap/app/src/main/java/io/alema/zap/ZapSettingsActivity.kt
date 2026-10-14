@@ -91,12 +91,12 @@ class ZapSettingsActivity : Activity() {
             t("Seu WhatsApp nos óculos", "Your WhatsApp on the glasses"),
             t(
                 "Nos óculos, abra o menu do Nexus e escolha Zap. Ele abre nas suas conversas, como o WhatsApp no celular.\n\n" +
-                    "• Toque numa conversa para ler. Ali estão Responder e Ouvir de novo.\n" +
+                    "• Toque numa conversa para ler: ela abre inteira, cada mensagem completa, e você desliza para rolar. Toque de novo para Responder, Ouvir de novo e ver as fotos.\n" +
                     "• Nova mensagem, no topo: escolha alguém da lista ou toque em \"Dizer o nome\". Primeiro diga só o nome; se houver nomes parecidos, escolha na lista. Depois diga a mensagem.\n" +
                     "• Antes de sair, o texto aparece para você conferir. Nada é enviado sem você tocar em Enviar.\n\n" +
                     "As conversas aparecem conforme as mensagens chegam com o Zap ligado. Mensagens que você manda para você mesmo não contam: o WhatsApp não avisa delas.",
                 "On the glasses, open the Nexus menu and pick Zap. It opens on your chats, like WhatsApp on the phone.\n\n" +
-                    "• Tap a chat to read it. Reply and Listen again are there.\n" +
+                    "• Tap a chat to read it: it opens whole, every message in full, and you swipe to scroll. Tap again for Reply, Listen again and the photos.\n" +
                     "• New message, at the top: pick someone from the list or tap \"Say the name\". Say just the name first; if names are alike, pick from the list. Then say the message.\n" +
                     "• Before it goes, the text is shown for you to check. Nothing is sent until you tap Send.\n\n" +
                     "Chats appear as messages arrive while Zap is on. Messages you send to yourself don't count: WhatsApp doesn't notify about them.",

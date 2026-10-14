@@ -1,5 +1,10 @@
 package io.alema.zap.core
 
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+
 /**
  * Turns the current [Step] of [ComposeFlow] into the [Screen] every host draws.
  *
@@ -7,7 +12,11 @@ package io.alema.zap.core
  * hints (the wearer knows the native gestures), short lines. Widths are the
  * ones Relay measured on the Rokid optics.
  */
-class ScreenMaker(private val text: ZapText = ZapText()) {
+class ScreenMaker(
+    private val text: ZapText = ZapText(),
+    private val zone: ZoneId = ZoneId.systemDefault(),
+    private val now: () -> Long = System::currentTimeMillis,
+) {
 
     /** Phone-side facts a screen may need to mention. */
     data class Status(
@@ -21,7 +30,7 @@ class ScreenMaker(private val text: ZapText = ZapText()) {
 
     fun make(step: Step, selected: Int, status: Status = Status()): Screen = when (step) {
         is Step.Inbox -> inbox(step, selected, status)
-        is Step.Thread -> thread(step.conversation, selected, status)
+        is Step.Thread -> if (step.reading) reader(step.conversation) else choices(step.conversation, selected, status)
         is Step.Photo -> photo(step)
         is Step.NewMessage -> newMessage(step, selected)
         is Step.Listening -> Screen.Card(
@@ -82,12 +91,59 @@ class ScreenMaker(private val text: ZapText = ZapText()) {
         return Screen.Card(title = text.inboxTitle, rows = rows, handlesBack = false)
     }
 
-    /** One chat: its latest messages, then Reply · Listen again (· See photos). Reply is always there. */
-    private fun thread(chat: ZapConversation, selected: Int, status: Status): Screen.Card {
-        val rows = buildList {
-            chat.messages.takeLast(THREAD_MESSAGES).forEach { message ->
-                add(Row(text = fit(message.text), badge = badgeFor(chat, message), tone = Tone.BODY))
+    /**
+     * One chat, read like a document: every kept message in full, the glasses
+     * scroll it. A new header whenever the sender changes or time passes.
+     */
+    private fun reader(chat: ZapConversation): Screen.Reader {
+        val today = LocalDate.ofInstant(Instant.ofEpochMilli(now()), zone)
+        val built = ArrayList<Segment>()
+        var lastSender: String? = null
+        var lastTime = Long.MIN_VALUE
+        for (message in chat.messages.sortedBy { it.timeMs }) {
+            if (message.sender != lastSender || message.timeMs - lastTime > NEW_HEADER_AFTER_MS) {
+                if (built.isNotEmpty()) built += Segment(Segment.Kind.PROSE, "") // paragraph break
+                built += Segment(Segment.Kind.HEADER, "${senderLabel(message)} · ${clock(message.timeMs, today)}", emphasis = message.sender == ZapMessage.ME)
             }
+            if (message.image != null) built += Segment(Segment.Kind.ASIDE, ZapMessage.PHOTO)
+            val body = message.text.takeIf { it.isNotBlank() && !(message.image != null && it == ZapMessage.PHOTO) }
+            body?.let { built += Segment(Segment.Kind.PROSE, it.take(MAX_SEGMENT_CHARS)) }
+            lastSender = message.sender
+            lastTime = message.timeMs
+        }
+        return Screen.Reader(
+            title = fitTitle(chat.title),
+            segments = newestThatFit(built),
+            footer = text.readerFooter(chat.photos.isNotEmpty()),
+            contentKey = "zap-chat-${chat.key}".take(128),
+        )
+    }
+
+    /** The glasses take 240 segments and 40,000 characters: keep the newest, say when older ones are left out. */
+    private fun newestThatFit(all: List<Segment>): List<Segment> {
+        if (all.isEmpty()) return listOf(Segment(Segment.Kind.ASIDE, text.emptyChat))
+        var chars = 0
+        var from = all.size
+        while (from > 0) {
+            val next = all[from - 1]
+            if (all.size - from + 1 > MAX_SEGMENTS - 1 || chars + next.text.length > MAX_READER_CHARS - 200) break
+            chars += next.text.length
+            from--
+        }
+        // Start on a header, never mid-run.
+        while (from < all.size && all[from].kind != Segment.Kind.HEADER) from++
+        val kept = all.subList(from, all.size)
+        return if (from == 0) kept else listOf(Segment(Segment.Kind.ASIDE, "⋯ ${text.earlier}")) + kept
+    }
+
+    private fun clock(timeMs: Long, today: LocalDate): String {
+        val at = Instant.ofEpochMilli(timeMs).atZone(zone)
+        return if (at.toLocalDate() == today) at.format(HOUR) else at.format(DAY_HOUR)
+    }
+
+    /** One chat's choices: Reply · Listen again (· See photos). Reply is always there. */
+    private fun choices(chat: ZapConversation, selected: Int, status: Status): Screen.Card {
+        val rows = buildList {
             val choices = listOf(text.reply, text.listenAgain) +
                 listOfNotNull(text.seePhotos(chat.photos.size).takeIf { chat.photos.isNotEmpty() })
             choices.forEachIndexed { index, label -> add(Row(text = label, selected = selected == index)) }
@@ -148,13 +204,6 @@ class ScreenMaker(private val text: ZapText = ZapText()) {
 
     fun senderLabel(message: ZapMessage): String = if (message.sender == ZapMessage.ME) text.me else message.sender
 
-    /** In a one-to-one chat only the wearer's own lines need a label; in a group every line does. */
-    private fun badgeFor(chat: ZapConversation, message: ZapMessage): String? = when {
-        message.sender == ZapMessage.ME -> text.me
-        chat.isGroup -> message.sender.take(MAX_BADGE)
-        else -> null
-    }
-
     private fun preview(chat: ZapConversation, message: ZapMessage): String = when {
         message.sender == ZapMessage.ME -> "${text.me}: ${message.text}"
         chat.isGroup -> "${message.sender}: ${message.text}"
@@ -168,11 +217,16 @@ class ScreenMaker(private val text: ZapText = ZapText()) {
         const val MAX_ROWS = 64
         const val MAX_LINE = 240
         const val MAX_TITLE = 48
-        const val MAX_BADGE = 24
         const val MAX_CAPTION = 240
         /** Same widths Relay measured on the optics for list rows and their sub line. */
         const val LIST_CHARS = 26
         const val PREVIEW_CHARS = 40
-        const val THREAD_MESSAGES = 6
+        const val MAX_SEGMENTS = 240
+        const val MAX_SEGMENT_CHARS = 4_096
+        const val MAX_READER_CHARS = 40_000
+        /** A pause this long starts a new header even from the same sender. */
+        const val NEW_HEADER_AFTER_MS = 30 * 60_000L
+        private val HOUR = DateTimeFormatter.ofPattern("HH:mm")
+        private val DAY_HOUR = DateTimeFormatter.ofPattern("dd/MM HH:mm")
     }
 }
