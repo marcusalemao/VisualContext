@@ -34,6 +34,12 @@ class ZapText(private val pt: Boolean = Locale.getDefault().language == "pt") {
         pt -> "Ver fotos ($count)"
         else -> "See photos ($count)"
     }
+    val sendPhoto get() = if (pt) "Enviar foto" else "Send a photo"
+    val attachPhoto get() = if (pt) "Anexar foto" else "Attach a photo"
+    val changePhoto get() = if (pt) "Trocar foto" else "Change photo"
+    val photoAttached get() = if (pt) "📷 Foto anexada" else "📷 Photo attached"
+    val sayCaption get() = if (pt) "Ditar legenda" else "Say a caption"
+    val noPhotos get() = if (pt) "Nenhuma foto para anexar. Permita o acesso às fotos nos ajustes do Zap, no celular" else "No photos to attach. Allow photo access in Zap's settings on the phone"
     val photoGone get() = if (pt) "Esta foto não está mais guardada no celular" else "This photo is no longer saved on the phone"
     val replyOnPhone get() = if (pt) "Responda este grupo pelo celular" else "Answer this group on the phone"
     fun heard(sender: String, text: String) = "$sender: ${if (text == ZapMessage.PHOTO) photoSaid else text}"
@@ -69,7 +75,7 @@ class ZapText(private val pt: Boolean = Locale.getDefault().language == "pt") {
     val tryAgain get() = if (pt) "Tentar de novo" else "Try again"
 
     /** What the glasses say for "Listen": the recipient, then the message. */
-    fun spoken(name: String, body: String) = if (pt) "Para $name: $body" else "To $name: $body"
+    fun spoken(name: String, body: String) = if (pt) "Para $name: ${body.ifBlank { "uma foto" }}" else "To $name: ${body.ifBlank { "a photo" }}"
 
     /** "•• 4321": enough to tell two Brunos apart without putting a number on the lens. */
     fun numberHint(digits: String?) = digits?.takeLast(4)?.let { "•• $it" }

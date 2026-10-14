@@ -4,7 +4,7 @@ package io.alema.zap.core
 enum class SendOutcome { SENT, OPENED_FOR_THUMB, WAITING_FOR_UNLOCK, NOT_INSTALLED, FAILED }
 
 /** Why the flow stopped somewhere other than a sent message. */
-enum class Note { NO_SPEECH, SPEECH_UNAVAILABLE, NO_CONTACT, NO_NUMBER, REPLY_ON_PHONE }
+enum class Note { NO_SPEECH, SPEECH_UNAVAILABLE, NO_CONTACT, NO_NUMBER, REPLY_ON_PHONE, NO_PHOTOS }
 
 sealed interface Step {
     /** Home: "New message" first, then the conversations, newest first. */
@@ -13,7 +13,7 @@ sealed interface Step {
     /**
      * One conversation open. [reading]: the whole chat as a document the wearer
      * scrolls, every message in full. A tap brings up the choices instead:
-     * Reply · Listen again (· See photos, when it has some). Back from the
+     * Reply · Listen again · Send a photo (· See photos, when it has some). Back from the
      * choices returns to reading; back from reading returns home.
      */
     data class Thread(val conversation: ZapConversation, val reading: Boolean = true) : Step
@@ -23,6 +23,21 @@ sealed interface Step {
         val message: ZapMessage get() = conversation.photos[index]
     }
 
+    /**
+     * Pick a photo from the phone to send: newest first, full screen, swipe
+     * for older ones, tap to attach. [body] and [previousPhoto] come along from
+     * a review card, so back can return to it unchanged.
+     */
+    data class ChoosePhoto(
+        val recipient: Recipient,
+        val photos: List<String>,
+        val index: Int = 0,
+        val body: String = "",
+        val previousPhoto: String? = null,
+    ) : Step {
+        val photo: String get() = photos[index]
+    }
+
     /** "Say the name" first, then the people the wearer wrote to or heard from lately. */
     data class NewMessage(val recent: List<ZapContact>) : Step
 
@@ -30,15 +45,15 @@ sealed interface Step {
      * Two separate questions, never one: with no recipient yet it listens for
      * the name only; with a recipient it listens for the message only.
      */
-    data class Listening(val recipient: Recipient?, val partial: String = "") : Step
+    data class Listening(val recipient: Recipient?, val partial: String = "", val photo: String? = null) : Step
 
     /** The name fits more than one person, or fits one only loosely: the wearer picks, or says it again (last row). */
     data class Pick(val spoken: String, val choices: List<ZapContact>) : Step
 
-    /** Send · Listen first · Say it again. */
-    data class Review(val recipient: Recipient, val body: String) : Step
+    /** Send · Listen first · Say it again · Attach (or change) a photo. [body] may be empty when a photo goes alone. */
+    data class Review(val recipient: Recipient, val body: String, val photo: String? = null) : Step
 
-    data class Sending(val recipient: Recipient, val body: String) : Step
+    data class Sending(val recipient: Recipient, val body: String, val photo: String? = null) : Step
 
     data class Done(
         val recipient: Recipient?,
@@ -46,6 +61,8 @@ sealed interface Step {
         val outcome: SendOutcome? = null,
         val note: Note? = null,
         val spoken: String? = null,
+        /** A photo the wearer had attached: trying again keeps it. */
+        val photo: String? = null,
     ) : Step {
         /** Nothing reached anyone and asking again could fix it: the one row listens again. */
         val canRetry: Boolean get() = outcome == null && note in RETRYABLE
@@ -65,8 +82,12 @@ sealed interface Effect {
     data class SpeakMessage(val message: ZapMessage) : Effect
     object StopSpeaking : Effect
 
-    /** Send through WhatsApp's live reply when [Recipient.conversationKey] still has one, else open the chat. */
-    data class Send(val recipient: Recipient, val body: String) : Effect
+    /**
+     * Send through WhatsApp's live reply when [Recipient.conversationKey] still
+     * has one, else open the chat. With a [photo] (a key from the gallery) it
+     * always goes through the chat, since a notification reply carries text only.
+     */
+    data class Send(val recipient: Recipient, val body: String, val photo: String? = null) : Effect
     object Close : Effect
 }
 
@@ -83,6 +104,8 @@ class ComposeFlow(
     private val directory: () -> List<ZapContact>,
     private val recentPeople: () -> List<ZapContact> = { emptyList() },
     private val defaultCountryCode: String = PhoneNumbers.BRAZIL,
+    /** Keys of the phone photos the wearer may attach, newest first (glasses photos when there are any). */
+    private val gallery: () -> List<String> = { emptyList() },
 ) {
     var step: Step = Step.Inbox(emptyList())
         private set
@@ -131,6 +154,7 @@ class ComposeFlow(
             else -> THREAD_CHOICES + 1
         }
         is Step.Photo -> s.conversation.photos.size
+        is Step.ChoosePhoto -> s.photos.size
         is Step.NewMessage -> 1 + s.recent.size
         is Step.Pick -> s.choices.size + 1
         is Step.Review -> REVIEW_CHOICES
@@ -143,6 +167,10 @@ class ComposeFlow(
             // Photos don't wrap around: the ends are where the conversation's photos end.
             val next = (s.index + delta).coerceIn(0, s.conversation.photos.size - 1)
             step = s.copy(index = next)
+            return
+        }
+        (step as? Step.ChoosePhoto)?.let { s ->
+            step = s.copy(index = (s.index + delta).coerceIn(0, s.photos.size - 1))
             return
         }
         val count = choiceCount()
@@ -162,6 +190,7 @@ class ComposeFlow(
             emptyList()
         } else when (selected) {
             THREAD_REPLY -> reply(s.conversation)
+            THREAD_SEND_PHOTO -> choosePhoto(s.conversation.recipient(), body = "", previous = null)
             THREAD_PHOTO -> {
                 go(Step.Photo(s.conversation, s.conversation.photos.size - 1))
                 listOf(Effect.StopSpeaking)
@@ -175,16 +204,18 @@ class ComposeFlow(
         }
         is Step.Pick -> if (selected < s.choices.size) choose(s.choices[selected]) else listen(null)
         is Step.Review -> when (selected) {
-            REVIEW_SEND -> send(s.recipient, s.body)
+            REVIEW_SEND -> send(s.recipient, s.body, s.photo)
             REVIEW_LISTEN -> listOf(Effect.SpeakDraft(s.recipient, s.body))
-            else -> listOf(Effect.StopSpeaking) + listen(s.recipient)
+            REVIEW_PHOTO -> listOf(Effect.StopSpeaking) + choosePhoto(s.recipient, s.body, s.photo)
+            else -> listOf(Effect.StopSpeaking) + listen(s.recipient, s.photo)
         }
+        is Step.ChoosePhoto -> review(s.recipient, s.body, s.photo)
         is Step.Photo -> {
             // Tapping a photo reads its caption, if any, like Listen again.
             if (s.message.text.isNotBlank()) listOf(Effect.SpeakMessage(s.message)) else emptyList()
         }
         is Step.Done -> if (s.canRetry) {
-            listen(s.recipient)
+            listen(s.recipient, s.photo)
         } else {
             go(Step.Inbox(conversations), asBase = true)
             emptyList()
@@ -212,6 +243,11 @@ class ComposeFlow(
             listOf(Effect.StopListening)
         }
         is Step.Sending -> emptyList()
+        is Step.ChoosePhoto -> {
+            // From a review card: back to it, as it was. From a chat: back to the chat.
+            if (s.body.isNotEmpty() || s.previousPhoto != null) review(s.recipient, s.body, s.previousPhoto) else go(base)
+            emptyList()
+        }
         is Step.Review -> {
             go(base)
             listOf(Effect.StopSpeaking)
@@ -229,9 +265,9 @@ class ComposeFlow(
 
     fun onSpeechFinal(text: String): List<Effect> {
         val s = step as? Step.Listening ?: return emptyList()
-        if (text.isBlank()) return done(Step.Done(s.recipient, null, note = Note.NO_SPEECH))
+        if (text.isBlank()) return done(Step.Done(s.recipient, null, note = Note.NO_SPEECH, photo = s.photo))
         val recipient = s.recipient
-        if (recipient != null) return review(recipient, ComposeParser.tidyBody(text))
+        if (recipient != null) return review(recipient, ComposeParser.tidyBody(text), s.photo)
 
         // Name step: only a name is expected; greetings and trailing words are tolerated.
         val matcher = ContactMatcher(RecentPeople.withDirectory(recentPeople(), directory(), defaultCountryCode))
@@ -249,12 +285,12 @@ class ComposeFlow(
 
     fun onSpeechFailed(note: Note): List<Effect> {
         val s = step as? Step.Listening ?: return emptyList()
-        return done(Step.Done(s.recipient, null, note = note))
+        return done(Step.Done(s.recipient, null, note = note, photo = s.photo))
     }
 
     fun onSendOutcome(outcome: SendOutcome) {
         when (val s = step) {
-            is Step.Sending -> go(Step.Done(s.recipient, s.body, outcome = outcome))
+            is Step.Sending -> go(Step.Done(s.recipient, s.body.ifEmpty { null }, outcome = outcome))
             // A locked phone reports "waiting" first and "sent" once unlocked.
             is Step.Done -> if (s.outcome == SendOutcome.WAITING_FOR_UNLOCK) step = s.copy(outcome = outcome)
             else -> Unit
@@ -277,19 +313,28 @@ class ComposeFlow(
         return listen(recipient)
     }
 
-    private fun listen(recipient: Recipient?): List<Effect> {
-        go(Step.Listening(recipient))
+    private fun listen(recipient: Recipient?, photo: String? = null): List<Effect> {
+        go(Step.Listening(recipient, photo = photo))
         return listOf(Effect.StartListening)
     }
 
-    private fun review(recipient: Recipient, body: String): List<Effect> {
-        go(Step.Review(recipient, body))
+    private fun review(recipient: Recipient, body: String, photo: String? = null): List<Effect> {
+        go(Step.Review(recipient, body, photo))
         return emptyList()
     }
 
-    private fun send(recipient: Recipient, body: String): List<Effect> {
-        go(Step.Sending(recipient, body))
-        return listOf(Effect.StopSpeaking, Effect.Send(recipient, body))
+    /** A photo goes through the chat itself, so it needs the person's number; then the phone's photos, newest first. */
+    private fun choosePhoto(recipient: Recipient, body: String, previous: String?): List<Effect> {
+        if (recipient.digits == null) return done(Step.Done(recipient, null, note = Note.NO_NUMBER))
+        val photos = gallery()
+        if (photos.isEmpty()) return done(Step.Done(recipient, null, note = Note.NO_PHOTOS))
+        go(Step.ChoosePhoto(recipient, photos, index = 0, body = body, previousPhoto = previous))
+        return emptyList()
+    }
+
+    private fun send(recipient: Recipient, body: String, photo: String? = null): List<Effect> {
+        go(Step.Sending(recipient, body, photo))
+        return listOf(Effect.StopSpeaking, Effect.Send(recipient, body, photo))
     }
 
     private fun done(next: Step.Done): List<Effect> {
@@ -306,11 +351,13 @@ class ComposeFlow(
     companion object {
         const val THREAD_REPLY = 0
         const val THREAD_LISTEN = 1
-        const val THREAD_PHOTO = 2
-        private const val THREAD_CHOICES = 2
+        const val THREAD_SEND_PHOTO = 2
+        const val THREAD_PHOTO = 3
+        private const val THREAD_CHOICES = 3
         const val REVIEW_SEND = 0
         const val REVIEW_LISTEN = 1
         const val REVIEW_REDO = 2
-        private const val REVIEW_CHOICES = 3
+        const val REVIEW_PHOTO = 3
+        private const val REVIEW_CHOICES = 4
     }
 }

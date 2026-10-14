@@ -32,6 +32,13 @@ class ScreenMaker(
         is Step.Inbox -> inbox(step, selected, status)
         is Step.Thread -> if (step.reading) reader(step.conversation) else choices(step.conversation, selected, status)
         is Step.Photo -> photo(step)
+        is Step.ChoosePhoto -> Screen.Picture(
+            photoKey = step.photo,
+            title = fitTitle(text.to(step.recipient.name)),
+            caption = step.body.ifBlank { null }?.take(MAX_CAPTION),
+            footer = if (step.photos.size > 1) "${step.index + 1}/${step.photos.size}" else null,
+            missing = Screen.Card(title = fitTitle(text.to(step.recipient.name)), rows = listOf(Row(text = text.photoGone, tone = Tone.DIM))),
+        )
         is Step.NewMessage -> newMessage(step, selected)
         is Step.Listening -> Screen.Card(
             title = fitTitle(step.recipient?.let { text.to(it.name) } ?: text.whoTitle),
@@ -56,13 +63,18 @@ class ScreenMaker(
         )
         is Step.Review -> Screen.Card(
             title = fitTitle(text.to(step.recipient.name)),
-            rows = listOf(Row(text = fit(step.body), tone = Tone.BODY)) +
-                listOf(text.send, text.listen, text.redo).mapIndexed { index, label -> Row(text = label, selected = index == selected) } +
+            rows = draft(step.body, step.photo) +
+                listOf(
+                    text.send,
+                    text.listen,
+                    if (step.photo != null && step.body.isBlank()) text.sayCaption else text.redo,
+                    if (step.photo == null) text.attachPhoto else text.changePhoto,
+                ).mapIndexed { index, label -> Row(text = label, selected = index == selected) } +
                 listOfNotNull(Row(text = text.voiceHelp, tone = Tone.DIM).takeIf { status.voiceTrouble }),
         )
         is Step.Sending -> Screen.Card(
             title = fitTitle(text.to(step.recipient.name)),
-            rows = listOf(Row(text = fit(step.body), tone = Tone.BODY)),
+            rows = draft(step.body, step.photo),
             subtitle = text.sending,
         )
         is Step.Done -> done(step, status)
@@ -144,7 +156,7 @@ class ScreenMaker(
     /** One chat's choices: Reply · Listen again (· See photos). Reply is always there. */
     private fun choices(chat: ZapConversation, selected: Int, status: Status): Screen.Card {
         val rows = buildList {
-            val choices = listOf(text.reply, text.listenAgain) +
+            val choices = listOf(text.reply, text.listenAgain, text.sendPhoto) +
                 listOfNotNull(text.seePhotos(chat.photos.size).takeIf { chat.photos.isNotEmpty() })
             choices.forEachIndexed { index, label -> add(Row(text = label, selected = selected == index)) }
             if (status.voiceTrouble) add(Row(text = text.voiceHelp, tone = Tone.DIM))
@@ -189,6 +201,7 @@ class ScreenMaker(
             step.note == Note.NO_CONTACT -> text.noContact(step.spoken.orEmpty())
             step.note == Note.NO_NUMBER -> text.noNumber
             step.note == Note.REPLY_ON_PHONE -> text.replyOnPhone
+            step.note == Note.NO_PHOTOS -> text.noPhotos
             step.note == Note.NO_SPEECH -> text.noSpeech
             else -> text.speechUnavailable
         }
@@ -201,6 +214,12 @@ class ScreenMaker(
         }
         return Screen.Card(title = fitTitle(step.recipient?.let { text.to(it.name) } ?: text.appTitle), rows = rows)
     }
+
+    /** What is about to go: the text, and a line for the photo when one is attached. */
+    private fun draft(body: String, photo: String?): List<Row> = listOfNotNull(
+        Row(text = fit(body), tone = Tone.BODY).takeIf { body.isNotBlank() },
+        Row(text = text.photoAttached, tone = Tone.BODY).takeIf { photo != null },
+    )
 
     fun senderLabel(message: ZapMessage): String = if (message.sender == ZapMessage.ME) text.me else message.sender
 

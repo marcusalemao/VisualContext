@@ -218,7 +218,7 @@ class ComposeFlowTest {
         ))
         val f = ComposeFlow({ people }).also { it.open(listOf(chat)) }
         f.move(1); f.tap(); f.tap() // open the chat, then its choices
-        assertEquals(3, f.choiceCount()) // Reply · Listen again · See photo
+        assertEquals(4, f.choiceCount()) // Reply · Listen again · Send a photo · See photos
         f.move(ComposeFlow.THREAD_PHOTO)
         f.tap()
         assertEquals("b", (f.step as Step.Photo).message.image) // newest first
@@ -238,5 +238,49 @@ class ComposeFlowTest {
             ZapMessage("Leo", "📷 Foto", 61_000L, image = "b"),
         )))
         assertEquals(2, merged.photos.size)
+    }
+
+    @Test
+    fun `send a photo from a chat, alone or with a caption`() {
+        val f = ComposeFlow({ people }, gallery = { listOf("g:3", "g:2", "g:1") }).also { it.open(listOf(leoChat)) }
+        f.move(1); f.tap(); f.tap() // Leo's chat, its choices
+        f.move(ComposeFlow.THREAD_SEND_PHOTO)
+        f.tap()
+        assertEquals("g:3", (f.step as Step.ChoosePhoto).photo) // newest first
+        f.move(1)
+        f.tap() // attach g:2
+        assertEquals(Step.Review(leoChat.recipient(), "", "g:2"), f.step)
+        f.move(ComposeFlow.REVIEW_REDO) // "Say a caption"
+        assertEquals(Effect.StartListening, f.tap().last())
+        f.onSpeechFinal("olha que lindo")
+        assertEquals(Step.Review(leoChat.recipient(), "Olha que lindo", "g:2"), f.step)
+        val effects = f.tap() // Send
+        assertEquals(Effect.Send(leoChat.recipient(), "Olha que lindo", "g:2"), effects.last())
+    }
+
+    @Test
+    fun `attach a photo on the review card, back keeps the draft as it was`() {
+        val f = ComposeFlow({ people }, gallery = { listOf("g:9") }).also { it.open(listOf(leoChat)) }
+        f.move(1); f.tap(); f.tap(); f.tap() // reply
+        f.onSpeechFinal("chegando")
+        f.move(ComposeFlow.REVIEW_PHOTO)
+        f.tap()
+        assertTrue(f.step is Step.ChoosePhoto)
+        f.back()
+        assertEquals(Step.Review(leoChat.recipient(), "Chegando"), f.step)
+    }
+
+    @Test
+    fun `no number or no photos says so instead of opening the gallery`() {
+        val lid = leoChat.copy(key = "1@lid", waDigits = null, canReplyLive = true)
+        val noNumber = ComposeFlow({ people }, gallery = { listOf("g:1") }).also { it.open(listOf(lid)) }
+        noNumber.move(1); noNumber.tap(); noNumber.tap()
+        noNumber.move(ComposeFlow.THREAD_SEND_PHOTO); noNumber.tap()
+        assertEquals(Note.NO_NUMBER, (noNumber.step as Step.Done).note)
+
+        val empty = ComposeFlow({ people }).also { it.open(listOf(leoChat)) }
+        empty.move(1); empty.tap(); empty.tap()
+        empty.move(ComposeFlow.THREAD_SEND_PHOTO); empty.tap()
+        assertEquals(Note.NO_PHOTOS, (empty.step as Step.Done).note)
     }
 }

@@ -38,8 +38,15 @@ internal object ZapSender {
      * while the notification is alive, otherwise the chat reopened with the
      * text typed (and pressed Send by the helper, when enabled).
      */
-    fun deliver(context: Context, recipient: Recipient, text: String, onDone: (SendOutcome) -> Unit) {
+    fun deliver(context: Context, recipient: Recipient, text: String, photo: String? = null, onDone: (SendOutcome) -> Unit) {
         val key = recipient.conversationKey
+        if (photo != null) {
+            val digits = recipient.digits ?: return onDone(SendOutcome.FAILED)
+            return sendPhoto(context, digits, photo, text) { outcome ->
+                if (outcome == SendOutcome.SENT) ZapInbox.recordSent(context, key, text.ifBlank { ZapInbox.PHOTO })
+                onDone(outcome)
+            }
+        }
         if (key != null && ZapInbox.replyLive(context, key, text)) return onDone(SendOutcome.SENT)
         val digits = recipient.digits ?: return onDone(SendOutcome.FAILED)
         send(context, digits, text) { outcome ->
@@ -50,17 +57,39 @@ internal object ZapSender {
 
     fun send(context: Context, digits: String, text: String, onDone: (SendOutcome) -> Unit) {
         val pkg = whatsAppPackage(context) ?: return onDone(SendOutcome.NOT_INSTALLED)
-        val locked = context.getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true
-        val auto = ZapSendService.isEnabled(context)
-
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(WhatsAppLink.appUri(digits, text)))
             .setPackage(pkg)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        open(context, pkg, intent, text, photo = false, onDone)
+    }
 
+    /**
+     * WhatsApp's own share screen, aimed at one chat ("jid"): the photo with
+     * the caption under it and WhatsApp's Send button. If WhatsApp ignores the
+     * chat and shows its contact picker, the helper finds no caption box and
+     * presses nothing — the wearer's thumb finishes it.
+     */
+    fun sendPhoto(context: Context, digits: String, photo: String, caption: String, onDone: (SendOutcome) -> Unit) {
+        val pkg = whatsAppPackage(context) ?: return onDone(SendOutcome.NOT_INSTALLED)
+        val uri = ZapGallery.shareable(context, photo) ?: return onDone(SendOutcome.FAILED)
+        val intent = Intent(Intent.ACTION_SEND)
+            .setType("image/jpeg")
+            .setPackage(pkg)
+            .putExtra(Intent.EXTRA_STREAM, uri)
+            .putExtra("jid", "$digits@s.whatsapp.net")
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        if (caption.isNotBlank()) intent.putExtra(Intent.EXTRA_TEXT, caption)
+        context.grantUriPermission(pkg, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        open(context, pkg, intent, caption, photo = true, onDone)
+    }
+
+    private fun open(context: Context, pkg: String, intent: Intent, text: String, photo: Boolean, onDone: (SendOutcome) -> Unit) {
+        val locked = context.getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true
+        val auto = ZapSendService.isEnabled(context)
         var armed: PendingSend? = null
         val windowMs = if (locked) UNLOCK_WINDOW_MS else SEND_WINDOW_MS
         if (auto) {
-            armed = PendingSend(pkg, text, System.currentTimeMillis() + windowMs)
+            armed = PendingSend(pkg, text, System.currentTimeMillis() + windowMs, photo)
             ZapSendService.arm(armed, onDone)
         }
         try {
@@ -79,7 +108,7 @@ internal object ZapSender {
     private const val UNLOCK_WINDOW_MS = 120_000L
 }
 
-internal data class PendingSend(val pkg: String, val text: String, val expiresAtMs: Long)
+internal data class PendingSend(val pkg: String, val text: String, val expiresAtMs: Long, val photo: Boolean = false)
 
 /**
  * Presses WhatsApp's Send button once, for one message the wearer confirmed.
@@ -111,14 +140,32 @@ class ZapSendService : AccessibilityService() {
         if (System.currentTimeMillis() > armed.expiresAtMs) return expire(armed)
         if (event?.packageName?.toString() != armed.pkg) return
         val root = rootInActiveWindow ?: return
-        val entry = root.findAccessibilityNodeInfosByViewId("${armed.pkg}:id/entry").firstOrNull() ?: return
-        if (entry.text?.toString()?.trim() != armed.text.trim()) return
+        if (armed.photo) {
+            if (!isPhotoPreview(root, armed)) return
+        } else {
+            val entry = root.findAccessibilityNodeInfosByViewId("${armed.pkg}:id/entry").firstOrNull() ?: return
+            if (entry.text?.toString()?.trim() != armed.text.trim()) return
+        }
         val button = findSendButton(root, armed.pkg) ?: return
         pending = null
         val clicked = button.performAction(AccessibilityNodeInfo.ACTION_CLICK)
         finish(if (clicked) SendOutcome.SENT else SendOutcome.OPENED_FOR_THUMB)
         // Leave the phone as it was: in a pocket, WhatsApp should not stay open.
         if (clicked) handler.postDelayed({ performGlobalAction(GLOBAL_ACTION_HOME) }, 700)
+    }
+
+    /**
+     * WhatsApp's photo preview, not a chat and not the contact picker: it has
+     * a caption box (holding exactly the confirmed caption) and no message box.
+     */
+    private fun isPhotoPreview(root: AccessibilityNodeInfo, armed: PendingSend): Boolean {
+        if (root.findAccessibilityNodeInfosByViewId("${armed.pkg}:id/entry").isNotEmpty()) return false
+        val caption = CAPTION_IDS.firstNotNullOfOrNull { id ->
+            root.findAccessibilityNodeInfosByViewId("${armed.pkg}:id/$id").firstOrNull()
+        } ?: return false
+        val shown = caption.text?.toString()?.trim().orEmpty()
+        // An empty caption box shows its hint ("Add a caption…") as text on some versions.
+        return if (armed.text.isBlank()) shown.isEmpty() || caption.isShowingHintText else shown == armed.text.trim()
     }
 
     private fun findSendButton(root: AccessibilityNodeInfo, pkg: String): AccessibilityNodeInfo? {
@@ -135,6 +182,8 @@ class ZapSendService : AccessibilityService() {
 
     companion object {
         private val SEND_LABELS = listOf("Enviar", "Send", "Senden")
+        /** Caption box ids WhatsApp has used on its photo preview. */
+        private val CAPTION_IDS = listOf("caption", "media_caption", "caption_text")
 
         @Volatile
         private var instance: ZapSendService? = null

@@ -76,6 +76,7 @@ class ZapPluginService : NexusPluginService() {
             directory = { contacts.directory() },
             // Strictly who you talked to lately, newest first — no favourites, no frequency mix.
             recentPeople = { RecentPeople.build(ZapInbox.list(this), contacts.directory(), SHORTLIST) },
+            gallery = { ZapGallery.recent(this) },
         )
         flow.open(ZapInbox.list(this))
         unobserveInbox = ZapInbox.observe {
@@ -122,7 +123,7 @@ class ZapPluginService : NexusPluginService() {
                 is Effect.SpeakDraft -> speak(text.spoken(effect.recipient.name, effect.body))
                 is Effect.SpeakMessage -> speak(text.heard(screens.senderLabel(effect.message), effect.message.text))
                 Effect.StopSpeaking -> stopSpeaking()
-                is Effect.Send -> send(effect.recipient, effect.body)
+                is Effect.Send -> send(effect.recipient, effect.body, effect.photo)
                 Effect.Close -> {
                     surface?.hide()
                     return
@@ -237,10 +238,10 @@ class ZapPluginService : NexusPluginService() {
 
     // --- sending ---------------------------------------------------------
 
-    private fun send(recipient: Recipient, body: String) {
+    private fun send(recipient: Recipient, body: String, photo: String?) {
         recipient.contactId?.let { ZapRecents(this).touch(it) }
         recipient.digits?.let { ZapRecents(this).touch(ZapPeople.idFor(it)) }
-        ZapSender.deliver(this, recipient, body) { outcome ->
+        ZapSender.deliver(this, recipient, body, photo) { outcome ->
             if (!::flow.isInitialized) return@deliver
             flow.onSendOutcome(outcome)
             render()
@@ -302,7 +303,7 @@ class ZapPluginService : NexusPluginService() {
     /** One photo, full screen; swipe for the others in this chat. */
     private fun showPicture(picture: Screen.Picture) {
         val current = surface ?: return
-        val photo = ZapPhotos.load(this, picture.photoKey)
+        val photo = ZapPhotos.loadAny(this, picture.photoKey)
         if (photo == null) {
             current.showCard(picture.missing.toNexus())
             shown = Shown.CARD

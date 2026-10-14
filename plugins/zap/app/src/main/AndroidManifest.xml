@@ -9,6 +9,10 @@
     <!-- "Display over other apps": lets Zap open the WhatsApp chat while the
          phone sits in a pocket (Android blocks background activity starts otherwise). -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- Photos to attach: only read when the wearer chooses "Send a photo". -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <!-- No INTERNET permission: Zap never talks to a server. -->
 
     <queries>
@@ -32,6 +36,13 @@
         <activity
             android:name=".ZapSettingsActivity"
             android:exported="true" />
+
+        <!-- Hands WhatsApp the one photo being sent; never exported. -->
+        <provider
+            android:name=".ZapShareProvider"
+            android:authorities="${applicationId}.share"
+            android:exported="false"
+            android:grantUriPermissions="true" />
 
         <service
             android:name=".ZapNotificationListener"

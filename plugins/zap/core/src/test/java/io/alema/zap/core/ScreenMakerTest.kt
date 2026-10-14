@@ -71,7 +71,7 @@ class ScreenMakerTest {
     @Test
     fun `a tap on the chat brings its choices`() {
         val choices = card(maker.make(Step.Thread(leoChat, reading = false), selected = 0))
-        assertEquals(listOf("Responder", "Ouvir de novo", "Ver fotos (2)"), choices.rows.map { it.text })
+        assertEquals(listOf("Responder", "Ouvir de novo", "Enviar foto", "Ver fotos (2)"), choices.rows.map { it.text })
         assertTrue(choices.rows[0].selected)
     }
 

@@ -65,6 +65,17 @@ internal object ZapPhotos {
         return store(context, bitmap)
     }
 
+    /** A photo from the inbox (encrypted copy) or from the phone's gallery. */
+    fun loadAny(context: Context, key: String): Photo? =
+        if (ZapGallery.isKey(key)) ZapGallery.thumbnail(context, key) else load(context, key)
+
+    /** Shrinks a bitmap to what the glasses accept, as a JPEG with its size. */
+    fun thumbnail(bitmap: Bitmap): Photo? = encode(bitmap)?.let { bytes ->
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        Photo(bytes, bounds.outWidth, bounds.outHeight)
+    }
+
     fun load(context: Context, key: String): Photo? = runCatching {
         val file = File(File(context.filesDir, DIR), "$key.bin").takeIf { it.exists() } ?: return null
         val raw = file.readBytes()

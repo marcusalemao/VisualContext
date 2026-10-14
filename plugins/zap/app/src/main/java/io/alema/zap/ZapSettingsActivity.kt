@@ -77,6 +77,7 @@ class ZapSettingsActivity : Activity() {
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_PHOTOS) render()
         if (requestCode == REQUEST_CONTACTS) {
             ZapSettings(this).setImportAddressBook(grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED)
             render()
@@ -91,12 +92,12 @@ class ZapSettingsActivity : Activity() {
             t("Seu WhatsApp nos óculos", "Your WhatsApp on the glasses"),
             t(
                 "Nos óculos, abra o menu do Nexus e escolha Zap. Ele abre nas suas conversas, como o WhatsApp no celular.\n\n" +
-                    "• Toque numa conversa para ler: ela abre inteira, cada mensagem completa, e você desliza para rolar. Toque de novo para Responder, Ouvir de novo e ver as fotos.\n" +
+                    "• Toque numa conversa para ler: ela abre inteira, cada mensagem completa, e você desliza para rolar. Toque de novo para Responder, Ouvir de novo, Enviar foto e ver as fotos.\n" +
                     "• Nova mensagem, no topo: escolha alguém da lista ou toque em \"Dizer o nome\". Primeiro diga só o nome; se houver nomes parecidos, escolha na lista. Depois diga a mensagem.\n" +
                     "• Antes de sair, o texto aparece para você conferir. Nada é enviado sem você tocar em Enviar.\n\n" +
                     "As conversas aparecem conforme as mensagens chegam com o Zap ligado. Mensagens que você manda para você mesmo não contam: o WhatsApp não avisa delas.",
                 "On the glasses, open the Nexus menu and pick Zap. It opens on your chats, like WhatsApp on the phone.\n\n" +
-                    "• Tap a chat to read it: it opens whole, every message in full, and you swipe to scroll. Tap again for Reply, Listen again and the photos.\n" +
+                    "• Tap a chat to read it: it opens whole, every message in full, and you swipe to scroll. Tap again for Reply, Listen again, Send a photo and the photos.\n" +
                     "• New message, at the top: pick someone from the list or tap \"Say the name\". Say just the name first; if names are alike, pick from the list. Then say the message.\n" +
                     "• Before it goes, the text is shown for you to check. Nothing is sent until you tap Send.\n\n" +
                     "Chats appear as messages arrive while Zap is on. Messages you send to yourself don't count: WhatsApp doesn't notify about them.",
@@ -203,6 +204,23 @@ class ZapSettingsActivity : Activity() {
             },
             current = settings.arrivalMode(),
         ) { settings.setArrivalMode(it) }
+        val photos = ZapGallery.hasPermission(this)
+        switchCard(
+            title = t("Enviar fotos do celular", "Send photos from the phone"),
+            subtitle = t(
+                "Em \"Enviar foto\" os óculos mostram suas fotos mais novas; as tiradas pelos óculos vêm primeiro, quando estão no celular. O Zap só abre a foto que você escolher.",
+                "\"Send a photo\" shows your newest photos on the glasses; the ones taken by the glasses come first, when they're on the phone. Zap only opens the photo you pick.",
+            ),
+            checked = photos,
+        ) { on ->
+            if (on && !photos) {
+                requestPermissions(ZapGallery.permissions(), REQUEST_PHOTOS)
+            } else if (!on && photos) {
+                // Android only lets the wearer take a permission back in its own settings.
+                startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
+            }
+        }
+        gap(8)
         choiceCard(
             title = t("Guardar mensagens por", "Keep messages for"),
             subtitle = t("Só neste celular, criptografadas", "Only on this phone, encrypted"),
@@ -410,6 +428,7 @@ class ZapSettingsActivity : Activity() {
     private companion object {
         const val REQUEST_CONTACTS = 7
         const val REQUEST_FILE = 8
+        const val REQUEST_PHOTOS = 9
         const val MAX_FILE_BYTES = 5 * 1024 * 1024
     }
 }
