@@ -7,7 +7,15 @@ data class ZapMessage(
     val timeMs: Long,
     /** Key of a photo stored on the phone (encrypted), when the message carries one. */
     val image: String? = null,
-)
+) {
+    companion object {
+        /** "You" as a sender: WhatsApp leaves the sender empty on the wearer's own messages. */
+        const val ME = ""
+
+        /** Text for a photo sent without a caption. */
+        const val PHOTO = "📷 Foto"
+    }
+}
 
 /**
  * A conversation in the inbox, rebuilt from WhatsApp notifications.

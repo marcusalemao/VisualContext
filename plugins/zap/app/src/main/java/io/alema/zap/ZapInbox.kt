@@ -50,10 +50,10 @@ internal object ZapInbox {
     private val listeners = mutableSetOf<() -> Unit>()
 
     /** "You" as a sender: WhatsApp leaves the sender empty on the wearer's own messages. */
-    const val ME = ""
+    const val ME = ZapMessage.ME
 
     /** Text for a photo sent without a caption. */
-    const val PHOTO = "📷 Foto"
+    const val PHOTO = ZapMessage.PHOTO
 
     fun list(context: Context): List<ZapConversation> = synchronized(lock) {
         ensureLoaded(context)

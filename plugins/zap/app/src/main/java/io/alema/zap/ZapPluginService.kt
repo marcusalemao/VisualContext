@@ -23,26 +23,26 @@ import com.anezium.rokidbus.shared.plugin.NexusInputEvent
 import io.alema.zap.core.ComposeFlow
 import io.alema.zap.core.Effect
 import io.alema.zap.core.Note
-import io.alema.zap.core.SendOutcome
 import io.alema.zap.core.Step
 import io.alema.zap.core.Recipient
 import io.alema.zap.core.RecentPeople
-import io.alema.zap.core.ZapConversation
-import io.alema.zap.core.ZapMessage
+import io.alema.zap.core.Screen
+import io.alema.zap.core.ScreenMaker
+import io.alema.zap.core.Tone
+import io.alema.zap.core.ZapText
 
 /**
- * Start a WhatsApp message from the glasses, to anyone.
+ * Zap's Rokid Nexus plug.
  *
- * Open → "Speak" (say "mensagem pro Bruno: tô chegando") or pick a recent
- * person → review → Send · Listen · Say it again. The logic lives in
- * [ComposeFlow]; this class only draws its steps and runs its effects.
- *
- * HUD rules from the VisualContext design: green on black only, no gesture
- * hints (the wearer knows the native gestures), short lines.
+ * The logic lives in the pure core: [ComposeFlow] decides the steps and
+ * [ScreenMaker] what each one shows. This class only carries Nexus input,
+ * speech and voice to the flow, and draws its screens as Nexus cards and
+ * images. The standalone glasses app is another plug over the same core.
  */
 class ZapPluginService : NexusPluginService() {
     private val main = Handler(Looper.getMainLooper())
     private val text = ZapText()
+    private val screens = ScreenMaker(text)
     private lateinit var contacts: ZapContacts
     private lateinit var flow: ComposeFlow
 
@@ -114,7 +114,7 @@ class ZapPluginService : NexusPluginService() {
                 Effect.StartListening -> startListening()
                 Effect.StopListening -> stopListening()
                 is Effect.SpeakDraft -> speak(text.spoken(effect.recipient.name, effect.body))
-                is Effect.SpeakMessage -> speak(text.heard(senderLabel(effect.message), effect.message.text))
+                is Effect.SpeakMessage -> speak(text.heard(screens.senderLabel(effect.message), effect.message.text))
                 Effect.StopSpeaking -> stopSpeaking()
                 is Effect.Send -> send(effect.recipient, effect.body)
                 Effect.Close -> {
@@ -246,149 +246,43 @@ class ZapPluginService : NexusPluginService() {
     /** True while the glasses show a photo: going back to a card then needs show, not update. */
     private var showingPhoto = false
 
+    /** What to show comes from the core; this plug only turns it into Nexus cards and images. */
     private fun render(show: Boolean = false) {
-        val step0 = flow.step
-        if (step0 is Step.Photo) {
-            showPhoto(step0)
-            return
+        val status = ScreenMaker.Status(
+            notificationAccess = ZapSendService.isNotificationAccessGranted(this),
+            voiceTrouble = ttsProblem,
+            debugLine = speechDetail.takeIf { BuildConfig.DEBUG },
+        )
+        when (val screen = screens.make(flow.step, flow.selected, status)) {
+            is Screen.Card -> showCard(screen, show)
+            is Screen.Picture -> showPicture(screen)
         }
-        val card = when (val step = step0) {
-            is Step.Inbox -> inboxCard(step)
-            is Step.Thread -> threadCard(step.conversation)
-            is Step.NewMessage -> newMessageCard(step)
-            is Step.Listening -> NexusCard(
-                title = fitTitle(step.recipient?.let { text.to(it.name) } ?: text.whoTitle),
-                lines = emptyList(),
-                richLines = listOf(
-                    NexusCardLine(
-                        text = fit(step.partial.ifBlank { if (step.recipient == null) text.sayOnlyName else text.sayMessage }),
-                        tone = if (step.partial.isBlank()) NexusRowTone.DIM else NexusRowTone.BODY,
-                    ),
-                ),
-                subtitle = text.listening,
-                handlesBack = true,
-            )
-            is Step.Pick -> NexusCard(
-                title = fitTitle(text.pickTitle(step.spoken)),
-                lines = emptyList(),
-                richLines = step.choices.take(MAX_ROWS - 1).mapIndexed { index, contact ->
-                    NexusCardLine(
-                        text = fit(contact.name, LIST_CHARS),
-                        // The end of the number tells two people with the same name apart.
-                        sub = text.numberHint(contact.target()) ?: text.fromChat.takeIf { contact.conversationKey != null },
-                        selected = index == flow.selected,
-                    )
-                } + NexusCardLine(text = text.sayNameAgain, selected = flow.selected == step.choices.size),
-                handlesBack = true,
-            )
-            is Step.Review -> NexusCard(
-                title = fitTitle(text.to(step.recipient.name)),
-                lines = emptyList(),
-                richLines = listOf(NexusCardLine(text = fit(step.body), tone = NexusRowTone.BODY)) +
-                    listOf(text.send, text.listen, text.redo).mapIndexed { index, label ->
-                        NexusCardLine(text = label, selected = index == flow.selected)
-                    } +
-                    listOfNotNull(
-                        NexusCardLine(text = text.voiceHelp, tone = NexusRowTone.DIM).takeIf { ttsProblem },
-                    ),
-                handlesBack = true,
-            )
-            is Step.Sending -> NexusCard(
-                title = fitTitle(text.to(step.recipient.name)),
-                lines = emptyList(),
-                richLines = listOf(NexusCardLine(text = fit(step.body), tone = NexusRowTone.BODY)),
-                subtitle = text.sending,
-                handlesBack = true,
-            )
-            is Step.Done -> doneCard(step)
-            is Step.Photo -> return
-        }
+    }
+
+    private fun showCard(card: Screen.Card, show: Boolean) {
         val current = surface ?: return
-        if (show || showingPhoto) current.showCard(card) else current.updateCard(card)
+        val nexus = card.toNexus()
+        if (show || showingPhoto) current.showCard(nexus) else current.updateCard(nexus)
         showingPhoto = false
     }
 
-    /** Home: "New message", then one row per chat — name on top, last message under it. */
-    private fun inboxCard(step: Step.Inbox): NexusCard {
-        val rows = buildList {
-            add(NexusCardLine(text = text.newMessage, selected = flow.selected == 0))
-            step.conversations.take(MAX_ROWS - 1).forEachIndexed { index, chat ->
-                add(
-                    NexusCardLine(
-                        text = fit(chat.title, LIST_CHARS),
-                        sub = chat.last?.let { fit(preview(chat, it), PREVIEW_CHARS) },
-                        selected = flow.selected == index + 1,
-                    ),
-                )
-            }
-            if (step.conversations.isEmpty()) {
-                // The commonest empty inbox is a missing permission, not a quiet phone: say which.
-                val message = if (ZapSendService.isNotificationAccessGranted(this@ZapPluginService)) text.emptyInbox else text.noAccess
-                add(NexusCardLine(text = message, tone = if (message == text.noAccess) NexusRowTone.ALERT else NexusRowTone.DIM))
-            }
-        }
-        return NexusCard(title = text.inboxTitle, lines = emptyList(), richLines = rows)
-    }
-
-    /** One chat: its latest messages, then Reply · Listen again. Reply is always there. */
-    private fun threadCard(chat: ZapConversation): NexusCard {
-        val rows = buildList {
-            chat.messages.takeLast(THREAD_MESSAGES).forEach { message ->
-                add(
-                    NexusCardLine(
-                        text = fit(message.text),
-                        badge = badgeFor(chat, message),
-                        tone = NexusRowTone.BODY,
-                    ),
-                )
-            }
-            val choices = listOf(text.reply, text.listenAgain) + listOfNotNull(text.seePhotos(chat.photos.size).takeIf { chat.photos.isNotEmpty() })
-            choices.forEachIndexed { index, label ->
-                add(NexusCardLine(text = label, selected = flow.selected == index))
-            }
-            if (ttsProblem) add(NexusCardLine(text = text.voiceHelp, tone = NexusRowTone.DIM))
-        }
-        return NexusCard(title = fitTitle(chat.title), lines = emptyList(), richLines = rows, handlesBack = true)
-    }
-
-    /** New message: "Say the name" first, then recent people for one tap. */
-    private fun newMessageCard(step: Step.NewMessage): NexusCard {
-        val rows = buildList {
-            add(NexusCardLine(text = text.sayName, selected = flow.selected == 0))
-            step.recent.take(MAX_ROWS - 2).forEachIndexed { index, contact ->
-                add(NexusCardLine(text = fit(contact.name, LIST_CHARS), selected = flow.selected == index + 1))
-            }
-            if (step.recent.isEmpty()) add(NexusCardLine(text = text.noRecent, tone = NexusRowTone.DIM))
-        }
-        return NexusCard(title = text.newMessage, lines = emptyList(), richLines = rows, handlesBack = true)
-    }
-
     /** One photo, full screen; swipe for the others in this chat. */
-    private fun showPhoto(step: Step.Photo) {
+    private fun showPicture(picture: Screen.Picture) {
         val current = surface ?: return
-        val message = step.message
-        val photo = message.image?.let { ZapPhotos.load(this, it) }
+        val photo = ZapPhotos.load(this, picture.photoKey)
         if (photo == null) {
-            current.showCard(
-                NexusCard(
-                    title = fitTitle(step.conversation.title),
-                    lines = emptyList(),
-                    richLines = listOf(NexusCardLine(text = text.photoGone, tone = NexusRowTone.DIM)),
-                    handlesBack = true,
-                ),
-            )
+            current.showCard(picture.missing.toNexus())
             showingPhoto = true // the next card must be shown, not updated
             return
         }
-        val caption = message.text.takeIf { it.isNotBlank() && it != ZapInbox.PHOTO }
         val image = NexusImage(
-            contentKey = "zap-${message.image}",
+            contentKey = "zap-${picture.photoKey}",
             mimeType = "image/jpeg",
             pixelWidth = photo.width,
             pixelHeight = photo.height,
-            title = fitTitle(if (step.conversation.isGroup) "${step.conversation.title} · ${senderLabel(message)}" else senderLabel(message)).take(120),
-            caption = caption?.take(240),
-            footer = if (step.conversation.photos.size > 1) "${step.index + 1}/${step.conversation.photos.size}" else null,
+            title = picture.title.take(120),
+            caption = picture.caption?.take(240),
+            footer = picture.footer,
             handlesBack = true,
         )
         val result = if (showingPhoto) current.updateImage(image, photo.bytes) else current.showImage(image, photo.bytes)
@@ -400,71 +294,30 @@ class ZapPluginService : NexusPluginService() {
         }
     }
 
-    private val retryPhoto = Runnable { (flow.step as? Step.Photo)?.let { showPhoto(it) } }
+    private val retryPhoto = Runnable { if (::flow.isInitialized && flow.step is Step.Photo) render() }
 
-    private fun senderLabel(message: ZapMessage): String =
-        if (message.sender == ZapInbox.ME) text.me else message.sender
+    private fun Screen.Card.toNexus() = NexusCard(
+        title = title,
+        lines = emptyList(),
+        richLines = rows.map { row ->
+            NexusCardLine(text = row.text, sub = row.sub, badge = row.badge, tone = row.tone.toNexus(), selected = row.selected)
+        },
+        subtitle = subtitle,
+        handlesBack = handlesBack,
+    )
 
-    /** In a one-to-one chat only the wearer's own lines need a label; in a group every line does. */
-    private fun badgeFor(chat: ZapConversation, message: ZapMessage): String? = when {
-        message.sender == ZapInbox.ME -> text.me
-        chat.isGroup -> message.sender.take(MAX_BADGE)
-        else -> null
+    private fun Tone.toNexus() = when (this) {
+        Tone.NORMAL -> NexusRowTone.NORMAL
+        Tone.BODY -> NexusRowTone.BODY
+        Tone.DIM -> NexusRowTone.DIM
+        Tone.ALERT -> NexusRowTone.ALERT
     }
-
-    private fun preview(chat: ZapConversation, message: ZapMessage): String = when {
-        message.sender == ZapInbox.ME -> "${text.me}: ${message.text}"
-        chat.isGroup -> "${message.sender}: ${message.text}"
-        else -> message.text
-    }
-
-    private fun doneCard(step: Step.Done): NexusCard {
-        val status = when {
-            step.outcome == SendOutcome.SENT -> text.sent
-            step.outcome == SendOutcome.OPENED_FOR_THUMB -> text.openedForThumb
-            step.outcome == SendOutcome.WAITING_FOR_UNLOCK -> text.waitingUnlock
-            step.outcome == SendOutcome.NOT_INSTALLED -> text.notInstalled
-            step.outcome == SendOutcome.FAILED -> text.failed
-            step.note == Note.NO_CONTACT -> text.noContact(step.spoken.orEmpty())
-            step.note == Note.NO_NUMBER -> text.noNumber
-            step.note == Note.REPLY_ON_PHONE -> text.replyOnPhone
-            step.note == Note.NO_SPEECH -> text.noSpeech
-            else -> text.speechUnavailable
-        }
-        val rows = buildList {
-            step.body?.takeIf { it.isNotBlank() }?.let { add(NexusCardLine(text = fit(it), tone = NexusRowTone.BODY)) }
-            val problem = step.outcome != SendOutcome.SENT
-            add(NexusCardLine(text = fit(status), tone = if (problem) NexusRowTone.ALERT else NexusRowTone.NORMAL))
-            if (step.note == Note.SPEECH_UNAVAILABLE) add(NexusCardLine(text = text.voiceHelp, tone = NexusRowTone.DIM))
-            if (BuildConfig.DEBUG && step.note != null) {
-                speechDetail?.let { add(NexusCardLine(text = fit("test: $it"), tone = NexusRowTone.DIM)) }
-            }
-            add(NexusCardLine(text = if (step.canRetry) text.tryAgain else text.backToChats, selected = true))
-        }
-        return NexusCard(
-            title = fitTitle(step.recipient?.let { text.to(it.name) } ?: text.appTitle),
-            lines = emptyList(),
-            richLines = rows,
-            handlesBack = true,
-        )
-    }
-
-    private fun fit(value: String, max: Int = MAX_LINE) = if (value.length <= max) value else value.take(max - 1) + "…"
-    private fun fitTitle(value: String) = if (value.length <= MAX_TITLE) value else value.take(MAX_TITLE - 1) + "…"
 
     private companion object {
         const val TAG = "Zap"
         const val SURFACE_ID = "zap"
         const val BUSY_RETRY_MS = 700L
         const val SHORTLIST = 8
-        const val MAX_ROWS = 64
-        const val MAX_LINE = 240
-        const val MAX_TITLE = 48
-        const val MAX_BADGE = 24
-        /** Same widths Relay measured on the optics for list rows and their sub line. */
-        const val LIST_CHARS = 26
-        const val PREVIEW_CHARS = 40
-        const val THREAD_MESSAGES = 6
         const val PHOTO_RETRY_MS = 450L
     }
 }
