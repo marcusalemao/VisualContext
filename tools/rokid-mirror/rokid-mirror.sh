@@ -106,8 +106,8 @@ case "$cmd" in
     # It restarts every 3 minutes (the recorder's limit), so expect a blink.
     while true; do
       adb -s "$dev" exec-out screenrecord --output-format=h264 --time-limit=180 - 2>/dev/null \
-        | ffplay -loglevel error -window_title "Rokid HUD (lente)" -fflags nobuffer -flags low_delay \
-            -framedrop -probesize 32 -vf "$GREEN" -
+        | ffplay -loglevel warning -f h264 -framerate 30 -window_title "Rokid HUD (lente)" -alwaysontop \
+            -fflags nobuffer -flags low_delay -framedrop -vf "$GREEN" -
     done
     ;;
 
