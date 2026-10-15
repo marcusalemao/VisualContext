@@ -118,6 +118,17 @@ case "$cmd" in
     pkill -f "screenrecord --output-format=h264" 2>/dev/null
     rm -f "$STATE"
     adb start-server >/dev/null 2>&1
+    # Addresses Claude left for us (conectar.txt: "connect IP:PORT" / "pair IP:PORT CODE"),
+    # so nobody has to type numbers into the Terminal.
+    if [ -f "$DIR/conectar.txt" ]; then
+      while read -r verb a b _; do
+        case "$verb" in
+          connect) say "conectando em $a…"; adb connect "$a" ;;
+          pair) [ -n "$(glasses_online)" ] || { say "pareando com $a…"; adb pair "$a" "$b" && sleep 3; } ;;
+        esac
+      done < "$DIR/conectar.txt"
+      rm -f "$DIR/conectar.txt"
+    fi
     sleep 2 # adb finds paired glasses on the Wi-Fi by itself; give it a moment
     if ! dev="$(ensure_connected 2>/dev/null)"; then
       # Not found by itself: the wearer reads what Wireless ADB shows and types it once.
