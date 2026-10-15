@@ -64,6 +64,16 @@ class ZapText(private val pt: Boolean = Locale.getDefault().language == "pt") {
     fun to(name: String) = if (pt) "Para $name" else "To $name"
     val sayMessage get() = if (pt) "Agora diga a mensagem" else "Now say the message"
     val send get() = if (pt) "Enviar" else "Send"
+    fun hearAudios(count: Int) = when {
+        count <= 1 -> if (pt) "Ouvir áudio" else "Play voice message"
+        pt -> "Ouvir áudios ($count)"
+        else -> "Play voice messages ($count)"
+    }
+    val playAudio get() = if (pt) "▶ Ouvir" else "▶ Play"
+    val stopAudio get() = if (pt) "■ Parar" else "■ Stop"
+    val noAudioAccess get() = if (pt) "No celular: Zap › \"Ouvir áudios do WhatsApp\"" else "On the phone: Zap › \"Play WhatsApp voice messages\""
+    val audioNotFound get() = if (pt) "O WhatsApp ainda não baixou este áudio" else "WhatsApp hasn't downloaded this one yet"
+    val noHeadphones get() = if (pt) "Sem áudio dos óculos ou fone: não toco no alto-falante do celular" else "No glasses audio or earbuds: won't play on the phone speaker"
     val photoOffer get() = if (pt) "Enviar pelo Zap?" else "Send with Zap?"
     val otherPerson get() = if (pt) "Outra pessoa" else "Someone else"
     val sayCaptionNow get() = if (pt) "Diga a legenda" else "Say the caption"

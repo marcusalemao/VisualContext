@@ -56,6 +56,11 @@ class ZapSettingsActivity : Activity() {
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_VOICE) {
+            data?.data?.takeIf { resultCode == RESULT_OK }?.let { ZapVoiceNotes.remember(this, it) }
+            render()
+            return
+        }
         if (requestCode != REQUEST_FILE || resultCode != RESULT_OK) return
         val uri = data?.data ?: return
         val text = runCatching {
@@ -227,6 +232,27 @@ class ZapSettingsActivity : Activity() {
             } else if (!on && photos) {
                 // Android only lets the wearer take a permission back in its own settings.
                 startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
+            }
+        }
+        val voice = ZapVoiceNotes.hasAccess(this)
+        switchCard(
+            title = t("Ouvir áudios do WhatsApp", "Play WhatsApp voice messages"),
+            subtitle = if (voice) t(
+                "Ligado. Na conversa, \"Ouvir áudio\" toca nos óculos (ou no fone) — nunca no alto-falante do celular.",
+                "On. In a chat, \"Play voice message\" plays on the glasses (or earbuds) — never the phone's speaker.",
+            ) else t(
+                "O Android vai abrir a pasta de áudios do WhatsApp: toque em \"Usar esta pasta\" e \"Permitir\". O Zap só lê essa pasta.",
+                "Android opens WhatsApp's voice notes folder: tap \"Use this folder\" and \"Allow\". Zap reads only that folder.",
+            ),
+            checked = voice,
+        ) { on ->
+            if (on && !voice) {
+                runCatching { startActivityForResult(ZapVoiceNotes.pickIntent(), REQUEST_VOICE) }
+            } else if (!on && voice) {
+                contentResolver.persistedUriPermissions.forEach {
+                    runCatching { contentResolver.releasePersistableUriPermission(it.uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+                }
+                render()
             }
         }
         val offer = settings.offerNewPhotos()
@@ -449,6 +475,7 @@ class ZapSettingsActivity : Activity() {
         const val REQUEST_CONTACTS = 7
         const val REQUEST_FILE = 8
         const val REQUEST_PHOTOS = 9
+        const val REQUEST_VOICE = 10
         const val MAX_FILE_BYTES = 5 * 1024 * 1024
     }
 }

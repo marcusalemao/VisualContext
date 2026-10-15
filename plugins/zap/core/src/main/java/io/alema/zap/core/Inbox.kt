@@ -8,7 +8,18 @@ data class ZapMessage(
     /** Key of a photo stored on the phone (encrypted), when the message carries one. */
     val image: String? = null,
 ) {
+    /** A WhatsApp voice message ("🎤 Mensagem de voz (0:12)"): its length in seconds, 0 when not shown. */
+    val voiceSeconds: Int? get() = voiceSeconds(text)
+
     companion object {
+        private val VOICE_LENGTH = Regex("""\((\d{1,2}):(\d{2})\)""")
+
+        fun voiceSeconds(text: String): Int? {
+            if (!text.trimStart().startsWith("🎤")) return null
+            val m = VOICE_LENGTH.find(text) ?: return 0
+            return m.groupValues[1].toInt() * 60 + m.groupValues[2].toInt()
+        }
+
         /** "You" as a sender: WhatsApp leaves the sender empty on the wearer's own messages. */
         const val ME = ""
 
@@ -35,6 +46,9 @@ data class ZapConversation(
 ) {
     val lastTimeMs: Long get() = messages.maxOfOrNull { it.timeMs } ?: 0L
     val last: ZapMessage? get() = messages.maxByOrNull { it.timeMs }
+
+    /** Voice messages, oldest first. */
+    val voiceNotes: List<ZapMessage> get() = messages.filter { it.voiceSeconds != null }
 
     /** Messages with a photo, oldest first. */
     val photos: List<ZapMessage> get() = messages.filter { it.image != null }

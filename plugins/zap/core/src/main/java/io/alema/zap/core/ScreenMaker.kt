@@ -47,6 +47,7 @@ class ScreenMaker(
         is Step.Inbox -> inbox(step, selected, status)
         is Step.Thread -> if (step.reading) reader(step.conversation) else choices(step.conversation, selected, status)
         is Step.Photo -> photo(step)
+        is Step.Audio -> audio(step)
         is Step.ChoosePhoto -> Screen.Picture(
             photoKey = step.photo,
             // Where it came from, and how far along, up top: "Para Leo · Óculos 2/7".
@@ -194,8 +195,15 @@ class ScreenMaker(
     /** One chat's choices: Reply · Listen again (· See photos). Reply is always there. */
     private fun choices(chat: ZapConversation, selected: Int, status: Status): Screen.Card {
         val rows = buildList {
-            val choices = listOf(text.reply, text.listenAgain, text.sendPhoto) +
-                listOfNotNull(text.seePhotos(chat.photos.size).takeIf { chat.photos.isNotEmpty() })
+            val choices = ThreadOption.of(chat).map { option ->
+                when (option) {
+                    ThreadOption.REPLY -> text.reply
+                    ThreadOption.LISTEN -> text.listenAgain
+                    ThreadOption.SEND_PHOTO -> text.sendPhoto
+                    ThreadOption.PHOTOS -> text.seePhotos(chat.photos.size)
+                    ThreadOption.AUDIO -> text.hearAudios(chat.voiceNotes.size)
+                }
+            }
             choices.forEachIndexed { index, label -> add(Row(text = label, selected = selected == index)) }
             if (status.voiceTrouble) add(Row(text = text.voiceHelp, tone = Tone.DIM))
         }
@@ -212,6 +220,30 @@ class ScreenMaker(
             if (step.recent.isEmpty()) add(Row(text = text.noRecent, tone = Tone.DIM))
         }
         return Screen.Card(title = text.newMessage, rows = rows)
+    }
+
+    /** One voice message: who and when up top, Listen or Stop, and why it can't play when it can't. */
+    private fun audio(step: Step.Audio): Screen.Card {
+        val message = step.message
+        val chat = step.conversation
+        val count = chat.voiceNotes.size
+        val today = LocalDate.ofInstant(Instant.ofEpochMilli(now()), zone)
+        val length = message.voiceSeconds?.takeIf { it > 0 }?.let { "%d:%02d".format(it / 60, it % 60) }
+        return Screen.Card(
+            title = fitTitle(listOfNotNull("🎤 ${senderLabel(message)}", "${step.index + 1}/$count".takeIf { count > 1 }).joinToString(" · ")),
+            subtitle = listOfNotNull(clock(message.timeMs, today), length).joinToString(" · "),
+            rows = listOfNotNull(
+                Row(text = if (step.playing) text.stopAudio else text.playAudio, selected = true),
+                step.problem?.let { Row(text = fit(noteText(it)), tone = Tone.ALERT) },
+            ),
+        )
+    }
+
+    private fun noteText(note: Note) = when (note) {
+        Note.NO_AUDIO_ACCESS -> text.noAudioAccess
+        Note.AUDIO_NOT_FOUND -> text.audioNotFound
+        Note.NO_HEADPHONES -> text.noHeadphones
+        else -> text.failed
     }
 
     /** One photo, full screen; swipe for the others in this chat. */
@@ -246,6 +278,7 @@ class ScreenMaker(
             step.note == Note.REPLY_ON_PHONE -> text.replyOnPhone
             step.note == Note.NO_PHOTOS -> text.noPhotos
             step.note == Note.CAMERA_FAILED -> text.cameraFailed
+            step.note == Note.NO_AUDIO_ACCESS || step.note == Note.AUDIO_NOT_FOUND || step.note == Note.NO_HEADPHONES -> noteText(step.note)
             step.note == Note.NO_SPEECH -> text.noSpeech
             else -> text.speechUnavailable
         }

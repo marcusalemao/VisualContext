@@ -154,6 +154,36 @@ class ZapPluginService : NexusPluginService() {
 
     private var snapshot: NexusSnapshotSession? = null
 
+    // --- WhatsApp voice messages -------------------------------------------
+
+    /** Find the file (off the main thread: it lists a folder), then play it on the glasses' audio. */
+    private fun playAudio(effect: Effect.PlayAudio) {
+        stopSpeaking()
+        when {
+            !ZapVoiceNotes.hasAccess(this) -> return audioFailed(Note.NO_AUDIO_ACCESS)
+            !ZapVoiceNotes.privateOutput(this) -> return audioFailed(Note.NO_HEADPHONES)
+        }
+        Thread {
+            val uri = ZapVoiceNotes.find(this, effect.message)
+            main.post {
+                if (!::flow.isInitialized || (flow.step as? Step.Audio)?.message != effect.message) return@post
+                if (uri == null) return@post audioFailed(Note.AUDIO_NOT_FOUND)
+                ZapVoiceNotes.play(
+                    this,
+                    uri,
+                    onDone = { main.post { flow.onAudioDone(); render() } },
+                    onError = { main.post { audioFailed(Note.AUDIO_NOT_FOUND) } },
+                )
+            }
+        }.start()
+    }
+
+    private fun audioFailed(note: Note) {
+        if (!::flow.isInitialized) return
+        flow.onAudioFailed(note)
+        render()
+    }
+
     /**
      * Offering a just-taken photo only works if it reaches the phone right away;
      * Nexus' default syncs only while charging. Set "always" once, when the wearer
@@ -197,6 +227,7 @@ class ZapPluginService : NexusPluginService() {
     }
 
     override fun onNexusClose() {
+        ZapVoiceNotes.stop()
         snapshot?.cancel()
         snapshot = null
         runCatching { contentResolver.unregisterContentObserver(galleryChanged) }
@@ -213,14 +244,8 @@ class ZapPluginService : NexusPluginService() {
     override fun onNexusInput(event: NexusInputEvent) {
         if (event.action != KeyEvent.ACTION_DOWN || !::flow.isInitialized) return
         when (event.keyCode) {
-            KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_DOWN -> {
-                flow.move(1)
-                render()
-            }
-            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_UP -> {
-                flow.move(-1)
-                render()
-            }
+            KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_DOWN -> run(flow.move(1))
+            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_UP -> run(flow.move(-1))
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> run(flow.tap())
             KeyEvent.KEYCODE_BACK -> run(flow.back())
         }
@@ -237,6 +262,8 @@ class ZapPluginService : NexusPluginService() {
                 is Effect.Send -> send(effect.recipient, effect.body, effect.photo)
                 Effect.PullGlassesMedia -> pullGlassesMedia()
                 Effect.TakeSnapshot -> takeSnapshot()
+                is Effect.PlayAudio -> playAudio(effect)
+                Effect.StopAudio -> ZapVoiceNotes.stop()
                 Effect.Close -> {
                     surface?.hide()
                     return

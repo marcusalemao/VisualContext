@@ -354,4 +354,32 @@ class ComposeFlowTest {
         f.tap() // attach
         assertEquals(Step.Review(leoChat.recipient(), "Olha isso", "snap:2"), f.step)
     }
+
+    @Test
+    fun `a voice message plays straight from the chat, stops, swipes, and says why when it cannot`() {
+        val voice = leoChat.copy(
+            messages = leoChat.messages + listOf(
+                ZapMessage("Leo", "🎤 Mensagem de voz (0:12)", 9_000_000L),
+                ZapMessage("Leo", "🎤 Mensagem de voz (1:05)", 9_500_000L),
+            ),
+        )
+        assertEquals(65, voice.voiceNotes.last().voiceSeconds)
+        assertEquals(null, ZapMessage.voiceSeconds("oi"))
+        val f = ComposeFlow({ people }).also { it.open(listOf(voice)) }
+        f.move(1); f.tap(); f.tap() // the chat's choices
+        val audioRow = ThreadOption.of(voice).indexOf(ThreadOption.AUDIO)
+        f.move(audioRow)
+        val play = f.tap()
+        assertEquals(Effect.PlayAudio(voice.voiceNotes.last(), voice.key), play.last())
+        assertTrue((f.step as Step.Audio).playing)
+        assertEquals(listOf(Effect.StopAudio), f.tap()) // stop
+        f.tap() // play again
+        assertEquals(listOf(Effect.StopAudio), f.move(-1)) // the older one, stopping this
+        assertEquals("🎤 Mensagem de voz (0:12)", (f.step as Step.Audio).message.text)
+        f.tap()
+        f.onAudioFailed(Note.NO_HEADPHONES)
+        assertEquals(Note.NO_HEADPHONES, (f.step as Step.Audio).problem)
+        assertEquals(listOf(Effect.StopAudio), f.back())
+        assertEquals(audioRow, f.selected)
+    }
 }

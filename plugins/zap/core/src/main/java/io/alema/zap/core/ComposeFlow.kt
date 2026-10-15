@@ -4,7 +4,19 @@ package io.alema.zap.core
 enum class SendOutcome { SENT, OPENED_FOR_THUMB, WAITING_FOR_UNLOCK, NOT_INSTALLED, FAILED }
 
 /** Why the flow stopped somewhere other than a sent message. */
-enum class Note { NO_SPEECH, SPEECH_UNAVAILABLE, NO_CONTACT, NO_NUMBER, REPLY_ON_PHONE, NO_PHOTOS, CAMERA_FAILED }
+enum class Note {
+    NO_SPEECH, SPEECH_UNAVAILABLE, NO_CONTACT, NO_NUMBER, REPLY_ON_PHONE, NO_PHOTOS, CAMERA_FAILED,
+    /** Voice messages: no folder access yet, not downloaded yet, or nowhere private to play (no glasses audio/earbuds). */
+    NO_AUDIO_ACCESS, AUDIO_NOT_FOUND, NO_HEADPHONES,
+}
+
+/** What a chat's choices card offers, in order. Photos and voice messages only when the chat has some. */
+enum class ThreadOption { REPLY, LISTEN, SEND_PHOTO, PHOTOS, AUDIO;
+    companion object {
+        fun of(chat: ZapConversation): List<ThreadOption> = listOf(REPLY, LISTEN, SEND_PHOTO) +
+            listOfNotNull(PHOTOS.takeIf { chat.photos.isNotEmpty() }, AUDIO.takeIf { chat.voiceNotes.isNotEmpty() })
+    }
+}
 
 sealed interface Step {
     /** Home: "New message" first, then the conversations, newest first. */
@@ -47,6 +59,20 @@ sealed interface Step {
 
     /** The glasses' camera is taking a photo for [recipient]; it shows up to check before attaching. */
     data class Snapping(val recipient: Recipient, val body: String = "", val previousPhoto: String? = null) : Step
+
+    /**
+     * A voice message from the chat, played on the glasses' audio (or earbuds),
+     * never the phone's speaker. Opens playing; tap stops or plays again; swipe
+     * for the chat's other voice messages; back to the chat.
+     */
+    data class Audio(
+        val conversation: ZapConversation,
+        val index: Int,
+        val playing: Boolean = false,
+        val problem: Note? = null,
+    ) : Step {
+        val message: ZapMessage get() = conversation.voiceNotes[index]
+    }
 
     /** "Say the name" first, then the people the wearer wrote to or heard from lately. */
     data class NewMessage(val recent: List<ZapContact>) : Step
@@ -91,6 +117,10 @@ sealed interface Effect {
     /** Read a received message aloud: "Bruno: on my way". */
     data class SpeakMessage(val message: ZapMessage) : Effect
     object StopSpeaking : Effect
+
+    /** Play a voice message on the glasses' audio; [chatKey] says which chat it came from. */
+    data class PlayAudio(val message: ZapMessage, val chatKey: String) : Effect
+    object StopAudio : Effect
 
     /** Take a photo with the glasses' camera now. */
     object TakeSnapshot : Effect
@@ -153,6 +183,10 @@ class ComposeFlow(
                 step = s.copy(conversation = it)
                 base = step
             }
+            is Step.Audio -> inbox.firstOrNull { it.key == s.conversation.key }?.let { fresh ->
+                val index = fresh.voiceNotes.indexOfFirst { it.timeMs == s.message.timeMs && it.sender == s.message.sender }
+                if (index >= 0) step = s.copy(conversation = fresh, index = index)
+            }
             is Step.Photo -> inbox.firstOrNull { it.key == s.conversation.key }?.let { fresh ->
                 // Keep showing the same photo even if newer ones arrived.
                 val index = fresh.photos.indexOfFirst { it.image == s.message.image }
@@ -164,12 +198,9 @@ class ComposeFlow(
 
     fun choiceCount(): Int = when (val s = step) {
         is Step.Inbox -> 1 + s.conversations.size
-        is Step.Thread -> when {
-            s.reading -> 0 // the glasses scroll the document themselves
-            s.conversation.photos.isEmpty() -> THREAD_CHOICES
-            else -> THREAD_CHOICES + 1
-        }
+        is Step.Thread -> if (s.reading) 0 else ThreadOption.of(s.conversation).size // reading: the glasses scroll it
         is Step.Photo -> s.conversation.photos.size
+        is Step.Audio -> 1
         is Step.ChoosePhoto -> s.photos.size
         is Step.AttachFrom -> ATTACH_CHOICES
         is Step.NewMessage -> 1 + s.recent.size
@@ -179,19 +210,27 @@ class ComposeFlow(
         is Step.Listening, is Step.Sending, is Step.Snapping -> 0
     }
 
-    fun move(delta: Int) {
+    fun move(delta: Int): List<Effect> {
+        (step as? Step.Audio)?.let { s ->
+            // Voice messages don't wrap around either; moving stops what was playing.
+            val next = (s.index + delta).coerceIn(0, s.conversation.voiceNotes.size - 1)
+            if (next == s.index) return emptyList()
+            step = s.copy(index = next, playing = false, problem = null)
+            return if (s.playing) listOf(Effect.StopAudio) else emptyList()
+        }
         (step as? Step.Photo)?.let { s ->
             // Photos don't wrap around: the ends are where the conversation's photos end.
             val next = (s.index + delta).coerceIn(0, s.conversation.photos.size - 1)
             step = s.copy(index = next)
-            return
+            return emptyList()
         }
         (step as? Step.ChoosePhoto)?.let { s ->
             step = s.copy(index = (s.index + delta).coerceIn(0, s.photos.size - 1))
-            return
+            return emptyList()
         }
         val count = choiceCount()
         if (count > 0) selected = Math.floorMod(selected + delta, count)
+        return emptyList()
     }
 
     fun tap(): List<Effect> = when (val s = step) {
@@ -205,14 +244,20 @@ class ComposeFlow(
         is Step.Thread -> if (s.reading) {
             go(s.copy(reading = false), asBase = true)
             emptyList()
-        } else when (selected) {
-            THREAD_REPLY -> reply(s.conversation)
-            THREAD_SEND_PHOTO -> attachFrom(s.conversation.recipient(), body = "", previous = null)
-            THREAD_PHOTO -> {
+        } else when (ThreadOption.of(s.conversation).getOrNull(selected)) {
+            ThreadOption.REPLY -> reply(s.conversation)
+            ThreadOption.SEND_PHOTO -> attachFrom(s.conversation.recipient(), body = "", previous = null)
+            ThreadOption.PHOTOS -> {
                 go(Step.Photo(s.conversation, s.conversation.photos.size - 1))
                 listOf(Effect.StopSpeaking)
             }
-            else -> s.conversation.last?.let { listOf(Effect.SpeakMessage(it)) } ?: emptyList()
+            ThreadOption.AUDIO -> {
+                // The newest voice message, playing straight away: "tap and listen".
+                val audio = Step.Audio(s.conversation, s.conversation.voiceNotes.size - 1, playing = true)
+                go(audio)
+                listOf(Effect.StopSpeaking, Effect.PlayAudio(audio.message, s.conversation.key))
+            }
+            ThreadOption.LISTEN, null -> s.conversation.last?.let { listOf(Effect.SpeakMessage(it)) } ?: emptyList()
         }
         is Step.NewMessage -> if (selected == 0) {
             listen(null)
@@ -232,6 +277,13 @@ class ComposeFlow(
         } else {
             choosePhoto(s.recipient, s.body, s.previousPhoto)
         }
+        is Step.Audio -> if (s.playing) {
+            step = s.copy(playing = false)
+            listOf(Effect.StopAudio)
+        } else {
+            step = s.copy(playing = true, problem = null)
+            listOf(Effect.PlayAudio(s.message, s.conversation.key))
+        }
         is Step.Photo -> {
             // Tapping a photo reads its caption, if any, like Listen again.
             if (s.message.text.isNotBlank()) listOf(Effect.SpeakMessage(s.message)) else emptyList()
@@ -249,8 +301,13 @@ class ComposeFlow(
         is Step.Inbox -> listOf(Effect.Close)
         is Step.Photo -> {
             step = Step.Thread(s.conversation, reading = false)
-            selected = THREAD_PHOTO
+            selected = ThreadOption.of(s.conversation).indexOf(ThreadOption.PHOTOS).coerceAtLeast(0)
             listOf(Effect.StopSpeaking)
+        }
+        is Step.Audio -> {
+            step = Step.Thread(s.conversation, reading = false)
+            selected = ThreadOption.of(s.conversation).indexOf(ThreadOption.AUDIO).coerceAtLeast(0)
+            listOf(Effect.StopAudio)
         }
         is Step.Thread -> {
             if (s.reading) go(Step.Inbox(conversations), asBase = true) else go(s.copy(reading = true), asBase = true)
@@ -292,6 +349,18 @@ class ComposeFlow(
         if (photos.isEmpty() || photos == s.photos) return
         val keep = photos.indexOf(s.photo).takeIf { it >= 0 } ?: 0
         step = s.copy(photos = photos, index = keep)
+    }
+
+    /** The voice message ended (or was stopped from outside). */
+    fun onAudioDone() {
+        val s = step as? Step.Audio ?: return
+        step = s.copy(playing = false)
+    }
+
+    /** It could not play: say why on the card, nothing else moves. */
+    fun onAudioFailed(note: Note) {
+        val s = step as? Step.Audio ?: return
+        step = s.copy(playing = false, problem = note)
     }
 
     /** The glasses' photo is here: show it, a tap attaches it, back drops it. */
@@ -419,7 +488,6 @@ class ComposeFlow(
         const val THREAD_LISTEN = 1
         const val THREAD_SEND_PHOTO = 2
         const val THREAD_PHOTO = 3
-        private const val THREAD_CHOICES = 3
         const val ATTACH_CAMERA = 0
         const val ATTACH_GALLERY = 1
         private const val ATTACH_CHOICES = 2
