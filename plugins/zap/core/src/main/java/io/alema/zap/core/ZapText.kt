@@ -64,6 +64,8 @@ class ZapText(private val pt: Boolean = Locale.getDefault().language == "pt") {
     fun to(name: String) = if (pt) "Para $name" else "To $name"
     val sayMessage get() = if (pt) "Agora diga a mensagem" else "Now say the message"
     val send get() = if (pt) "Enviar" else "Send"
+    val skillWhichChat get() = if (pt) "Qual conversa?" else "Which chat?"
+    val skillWhoToSend get() = if (pt) "Para quem?" else "To whom?"
     val listen get() = if (pt) "Ouvir antes" else "Listen first"
     val redo get() = if (pt) "Ditar de novo" else "Say it again"
     val sending get() = if (pt) "Enviando…" else "Sending…"

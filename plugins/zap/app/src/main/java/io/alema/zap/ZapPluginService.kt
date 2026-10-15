@@ -18,6 +18,7 @@ import com.anezium.rokidbus.client.plugin.NexusReaderSegment
 import com.anezium.rokidbus.client.plugin.NexusReaderSegmentKind
 import com.anezium.rokidbus.client.plugin.NexusRowTone
 import com.anezium.rokidbus.client.plugin.NexusSdkResult
+import com.anezium.rokidbus.client.plugin.NexusSkillInvocation
 import com.anezium.rokidbus.client.plugin.NexusSnapshotCallbacks
 import com.anezium.rokidbus.client.plugin.NexusSnapshotError
 import com.anezium.rokidbus.client.plugin.NexusSnapshotSession
@@ -165,6 +166,14 @@ class ZapPluginService : NexusPluginService() {
         val before = flow.step
         flow.refreshPhotos(ZapGallery.recent(this))
         if (flow.step != before) render()
+    }
+
+    /**
+     * The wearer's assistant (Anezium's Assistant, with their own AI) asks Zap
+     * something: answered from the inbox on the phone, no AI of Zap's own.
+     */
+    override fun onNexusSkillInvoked(invocation: NexusSkillInvocation) {
+        ZapSkillsHost.answer(this, invocation)
     }
 
     override fun onNexusClose() {

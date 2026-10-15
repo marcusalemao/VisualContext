@@ -23,8 +23,8 @@ android {
         // Nexus phone hub supports Android 11+; do not ask for more.
         minSdk = 30
         targetSdk = 36
-        versionCode = 20
-        versionName = "0.6.1"
+        versionCode = 21
+        versionName = "0.7.0"
     }
 
     signingConfigs {
@@ -66,4 +66,6 @@ dependencies {
     implementation(project(":core"))
     implementation("com.github.Anezium.Rokid-Nexus:bus-client:sdk-v0.23.0")
     testImplementation("junit:junit:4.13.2")
+    // The real org.json on the JVM, so tests can run the SDK's own skills catalog parser.
+    testImplementation("org.json:json:20240303")
 }
