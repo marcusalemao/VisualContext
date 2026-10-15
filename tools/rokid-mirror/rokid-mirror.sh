@@ -111,6 +111,12 @@ case "$cmd" in
       printf '#!/bin/bash\nexec bash "%s" espelho\n' "$DIR/rokid-mirror.sh" > "$launcher"
       chmod +x "$launcher"
     fi
+    # Start clean: stop any earlier mirror still running (other Terminal windows)
+    # and find the glasses again instead of trusting an old address.
+    pkill -f "rokid-mirror.sh (watch|lens)" 2>/dev/null
+    pkill -f "ffplay.*Rokid HUD" 2>/dev/null
+    pkill -f "screenrecord --output-format=h264" 2>/dev/null
+    rm -f "$STATE"
     adb start-server >/dev/null 2>&1
     sleep 2 # adb finds paired glasses on the Wi-Fi by itself; give it a moment
     if ! dev="$(ensure_connected 2>/dev/null)"; then
