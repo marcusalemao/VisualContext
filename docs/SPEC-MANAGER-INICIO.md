@@ -88,6 +88,16 @@ Approved by Marcus on 11/10. Visual reference: the canvas "VisualContext Manager
 - The old rule "transcript only with a known person" is retired.
 - **Person card during an encounter: always short** (decided 11/10): name, how you know each other, last time you met. No expanded version during the conversation, even with phone or Wi-Fi; the full card belongs to Recall mode.
 
+### 1i. Audio-only mode, accessible from the start (12/10)
+For blind and low-vision people, and for anyone who prefers no display. Same app, a setting: **Output: display · display + voice · voice only**.
+- **Every card has a spoken version written with it** (one short sentence), not read out field by field. The data is the same; only the renderer changes (HUD image or Nexus `tts`).
+- **Person (during an encounter):** a soft sound, then the short card: "Rafael Souza. Supplier, from the Torra Fina meeting. Last time, 12/09." Said once, when the face is recognised, before the conversation gets going, at low volume. Never repeated on its own.
+- **Recall mode** works naturally by voice: ask, hear the answer. "Where is my key?" → "In the bedroom, on the bed, today at 9:10."
+- **Places:** not narrated while walking (that would be noise). Only when asked: "Where am I?" / "What is around me?". Street-crossing and obstacles stay with Rokid's own Vision assistant; VisualContext is memory, not navigation.
+- **Confirmations become sounds and voice:** new face → "New person. Keep?" (double tap cancels, like the ✕ on the countdown); recording → a short tone at start and end; saved → one tick.
+- **Privacy of sound:** open-ear speakers can be heard up close. Default volume low; recommend Bluetooth earbuds for voice-only mode; never say names louder than a whisper level.
+- First version: the spoken sentence is generated together with each card (same AI call that writes the headline), so nothing is built twice.
+
 ### 2. Settings
 - **On the glasses:** the 4 main switches (Faces, Places, Things, Memories). No sub-settings.
 - **Encounter recording:** "Needs speech" / "A look is enough".
@@ -224,6 +234,16 @@ Aprovado pelo Marcus em 11/10. Referência visual: o canvas "VisualContext Manag
 - A transcrição só é descartada se você cancelar (✕ no countdown) ou se o encontro for curto demais (o timer).
 - A regra antiga "transcrição só com pessoa conhecida" sai.
 - **Card da pessoa durante o encontro: sempre curto** (decidido em 11/10): nome, de onde se conhecem, última vez que se viram. Sem versão expandida durante a conversa, mesmo com celular ou Wi-Fi; o card completo é do modo Recordar.
+
+### 1i. Modo só áudio, acessível desde o começo (12/10)
+Para pessoas cegas e com baixa visão, e para quem prefere sem tela. Mesmo app, um ajuste: **Saída: tela · tela + voz · só voz**.
+- **Cada card tem uma versão falada escrita junto** (uma frase curta), não lida campo por campo. O dado é o mesmo; só muda quem desenha (imagem no HUD ou `tts` do Nexus).
+- **Pessoa (durante o encontro):** um som suave e o card curto: "Rafael Souza. Fornecedor, do encontro da Torra Fina. Última vez, 12/09." Dito uma vez, quando o rosto é reconhecido, antes de a conversa engrenar, em volume baixo. Nunca repete sozinho.
+- **Modo Recordar** funciona naturalmente por voz: pergunta, ouve a resposta. "Onde está minha chave?" → "No quarto, em cima da cama, hoje às 9h10."
+- **Lugares:** não são narrados enquanto você anda (seria barulho). Só quando pedir: "Onde estou?" / "O que tem em volta?". Atravessar a rua e obstáculos ficam com o assistente Vision da própria Rokid; o VisualContext é memória, não navegação.
+- **Confirmações viram som e voz:** rosto novo → "Pessoa nova. Guardo?" (toque duplo cancela, como o ✕ do countdown); gravação → um tom curto no começo e no fim; salvo → um clique.
+- **Privacidade do som:** o alto-falante aberto pode ser ouvido de perto. Volume baixo por padrão; recomendar fone Bluetooth no modo só voz; nunca falar nomes acima de um sussurro.
+- Primeira versão: a frase falada é gerada junto com cada card (na mesma chamada de IA que escreve o gancho), para nada ser construído duas vezes.
 
 ### 2. Ajustes
 - **Nos óculos:** as 4 chaves principais (Rostos, Lugares, Coisas, Memórias). Sem subconfigurações.

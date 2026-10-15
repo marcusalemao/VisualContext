@@ -50,7 +50,7 @@ class VisualContextPluginService : NexusPluginService() {
                 when (r) {
                     is Backend.Result.People -> show(
                         "VisualContext",
-                        listOf("● conectado", "${r.count} pessoas na memória") + r.newest.map { "· $it" },
+                        listOf("● conectado · ${r.count} pessoas") + r.newest.take(2).map { "· $it" },
                         "toque: atualizar · voltar: fechar",
                     )
                     is Backend.Result.Failed -> show(
