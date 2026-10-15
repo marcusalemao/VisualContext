@@ -140,16 +140,27 @@ case "$cmd" in
       say "  3. Digite aqui os números que ele mostra, separados por espaço, e Enter."
       say "     Com código de pareamento:  192.168.0.31:40701 969774"
       say "     Só o endereço:             192.168.0.31:35837"
-      printf '> '
-      read -r first second _
-      first="${first#adb }"
-      if [ -n "${second:-}" ]; then
-        adb pair "$first" "$second" || die "o pareamento não deu certo (o código vale ~2 min). Rode de novo e digite o código novo."
-        sleep 3 # once paired, the glasses announce their connect address
-      elif [ -n "${first:-}" ]; then
-        adb connect "$first" >/dev/null 2>&1
-      fi
-      dev="$(ensure_connected 2>/dev/null)" || die "ainda não achei. Confira o Wi-Fi e se o Wireless ADB está ligado, e rode de novo."
+      say "     Dica: deixe o plugin aberto nos óculos enquanto digita (o código vale ~2 min e some se você sair dele)."
+      # Up to three tries without restarting: a code that expired just needs the new one.
+      dev=""
+      for attempt in 1 2 3; do
+        printf '> '
+        read -r first second _ || break
+        first="${first#adb pair }"; first="${first#adb connect }"; first="${first#adb }"
+        if [ -n "${second:-}" ]; then
+          if ! adb pair "$first" "$second"; then
+            say "Não deu certo (código vencido?). Olhe o código novo no plugin e digite de novo:"
+            continue
+          fi
+          sleep 3 # once paired, the glasses announce their connect address
+        elif [ -n "${first:-}" ]; then
+          adb connect "$first" >/dev/null 2>&1
+        fi
+        dev="$(ensure_connected 2>/dev/null)" && break
+        say "Ainda não achei os óculos. Digite de novo o que o plugin mostra:"
+      done
+      [ -n "$dev" ] || die "não consegui. Confira o Wi-Fi e se o Wireless ADB está ligado, e rode de novo."
+      say "Pronto: pareado. Da próxima vez não precisa digitar nada."
     fi
     say "óculos encontrados ($dev)"
     say "abrindo a janela da lente; capturas em $DIR/watch para o Claude ver."
