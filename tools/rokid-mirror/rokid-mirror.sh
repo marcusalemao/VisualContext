@@ -120,12 +120,24 @@ case "$cmd" in
     adb start-server >/dev/null 2>&1
     sleep 2 # adb finds paired glasses on the Wi-Fi by itself; give it a moment
     if ! dev="$(ensure_connected 2>/dev/null)"; then
+      # Not found by itself: the wearer reads what Wireless ADB shows and types it once.
       say ""
-      say "Não achei os óculos."
+      say "Não achei os óculos sozinho. Vamos juntos:"
       say "  1. Óculos e Mac no mesmo Wi-Fi."
-      say "  2. Nos óculos, abra o Rokid Nexus > plugin Wireless ADB (deixe ligado)."
-      say "  3. Rode de novo (ou clique duas vezes em 'Espelhar óculos')."
-      exit 1
+      say "  2. Nos óculos, abra Rokid Nexus > Wireless ADB."
+      say "  3. Digite aqui os números que ele mostra, separados por espaço, e Enter."
+      say "     Com código de pareamento:  192.168.0.31:40701 969774"
+      say "     Só o endereço:             192.168.0.31:35837"
+      printf '> '
+      read -r first second _
+      first="${first#adb }"
+      if [ -n "${second:-}" ]; then
+        adb pair "$first" "$second" || die "o pareamento não deu certo (o código vale ~2 min). Rode de novo e digite o código novo."
+        sleep 3 # once paired, the glasses announce their connect address
+      elif [ -n "${first:-}" ]; then
+        adb connect "$first" >/dev/null 2>&1
+      fi
+      dev="$(ensure_connected 2>/dev/null)" || die "ainda não achei. Confira o Wi-Fi e se o Wireless ADB está ligado, e rode de novo."
     fi
     say "óculos encontrados ($dev)"
     say "abrindo a janela da lente; capturas em $DIR/watch para o Claude ver."
