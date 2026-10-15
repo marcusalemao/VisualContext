@@ -60,11 +60,15 @@ through_lens() { # scene.mp4 hud.mp4 out.mp4
     -c:v libx264 -crf 20 -movflags +faststart -an "$3" || die "ffmpeg failed"
 }
 
+# Only the glasses, never a phone plugged in for something else: adb lists the
+# Rokid Glasses as model RG_glasses (override with ROKID_MODEL).
+MODEL="${ROKID_MODEL:-RG_glasses}"
+glasses_online() { adb devices -l 2>/dev/null | awk -v m="model:$MODEL" '$2=="device" && index($0, m) {print $1; exit}'; }
+
 device() {
   if [ -f "$STATE" ]; then cat "$STATE"; return; fi
-  # Never connected by hand: take any glasses adb already sees.
   local found
-  found="$(adb devices 2>/dev/null | awk 'NR>1 && $2=="device" {print $1; exit}')"
+  found="$(glasses_online)"
   [ -n "$found" ] || die "no glasses yet: run 'pair' and 'connect' first (see the top of this file)"
   printf '%s' "$found"
 }
@@ -72,7 +76,7 @@ device() {
 ensure_connected() {
   local dev online
   dev="$(device)" || exit 1
-  online() { adb devices | awk -v d="$1" '$1==d && $2=="device" {found=1} END {exit !found}'; }
+  online() { adb devices -l | awk -v d="$1" -v m="model:$MODEL" '$1==d && $2=="device" && index($0, m) {found=1} END {exit !found}'; }
   if ! online "$dev"; then
     adb connect "$dev" >/dev/null 2>&1
   fi
@@ -87,7 +91,7 @@ ensure_connected() {
   if ! online "$dev"; then
     # The port changes when the glasses restart, but once paired, adb also finds
     # them by name on the Wi-Fi (adb-…_adb-tls-connect). Use whatever is online.
-    dev="$(adb devices | awk 'NR>1 && $2=="device" {print $1; exit}')"
+    dev="$(glasses_online)"
     [ -n "$dev" ] || die "glasses not reachable. Same Wi-Fi? Open Wireless ADB in Nexus and run 'connect IP:PORT' with the port it shows."
     printf '%s' "$dev" > "$STATE"
   fi
@@ -221,7 +225,7 @@ case "$cmd" in
     while true; do
       tmp="$DIR/watch/.next.png"
       # Keep only whole pictures: a dropped link leaves an empty or cut file.
-      if adb -s "$dev" exec-out screencap -p > "$tmp" 2>/dev/null && [ "$(wc -c < "$tmp")" -gt 2000 ]; then
+      if adb -s "$dev" exec-out screencap -p > "$tmp" 2>/dev/null && [ "$(wc -c < "$tmp")" -gt 2000 ] && head -c 4 "$tmp" | grep -q PNG; then
         cp "$tmp" "$DIR/watch/$(stamp).png"
         mv "$tmp" "$DIR/watch/latest.png"
         misses=0
