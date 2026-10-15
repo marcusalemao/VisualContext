@@ -77,6 +77,14 @@ ensure_connected() {
     adb connect "$dev" >/dev/null 2>&1
   fi
   if ! online "$dev"; then
+    # Paired once = no numbers ever again: the glasses announce their current
+    # address on the Wi-Fi (mDNS); connect to whatever they announce now.
+    local addr
+    for addr in $(adb mdns services 2>/dev/null | awk '/_adb-tls-connect/ {print $NF}'); do
+      adb connect "$addr" >/dev/null 2>&1 && online "$addr" && { printf '%s' "$addr" > "$STATE"; printf '%s' "$addr"; return; }
+    done
+  fi
+  if ! online "$dev"; then
     # The port changes when the glasses restart, but once paired, adb also finds
     # them by name on the Wi-Fi (adb-…_adb-tls-connect). Use whatever is online.
     dev="$(adb devices | awk 'NR>1 && $2=="device" {print $1; exit}')"
