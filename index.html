@@ -8,6 +8,9 @@
 <meta property="og:title" content="Zap — WhatsApp nos Rokid Glasses">
 <meta property="og:description" content="Leia, ouça de novo e responda o WhatsApp por voz nos Rokid Glasses, sem tirar o celular do bolso.">
 <meta property="og:url" content="https://z.alema.io/">
+<link rel="alternate" hreflang="pt-BR" href="https://z.alema.io/?lang=pt">
+<link rel="alternate" hreflang="en" href="https://z.alema.io/?lang=en">
+<link rel="alternate" hreflang="x-default" href="https://z.alema.io/">
 <meta name="theme-color" content="#070A08">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,16 +18,32 @@
 <style>
 body{margin:0;background:#070A08}
 a{color:#4DFF8C}a:hover{color:#B8FFD2}
+.lang button,.amounts button{font:inherit;cursor:pointer}
+.lang button{background:none;border:0;color:#8BA896;padding:6px 4px;font-family:'Roboto Mono',monospace;font-size:13px;font-weight:500;letter-spacing:.08em}
+.lang button[aria-pressed="true"]{color:#4DFF8C;font-weight:700}
+.amounts button{background:#0E150F;color:#DCF3E4;border:1px solid #2F9D5C;border-radius:999px;padding:9px 16px;font-size:15px}
+.amounts button[aria-pressed="true"]{background:#4DFF8C;color:#04180D;border-color:#4DFF8C;font-weight:500}
+[data-only="pt"],[data-only="en"]{display:none}
+html[lang="pt-BR"] [data-only="pt"],html[lang="en"] [data-only="en"]{display:revert}
+#langAsk{display:none}
+#langAsk.open{display:flex}
 </style>
 </head>
 <body>
 <div style="background: #070A08; color: #DCF3E4; font-family: 'Roboto', system-ui, sans-serif; font-weight: 300; min-height: 100vh">
 
+<!-- Shown only when the browser's language is neither Portuguese nor English. -->
+<div id="langAsk" role="dialog" aria-label="Language / Idioma" style="background: #0E150F; border-bottom: 1px solid #2F9D5C; padding: 12px 24px; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px; font-size: 15px">
+<span>Choose your language · Escolha o idioma</span>
+<button type="button" data-set-lang="en" style="font: inherit; cursor: pointer; background: #4DFF8C; color: #04180D; border: 0; border-radius: 999px; padding: 8px 16px; font-weight: 500">English</button>
+<button type="button" data-set-lang="pt" style="font: inherit; cursor: pointer; background: none; color: #DCF3E4; border: 1px solid #2F9D5C; border-radius: 999px; padding: 7px 16px">Português</button>
+</div>
+
 <header style="border-bottom: 1px solid #182619">
 <div style="max-width: 1180px; margin: 0 auto; padding: 18px 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px">
 <div style="display: flex; align-items: center; gap: 14px">
 <div style="width: 40px; height: 40px; border-radius: 10px; background: #000000; display: flex; align-items: center; justify-content: center"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4DFF8C" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Zap"><path d="M6.5,6 L17.5,6 L6.5,18 L17.5,18"></path></svg></div>
-<nav aria-label="Você está em" style="display: flex; align-items: center; gap: 10px; font-family: 'Roboto Mono', monospace; font-size: 13px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase">
+<nav aria-label="Você está em" data-i18n-aria="navHere" style="display: flex; align-items: center; gap: 10px; font-family: 'Roboto Mono', monospace; font-size: 13px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase">
 <a href="https://alema.io" style="color: #8BA896; text-decoration: none">alema</a>
 <span aria-hidden="true" style="color: #42574A">/</span>
 <span style="color: #8BA896">Rokid Glasses</span>
@@ -33,42 +52,44 @@ a{color:#4DFF8C}a:hover{color:#B8FFD2}
 </nav>
 </div>
 <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 22px; font-size: 15px; font-weight: 400">
-<a href="#como-funciona" style="color: #8BA896; text-decoration: none">Como funciona</a>
-<a href="#instalar" style="color: #8BA896; text-decoration: none">Instalar</a>
-<a href="#privacidade" style="color: #8BA896; text-decoration: none">Privacidade</a>
-<a href="https://github.com/marcusalemao/VisualContext/raw/zap/v0.1/plugins/zap/dist/zap.apk" style="background: #4DFF8C; color: #04180D; text-decoration: none; font-weight: 500; padding: 11px 18px; border-radius: 999px; min-height: 22px">Baixar o Zap</a>
+<a href="#como-funciona" data-i18n="navHow" style="color: #8BA896; text-decoration: none">Como funciona</a>
+<a href="#instalar" data-i18n="navInstall" style="color: #8BA896; text-decoration: none">Instalar</a>
+<a href="#privacidade" data-i18n="navPrivacy" style="color: #8BA896; text-decoration: none">Privacidade</a>
+<a href="#apoiar" data-i18n="navSupport" style="color: #8BA896; text-decoration: none">Apoiar</a>
+<div class="lang" role="group" aria-label="Idioma / Language"><button type="button" data-set-lang="pt" aria-pressed="true">PT</button><span aria-hidden="true" style="color: #42574A">|</span><button type="button" data-set-lang="en" aria-pressed="false">EN</button></div>
+<a href="https://github.com/marcusalemao/VisualContext/raw/zap/v0.1/plugins/zap/dist/zap.apk" data-i18n="download" style="background: #4DFF8C; color: #04180D; text-decoration: none; font-weight: 500; padding: 11px 18px; border-radius: 999px; min-height: 22px">Baixar o Zap</a>
 </div>
 </div>
 </header>
 
 <section style="max-width: 1180px; margin: 0 auto; padding: 72px 24px 88px; display: flex; flex-wrap: wrap; align-items: center; gap: 56px">
 <div style="flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 26px">
-<p style="margin: 0; font-family: 'Roboto Mono', monospace; font-size: 13px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #4DFF8C">Rokid Glasses · Versão de teste</p>
-<h1 style="margin: 0; font-size: clamp(40px, 6vw, 68px); line-height: 1.04; font-weight: 300; letter-spacing: -0.02em; color: #DCF3E4">Suas conversas do WhatsApp, nos óculos.</h1>
-<p style="margin: 0; font-size: clamp(18px, 2vw, 21px); line-height: 1.55; color: #8BA896; max-width: 560px">Leia, ouça de novo e responda por voz sem tirar o celular do bolso. O histórico fica guardado no seu celular, e nada é enviado sem você confirmar.</p>
+<p data-i18n="heroKicker" style="margin: 0; font-family: 'Roboto Mono', monospace; font-size: 13px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #4DFF8C">Rokid Glasses · Versão de teste</p>
+<h1 data-i18n="heroTitle" style="margin: 0; font-size: clamp(40px, 6vw, 68px); line-height: 1.04; font-weight: 300; letter-spacing: -0.02em; color: #DCF3E4">Suas conversas do WhatsApp, nos óculos.</h1>
+<p data-i18n="heroText" style="margin: 0; font-size: clamp(18px, 2vw, 21px); line-height: 1.55; color: #8BA896; max-width: 560px">Leia, ouça de novo e responda por voz sem tirar o celular do bolso. O histórico fica guardado no seu celular, e nada é enviado sem você confirmar.</p>
 <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center">
-<a href="https://github.com/marcusalemao/VisualContext/raw/zap/v0.1/plugins/zap/dist/zap.apk" style="background: #4DFF8C; color: #04180D; text-decoration: none; font-weight: 500; font-size: 17px; padding: 15px 26px; border-radius: 999px">Baixar o Zap</a>
-<a href="#testar" style="color: #DCF3E4; text-decoration: none; font-weight: 400; font-size: 17px; padding: 14px 24px; border-radius: 999px; border: 1px solid #2F9D5C">Não tenho os óculos</a>
+<a href="https://github.com/marcusalemao/VisualContext/raw/zap/v0.1/plugins/zap/dist/zap.apk" data-i18n="download" style="background: #4DFF8C; color: #04180D; text-decoration: none; font-weight: 500; font-size: 17px; padding: 15px 26px; border-radius: 999px">Baixar o Zap</a>
+<a href="#testar" data-i18n="noGlasses" style="color: #DCF3E4; text-decoration: none; font-weight: 400; font-size: 17px; padding: 14px 24px; border-radius: 999px; border: 1px solid #2F9D5C">Não tenho os óculos</a>
 </div>
-<p style="margin: 0; font-family: 'Roboto Mono', monospace; font-size: 13px; font-weight: 500; color: #8BA896; letter-spacing: 0.02em">Android 11+ · Grátis · Código aberto · Versão de teste</p>
+<p data-i18n="heroFacts" style="margin: 0; font-family: 'Roboto Mono', monospace; font-size: 13px; font-weight: 500; color: #8BA896; letter-spacing: 0.02em">Android 11+ · Rokid Nexus · Grátis · Código aberto</p>
 </div>
 
 <div style="flex: 1 1 320px; display: flex; justify-content: center">
 <div style="background: #000000; border: 1px solid #182619; border-radius: 28px; padding: 22px; box-shadow: 0 0 0 10px #0D150F, 0 30px 80px rgba(77,255,140,0.08)">
-<div role="img" aria-label="Tela do Zap nos óculos: lista de conversas com Nova mensagem no topo" style="width: 300px; height: 400px; background: #000000; display: flex; flex-direction: column; gap: 10px; padding: 18px; box-sizing: border-box; font-family: 'Roboto', sans-serif; color: #4DFF8C">
-<div style="font-size: 22px; font-weight: 500; padding: 0 4px 6px">Conversas</div>
-<div style="border: 2px solid #4DFF8C; border-radius: 12px; padding: 11px 12px; font-size: 18px; font-weight: 500">Nova mensagem</div>
+<div role="img" aria-label="Tela do Zap nos óculos: lista de conversas com Nova mensagem no topo" data-i18n-aria="lensAria" style="width: 300px; height: 400px; background: #000000; display: flex; flex-direction: column; gap: 10px; padding: 18px; box-sizing: border-box; font-family: 'Roboto', sans-serif; color: #4DFF8C">
+<div data-i18n="lensChats" style="font-size: 22px; font-weight: 500; padding: 0 4px 6px">Conversas</div>
+<div data-i18n="lensNew" style="border: 2px solid #4DFF8C; border-radius: 12px; padding: 11px 12px; font-size: 18px; font-weight: 500">Nova mensagem</div>
 <div style="padding: 8px 12px; display: flex; flex-direction: column; gap: 3px">
 <div style="font-size: 18px; font-weight: 400">Beto</div>
-<div style="font-size: 14px; color: #2F9D5C">Bom dia! Já vi o deploy</div>
+<div data-i18n="msgBeto" style="font-size: 14px; color: #2F9D5C">Bom dia! Já vi o deploy</div>
 </div>
 <div style="padding: 8px 12px; display: flex; flex-direction: column; gap: 3px">
 <div style="font-size: 18px; font-weight: 400">Ana Paula</div>
-<div style="font-size: 14px; color: #2F9D5C">Chego às 19h</div>
+<div data-i18n="msgAna" style="font-size: 14px; color: #2F9D5C">Chego às 19h</div>
 </div>
 <div style="padding: 8px 12px; display: flex; flex-direction: column; gap: 3px">
-<div style="font-size: 18px; font-weight: 400">Família</div>
-<div style="font-size: 14px; color: #2F9D5C">Mãe: Domingo tem almoço</div>
+<div data-i18n="family" style="font-size: 18px; font-weight: 400">Família</div>
+<div data-i18n="msgFamily" style="font-size: 14px; color: #2F9D5C">Mãe: Domingo tem almoço</div>
 </div>
 </div>
 </div>
@@ -78,54 +99,55 @@ a{color:#4DFF8C}a:hover{color:#B8FFD2}
 <section id="como-funciona" style="border-top: 1px solid #182619; background: #0A100B">
 <div style="max-width: 1180px; margin: 0 auto; padding: 80px 24px; display: flex; flex-direction: column; gap: 44px">
 <div style="display: flex; flex-direction: column; gap: 14px; max-width: 680px">
-<p style="margin: 0; font-family: 'Roboto Mono', monospace; font-size: 13px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #4DFF8C">Como funciona</p>
-<h2 style="margin: 0; font-size: clamp(30px, 4vw, 42px); line-height: 1.12; font-weight: 300; color: #DCF3E4">Como no WhatsApp do celular, só que na sua frente.</h2>
+<p data-i18n="navHow" style="margin: 0; font-family: 'Roboto Mono', monospace; font-size: 13px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #4DFF8C">Como funciona</p>
+<h2 data-i18n="howTitle" style="margin: 0; font-size: clamp(30px, 4vw, 42px); line-height: 1.12; font-weight: 300; color: #DCF3E4">Como no WhatsApp do celular, só que na sua frente.</h2>
 </div>
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px">
 
 <div style="background: #0E150F; border: 1px solid #182619; border-radius: 20px; padding: 26px; display: flex; flex-direction: column; gap: 18px">
 <p style="margin: 0; font-family: 'Roboto Mono', monospace; font-size: 13px; font-weight: 700; color: #2F9D5C">01</p>
-<h3 style="margin: 0; font-size: 22px; font-weight: 500; color: #DCF3E4">Chegou mensagem</h3>
-<p style="margin: 0; font-size: 16px; line-height: 1.6; color: #8BA896">Um aviso discreto mostra quem escreveu e o começo da mensagem por 4 segundos. A mensagem completa fica guardada nas suas conversas.</p>
-<div role="img" aria-label="Aviso nos óculos: Beto, Bom dia! Já vi o deploy" style="background: #000000; border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; gap: 4px; color: #4DFF8C; margin-top: auto">
+<h3 data-i18n="step1Title" style="margin: 0; font-size: 22px; font-weight: 500; color: #DCF3E4">Chegou mensagem</h3>
+<p data-i18n="step1Text" style="margin: 0; font-size: 16px; line-height: 1.6; color: #8BA896">Um aviso discreto mostra quem escreveu e o começo da mensagem. Se preferir, o Zap já lê em voz alta. Dá para responder direto do aviso.</p>
+<div role="img" aria-label="Aviso nos óculos: Beto, Bom dia! Já vi o deploy" data-i18n-aria="noticeAria" style="background: #000000; border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; gap: 4px; color: #4DFF8C; margin-top: auto">
 <div style="font-size: 17px; font-weight: 500">Beto</div>
-<div style="font-size: 15px">Bom dia! Já vi o deploy</div>
-<div style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: #2F9D5C; padding-top: 4px">Zap</div>
+<div data-i18n="msgBeto" style="font-size: 15px">Bom dia! Já vi o deploy</div>
+<div data-i18n="reply" style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: #2F9D5C; padding-top: 4px">Responder</div>
 </div>
 </div>
 
 <div style="background: #0E150F; border: 1px solid #182619; border-radius: 20px; padding: 26px; display: flex; flex-direction: column; gap: 18px">
 <p style="margin: 0; font-family: 'Roboto Mono', monospace; font-size: 13px; font-weight: 700; color: #2F9D5C">02</p>
-<h3 style="margin: 0; font-size: 22px; font-weight: 500; color: #DCF3E4">Abra a conversa</h3>
-<p style="margin: 0; font-size: 16px; line-height: 1.6; color: #8BA896">As últimas mensagens aparecem em ordem. Toque em Ouvir de novo quantas vezes quiser, ou em Responder.</p>
-<div role="img" aria-label="Conversa com Beto nos óculos, com os botões Responder e Ouvir de novo" style="background: #000000; border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; color: #4DFF8C; margin-top: auto">
+<h3 data-i18n="step2Title" style="margin: 0; font-size: 22px; font-weight: 500; color: #DCF3E4">Abra a conversa</h3>
+<p data-i18n="step2Text" style="margin: 0; font-size: 16px; line-height: 1.6; color: #8BA896">As mensagens mais novas aparecem em cima, inteiras, e você rola para ler as anteriores. Toque para Responder, Ouvir de novo ou ver as fotos.</p>
+<div role="img" aria-label="Conversa com Beto nos óculos, com os botões Responder e Ouvir de novo" data-i18n-aria="chatAria" style="background: #000000; border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; color: #4DFF8C; margin-top: auto">
 <div style="font-size: 17px; font-weight: 500">Beto</div>
-<div style="font-size: 15px">Bom dia! Já vi o deploy</div>
-<div style="font-size: 15px">Me liga quando puder</div>
-<div style="border: 2px solid #4DFF8C; border-radius: 10px; padding: 7px 10px; font-size: 15px; font-weight: 500">Responder</div>
-<div style="padding: 0 10px; font-size: 15px">Ouvir de novo</div>
+<div data-i18n="msgBeto2" style="font-size: 15px">Me liga quando puder</div>
+<div data-i18n="msgBeto" style="font-size: 15px">Bom dia! Já vi o deploy</div>
+<div data-i18n="reply" style="border: 2px solid #4DFF8C; border-radius: 10px; padding: 7px 10px; font-size: 15px; font-weight: 500">Responder</div>
+<div data-i18n="listenAgain" style="padding: 0 10px; font-size: 15px">Ouvir de novo</div>
 </div>
 </div>
 
 <div style="background: #0E150F; border: 1px solid #182619; border-radius: 20px; padding: 26px; display: flex; flex-direction: column; gap: 18px">
 <p style="margin: 0; font-family: 'Roboto Mono', monospace; font-size: 13px; font-weight: 700; color: #2F9D5C">03</p>
-<h3 style="margin: 0; font-size: 22px; font-weight: 500; color: #DCF3E4">Responda falando</h3>
-<p style="margin: 0; font-size: 16px; line-height: 1.6; color: #8BA896">Primeiro o nome, depois a mensagem. O Zap mostra o texto para você conferir, e só envia quando você toca em Enviar.</p>
-<div role="img" aria-label="Revisão nos óculos: Para Beto, Te ligo às 15h, com Enviar, Ouvir antes e Ditar de novo" style="background: #000000; border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; color: #4DFF8C; margin-top: auto">
-<div style="font-size: 17px; font-weight: 500">Para Beto</div>
-<div style="font-size: 15px">Te ligo às 15h</div>
-<div style="border: 2px solid #4DFF8C; border-radius: 10px; padding: 7px 10px; font-size: 15px; font-weight: 500">Enviar</div>
-<div style="padding: 0 10px; font-size: 15px">Ouvir antes</div>
-<div style="padding: 0 10px; font-size: 15px">Ditar de novo</div>
+<h3 data-i18n="step3Title" style="margin: 0; font-size: 22px; font-weight: 500; color: #DCF3E4">Responda falando</h3>
+<p data-i18n="step3Text" style="margin: 0; font-size: 16px; line-height: 1.6; color: #8BA896">Primeiro o nome, depois a mensagem. O Zap mostra o texto para você conferir, e só envia quando você toca em Enviar.</p>
+<div role="img" aria-label="Revisão nos óculos: Para Beto, Te ligo às 15h, com Enviar, Ouvir antes e Ditar de novo" data-i18n-aria="reviewAria" style="background: #000000; border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; color: #4DFF8C; margin-top: auto">
+<div data-i18n="toBeto" style="font-size: 17px; font-weight: 500">Para Beto</div>
+<div data-i18n="msgDraft" style="font-size: 15px">Te ligo às 15h</div>
+<div data-i18n="send" style="border: 2px solid #4DFF8C; border-radius: 10px; padding: 7px 10px; font-size: 15px; font-weight: 500">Enviar</div>
+<div data-i18n="listenFirst" style="padding: 0 10px; font-size: 15px">Ouvir antes</div>
+<div data-i18n="sayAgain" style="padding: 0 10px; font-size: 15px">Ditar de novo</div>
 </div>
 </div>
 
 </div>
 <div style="display: flex; flex-wrap: wrap; gap: 10px">
-<span style="border: 1px solid #182619; border-radius: 999px; padding: 9px 16px; font-size: 15px; color: #8BA896">Inicie conversas</span>
-<span style="border: 1px solid #182619; border-radius: 999px; padding: 9px 16px; font-size: 15px; color: #8BA896">Anexe fotos <span style="color: #FFB84D">(em breve)</span></span>
-<span style="border: 1px solid #182619; border-radius: 999px; padding: 9px 16px; font-size: 15px; color: #8BA896">Nomes parecidos? Escolha o contato certo numa lista</span>
-<span style="border: 1px solid #182619; border-radius: 999px; padding: 9px 16px; font-size: 15px; color: #8BA896">WhatsApp e WhatsApp Business</span>
+<span data-i18n="chipStart" style="border: 1px solid #182619; border-radius: 999px; padding: 9px 16px; font-size: 15px; color: #8BA896">Inicie conversas</span>
+<span data-i18n="chipPhotos" style="border: 1px solid #182619; border-radius: 999px; padding: 9px 16px; font-size: 15px; color: #8BA896">Mande fotos e vídeos, ou tire uma foto na hora com os óculos</span>
+<span data-i18n="chipNames" style="border: 1px solid #182619; border-radius: 999px; padding: 9px 16px; font-size: 15px; color: #8BA896">Nomes parecidos? Escolha o contato certo numa lista</span>
+<span data-i18n="chipAssistant" style="border: 1px solid #182619; border-radius: 999px; padding: 9px 16px; font-size: 15px; color: #8BA896">Pergunte ao Assistant do Nexus: "o que eu perdi no WhatsApp?"</span>
+<span style="border: 1px solid #182619; border-radius: 999px; padding: 9px 16px; font-size: 15px; color: #8BA896">WhatsApp · WhatsApp Business</span>
 </div>
 </div>
 </section>
@@ -133,13 +155,13 @@ a{color:#4DFF8C}a:hover{color:#B8FFD2}
 <section style="border-top: 1px solid #182619">
 <div style="max-width: 1180px; margin: 0 auto; padding: 80px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 48px">
 <div style="flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
-<p style="margin: 0; font-family: 'Roboto Mono', monospace; font-size: 13px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #4DFF8C">Direto nos óculos</p>
-<h2 style="margin: 0; font-size: clamp(30px, 4vw, 42px); line-height: 1.12; font-weight: 300; color: #DCF3E4">Um app no celular, outro nos óculos. O Zap instala os dois.</h2>
-<p style="margin: 0; font-size: 16px; line-height: 1.6; color: #8BA896">Você baixa o Zap no celular e ele mesmo instala o app nos óculos, pela conexão com o celular. As atualizações chegam do mesmo jeito. Tudo fica guardado no celular; os óculos só mostram.</p>
+<p data-i18n="nexusKicker" style="margin: 0; font-family: 'Roboto Mono', monospace; font-size: 13px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #4DFF8C">Dentro do Rokid Nexus</p>
+<h2 data-i18n="nexusTitle" style="margin: 0; font-size: clamp(30px, 4vw, 42px); line-height: 1.12; font-weight: 300; color: #DCF3E4">O celular guarda e envia. Os óculos só mostram.</h2>
+<p data-i18n="nexusText" style="margin: 0; font-size: 16px; line-height: 1.6; color: #8BA896">O Zap funciona como um plugin do Rokid Nexus, o hub aberto de apps para os Rokid Glasses. Você instala o Zap no celular, aprova no Nexus, e ele aparece no menu dos óculos. A voz e a leitura em voz alta usam o que você já configurou no Nexus.</p>
 </div>
 <div style="flex: 1 1 280px; display: flex; flex-direction: column; gap: 12px">
-<div style="background: #0E150F; border: 1px solid #182619; border-radius: 16px; padding: 18px 22px; display: flex; justify-content: space-between; gap: 16px"><span style="font-size: 16px; color: #DCF3E4; font-weight: 400">No celular</span><span style="font-size: 15px; color: #8BA896">conversas, contatos, envio</span></div>
-<div style="background: #0E150F; border: 1px solid #182619; border-radius: 16px; padding: 18px 22px; display: flex; justify-content: space-between; gap: 16px"><span style="font-size: 16px; color: #DCF3E4; font-weight: 400">Nos óculos</span><span style="font-size: 15px; color: #8BA896">tela e toques</span></div>
+<div style="background: #0E150F; border: 1px solid #182619; border-radius: 16px; padding: 18px 22px; display: flex; justify-content: space-between; gap: 16px"><span data-i18n="onPhone" style="font-size: 16px; color: #DCF3E4; font-weight: 400">No celular</span><span data-i18n="onPhoneWhat" style="font-size: 15px; color: #8BA896">conversas, contatos, envio</span></div>
+<div style="background: #0E150F; border: 1px solid #182619; border-radius: 16px; padding: 18px 22px; display: flex; justify-content: space-between; gap: 16px"><span data-i18n="onGlasses" style="font-size: 16px; color: #DCF3E4; font-weight: 400">Nos óculos</span><span data-i18n="onGlassesWhat" style="font-size: 15px; color: #8BA896">tela, toques e câmera</span></div>
 </div>
 </div>
 </section>
@@ -147,26 +169,26 @@ a{color:#4DFF8C}a:hover{color:#B8FFD2}
 <section id="instalar" style="border-top: 1px solid #182619; background: #0A100B">
 <div style="max-width: 1180px; margin: 0 auto; padding: 80px 24px; display: flex; flex-wrap: wrap; gap: 48px">
 <div style="flex: 1 1 300px; display: flex; flex-direction: column; gap: 14px">
-<p style="margin: 0; font-family: 'Roboto Mono', monospace; font-size: 13px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #4DFF8C">Instalar</p>
-<h2 style="margin: 0; font-size: clamp(30px, 4vw, 42px); line-height: 1.12; font-weight: 300; color: #DCF3E4">Poucos minutos, uma vez só.</h2>
-<p style="margin: 0; font-size: 16px; line-height: 1.6; color: #8BA896">Você vai precisar dos Rokid Glasses conectados a um celular Android 11 ou mais novo.</p>
+<p data-i18n="navInstall" style="margin: 0; font-family: 'Roboto Mono', monospace; font-size: 13px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #4DFF8C">Instalar</p>
+<h2 data-i18n="installTitle" style="margin: 0; font-size: clamp(30px, 4vw, 42px); line-height: 1.12; font-weight: 300; color: #DCF3E4">Poucos minutos, uma vez só.</h2>
+<p data-i18n="installText" style="margin: 0; font-size: 16px; line-height: 1.6; color: #8BA896">Você vai precisar dos Rokid Glasses com o Rokid Nexus instalado e de um celular Android 11 ou mais novo.</p>
 </div>
 <ol style="flex: 999 1 560px; min-width: 0; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 12px">
 <li style="background: #0E150F; border: 1px solid #182619; border-radius: 16px; padding: 22px 24px; display: flex; gap: 18px">
 <span style="font-family: 'Roboto Mono', monospace; font-size: 14px; font-weight: 700; color: #4DFF8C; min-width: 24px">1</span>
-<div style="display: flex; flex-direction: column; gap: 6px"><strong style="font-size: 18px; font-weight: 500; color: #DCF3E4">Baixe e instale o Zap no celular</strong><span style="font-size: 16px; line-height: 1.55; color: #8BA896">Se o Android perguntar, permita instalar apps baixados pelo navegador. O Zap aparece na tela do celular com um Z verde num quadrado preto.</span></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><strong data-i18n="i1Title" style="font-size: 18px; font-weight: 500; color: #DCF3E4">Baixe e instale o Zap no celular</strong><span data-i18n="i1Text" style="font-size: 16px; line-height: 1.55; color: #8BA896">Se o Android perguntar, permita instalar apps baixados pelo navegador.</span></div>
 </li>
 <li style="background: #0E150F; border: 1px solid #182619; border-radius: 16px; padding: 22px 24px; display: flex; gap: 18px">
 <span style="font-family: 'Roboto Mono', monospace; font-size: 14px; font-weight: 700; color: #4DFF8C; min-width: 24px">2</span>
-<div style="display: flex; flex-direction: column; gap: 6px"><strong style="font-size: 18px; font-weight: 500; color: #DCF3E4">Permita o acesso às notificações</strong><span style="font-size: 16px; line-height: 1.55; color: #8BA896">É assim que o Zap vê as mensagens do WhatsApp. Se o botão estiver cinza: Ajustes do Android › Apps › Zap › três pontinhos › "Permitir configurações restritas".</span></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><strong data-i18n="i2Title" style="font-size: 18px; font-weight: 500; color: #DCF3E4">Permita o acesso às notificações</strong><span data-i18n="i2Text" style="font-size: 16px; line-height: 1.55; color: #8BA896">É assim que o Zap vê as mensagens do WhatsApp. Se o botão estiver cinza: Ajustes do Android › Apps › Zap › três pontinhos › "Permitir configurações restritas".</span></div>
 </li>
 <li style="background: #0E150F; border: 1px solid #182619; border-radius: 16px; padding: 22px 24px; display: flex; gap: 18px">
 <span style="font-family: 'Roboto Mono', monospace; font-size: 14px; font-weight: 700; color: #4DFF8C; min-width: 24px">3</span>
-<div style="display: flex; flex-direction: column; gap: 6px"><strong style="font-size: 18px; font-weight: 500; color: #DCF3E4">Instale o app nos óculos</strong><span style="font-size: 16px; line-height: 1.55; color: #8BA896">Com os óculos conectados ao celular, toque em "Instalar nos óculos" no Zap. Ele guia a primeira vez; depois, o Zap aparece no menu dos óculos.</span></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><strong data-i18n="i3Title" style="font-size: 18px; font-weight: 500; color: #DCF3E4">Aprove o Zap no Rokid Nexus</strong><span data-i18n="i3Text" style="font-size: 16px; line-height: 1.55; color: #8BA896">No app Rokid Nexus do celular: Settings › Plugin access › Zap. Depois disso, o Zap aparece no menu do Nexus nos óculos.</span></div>
 </li>
 <li style="background: #0E150F; border: 1px solid #182619; border-radius: 16px; padding: 22px 24px; display: flex; gap: 18px">
 <span style="font-family: 'Roboto Mono', monospace; font-size: 14px; font-weight: 700; color: #4DFF8C; min-width: 24px">4</span>
-<div style="display: flex; flex-direction: column; gap: 6px"><strong style="font-size: 18px; font-weight: 500; color: #DCF3E4">Recomendado: enviar com o celular no bolso</strong><span style="font-size: 16px; line-height: 1.55; color: #8BA896">Permita o acesso de acessibilidade ao Zap (Acessibilidade › Apps instalados › Zap, a chave do topo). Assim ele toca em Enviar por você. Sem isso, a conversa abre no celular com o texto pronto.</span></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><strong data-i18n="i4Title" style="font-size: 18px; font-weight: 500; color: #DCF3E4">Recomendado: enviar com o celular no bolso</strong><span data-i18n="i4Text" style="font-size: 16px; line-height: 1.55; color: #8BA896">Permita o acesso de acessibilidade ao Zap (Acessibilidade › Apps instalados › Zap, a chave do topo). Assim ele toca em Enviar por você. Sem isso, a conversa abre no celular com o texto pronto.</span></div>
 </li>
 </ol>
 </div>
@@ -175,28 +197,69 @@ a{color:#4DFF8C}a:hover{color:#B8FFD2}
 <section id="privacidade" style="border-top: 1px solid #182619">
 <div style="max-width: 1180px; margin: 0 auto; padding: 80px 24px; display: flex; flex-direction: column; gap: 36px">
 <div style="display: flex; flex-direction: column; gap: 14px; max-width: 680px">
-<p style="margin: 0; font-family: 'Roboto Mono', monospace; font-size: 13px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #4DFF8C">Privacidade</p>
-<h2 style="margin: 0; font-size: clamp(30px, 4vw, 42px); line-height: 1.12; font-weight: 300; color: #DCF3E4">Suas mensagens não saem do seu celular.</h2>
+<p data-i18n="navPrivacy" style="margin: 0; font-family: 'Roboto Mono', monospace; font-size: 13px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #4DFF8C">Privacidade</p>
+<h2 data-i18n="privTitle" style="margin: 0; font-size: clamp(30px, 4vw, 42px); line-height: 1.12; font-weight: 300; color: #DCF3E4">Suas mensagens não saem do seu celular.</h2>
 </div>
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 28px">
-<div style="display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #2F9D5C; padding-top: 18px"><h3 style="margin: 0; font-size: 18px; font-weight: 500; color: #DCF3E4">Sem servidor</h3><p style="margin: 0; font-size: 16px; line-height: 1.6; color: #8BA896">O Zap não tem acesso à internet. Ele não pede nem essa permissão ao Android.</p></div>
-<div style="display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #2F9D5C; padding-top: 18px"><h3 style="margin: 0; font-size: 18px; font-weight: 500; color: #DCF3E4">Guardado com criptografia</h3><p style="margin: 0; font-size: 16px; line-height: 1.6; color: #8BA896">As conversas ficam só neste celular, por 7 dias (você escolhe 1, 7 ou 30), e podem ser apagadas a qualquer momento.</p></div>
-<div style="display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #2F9D5C; padding-top: 18px"><h3 style="margin: 0; font-size: 18px; font-weight: 500; color: #DCF3E4">Escolha seu provedor de voz</h3><p style="margin: 0; font-size: 16px; line-height: 1.6; color: #8BA896">Use a voz do próprio celular, de graça, ou entre com a sua conta de IA para mais qualidade. Nada passa pelos nossos servidores.</p></div>
-<div style="display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #2F9D5C; padding-top: 18px"><h3 style="margin: 0; font-size: 18px; font-weight: 500; color: #DCF3E4">Nada sai sem você</h3><p style="margin: 0; font-size: 16px; line-height: 1.6; color: #8BA896">Toda mensagem passa por uma revisão nos óculos e só é enviada quando você toca em Enviar.</p></div>
+<div style="display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #2F9D5C; padding-top: 18px"><h3 data-i18n="p1Title" style="margin: 0; font-size: 18px; font-weight: 500; color: #DCF3E4">Sem servidor</h3><p data-i18n="p1Text" style="margin: 0; font-size: 16px; line-height: 1.6; color: #8BA896">O Zap não tem acesso à internet. Ele não pede nem essa permissão ao Android.</p></div>
+<div style="display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #2F9D5C; padding-top: 18px"><h3 data-i18n="p2Title" style="margin: 0; font-size: 18px; font-weight: 500; color: #DCF3E4">Guardado com criptografia</h3><p data-i18n="p2Text" style="margin: 0; font-size: 16px; line-height: 1.6; color: #8BA896">As conversas ficam só neste celular, por 7 dias (você escolhe 1, 7 ou 30), e podem ser apagadas a qualquer momento.</p></div>
+<div style="display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #2F9D5C; padding-top: 18px"><h3 data-i18n="p3Title" style="margin: 0; font-size: 18px; font-weight: 500; color: #DCF3E4">A IA é a sua</h3><p data-i18n="p3Text" style="margin: 0; font-size: 16px; line-height: 1.6; color: #8BA896">A voz vem do que você escolheu no Nexus. Se você usa o Assistant, ele consulta o Zap com a IA e a chave que você mesmo configurou. Nada passa por servidores nossos.</p></div>
+<div style="display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #2F9D5C; padding-top: 18px"><h3 data-i18n="p4Title" style="margin: 0; font-size: 18px; font-weight: 500; color: #DCF3E4">Nada sai sem você</h3><p data-i18n="p4Text" style="margin: 0; font-size: 16px; line-height: 1.6; color: #8BA896">Toda mensagem passa por uma revisão nos óculos e só é enviada quando você toca em Enviar. Vale também quando é o Assistant que pede.</p></div>
 </div>
 </div>
 </section>
 
-<section id="testar" style="border-top: 1px solid #182619">
+<section id="testar" style="border-top: 1px solid #182619; background: #0A100B">
 <div style="max-width: 760px; margin: 0 auto; padding: 88px 24px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 18px">
-<p style="margin: 0; font-family: 'Roboto Mono', monospace; font-size: 13px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #4DFF8C">Ainda sem os óculos?</p>
-<h2 style="margin: 0; font-size: clamp(30px, 4vw, 42px); line-height: 1.12; font-weight: 300; color: #DCF3E4">Experimente o Zap no navegador.</h2>
-<p style="margin: 0; font-size: 16px; line-height: 1.6; color: #8BA896">Um simulador dos Rokid Glasses mostra as conversas, a resposta por voz e as fotos, do jeito que aparecem na lente.</p>
+<p data-i18n="tryKicker" style="margin: 0; font-family: 'Roboto Mono', monospace; font-size: 13px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #4DFF8C">Ainda sem os óculos?</p>
+<h2 data-i18n="tryTitle" style="margin: 0; font-size: clamp(30px, 4vw, 42px); line-height: 1.12; font-weight: 300; color: #DCF3E4">Experimente o Zap no navegador.</h2>
+<p data-i18n="tryText" style="margin: 0; font-size: 16px; line-height: 1.6; color: #8BA896">Um simulador dos Rokid Glasses mostra as conversas, a resposta por voz e as fotos, do jeito que aparecem na lente.</p>
 <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 12px">
-<span style="background: #0E150F; color: #8BA896; font-weight: 500; font-size: 17px; padding: 15px 26px; border-radius: 999px; border: 1px solid #182619">Simulador em breve</span>
-<a href="https://global.rokid.com/" style="color: #DCF3E4; text-decoration: none; font-weight: 400; font-size: 17px; padding: 14px 24px; border-radius: 999px; border: 1px solid #2F9D5C">Conhecer os Rokid Glasses</a>
+<span data-i18n="trySoon" style="background: #0E150F; color: #8BA896; font-weight: 500; font-size: 17px; padding: 15px 26px; border-radius: 999px; border: 1px solid #182619">Simulador em breve</span>
+<a href="https://global.rokid.com/" data-i18n="tryRokid" style="color: #DCF3E4; text-decoration: none; font-weight: 400; font-size: 17px; padding: 14px 24px; border-radius: 999px; border: 1px solid #2F9D5C">Conhecer os Rokid Glasses</a>
 </div>
-<p style="margin: 0; font-size: 13px; line-height: 1.6; color: #8BA896">Dúvidas? <a href="mailto:zap@alema.io">zap@alema.io</a></p>
+<p style="margin: 0; font-size: 13px; line-height: 1.6; color: #8BA896"><span data-i18n="questions">Dúvidas?</span> <a href="mailto:zap@alema.io">zap@alema.io</a></p>
+</div>
+</section>
+
+<section id="apoiar" style="border-top: 1px solid #182619">
+<div style="max-width: 1180px; margin: 0 auto; padding: 80px 24px; display: flex; flex-wrap: wrap; gap: 48px; align-items: flex-start">
+<div style="flex: 999 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+<p data-i18n="navSupport" style="margin: 0; font-family: 'Roboto Mono', monospace; font-size: 13px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #4DFF8C">Apoiar</p>
+<h2 data-i18n="supportTitle" style="margin: 0; font-size: clamp(30px, 4vw, 42px); line-height: 1.12; font-weight: 300; color: #DCF3E4">O Zap é grátis. Se ele te ajuda, pague um café.</h2>
+<p data-i18n="supportText" style="margin: 0; font-size: 16px; line-height: 1.6; color: #8BA896">É um projeto independente, feito por uma pessoa. Cada apoio paga o tempo de testar nos óculos e manter o Zap funcionando a cada atualização do WhatsApp.</p>
+</div>
+
+<div style="flex: 1 1 340px; display: flex; flex-direction: column; gap: 16px">
+<!-- Brazil: Pix, no fees. Hidden when the page is in English. -->
+<div id="pixBox" data-only="pt" style="background: #0E150F; border: 1px solid #182619; border-radius: 20px; padding: 24px">
+<div style="display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; justify-content: space-between; align-items: baseline; gap: 12px"><strong style="font-size: 20px; font-weight: 500; color: #DCF3E4">Pix</strong><span style="font-size: 14px; color: #8BA896">a partir de R$ 5, sem taxa</span></div>
+<div class="amounts" role="group" aria-label="Valor" style="display: flex; flex-wrap: wrap; gap: 8px">
+<button type="button" data-amount="5" aria-pressed="true">R$ 5</button>
+<button type="button" data-amount="10" aria-pressed="false">R$ 10</button>
+<button type="button" data-amount="25" aria-pressed="false">R$ 25</button>
+<button type="button" data-amount="" aria-pressed="false">Outro valor</button>
+</div>
+<div id="pixReady" style="display: none; flex-wrap: wrap; gap: 20px; align-items: center">
+<div id="pixQr" role="img" aria-label="QR Code do Pix" style="background: #FFFFFF; border-radius: 12px; padding: 10px; width: 160px; height: 160px; box-sizing: content-box"></div>
+<div style="flex: 1 1 160px; display: flex; flex-direction: column; gap: 10px">
+<span style="font-size: 15px; line-height: 1.5; color: #8BA896">Aponte a câmera do app do banco, ou copie o código.</span>
+<button type="button" id="pixCopy" style="font: inherit; cursor: pointer; background: #4DFF8C; color: #04180D; border: 0; border-radius: 999px; padding: 12px 18px; font-weight: 500">Copiar Pix copia e cola</button>
+<span id="pixCopied" role="status" style="font-size: 13px; color: #4DFF8C; min-height: 18px"></span>
+</div>
+</div>
+<p id="pixSoon" style="margin: 0; font-size: 15px; color: #8BA896">Pix em breve.</p>
+</div>
+</div>
+
+<!-- Everywhere: Ko-fi. -->
+<div style="background: #0E150F; border: 1px solid #182619; border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; justify-content: space-between; align-items: baseline; gap: 12px"><strong style="font-size: 20px; font-weight: 500; color: #DCF3E4">Ko-fi</strong><span data-i18n="kofiNote" style="font-size: 14px; color: #8BA896">cartão ou PayPal, de qualquer país</span></div>
+<a id="kofiLink" href="#" data-i18n="kofiButton" style="display: none; align-self: flex-start; background: #4DFF8C; color: #04180D; text-decoration: none; font-weight: 500; padding: 12px 20px; border-radius: 999px">Apoiar no Ko-fi</a>
+<p id="kofiSoon" data-i18n="kofiSoon" style="margin: 0; font-size: 15px; color: #8BA896">Ko-fi em breve.</p>
+</div>
+</div>
 </div>
 </section>
 
@@ -204,15 +267,171 @@ a{color:#4DFF8C}a:hover{color:#B8FFD2}
 <div style="max-width: 1180px; margin: 0 auto; padding: 44px 24px 56px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 24px">
 <div style="display: flex; flex-direction: column; gap: 8px; max-width: 560px">
 <p style="margin: 0; font-family: 'Roboto Mono', monospace; font-size: 14px; font-weight: 700; color: #4DFF8C">Zap</p>
-<p style="margin: 0; font-size: 14px; line-height: 1.6; color: #8BA896">Projeto independente de Marcus de Magalhães. Não é afiliado ao WhatsApp, à Meta nem à Rokid. WhatsApp é marca da Meta Platforms; Rokid é marca da Rokid Corporation.</p>
+<p data-i18n="legal" style="margin: 0; font-size: 14px; line-height: 1.6; color: #8BA896">Projeto independente de Marcus de Magalhães. Não é afiliado ao WhatsApp, à Meta nem à Rokid. WhatsApp é marca da Meta Platforms; Rokid é marca da Rokid Corporation.</p>
 </div>
 <div style="display: flex; flex-wrap: wrap; gap: 20px; font-size: 15px; font-weight: 400">
 <a href="https://alema.io">alema.io</a>
-<a href="https://github.com/marcusalemao/VisualContext/tree/zap/v0.1/plugins/zap">Código no GitHub</a>
+<a href="https://github.com/marcusalemao/VisualContext/tree/zap/v0.1/plugins/zap" data-i18n="code">Código no GitHub</a>
 </div>
 </div>
 </footer>
 
 </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script>
+// ---- Fill these in, nothing else changes. Empty = the option shows "em breve". ----
+const PIX_KEY = "";            // chave aleatória da conta PJ (pública: aparece no QR)
+const PIX_NAME = "ALEMA";      // nome do recebedor, até 25 letras, sem acento
+const PIX_CITY = "SAO PAULO";  // cidade, até 15 letras, sem acento
+const KOFI_URL = "";           // ex.: https://ko-fi.com/alema
+
+// ---- English. Portuguese is the page itself. ----
+const EN = {
+  navHere: "You are in", navHow: "How it works", navInstall: "Install", navPrivacy: "Privacy", navSupport: "Support",
+  download: "Get Zap", noGlasses: "I don't have the glasses",
+  heroKicker: "Rokid Glasses · Test version",
+  heroTitle: "Your WhatsApp chats, in your glasses.",
+  heroText: "Read, hear again and reply by voice without taking your phone out of your pocket. Your history stays on your phone, and nothing is sent until you confirm.",
+  heroFacts: "Android 11+ · Rokid Nexus · Free · Open source",
+  lensAria: "Zap on the glasses: chat list with New message at the top",
+  lensChats: "Chats", lensNew: "New message", family: "Family",
+  msgBeto: "Morning! Saw the deploy", msgAna: "Getting there at 7pm", msgFamily: "Mom: Lunch on Sunday",
+  howTitle: "Like WhatsApp on your phone, only right in front of you.",
+  step1Title: "A message arrives",
+  step1Text: "A discreet notice shows who wrote and how the message starts. If you like, Zap reads it aloud right away. You can reply straight from the notice.",
+  noticeAria: "Notice on the glasses: Beto, Morning! Saw the deploy",
+  reply: "Reply",
+  step2Title: "Open the chat",
+  step2Text: "The newest messages are on top, in full, and you scroll down for older ones. Tap to Reply, Listen again or see the photos.",
+  chatAria: "Chat with Beto on the glasses, with Reply and Listen again",
+  msgBeto2: "Call me when you can", listenAgain: "Listen again",
+  step3Title: "Reply by speaking",
+  step3Text: "First the name, then the message. Zap shows you the text to check, and sends only when you tap Send.",
+  reviewAria: "Review on the glasses: To Beto, I'll call you at 3pm, with Send, Listen first and Say it again",
+  toBeto: "To Beto", msgDraft: "I'll call you at 3pm", send: "Send", listenFirst: "Listen first", sayAgain: "Say it again",
+  chipStart: "Start new chats",
+  chipPhotos: "Send photos and videos, or take a photo right now with the glasses",
+  chipNames: "Similar names? Pick the right contact from a list",
+  chipAssistant: "Ask the Nexus Assistant: “what did I miss on WhatsApp?”",
+  nexusKicker: "Inside Rokid Nexus",
+  nexusTitle: "The phone keeps and sends. The glasses only show.",
+  nexusText: "Zap is a Rokid Nexus plugin, the open app hub for Rokid Glasses. You install Zap on your phone, approve it in Nexus, and it shows up in the glasses menu. Voice and read-aloud use what you already set up in Nexus.",
+  onPhone: "On the phone", onPhoneWhat: "chats, contacts, sending",
+  onGlasses: "On the glasses", onGlassesWhat: "screen, taps and camera",
+  installTitle: "A few minutes, just once.",
+  installText: "You need Rokid Glasses with Rokid Nexus installed, and an Android 11 or newer phone.",
+  i1Title: "Download and install Zap on your phone",
+  i1Text: "If Android asks, allow installing apps downloaded by the browser.",
+  i2Title: "Allow notification access",
+  i2Text: "That's how Zap sees your WhatsApp messages. If the switch is greyed out: Android Settings › Apps › Zap › three dots › “Allow restricted settings”.",
+  i3Title: "Approve Zap in Rokid Nexus",
+  i3Text: "In the Rokid Nexus phone app: Settings › Plugin access › Zap. Then Zap appears in the Nexus menu on the glasses.",
+  i4Title: "Recommended: send with your phone in your pocket",
+  i4Text: "Give Zap accessibility access (Accessibility › Installed apps › Zap, the switch on top). It then taps Send for you. Without it, the chat opens on the phone with the text ready.",
+  privTitle: "Your messages don't leave your phone.",
+  p1Title: "No server", p1Text: "Zap has no internet access. It doesn't even ask Android for that permission.",
+  p2Title: "Stored encrypted", p2Text: "Chats stay only on this phone, for 7 days (choose 1, 7 or 30), and can be deleted at any time.",
+  p3Title: "The AI is yours", p3Text: "Voice comes from what you chose in Nexus. If you use the Assistant, it asks Zap with the AI and key you set up yourself. Nothing goes through servers of ours.",
+  p4Title: "Nothing goes without you", p4Text: "Every message is reviewed on the glasses and sent only when you tap Send. That holds when the Assistant asks, too.",
+  tryKicker: "No glasses yet?", tryTitle: "Try Zap in your browser.",
+  tryText: "A Rokid Glasses simulator shows the chats, voice replies and photos just as they look on the lens.",
+  trySoon: "Simulator coming soon", tryRokid: "Discover Rokid Glasses", questions: "Questions?",
+  supportTitle: "Zap is free. If it helps you, buy me a coffee.",
+  supportText: "It's an independent project, made by one person. Every bit of support pays for testing on the glasses and keeping Zap working through every WhatsApp update.",
+  kofiNote: "card or PayPal, from any country", kofiButton: "Support on Ko-fi", kofiSoon: "Ko-fi coming soon.",
+  legal: "Independent project by Marcus de Magalhães. Not affiliated with WhatsApp, Meta or Rokid. WhatsApp is a trademark of Meta Platforms; Rokid is a trademark of Rokid Corporation.",
+  code: "Code on GitHub",
+};
+const META = {
+  pt: {title: document.title, desc: document.querySelector('meta[name=description]').content},
+  en: {title: "Zap — WhatsApp on Rokid Glasses", desc: "Read, hear again and reply to WhatsApp by voice on Rokid Glasses, without taking your phone out of your pocket. Free and open source."},
+};
+
+const texts = [...document.querySelectorAll('[data-i18n]')];
+texts.forEach(el => { el.dataset.pt = el.innerHTML; });
+const arias = [...document.querySelectorAll('[data-i18n-aria]')];
+arias.forEach(el => { el.dataset.ptAria = el.getAttribute('aria-label'); });
+
+function setLang(lang, remember) {
+  const en = lang === 'en';
+  document.documentElement.lang = en ? 'en' : 'pt-BR';
+  texts.forEach(el => { el.innerHTML = en && EN[el.dataset.i18n] ? EN[el.dataset.i18n] : el.dataset.pt; });
+  arias.forEach(el => { el.setAttribute('aria-label', en && EN[el.dataset.i18nAria] ? EN[el.dataset.i18nAria] : el.dataset.ptAria); });
+  document.title = META[en ? 'en' : 'pt'].title;
+  document.querySelector('meta[name=description]').content = META[en ? 'en' : 'pt'].desc;
+  document.querySelectorAll('.lang button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.setLang === lang)));
+  document.getElementById('langAsk').classList.remove('open');
+  if (remember) { try { localStorage.setItem('zap-lang', lang); } catch (e) {} }
+}
+
+// ?lang= wins, then the visitor's earlier choice, then the browser. Anything else: ask.
+(function pickLanguage() {
+  const param = new URLSearchParams(location.search).get('lang');
+  if (param === 'pt' || param === 'en') return setLang(param, false);
+  let saved = null;
+  try { saved = localStorage.getItem('zap-lang'); } catch (e) {}
+  if (saved === 'pt' || saved === 'en') return setLang(saved, false);
+  const langs = (navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || '']).map(l => l.toLowerCase());
+  const known = langs.find(l => l.startsWith('pt') || l.startsWith('en'));
+  if (known) return setLang(known.slice(0, 2), false);
+  // Neither Portuguese nor English anywhere in the browser: show English and ask.
+  setLang('en', false);
+  document.getElementById('langAsk').classList.add('open');
+})();
+document.querySelectorAll('[data-set-lang]').forEach(b => b.addEventListener('click', () => setLang(b.dataset.setLang, true)));
+
+// ---- Pix: the standard BR Code ("copia e cola"), built here; no payment service involved. ----
+function field(id, value) { return id + String(value.length).padStart(2, '0') + value; }
+function crc16(text) {
+  let crc = 0xFFFF;
+  for (const byte of new TextEncoder().encode(text)) {
+    crc ^= byte << 8;
+    for (let i = 0; i < 8; i++) crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) & 0xFFFF : (crc << 1) & 0xFFFF;
+  }
+  return crc.toString(16).toUpperCase().padStart(4, '0');
+}
+function plain(text, max) { return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().slice(0, max); }
+function pixCode(amount) {
+  let code = field('00', '01')
+    + field('26', field('00', 'br.gov.bcb.pix') + field('01', PIX_KEY) + field('02', 'Apoio ao Zap'))
+    + field('52', '0000') + field('53', '986')
+    + (amount ? field('54', Number(amount).toFixed(2)) : '')
+    + field('58', 'BR') + field('59', plain(PIX_NAME, 25)) + field('60', plain(PIX_CITY, 15))
+    + field('62', field('05', 'ZAP')) + '6304';
+  return code + crc16(code);
+}
+let pixAmount = '5';
+function drawPix() {
+  if (!PIX_KEY || typeof qrcode !== 'function') return;
+  const qr = qrcode(0, 'M');
+  qr.addData(pixCode(pixAmount));
+  qr.make();
+  document.getElementById('pixQr').innerHTML = qr.createSvgTag({cellSize: 4, margin: 0, scalable: true});
+  document.getElementById('pixCopied').textContent = '';
+}
+if (PIX_KEY) {
+  document.getElementById('pixReady').style.display = 'flex';
+  document.getElementById('pixSoon').style.display = 'none';
+  drawPix();
+}
+document.querySelectorAll('.amounts button').forEach(b => b.addEventListener('click', () => {
+  pixAmount = b.dataset.amount;
+  document.querySelectorAll('.amounts button').forEach(o => o.setAttribute('aria-pressed', String(o === b)));
+  drawPix();
+}));
+document.getElementById('pixCopy').addEventListener('click', async () => {
+  const note = document.getElementById('pixCopied');
+  try { await navigator.clipboard.writeText(pixCode(pixAmount)); note.textContent = 'Copiado. Cole no app do banco, em Pix › Copia e cola.'; }
+  catch (e) { note.textContent = 'Não deu para copiar. Use o QR Code.'; }
+});
+
+if (KOFI_URL) {
+  const link = document.getElementById('kofiLink');
+  link.href = KOFI_URL;
+  link.style.display = 'inline-block';
+  document.getElementById('kofiSoon').style.display = 'none';
+}
+</script>
 </body>
 </html>
