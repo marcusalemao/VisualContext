@@ -1,5 +1,6 @@
 #!/bin/bash
-# rokid-mirror — see, record and capture the Rokid Glasses screen on a Mac.
+# Glasscast — see, record and capture the Rokid Glasses screen on a Mac.
+# Independent tool by alema.io; not affiliated with Rokid, and not the "Rokid Mirror" apps.
 #
 # For any project, not one app: watch the HUD live, record demo videos, and
 # drop screenshots into a folder Claude can read while you test.
@@ -9,35 +10,35 @@
 #
 # First time, in Rokid Nexus open the "Wireless ADB" plugin: it shows a line
 # like "adb pair 192.168.0.23:41234 123456". Then here:
-#   ./rokid-mirror.sh pair 192.168.0.23:41234 123456
-#   ./rokid-mirror.sh connect 192.168.0.23:37000     (the connect port the plugin shows)
+#   ./glasscast.sh pair 192.168.0.23:41234 123456
+#   ./glasscast.sh connect 192.168.0.23:37000     (the connect port the plugin shows)
 # After that:
-#   ./rokid-mirror.sh espelho           the easy one: finds the glasses, opens the lens window and
+#   ./glasscast.sh espelho           the easy one: finds the glasses, opens the lens window and
 #                                       keeps screenshots coming for Claude. Also leaves an
 #                                       "Espelhar óculos.command" here to double-click next time.
-#   ./rokid-mirror.sh view              live window (the HUD as apps draw it, in color)
-#   ./rokid-mirror.sh lens              live window as the lens shows it: green, one color
-#   ./rokid-mirror.sh camera            live window of the glasses camera (what you look at)
-#   ./rokid-mirror.sh record [name]     live window + video file
-#   ./rokid-mirror.sh demo [name]       records HUD + camera together; Ctrl+C ends and builds
+#   ./glasscast.sh view              live window (the HUD as apps draw it, in color)
+#   ./glasscast.sh lens              live window as the lens shows it: green, one color
+#   ./glasscast.sh camera            live window of the glasses camera (what you look at)
+#   ./glasscast.sh record [name]     live window + video file
+#   ./glasscast.sh demo [name]       records HUD + camera together; Ctrl+C ends and builds
 #                                       the "through the lens" video (HUD light over the world)
-#   ./rokid-mirror.sh snap [name]       one screenshot
-#   ./rokid-mirror.sh watch [seconds]   a screenshot every N seconds (default 3), last 40 kept
-#   ./rokid-mirror.sh compose scene.mp4 hud.mp4 [out.mp4]   same look, from two videos you have
-#   ./rokid-mirror.sh off               disconnect
+#   ./glasscast.sh snap [name]       one screenshot
+#   ./glasscast.sh watch [seconds]   a screenshot every N seconds (default 3), last 40 kept
+#   ./glasscast.sh compose scene.mp4 hud.mp4 [out.mp4]   same look, from two videos you have
+#   ./glasscast.sh off               disconnect
 #
-# Files go into the folder this script is in (change with ROKID_MIRROR_DIR).
+# Files go into the folder this script is in (change with GLASSCAST_DIR).
 # Connect that folder to Claude and it can look at what the glasses show.
 
 set -u
 
-# Files land next to this script (e.g. Documents/Rokid Mirror), unless ROKID_MIRROR_DIR says otherwise.
-DIR="${ROKID_MIRROR_DIR:-$(cd "$(dirname "$0")" && pwd)}"
-STATE="$HOME/.rokid-mirror"
+# Files land next to this script (e.g. Documents/Glasscast), unless GLASSCAST_DIR says otherwise.
+DIR="${GLASSCAST_DIR:-${ROKID_MIRROR_DIR:-$(cd "$(dirname "$0")" && pwd)}}"
+STATE="$HOME/.glasscast"
 mkdir -p "$DIR/shots" "$DIR/videos" "$DIR/watch"
 
 say() { printf '%s\n' "$*"; }
-die() { printf 'rokid-mirror: %s\n' "$*" >&2; exit 1; }
+die() { printf 'glasscast: %s\n' "$*" >&2; exit 1; }
 need() { command -v "$1" >/dev/null 2>&1 || die "$1 is missing. $2"; }
 stamp() { date +%Y-%m-%d_%H-%M-%S; }
 
@@ -108,12 +109,12 @@ case "$cmd" in
     # Next time: a double-click in Finder instead of typing.
     launcher="$DIR/Espelhar óculos.command"
     if [ ! -x "$launcher" ]; then
-      printf '#!/bin/bash\nexec bash "%s" espelho\n' "$DIR/rokid-mirror.sh" > "$launcher"
+      printf '#!/bin/bash\nexec bash "%s" espelho\n' "$DIR/glasscast.sh" > "$launcher"
       chmod +x "$launcher"
     fi
     # Start clean: stop any earlier mirror still running (other Terminal windows)
     # and find the glasses again instead of trusting an old address.
-    pkill -f "rokid-mirror.sh (watch|lens)" 2>/dev/null
+    pkill -f "(rokid-mirror|glasscast).sh (watch|lens)" 2>/dev/null
     pkill -f "ffplay.*Rokid HUD" 2>/dev/null
     pkill -f "screenrecord --output-format=h264" 2>/dev/null
     rm -f "$STATE"
@@ -197,7 +198,7 @@ case "$cmd" in
     need scrcpy "brew install scrcpy"
     dev="$(ensure_connected)" || exit 1
     scrcpy -s "$dev" --video-source=camera --camera-facing=back --no-audio --window-title "Rokid camera" \
-      || die "the glasses camera didn't open. Close apps using it, or see './rokid-mirror.sh cameras'."
+      || die "the glasses camera didn't open. Close apps using it, or see './glasscast.sh cameras'."
     ;;
 
   cameras)
