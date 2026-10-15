@@ -55,7 +55,8 @@ import io.alema.zap.core.ZapText
 class ZapPluginService : NexusPluginService() {
     private val main = Handler(Looper.getMainLooper())
     private val text = ZapText()
-    private val screens = ScreenMaker(text, version = BuildConfig.VERSION_NAME)
+    /** Rebuilt on every open: the wearer may have changed the visible area in settings. */
+    private var screens = ScreenMaker(text, version = BuildConfig.VERSION_NAME)
     private lateinit var contacts: ZapContacts
     private lateinit var flow: ComposeFlow
 
@@ -93,6 +94,7 @@ class ZapPluginService : NexusPluginService() {
             render()
         }
         contentResolver.registerContentObserver(MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL), true, galleryChanged)
+        screens = ScreenMaker(text, version = BuildConfig.VERSION_NAME, reach = ZapSettings(this).reachPx())
         preferInstantSync()
         surface = nexusSurfaceSession(SURFACE_ID)
         shown = Shown.NOTHING

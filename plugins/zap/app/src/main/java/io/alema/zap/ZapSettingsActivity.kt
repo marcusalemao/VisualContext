@@ -234,6 +234,26 @@ class ZapSettingsActivity : Activity() {
                 startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
             }
         }
+        // Accessibility: what part of the lens is comfortable, and contrast for notices.
+        choiceCard(
+            title = t("Área visível nos óculos", "Visible area on the glasses"),
+            subtitle = t(
+                "Se a parte de baixo da lente fica difícil de ver, o Zap não põe nada importante lá. Vale na próxima vez que abrir o Zap.",
+                "If the bottom of the lens is hard to see, Zap keeps everything important above it. Applies next time you open Zap.",
+            ),
+            options = listOf(100, 85, ZapSettings.DEFAULT_VISIBLE, 60),
+            label = { if (it == 100) t("Toda", "All") else "$it%" },
+            current = settings.visiblePercent(),
+        ) { settings.setVisiblePercent(it) }
+        switchCard(
+            title = t("Contraste extra nos avisos", "Extra contrast for notices"),
+            subtitle = t(
+                "Os avisos do Zap aparecem sobre um fundo escuro, destacados do que estiver atrás.",
+                "Zap's notices show over a dark backdrop, standing out from whatever is behind.",
+            ),
+            checked = settings.extraContrast(),
+        ) { on -> settings.setExtraContrast(on) }
+        gap(8)
         val voice = ZapVoiceNotes.hasAccess(this)
         switchCard(
             title = t("Ouvir áudios do WhatsApp", "Play WhatsApp voice messages"),

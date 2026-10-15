@@ -201,6 +201,7 @@ internal object ZapNotifier : NexusPluginCallbacks {
                 title = arrival.sender.take(TITLE_CHARS),
                 body = cut(body, BODY_CHARS),
                 footer = "Zap",
+                backdrop = appContext?.let { ZapSettings(it).extraContrast() } == true,
                 // A reply chip needs time to be reached.
                 ttlMs = if (actions.isEmpty()) NOTICE_TTL_MS else NOTICE_TTL_MS * 3,
                 wakeDisplay = true,
@@ -269,6 +270,7 @@ internal object ZapNotifier : NexusPluginCallbacks {
             actions = actions,
             ttlMs = OFFER_TTL_MS,
             wakeDisplay = true,
+            backdrop = appContext?.let { ZapSettings(it).extraContrast() } == true,
         )
         // The shot itself under the title when the link carries images; the question alone otherwise.
         val result = if (current.supportsImageSurface) {

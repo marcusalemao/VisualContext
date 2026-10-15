@@ -54,6 +54,26 @@ internal class ZapSettings(context: Context) {
         prefs.edit().putInt(KEY_ARRIVAL, mode.coerceIn(ARRIVAL_OFF, ARRIVAL_READ)).apply()
     }
 
+    /**
+     * Accessibility: how much of the lens the wearer reads comfortably, in percent
+     * of its height (100 = all of it). Lists stop above it, hints sit up top.
+     */
+    fun visiblePercent(): Int = prefs.getInt(KEY_VISIBLE, DEFAULT_VISIBLE)
+
+    fun setVisiblePercent(percent: Int) {
+        prefs.edit().putInt(KEY_VISIBLE, percent.coerceIn(50, 100)).apply()
+    }
+
+    /** Lens pixels (of 640) that are comfortable to read, or null for the whole lens. */
+    fun reachPx(): Int? = visiblePercent().takeIf { it < 100 }?.let { LENS_HEIGHT_PX * it / 100 }
+
+    /** Accessibility: Zap's notices over a dark backdrop, so they stand out from whatever is behind. */
+    fun extraContrast(): Boolean = prefs.getBoolean(KEY_CONTRAST, false)
+
+    fun setExtraContrast(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_CONTRAST, enabled).apply()
+    }
+
     /** On by default: a photo taken with the glasses' button is offered for sending, once. */
     fun offerNewPhotos(): Boolean = prefs.getBoolean(KEY_OFFER_PHOTOS, true)
 
@@ -75,6 +95,11 @@ internal class ZapSettings(context: Context) {
         private const val KEY_ARRIVAL = "arrival_mode"
         private const val KEY_IMPORT = "import_address_book"
         private const val KEY_OFFER_PHOTOS = "offer_new_photos"
+        private const val KEY_VISIBLE = "visible_percent"
+        private const val KEY_CONTRAST = "extra_contrast"
+        /** ~72% of the lens: what the default reach (460 of 640 px) always was. */
+        const val DEFAULT_VISIBLE = 72
+        private const val LENS_HEIGHT_PX = 640
         private const val KEY_ANNOUNCE = "announce_arrivals"
         private const val KEY_KEEP_DAYS = "keep_days"
         private const val KEY_MAX_CHATS = "max_conversations"
