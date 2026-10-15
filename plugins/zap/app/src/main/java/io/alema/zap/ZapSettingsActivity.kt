@@ -91,6 +91,7 @@ class ZapSettingsActivity : Activity() {
 
     private fun render() {
         content.removeAllViews()
+        updatedBanner()
 
         section(t("Como usar", "How to use"))
         infoCard(
@@ -109,7 +110,9 @@ class ZapSettingsActivity : Activity() {
             ),
         )
 
-        section(t("Acesso", "Access"))
+        // Permissions, named as Android names them, so the wearer recognises them on the next screen.
+        // Status shows without a tap; the button only appears when something is still off.
+        section(t("Permissões do Android", "Android permissions"))
         val whatsapp = ZapSender.whatsAppPackage(this) != null
         if (!whatsapp) {
             infoCard(
@@ -118,86 +121,94 @@ class ZapSettingsActivity : Activity() {
             )
         }
         val notifications = ZapSendService.isNotificationAccessGranted(this)
-        accessCard(
+        permissionCard(
             granted = notifications,
-            title = t("Acesso às notificações", "Notification access"),
-            body = if (notifications) {
-                t("Ligado. Quem te manda mensagem no WhatsApp entra na sua lista do Zap.", "On. People who message you on WhatsApp join your Zap list.")
-            } else {
-                t(
-                    "Mostra suas conversas do WhatsApp nos óculos e monta sua lista de pessoas com quem te escreve. As mensagens ficam só neste celular, criptografadas.",
-                    "Shows your WhatsApp chats on the glasses and builds your people list from who writes to you. Messages stay on this phone only, encrypted.",
-                )
-            },
+            title = t("Acesso a notificações", "Notification access"),
+            why = t(
+                "Para ver suas conversas do WhatsApp nos óculos. As mensagens ficam só neste celular, criptografadas.",
+                "To show your WhatsApp chats on the glasses. Messages stay on this phone only, encrypted.",
+            ),
+            how = t("Na próxima tela, ligue o Zap.", "On the next screen, turn Zap on."),
             intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS),
         )
-        if (notifications) {
-            val health = ZapHealth(this)
-            val chats = ZapInbox.list(this).size
-            infoCard(
-                t("Conferência", "Check"),
-                when {
-                    health.lastSeen() == 0L -> t(
-                        "Nenhuma notificação do WhatsApp chegou ao Zap ainda. Peça para alguém te mandar uma mensagem (mensagens para você mesmo não geram notificação). Se mesmo assim nada aparecer, desligue e ligue de novo o acesso às notificações do Zap.",
-                        "No WhatsApp notification has reached Zap yet. Ask someone to message you (messages to yourself don't notify). If still nothing, turn Zap's notification access off and on again.",
-                    )
-                    health.lastCaptured() == 0L -> t(
-                        "O WhatsApp avisou o Zap às ${time(health.lastSeen())}, mas o Zap não conseguiu ler a mensagem. Me mande um print desta tela.",
-                        "WhatsApp notified Zap at ${time(health.lastSeen())}, but Zap couldn't read the message. Send me a screenshot of this screen.",
-                    ) + (health.lastError()?.let { "\n\n($it)" } ?: "")
-                    else -> t(
-                        "Funcionando. Última mensagem às ${time(health.lastCaptured())}; $chats conversa(s) guardada(s).",
-                        "Working. Last message at ${time(health.lastCaptured())}; $chats chat(s) saved.",
-                    ) + (health.lastIdKind()?.takeIf { BuildConfig.DEBUG }?.let { "\n(id: $it)" } ?: "")
-                },
-            )
-        }
         val autoSend = ZapSendService.isEnabled(this)
-        accessCard(
+        permissionCard(
             granted = autoSend,
-            title = t("Enviar sem pegar o celular", "Send without picking up the phone"),
-            body = if (autoSend) {
-                t("Ligado. O Zap aperta Enviar no WhatsApp depois que você confirma nos óculos.", "On. Zap presses Send in WhatsApp after you confirm on the glasses.")
-            } else {
-                t(
-                    "Aperta o botão Enviar do WhatsApp por você, depois que você confirma nos óculos. Sem isso, a conversa abre no celular com o texto pronto e você toca Enviar.",
-                    "Presses WhatsApp's Send button for you, after you confirm on the glasses. Without it, the chat opens on the phone with the text ready and you tap Send.",
-                )
-            },
+            title = t("Acessibilidade", "Accessibility"),
+            why = t(
+                "Para enviar sem pegar o celular: o Zap aperta Enviar no WhatsApp depois que você confirma nos óculos. Sem isso, o WhatsApp abre no celular com o texto pronto.",
+                "To send without picking up the phone: Zap presses Send in WhatsApp after you confirm on the glasses. Without it, WhatsApp opens on the phone with the text ready.",
+            ),
+            how = t(
+                "Na próxima tela, toque em \"Aplicativos instalados\", depois em \"Zap — enviar pelo WhatsApp\", e ligue. Não precisa criar atalho.",
+                "On the next screen, tap \"Installed apps\", then \"Zap — send with WhatsApp\", and turn it on. No shortcut needed.",
+            ),
             intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS),
         )
         val background = ZapSender.canStartFromBackground(this)
-        accessCard(
+        permissionCard(
             granted = background,
-            title = t("Funcionar com o celular no bolso", "Work with the phone in your pocket"),
-            body = if (background) {
-                t("Ligado. O Zap consegue abrir o WhatsApp mesmo com o celular guardado.", "On. Zap can open WhatsApp even with the phone put away.")
-            } else {
-                t(
-                    "O Android só deixa o Zap abrir o WhatsApp em segundo plano com a permissão \"Sobrepor a outros apps\".",
-                    "Android only lets Zap open WhatsApp in the background with the \"Display over other apps\" permission.",
-                )
-            },
+            title = t("Sobrepor a outros apps", "Display over other apps"),
+            why = t(
+                "Para funcionar com o celular no bolso: só assim o Android deixa o Zap abrir o WhatsApp com a tela apagada.",
+                "To work with the phone in your pocket: only then does Android let Zap open WhatsApp with the screen off.",
+            ),
+            how = t("Na próxima tela, ligue o Zap.", "On the next screen, turn Zap on."),
             intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")),
+        )
+        // Videos need their own Android permission; "Selected photos only" (Android 14) hides new glasses shots.
+        val access = ZapGallery.access(this)
+        val photos = ZapGallery.hasPhotosAndVideos(this) && access == ZapGallery.Access.FULL
+        permissionCard(
+            granted = photos,
+            title = t("Fotos e vídeos", "Photos and videos"),
+            why = t(
+                "Para anexar fotos numa conversa: primeiro as que você tirou com os óculos, depois as do celular. O Zap só abre a que você escolher.",
+                "To attach photos in a chat: first the ones you took with the glasses, then the phone's. Zap opens only the one you pick.",
+            ),
+            how = if (access == ZapGallery.Access.PARTIAL) {
+                t(
+                    "Hoje está em \"Só fotos selecionadas\": o Zap não vê as fotos novas dos óculos. Escolha \"Permitir tudo\".",
+                    "It's on \"Selected photos only\": Zap can't see new glasses photos. Choose \"Allow all\".",
+                )
+            } else {
+                t("Escolha \"Permitir tudo\".", "Choose \"Allow all\".")
+            },
+            onAllow = { requestPermissions(ZapGallery.permissions(), REQUEST_PHOTOS) },
+            intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")),
+        )
+        val voice = ZapVoiceNotes.hasAccess(this)
+        permissionCard(
+            granted = voice,
+            title = t("Pasta de áudios do WhatsApp", "WhatsApp voice notes folder"),
+            why = t(
+                "Para ouvir áudios nos óculos ou no fone — nunca no alto-falante do celular. O Zap só lê essa pasta.",
+                "To play voice messages on the glasses or earbuds — never the phone's speaker. Zap reads only that folder.",
+            ),
+            how = t("Na próxima tela, toque em \"Usar esta pasta\" e em \"Permitir\".", "On the next screen, tap \"Use this folder\" and \"Allow\"."),
+            onAllow = { runCatching { startActivityForResult(ZapVoiceNotes.pickIntent(), REQUEST_VOICE) } },
+            intent = null,
         )
         if (!notifications || !autoSend) {
             infoCard(
                 t("O botão está cinza?", "Is the switch greyed out?"),
                 t(
-                    "O Android bloqueia essas duas permissões em apps instalados por fora da loja. Para liberar: abra os ajustes do Zap no Android, toque nos três pontinhos no canto de cima e escolha \"Permitir configurações restritas\". Depois volte aqui.",
-                    "Android blocks these two permissions for apps installed outside the store. To allow them: open Zap's Android app info, tap the three dots at the top and choose \"Allow restricted settings\". Then come back here.",
+                    "O Android bloqueia Acesso a notificações e Acessibilidade em apps instalados por fora da loja. Para liberar: abra os ajustes do Zap no Android, toque nos três pontinhos no canto de cima e escolha \"Permitir configurações restritas\". Depois volte aqui.",
+                    "Android blocks Notification access and Accessibility for apps installed outside the store. To allow them: open Zap's Android app info, tap the three dots at the top and choose \"Allow restricted settings\". Then come back here.",
                 ),
                 action = t("Abrir ajustes do Zap no Android", "Open Zap's Android app info") to
                     Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")),
             )
         }
+        // Only speaks up when something is wrong; when messages arrive there is nothing to say.
+        if (notifications) problemCard()
 
-        section(t("Conversas", "Chats"))
+        section(t("Avisos nos óculos", "Notices on the glasses"))
         choiceCard(
             title = t("Quando chegar mensagem", "When a message arrives"),
             subtitle = t(
-                "Aviso: quem escreveu e o começo, por 4 segundos. Com voz: a mensagem inteira na frente de tudo, lida em voz alta na hora — nos óculos ou fones, nunca no alto-falante do celular. Se o Relay também avisa o WhatsApp, desligue um dos dois.",
-                "Notice: who wrote and the start, for 4 seconds. With voice: the whole message over everything, read aloud at once — on the glasses or earbuds, never the phone's speaker. If Relay also shows WhatsApp, turn one of them off.",
+                "Aviso: quem escreveu e o começo, por 4 segundos. Com voz: a mensagem inteira, lida em voz alta na hora — nos óculos ou fones, nunca no alto-falante do celular. Se o Relay também avisa o WhatsApp, desligue um dos dois.",
+                "Notice: who wrote and the start, for 4 seconds. With voice: the whole message, read aloud at once — on the glasses or earbuds, never the phone's speaker. If Relay also shows WhatsApp, turn one of them off.",
             ),
             options = listOf(ZapSettings.ARRIVAL_OFF, ZapSettings.ARRIVAL_NOTICE, ZapSettings.ARRIVAL_READ),
             label = {
@@ -209,37 +220,21 @@ class ZapSettingsActivity : Activity() {
             },
             current = settings.arrivalMode(),
         ) { settings.setArrivalMode(it) }
-        // Videos need their own Android permission: someone who allowed photos in 0.5 is asked again.
-        // "Selected photos only" (Android 14) hides new glasses shots too, so it is called out.
-        val access = ZapGallery.access(this)
-        val photos = ZapGallery.hasPhotosAndVideos(this) && access == ZapGallery.Access.FULL
         switchCard(
-            title = t("Enviar fotos e vídeos", "Send photos and videos"),
-            subtitle = when (access) {
-                ZapGallery.Access.PARTIAL -> t(
-                    "Acesso parcial: o Zap só vê as fotos que você escolheu, e não vê as novas dos óculos. Toque e escolha \"Permitir tudo\".",
-                    "Partial access: Zap only sees the photos you picked, not new ones from the glasses. Tap and choose \"Allow all\".",
-                )
-                else -> t(
-                    "Em \"Enviar foto ou vídeo\", primeiro aparece o que você fotografou com os óculos (o Zap pede ao Nexus para trazer na hora), depois o que está no celular. O Zap só abre o que você escolher.",
-                    "In \"Send photo or video\", what you shot with the glasses comes first (Zap asks Nexus to bring it over right then), then what's on the phone. Zap only opens what you pick.",
-                )
-            },
-            checked = photos,
-        ) { on ->
-            if (on && !photos) {
-                requestPermissions(ZapGallery.permissions(), REQUEST_PHOTOS)
-            } else if (!on && photos) {
-                // Android only lets the wearer take a permission back in its own settings.
-                startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
-            }
-        }
-        // Accessibility: what part of the lens is comfortable, and contrast for notices.
+            title = t("Oferecer fotos tiradas nos óculos", "Offer photos taken with the glasses"),
+            subtitle = t(
+                "Tirou uma foto com o botão dos óculos? Ela aparece na lente com \"Enviar pelo Zap?\". Para chegar na hora, o Zap muda a sincronização de fotos do Nexus para \"Sempre\".",
+                "Took a photo with the glasses button? It shows on the lens with \"Send with Zap?\". To arrive right away, Zap sets Nexus photo sync to \"Always\".",
+            ),
+            checked = settings.offerNewPhotos(),
+        ) { on -> settings.setOfferNewPhotos(on) }
+
+        section(t("Tela dos óculos", "Glasses display"))
         choiceCard(
             title = t("Área visível nos óculos", "Visible area on the glasses"),
             subtitle = t(
-                "Se a parte de baixo da lente fica difícil de ver, o Zap não põe nada importante lá. Vale na próxima vez que abrir o Zap.",
-                "If the bottom of the lens is hard to see, Zap keeps everything important above it. Applies next time you open Zap.",
+                "Se a parte de baixo da lente fica difícil de ver, o Zap não põe nada importante lá. Para subir a imagem toda, use também o app Hi Rokid: Def. dos óculos → Def. ecrã óculos → Área visível óculos.",
+                "If the bottom of the lens is hard to see, Zap keeps everything important above it. To move the whole image up, also use the Hi Rokid app: Glasses settings → Display → Visible area.",
             ),
             options = listOf(100, 85, ZapSettings.DEFAULT_VISIBLE, 60),
             label = { if (it == 100) t("Toda", "All") else "$it%" },
@@ -253,38 +248,8 @@ class ZapSettingsActivity : Activity() {
             ),
             checked = settings.extraContrast(),
         ) { on -> settings.setExtraContrast(on) }
-        gap(8)
-        val voice = ZapVoiceNotes.hasAccess(this)
-        switchCard(
-            title = t("Ouvir áudios do WhatsApp", "Play WhatsApp voice messages"),
-            subtitle = if (voice) t(
-                "Ligado. Na conversa, \"Ouvir áudio\" toca nos óculos (ou no fone) — nunca no alto-falante do celular.",
-                "On. In a chat, \"Play voice message\" plays on the glasses (or earbuds) — never the phone's speaker.",
-            ) else t(
-                "O Android vai abrir a pasta de áudios do WhatsApp: toque em \"Usar esta pasta\" e \"Permitir\". O Zap só lê essa pasta.",
-                "Android opens WhatsApp's voice notes folder: tap \"Use this folder\" and \"Allow\". Zap reads only that folder.",
-            ),
-            checked = voice,
-        ) { on ->
-            if (on && !voice) {
-                runCatching { startActivityForResult(ZapVoiceNotes.pickIntent(), REQUEST_VOICE) }
-            } else if (!on && voice) {
-                contentResolver.persistedUriPermissions.forEach {
-                    runCatching { contentResolver.releasePersistableUriPermission(it.uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) }
-                }
-                render()
-            }
-        }
-        val offer = settings.offerNewPhotos()
-        switchCard(
-            title = t("Oferecer fotos tiradas nos óculos", "Offer photos taken with the glasses"),
-            subtitle = t(
-                "Tirou uma foto com o botão dos óculos? Ela aparece na lente com \"Enviar pelo Zap?\" e as duas últimas pessoas com quem você falou. Para chegar na hora, o Zap muda a sincronização de fotos do Nexus para \"Sempre\" (só a primeira vez que você abrir o Zap nos óculos).",
-                "Took a photo with the glasses button? It shows on the lens with \"Send with Zap?\" and the last two people you talked to. To arrive right away, Zap sets Nexus photo sync to \"Always\" (only the first time you open Zap on the glasses).",
-            ),
-            checked = offer,
-        ) { on -> settings.setOfferNewPhotos(on) }
-        gap(8)
+
+        section(t("Conversas guardadas", "Saved chats"))
         choiceCard(
             title = t("Guardar mensagens por", "Keep messages for"),
             subtitle = t("Só neste celular, criptografadas", "Only on this phone, encrypted"),
@@ -309,9 +274,9 @@ class ZapSettingsActivity : Activity() {
             NexusUi.block(),
         )
 
-        section(t("Pessoas", "People"))
+        section(t("Contatos", "Contacts"))
         infoCard(
-            t("Sua lista de pessoas", "Your people list"),
+            t("Sua lista de contatos", "Your contacts list"),
             t(
                 "O Zap monta a lista sozinho com quem te manda mensagem no WhatsApp. Para escrever também para quem ainda não te escreveu, use a agenda do celular ou importe um arquivo de contatos.",
                 "Zap builds the list by itself from who messages you on WhatsApp. To also write to people who haven't messaged you yet, use the phone's contacts or import a contacts file.",
@@ -328,6 +293,7 @@ class ZapSettingsActivity : Activity() {
                 settings.setImportAddressBook(on)
             }
         }
+        gap(8)
         val imported = ZapImported(this).count()
         infoCard(
             t("Importar arquivo de contatos", "Import a contacts file"),
@@ -343,7 +309,6 @@ class ZapSettingsActivity : Activity() {
                 .putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("text/x-vcard", "text/vcard", "text/csv", "text/comma-separated-values", "text/plain")),
             requestCode = REQUEST_FILE,
         )
-        gap(8)
         if (imported > 0) {
             content.addView(
                 NexusUi.textButton(this, t("Apagar contatos importados", "Delete imported contacts"), danger = true).apply {
@@ -366,16 +331,52 @@ class ZapSettingsActivity : Activity() {
         )
 
         section(t("Voz", "Voice"))
-        // No "open Nexus" button: these settings are reached from inside Nexus, and Nexus does not
-        // expose its Speech/Voice screens to other apps, so a button could only land on Nexus's home.
+        // No "open Nexus" button: Nexus does not expose its Speech/Voice screens to other apps.
         infoCard(
             t("Usa a voz do Rokid Nexus", "Uses Rokid Nexus voice"),
             t(
-                "O Zap não tem ajuste de voz próprio: entende e lê em voz alta com o que você escolheu no Nexus. Para mudar, volte aos ajustes do Nexus: Speech (entender o que você fala) e Voice (ler em voz alta).",
-                "Zap has no voice settings of its own: it listens and reads aloud with what you chose in Nexus. To change it, go back to Nexus settings: Speech (understanding you) and Voice (reading aloud).",
+                "O Zap entende e lê em voz alta com o que você escolheu no Nexus. Para mudar, vá aos ajustes do Nexus: Speech (entender o que você fala) e Voice (ler em voz alta).",
+                "Zap listens and reads aloud with what you chose in Nexus. To change it, go to Nexus settings: Speech (understanding you) and Voice (reading aloud).",
             ),
         )
         gap(24)
+    }
+
+    /**
+     * Android's installer says nothing useful after an update, so Zap says it once:
+     * "Updated to 0.9.2". The very first install says nothing (the guide is right below).
+     */
+    private fun updatedBanner() {
+        val prefs = getSharedPreferences("zap_install", MODE_PRIVATE)
+        val last = prefs.getString("version", null)
+        val now = BuildConfig.VERSION_NAME
+        if (last == now) return
+        prefs.edit().putString("version", now).apply()
+        if (last == null) return
+        infoCard(
+            t("✓ Zap atualizado para $now", "✓ Zap updated to $now"),
+            t(
+                "Antes estava a $last. Nos óculos, se o Nexus pedir, aprove o Zap de novo: as novidades podem precisar de permissões novas.",
+                "It was $last. On the glasses, if Nexus asks, approve Zap again: new features may need new permissions.",
+            ),
+        )
+    }
+
+    /** Only when messages are not reaching Zap; silent when all is well. */
+    private fun problemCard() {
+        val health = ZapHealth(this)
+        val text = when {
+            health.lastSeen() == 0L -> t(
+                "Nenhuma notificação do WhatsApp chegou ao Zap ainda. Peça para alguém te mandar uma mensagem (mensagens para você mesmo não geram notificação). Se mesmo assim nada aparecer, desligue e ligue de novo o Acesso a notificações do Zap.",
+                "No WhatsApp notification has reached Zap yet. Ask someone to message you (messages to yourself don't notify). If still nothing, turn Zap's notification access off and on again.",
+            )
+            health.lastCaptured() == 0L -> t(
+                "O WhatsApp avisou o Zap às ${time(health.lastSeen())}, mas o Zap não conseguiu ler a mensagem. Mande um print desta tela para o suporte.",
+                "WhatsApp notified Zap at ${time(health.lastSeen())}, but Zap couldn't read the message. Send a screenshot of this screen to support.",
+            ) + (health.lastError()?.let { "\n\n($it)" } ?: "")
+            else -> return
+        }
+        infoCard(t("Ainda não chegou mensagem", "No message yet"), text)
     }
 
     // --- cards in the Nexus style ------------------------------------------
@@ -413,12 +414,40 @@ class ZapSettingsActivity : Activity() {
         gap(8)
     }
 
-    private fun accessCard(granted: Boolean, title: String, body: String, intent: Intent) {
-        infoCard(
-            title = title,
-            body = body,
-            action = (if (granted) t("Revisar", "Review") else t("Permitir", "Allow")) to intent,
+    /**
+     * A permission by its Android name. On: a check mark and what it is for, no button
+     * (tapping the card still opens the Android screen). Off: why, what to do next, and Allow.
+     */
+    private fun permissionCard(
+        granted: Boolean,
+        title: String,
+        why: String,
+        how: String,
+        intent: Intent?,
+        onAllow: (() -> Unit)? = null,
+    ) {
+        content.addView(
+            NexusUi.card(this).apply {
+                addView(NexusUi.cardTitle(this@ZapSettingsActivity, (if (granted) "✓ " else "") + title))
+                addView(BusTheme.gap(this@ZapSettingsActivity, 5))
+                addView(NexusUi.cardBody(this@ZapSettingsActivity, if (granted) why else "$why\n\n$how"))
+                if (!granted) {
+                    addView(BusTheme.gap(this@ZapSettingsActivity, 10))
+                    addView(
+                        NexusUi.pillButton(this@ZapSettingsActivity, t("Ativar", "Turn on")).apply {
+                            setOnClickListener {
+                                runCatching { onAllow?.invoke() ?: intent?.let { startActivity(it) } }
+                            }
+                        },
+                        LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT),
+                    )
+                } else if (intent != null) {
+                    setOnClickListener { runCatching { startActivity(intent) } }
+                }
+            },
+            NexusUi.block(),
         )
+        gap(8)
     }
 
     private fun switchCard(title: String, subtitle: String, checked: Boolean, onChanged: (Boolean) -> Unit) {
