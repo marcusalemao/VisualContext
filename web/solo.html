@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VisualContext Solo · configurar</title>
+<meta name="description" content="Gere o QR de configuração do VisualContext Solo. A chave fica no seu navegador.">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<style>
+  :root { --bg:#030C06; --g:#00FF88; --soft:#8FDFB5; --line:#00994F; --dim:#4f7a63; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--soft); font:15px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  main { max-width:720px; margin:0 auto; padding:32px 16px 64px; }
+  h1 { color:var(--g); font-size:24px; margin:0 0 4px; letter-spacing:.04em; }
+  .sub { color:var(--dim); margin:0 0 28px; }
+  label { display:block; color:var(--g); margin:18px 0 6px; }
+  .hint { color:var(--dim); font-size:13px; margin-top:4px; }
+  input, select { width:100%; background:transparent; color:var(--g); border:2px solid var(--line); border-radius:10px; padding:10px 12px; font:inherit; }
+  input:focus, select:focus { outline:none; border-color:var(--g); }
+  .modes { display:grid; gap:8px; }
+  .modes label { margin:0; color:var(--soft); border:2px solid var(--line); border-radius:10px; padding:10px 12px; cursor:pointer; }
+  .modes input { width:auto; margin-right:8px; accent-color:var(--g); }
+  details { margin-top:18px; } summary { color:var(--g); cursor:pointer; }
+  .qr { margin-top:28px; border:2px solid var(--line); border-radius:14px; padding:20px; text-align:center; }
+  .qr .box { background:#fff; display:inline-block; padding:12px; border-radius:8px; }
+  .qr .box img { display:block; width:min(300px, calc(100vw - 110px)); height:auto; image-rendering:pixelated; }
+  .qr p { margin:12px 0 0; }
+  .empty { color:var(--dim); padding:40px 0; }
+  .steps { margin-top:28px; border-top:2px solid var(--line); padding-top:12px; }
+  .steps li { margin:6px 0; }
+  .lock { color:var(--g); }
+  button { background:transparent; color:var(--g); border:2px solid var(--line); border-radius:10px; padding:8px 14px; font:inherit; cursor:pointer; margin-top:12px; }
+  .en { color:var(--dim); font-size:13px; margin-top:32px; border-top:1px dashed var(--line); padding-top:12px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>VISUALCONTEXT SOLO</h1>
+  <p class="sub">O assistente direto nos óculos, sem celular. Preencha, e olhe para o QR com os óculos.</p>
+
+  <label for="key">Chave do Gemini (Google AI Studio)</label>
+  <input id="key" type="password" autocomplete="off" spellcheck="false" placeholder="AIza…">
+  <div class="hint"><span class="lock">●</span> A chave fica só neste navegador: o QR é feito aqui, nada é enviado para servidor nenhum. Não é guardada nesta página.</div>
+
+  <label>O que guardar depois de cada resposta</label>
+  <div class="modes">
+    <label><input type="radio" name="save" value="none" checked>Nada (só guarda quando você pedir: "guarda isso")</label>
+    <label><input type="radio" name="save" value="note">A resposta, como nota</label>
+    <label><input type="radio" name="save" value="photo">A resposta e a foto, quando ele olhou</label>
+  </div>
+
+  <label for="voice">Voz</label>
+  <select id="voice">
+    <option value="Kore">Kore (padrão)</option>
+    <option value="Aoede">Aoede</option>
+    <option value="Puck">Puck</option>
+    <option value="Charon">Charon</option>
+    <option value="Fenrir">Fenrir</option>
+    <option value="Leda">Leda</option>
+    <option value="Orus">Orus</option>
+    <option value="Zephyr">Zephyr</option>
+  </select>
+  <div class="hint">Todas falam português do Brasil; muda só o timbre.</div>
+
+  <details>
+    <summary>Avançado</summary>
+    <label for="vc">Token do VisualContext (opcional)</label>
+    <input id="vc" type="password" autocomplete="off" spellcheck="false" placeholder="vc_…">
+    <div class="hint">Com ele, o assistente consulta as pessoas da sua memória ("quem é o Bruno do Zé?").</div>
+    <label for="model">Modelo Live (deixe vazio)</label>
+    <input id="model" type="text" autocomplete="off" spellcheck="false" placeholder="gemini-3.8-live">
+  </details>
+
+  <div class="qr" id="qr"><div class="empty">O QR aparece aqui quando a chave estiver preenchida.</div></div>
+
+  <ol class="steps">
+    <li>Nos óculos, abra <b>VisualContext</b> no menu. Na primeira vez ele já pede o QR.</li>
+    <li>Olhe para este QR a uns 30 cm da tela.</li>
+    <li>Pronto: toque na haste e pergunte. Para configurar de novo, aperte Menu.</li>
+  </ol>
+
+  <p class="en">EN — Make the setup QR for VisualContext Solo. Your Gemini key never leaves this browser: the QR is drawn here and nothing is sent anywhere.</p>
+</main>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  function value() {
+    var key = $('key').value.trim();
+    if (key.length < 20 || /\s/.test(key)) return null;
+    var cfg = { gemini: key, save: document.querySelector('input[name=save]:checked').value, voice: $('voice').value };
+    var vc = $('vc').value.trim(); if (/^vc_.{8,}$/.test(vc)) cfg.vc = vc;
+    var model = $('model').value.trim(); if (/^(models\/)?[a-z0-9.-]{3,60}$/.test(model)) cfg.model = model;
+    return 'VCSOLO1:' + JSON.stringify(cfg);
+  }
+  function draw() {
+    var v = value(), box = $('qr');
+    if (!v) { box.innerHTML = '<div class="empty">O QR aparece aqui quando a chave estiver preenchida.</div>'; return; }
+    var qr = qrcode(0, 'M'); qr.addData(v); qr.make();
+    box.innerHTML = '<div class="box">' + qr.createImgTag(6, 0) + '</div><p>Olhe para este QR com os óculos.</p><button id="clear">Apagar e esconder</button>';
+    $('clear').onclick = function () { $('key').value = ''; $('vc').value = ''; draw(); };
+  }
+  ['key', 'voice', 'vc', 'model'].forEach(function (id) { $(id).addEventListener('input', draw); });
+  document.querySelectorAll('input[name=save]').forEach(function (r) { r.addEventListener('change', draw); });
+  // Leaving the page hides the key.
+  window.addEventListener('pagehide', function () { $('key').value = ''; $('vc').value = ''; });
+})();
+</script>
+</body>
+</html>
