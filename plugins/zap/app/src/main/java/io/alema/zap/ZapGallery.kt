@@ -99,6 +99,24 @@ internal object ZapGallery {
     fun hasPermission(context: Context): Boolean =
         permissions().any { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }
 
+    /** The newest photo that came over from the glasses (not videos), with when it was added, epoch seconds. */
+    fun newestGlassesPhoto(context: Context): Pair<GalleryKey, Long>? {
+        if (access(context) != Access.FULL) return null
+        return runCatching {
+            val path = MediaStore.MediaColumns.RELATIVE_PATH
+            val bucket = MediaStore.MediaColumns.BUCKET_DISPLAY_NAME
+            context.contentResolver.query(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                arrayOf(MediaStore.Images.Media._ID, MediaStore.MediaColumns.DATE_ADDED),
+                "(COALESCE($path, '') LIKE ? OR COALESCE($bucket, '') LIKE ?)",
+                arrayOf("%rokid%", "%rokid%"),
+                "${MediaStore.MediaColumns.DATE_ADDED} DESC",
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) GalleryKey(fromGlasses = true, video = false, id = cursor.getLong(0)) to cursor.getLong(1) else null
+            }
+        }.onFailure { Log.w(TAG, "newest glasses photo query failed", it) }.getOrNull()
+    }
+
     /** Newest first: the glasses' shots, then the phone's. */
     fun recent(context: Context): List<String> {
         if (!hasPermission(context)) return emptyList()

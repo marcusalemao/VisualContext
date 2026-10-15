@@ -229,6 +229,15 @@ class ZapSettingsActivity : Activity() {
                 startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
             }
         }
+        val offer = settings.offerNewPhotos()
+        switchCard(
+            title = t("Oferecer fotos tiradas nos óculos", "Offer photos taken with the glasses"),
+            subtitle = t(
+                "Tirou uma foto com o botão dos óculos? Ela aparece na lente com \"Enviar pelo Zap?\" e as duas últimas pessoas com quem você falou. Para chegar na hora, o Zap muda a sincronização de fotos do Nexus para \"Sempre\" (só a primeira vez que você abrir o Zap nos óculos).",
+                "Took a photo with the glasses button? It shows on the lens with \"Send with Zap?\" and the last two people you talked to. To arrive right away, Zap sets Nexus photo sync to \"Always\" (only the first time you open Zap on the glasses).",
+            ),
+            checked = offer,
+        ) { on -> settings.setOfferNewPhotos(on) }
         gap(8)
         choiceCard(
             title = t("Guardar mensagens por", "Keep messages for"),

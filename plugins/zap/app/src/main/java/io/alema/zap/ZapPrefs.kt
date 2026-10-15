@@ -54,6 +54,13 @@ internal class ZapSettings(context: Context) {
         prefs.edit().putInt(KEY_ARRIVAL, mode.coerceIn(ARRIVAL_OFF, ARRIVAL_READ)).apply()
     }
 
+    /** On by default: a photo taken with the glasses' button is offered for sending, once. */
+    fun offerNewPhotos(): Boolean = prefs.getBoolean(KEY_OFFER_PHOTOS, true)
+
+    fun setOfferNewPhotos(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_OFFER_PHOTOS, enabled).apply()
+    }
+
     /** Off by default: the people list starts from who messaged you, no contacts permission. */
     fun importAddressBook(): Boolean = prefs.getBoolean(KEY_IMPORT, false)
 
@@ -67,6 +74,7 @@ internal class ZapSettings(context: Context) {
         const val ARRIVAL_READ = 2
         private const val KEY_ARRIVAL = "arrival_mode"
         private const val KEY_IMPORT = "import_address_book"
+        private const val KEY_OFFER_PHOTOS = "offer_new_photos"
         private const val KEY_ANNOUNCE = "announce_arrivals"
         private const val KEY_KEEP_DAYS = "keep_days"
         private const val KEY_MAX_CHATS = "max_conversations"

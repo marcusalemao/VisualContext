@@ -93,6 +93,7 @@ class ZapPluginService : NexusPluginService() {
             render()
         }
         contentResolver.registerContentObserver(MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL), true, galleryChanged)
+        preferInstantSync()
         surface = nexusSurfaceSession(SURFACE_ID)
         shown = Shown.NOTHING
         render(show = true)
@@ -152,6 +153,25 @@ class ZapPluginService : NexusPluginService() {
     }
 
     private var snapshot: NexusSnapshotSession? = null
+
+    /**
+     * Offering a just-taken photo only works if it reaches the phone right away;
+     * Nexus' default syncs only while charging. Set "always" once, when the wearer
+     * left the offer on; if they change it back in Nexus, Zap leaves it alone.
+     */
+    private fun preferInstantSync() {
+        val client = nexusClient ?: return
+        if (!ZapSettings(this).offerNewPhotos() || !client.hasCapability(PluginCapability.MEDIA_SYNC)) return
+        val prefs = getSharedPreferences("zap_photo_offer", MODE_PRIVATE)
+        if (prefs.getBoolean(KEY_SYNC_ALWAYS_SET, false)) return
+        val sent = client.send(
+            MEDIA_SYNC_SETTINGS,
+            java.util.UUID.randomUUID().toString(),
+            JSONObject().put("version", MEDIA_SYNC_VERSION).put("syncMode", "always"),
+        )
+        Log.i(TAG, "photo sync set to always sent=$sent")
+        if (sent) prefs.edit().putBoolean(KEY_SYNC_ALWAYS_SET, true).apply()
+    }
 
     private val galleryChanged = object : ContentObserver(main) {
         override fun onChange(selfChange: Boolean) {
@@ -457,6 +477,8 @@ class ZapPluginService : NexusPluginService() {
         const val PHOTO_RETRY_MS = 450L
         const val GALLERY_SETTLE_MS = 600L
         const val MEDIA_SYNC_NOW = "/mediasync/now"
+        const val MEDIA_SYNC_SETTINGS = "/mediasync/settings"
+        private const val KEY_SYNC_ALWAYS_SET = "sync_always_set"
         const val MEDIA_SYNC_VERSION = 2
     }
 }

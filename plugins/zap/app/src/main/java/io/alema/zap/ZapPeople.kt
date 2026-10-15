@@ -108,12 +108,18 @@ internal class ZapImported(context: Context) {
  * is live.
  */
 class ZapNotificationListener : NotificationListenerService() {
+    private var photos: ZapPhotoWatcher? = null
+
     override fun onListenerConnected() {
+        photos?.stop()
+        photos = ZapPhotoWatcher(applicationContext).also { it.start() }
         // After a restart the live reply tokens are gone; rebuild them from what is still showing.
         runCatching { activeNotifications }.getOrNull()?.forEach { capture(it) }
     }
 
     override fun onListenerDisconnected() {
+        photos?.stop()
+        photos = null
         ZapInbox.releaseAll()
         super.onListenerDisconnected()
     }
