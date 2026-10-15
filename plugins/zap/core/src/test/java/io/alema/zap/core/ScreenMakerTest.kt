@@ -124,7 +124,7 @@ class ScreenMakerTest {
     @Test
     fun `choosing a shot says glasses or phone, and marks videos`() {
         val pick = maker.make(Step.ChoosePhoto(leoChat.recipient(), listOf("g:o:v:9", "g:c:i:1"), index = 0), 0) as Screen.Picture
-        assertEquals("Para Leo · Óculos 1/2", pick.title)
+        assertEquals("Para Leo · Óculos 1/2 · ▶ Vídeo", pick.title)
         assertNull(pick.footer)
         assertEquals("▶ Vídeo", pick.caption)
         val review = card(maker.make(Step.Review(leoChat.recipient(), "", "g:o:v:9"), 0))

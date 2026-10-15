@@ -57,6 +57,8 @@ class ScreenMaker(
                         GalleryKey.parse(step.photo)?.let { if (it.fromGlasses) text.fromGlasses else text.fromPhone },
                         "${step.index + 1}/${step.photos.size}".takeIf { step.photos.size > 1 },
                     ).joinToString(" ").ifBlank { null },
+                    // A video says so up top, where the wearer reads: the caption sits low on the lens.
+                    text.video.takeIf { GalleryKey.isVideo(step.photo) },
                 ).joinToString(" · "),
             ),
             caption = listOfNotNull(text.video.takeIf { GalleryKey.isVideo(step.photo) }, step.body.ifBlank { null })

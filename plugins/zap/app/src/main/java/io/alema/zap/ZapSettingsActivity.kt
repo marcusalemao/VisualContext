@@ -205,13 +205,21 @@ class ZapSettingsActivity : Activity() {
             current = settings.arrivalMode(),
         ) { settings.setArrivalMode(it) }
         // Videos need their own Android permission: someone who allowed photos in 0.5 is asked again.
-        val photos = ZapGallery.hasPhotosAndVideos(this)
+        // "Selected photos only" (Android 14) hides new glasses shots too, so it is called out.
+        val access = ZapGallery.access(this)
+        val photos = ZapGallery.hasPhotosAndVideos(this) && access == ZapGallery.Access.FULL
         switchCard(
             title = t("Enviar fotos e vídeos", "Send photos and videos"),
-            subtitle = t(
-                "Em \"Enviar foto ou vídeo\", primeiro aparece o que você fotografou ou filmou com os óculos (o Zap pede ao Nexus para trazer na hora), depois o que está no celular. O Zap só abre o que você escolher.",
-                "In \"Send photo or video\", what you shot with the glasses comes first (Zap asks Nexus to bring it over right then), then what's on the phone. Zap only opens what you pick.",
-            ),
+            subtitle = when (access) {
+                ZapGallery.Access.PARTIAL -> t(
+                    "Acesso parcial: o Zap só vê as fotos que você escolheu, e não vê as novas dos óculos. Toque e escolha \"Permitir tudo\".",
+                    "Partial access: Zap only sees the photos you picked, not new ones from the glasses. Tap and choose \"Allow all\".",
+                )
+                else -> t(
+                    "Em \"Enviar foto ou vídeo\", primeiro aparece o que você fotografou com os óculos (o Zap pede ao Nexus para trazer na hora), depois o que está no celular. O Zap só abre o que você escolher.",
+                    "In \"Send photo or video\", what you shot with the glasses comes first (Zap asks Nexus to bring it over right then), then what's on the phone. Zap only opens what you pick.",
+                )
+            },
             checked = photos,
         ) { on ->
             if (on && !photos) {

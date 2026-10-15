@@ -79,6 +79,22 @@ internal object ZapGallery {
         }
     }
 
+    enum class Access { NONE, PARTIAL, FULL }
+
+    /**
+     * Android 14 lets people allow only some photos. Then Zap sees only those —
+     * not new shots from the glasses either — so settings say so and offer "all".
+     */
+    fun access(context: Context): Access {
+        fun granted(p: String) = context.checkSelfPermission(p) == PackageManager.PERMISSION_GRANTED
+        return when {
+            Build.VERSION.SDK_INT >= 33 && granted(Manifest.permission.READ_MEDIA_IMAGES) -> Access.FULL
+            Build.VERSION.SDK_INT < 33 && granted(Manifest.permission.READ_EXTERNAL_STORAGE) -> Access.FULL
+            Build.VERSION.SDK_INT >= 34 && granted(Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED) -> Access.PARTIAL
+            else -> Access.NONE
+        }
+    }
+
     /** Any access at all — Android 14's "selected photos only" counts. */
     fun hasPermission(context: Context): Boolean =
         permissions().any { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }
@@ -97,7 +113,8 @@ internal object ZapGallery {
         val path = MediaStore.MediaColumns.RELATIVE_PATH
         val bucket = MediaStore.MediaColumns.BUCKET_DISPLAY_NAME
         val kinds = "($type = ${MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE} OR $type = ${MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO})"
-        val fromGlasses = "($path LIKE ? OR $bucket LIKE ?)"
+        // COALESCE: a row without a folder name would make NOT(...) unknown and hide it from the phone list.
+        val fromGlasses = "(COALESCE($path, '') LIKE ? OR COALESCE($bucket, '') LIKE ?)"
         val selection = if (glasses) "$kinds AND $fromGlasses" else "$kinds AND NOT $fromGlasses"
         context.contentResolver.query(
             files,
