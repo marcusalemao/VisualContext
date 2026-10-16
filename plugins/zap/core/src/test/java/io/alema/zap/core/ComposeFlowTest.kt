@@ -372,6 +372,9 @@ class ComposeFlowTest {
         val play = f.tap()
         assertEquals(Effect.PlayAudio(voice.voiceNotes.last(), voice.key), play.last())
         assertTrue((f.step as Step.Audio).playing)
+        assertFalse((f.step as Step.Audio).started) // "Loading…" until the sound starts
+        f.onAudioStarted()
+        assertTrue((f.step as Step.Audio).started)
         assertEquals(listOf(Effect.StopAudio), f.tap()) // stop
         f.tap() // play again
         assertEquals(listOf(Effect.StopAudio), f.move(-1)) // the older one, stopping this

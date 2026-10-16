@@ -173,6 +173,7 @@ class ZapPluginService : NexusPluginService() {
                 ZapVoiceNotes.play(
                     this,
                     uri,
+                    onStarted = { main.post { flow.onAudioStarted(); render() } },
                     onDone = { main.post { flow.onAudioDone(); render() } },
                     onError = { main.post { audioFailed(Note.AUDIO_PLAY_FAILED) } },
                 )

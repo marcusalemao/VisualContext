@@ -233,7 +233,14 @@ class ScreenMaker(
             title = fitTitle(listOfNotNull("🎤 ${senderLabel(message)}", "${step.index + 1}/$count".takeIf { count > 1 }).joinToString(" · ")),
             subtitle = listOfNotNull(clock(message.timeMs, today), length).joinToString(" · "),
             rows = listOfNotNull(
-                Row(text = if (step.playing) text.stopAudio else text.playAudio, selected = true),
+                Row(
+                    text = when {
+                        step.playing && !step.started -> text.loadingAudio
+                        step.playing -> text.stopAudio
+                        else -> text.playAudio
+                    },
+                    selected = true,
+                ),
                 step.problem?.let { Row(text = fit(noteText(it)), tone = Tone.ALERT) },
             ),
         )

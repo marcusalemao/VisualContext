@@ -70,6 +70,7 @@ class ZapText(private val pt: Boolean = Locale.getDefault().language == "pt") {
         else -> "Play voice messages ($count)"
     }
     val playAudio get() = if (pt) "▶ Ouvir" else "▶ Play"
+    val loadingAudio get() = if (pt) "⏳ Carregando… (toque para cancelar)" else "⏳ Loading… (tap to cancel)"
     val stopAudio get() = if (pt) "■ Parar" else "■ Stop"
     val noAudioAccess get() = if (pt) "No celular: Zap › \"Ouvir áudios do WhatsApp\"" else "On the phone: Zap › \"Play WhatsApp voice messages\""
     val audioNotFound get() = if (pt) "O WhatsApp ainda não baixou este áudio" else "WhatsApp hasn't downloaded this one yet"

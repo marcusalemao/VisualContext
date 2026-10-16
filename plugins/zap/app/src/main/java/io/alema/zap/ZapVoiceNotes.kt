@@ -84,17 +84,39 @@ internal object ZapVoiceNotes {
      * came (WhatsApp fetches voice messages at once), and as long as it said.
      */
     fun find(context: Context, message: ZapMessage): Uri? {
-        val candidates = trees(context).flatMap { list(context, it) }
+        val started = System.currentTimeMillis()
+        val candidates = trees(context).flatMap { list(context, it, weeksAround(message.timeMs)) }
             .filter { it.modifiedMs in (message.timeMs - EARLY_MS)..(message.timeMs + LATE_MS) }
             .sortedBy { abs(it.modifiedMs - message.timeMs) }
             .take(6)
+        Log.i(TAG, "found ${candidates.size} candidate(s) in ${System.currentTimeMillis() - started} ms")
         if (candidates.isEmpty()) return null
         val wanted = message.voiceSeconds?.takeIf { it > 0 } ?: return candidates.first().uri
         return candidates.firstOrNull { abs(seconds(context, it.uri) - wanted) <= 1 }?.uri ?: candidates.first().uri
     }
 
-    /** The voice notes folder and its weekly subfolders ("202642"). */
-    private fun list(context: Context, tree: Uri): List<Note> = runCatching {
+    /**
+     * WhatsApp files voice notes in one folder per week ("202642" = 2026, week 42).
+     * Listing every week of years of audio through Android's folder access took
+     * close to a minute, so only the weeks around the message are opened.
+     */
+    private fun weeksAround(timeMs: Long): Set<String> {
+        val out = HashSet<String>()
+        for (offsetDays in longArrayOf(-7, 0, 7)) {
+            val at = timeMs + offsetDays * 86_400_000L
+            val date = java.time.Instant.ofEpochMilli(at).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+            // ISO weeks and the phone's own calendar weeks can differ by one: take both.
+            val iso = date.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR)
+            val isoYear = date.get(java.time.temporal.IsoFields.WEEK_BASED_YEAR)
+            out += "%d%02d".format(isoYear, iso)
+            val cal = java.util.Calendar.getInstance().apply { timeInMillis = at }
+            out += "%d%02d".format(cal.get(java.util.Calendar.YEAR), cal.get(java.util.Calendar.WEEK_OF_YEAR))
+        }
+        return out
+    }
+
+    /** The voice notes folder itself, and only the weekly subfolders in [weeks]. */
+    private fun list(context: Context, tree: Uri, weeks: Set<String>): List<Note> = runCatching {
         val out = ArrayList<Note>()
         fun walk(documentId: String, depth: Int) {
             val children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, documentId)
@@ -113,7 +135,8 @@ internal object ZapVoiceNotes {
                     val mime = c.getString(1).orEmpty()
                     val name = c.getString(3).orEmpty()
                     when {
-                        mime == DocumentsContract.Document.MIME_TYPE_DIR && depth < 2 -> walk(id, depth + 1)
+                        mime == DocumentsContract.Document.MIME_TYPE_DIR ->
+                            if (depth == 0 && name in weeks) walk(id, depth + 1)
                         name.endsWith(".opus") || mime.startsWith("audio/") ->
                             out += Note(DocumentsContract.buildDocumentUriUsingTree(tree, id), c.getLong(2))
                     }
@@ -135,7 +158,7 @@ internal object ZapVoiceNotes {
 
     private var player: MediaPlayer? = null
 
-    fun play(context: Context, uri: Uri, onDone: () -> Unit, onError: () -> Unit) {
+    fun play(context: Context, uri: Uri, onStarted: () -> Unit, onDone: () -> Unit, onError: () -> Unit) {
         stop()
         val mp = MediaPlayer()
         player = mp
@@ -146,7 +169,7 @@ internal object ZapVoiceNotes {
             mp.setDataSource(context, uri)
             mp.setOnCompletionListener { if (player === mp) { stop(); onDone() } }
             mp.setOnErrorListener { _, _, _ -> if (player === mp) { stop(); onError() }; true }
-            mp.setOnPreparedListener { if (player === mp) it.start() }
+            mp.setOnPreparedListener { if (player === mp) { it.start(); onStarted() } }
             mp.prepareAsync()
         }.onFailure {
             Log.w(TAG, "could not play", it)

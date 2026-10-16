@@ -70,6 +70,8 @@ sealed interface Step {
         val index: Int,
         val playing: Boolean = false,
         val problem: Note? = null,
+        /** False between asking to play and the sound starting: the lens says "Loading…". */
+        val started: Boolean = false,
     ) : Step {
         val message: ZapMessage get() = conversation.voiceNotes[index]
     }
@@ -281,7 +283,7 @@ class ComposeFlow(
             step = s.copy(playing = false)
             listOf(Effect.StopAudio)
         } else {
-            step = s.copy(playing = true, problem = null)
+            step = s.copy(playing = true, problem = null, started = false)
             listOf(Effect.PlayAudio(s.message, s.conversation.key))
         }
         is Step.Photo -> {
@@ -351,10 +353,16 @@ class ComposeFlow(
         step = s.copy(photos = photos, index = keep)
     }
 
+    /** The sound actually started. */
+    fun onAudioStarted() {
+        val s = step as? Step.Audio ?: return
+        if (s.playing) step = s.copy(started = true)
+    }
+
     /** The voice message ended (or was stopped from outside). */
     fun onAudioDone() {
         val s = step as? Step.Audio ?: return
-        step = s.copy(playing = false)
+        step = s.copy(playing = false, started = false)
     }
 
     /** It could not play: say why on the card, nothing else moves. */
