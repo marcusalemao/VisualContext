@@ -1,0 +1,361 @@
+package io.alema.zap
+
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.Service
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.content.pm.ServiceInfo
+import android.graphics.PixelFormat
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
+import android.os.Build
+import android.os.Bundle
+import android.os.Handler
+import android.os.IBinder
+import android.os.Looper
+import android.provider.Settings
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
+import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
+import android.util.Log
+import android.view.Gravity
+import android.view.View
+import android.view.WindowManager
+import android.widget.TextView
+import io.alema.zap.core.HeadsetFlow
+import io.alema.zap.core.HeadsetFlow.HeadsetEffect
+import io.alema.zap.core.HeadsetFlow.Line
+import io.alema.zap.core.SendOutcome
+import io.alema.zap.core.ZapConversation
+import io.alema.zap.core.ZapMessage
+import java.util.Locale
+
+/**
+ * Zap without Nexus: the glasses as a Bluetooth headset. Messages are read
+ * aloud with the phone's own voice and answered by voice with the phone's own
+ * speech recognizer (on-device when the phone has it). No server, no keys.
+ *
+ * Rules that keep it safe:
+ * - It only ever speaks into a Bluetooth headset, never the phone speaker.
+ * - Nothing is sent without a spoken "send" after the draft is read back.
+ * - While the microphone is open, a small "Zap · listening" pill shows on the
+ *   phone screen. Android also requires it: an app in the background may only
+ *   use the microphone while one of its windows is visible.
+ */
+internal object ZapHeadset {
+    private const val TAG = "ZapHeadset"
+    private const val SCO_SETTLE_MS = 700L
+    private const val SHORT_TIMEOUT_MS = 15_000L
+    private const val LONG_TIMEOUT_MS = 45_000L
+
+    enum class Mode { AUTO, ON, OFF }
+
+    private val main = Handler(Looper.getMainLooper())
+    private val flow = HeadsetFlow()
+    private lateinit var app: Context
+    private var tts: TextToSpeech? = null
+    private var ttsReady = false
+    private var pendingLine: Line? = null
+    private var recognizer: SpeechRecognizer? = null
+    private var pill: View? = null
+    private var listenGeneration = 0
+
+    /** Last reason listening could not start, for the Check card. */
+    @Volatile
+    var lastProblem: String? = null
+        private set
+
+    fun nexusInstalled(context: Context): Boolean =
+        runCatching { context.packageManager.getPackageInfo(NEXUS_PACKAGE, 0) }.isSuccess
+
+    /** Whether headset mode is the one handling arrivals right now. */
+    fun active(context: Context): Boolean = when (ZapSettings(context).headsetMode()) {
+        Mode.ON -> true
+        Mode.OFF -> false
+        Mode.AUTO -> !nexusInstalled(context)
+    }
+
+    fun headsetConnected(context: Context): Boolean {
+        val audio = context.getSystemService(AudioManager::class.java) ?: return false
+        return audio.getDevices(AudioManager.GET_DEVICES_OUTPUTS).any { it.type in BLUETOOTH_OUTPUTS }
+    }
+
+    /** Can Zap hear the answer? Microphone permission, the on-screen pill, and a recognizer on the phone. */
+    fun canListen(context: Context): Boolean =
+        context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED &&
+            Settings.canDrawOverlays(context) &&
+            SpeechRecognizer.isRecognitionAvailable(context)
+
+    fun onMessage(context: Context, chat: ZapConversation, message: ZapMessage) = main.post {
+        app = context.applicationContext
+        if (!headsetConnected(app) || inCall()) return@post // never on the speaker, never over a call
+        run(flow.onMessage(chat, message))
+    }
+
+    /** "Test" button in settings: one line in the headset, no question. */
+    fun test(context: Context) = main.post {
+        app = context.applicationContext
+        val chat = ZapConversation("zap-test", "Zap", null, false, emptyList())
+        val pt = Locale.getDefault().language == "pt"
+        val message = ZapMessage("Zap", if (pt) "teste de voz. Se você ouviu isto nos óculos, está funcionando." else "voice test. If you heard this in your glasses, it works.", System.currentTimeMillis())
+        run(flow.onMessage(chat, message))
+    }
+
+    // --- running the flow's effects ------------------------------------------------
+
+    private fun run(effects: List<HeadsetEffect>) {
+        effects.forEach { effect ->
+            when (effect) {
+                is HeadsetEffect.Say -> say(effect.line)
+                is HeadsetEffect.Listen -> listen(effect.long)
+                is HeadsetEffect.Send -> {
+                    effect.recipient.digits?.let { ZapRecents(app).touch(ZapPeople.idFor(it)) }
+                    ZapSender.deliver(app, effect.recipient, effect.body) { outcome -> main.post { run(flow.onSendOutcome(outcome)) } }
+                }
+                HeadsetEffect.End -> release()
+            }
+        }
+    }
+
+    private fun say(line: Line) {
+        val engine = tts ?: TextToSpeech(app) { status ->
+            main.post {
+                ttsReady = status == TextToSpeech.SUCCESS
+                if (!ttsReady) {
+                    lastProblem = "tts"
+                    pendingLine = null
+                    run(flow.abort())
+                    return@post
+                }
+                tts?.language = Locale.getDefault()
+                pendingLine?.let { pendingLine = null; say(it) }
+            }
+        }.also { created ->
+            tts = created
+            created.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                override fun onStart(utteranceId: String?) = Unit
+                override fun onDone(utteranceId: String?) {
+                    main.post { run(flow.onSpoken()) }
+                }
+                @Deprecated("Deprecated in Java")
+                override fun onError(utteranceId: String?) {
+                    main.post { run(flow.onSpoken()) }
+                }
+            })
+        }
+        if (!ttsReady) {
+            pendingLine = line
+            return
+        }
+        clearRoute() // speak over the media route; the microphone route comes only when listening
+        engine.speak(words(line), TextToSpeech.QUEUE_FLUSH, Bundle(), "zap-${System.nanoTime()}")
+    }
+
+    private fun words(line: Line): String {
+        val pt = Locale.getDefault().language == "pt"
+        return when (line) {
+            is Line.Announce -> {
+                val who = if (line.chat.isGroup) "${line.chat.title}, ${line.message.sender}" else line.chat.title
+                val ask = line.askReply && canListen(app)
+                "$who: ${line.message.text}" + if (ask) (if (pt) " … Responder?" else " … Reply?") else ""
+            }
+            Line.SayMessage -> if (pt) "Diga a mensagem." else "Say the message."
+            is Line.ReadBack -> if (pt) "Para ${line.name}: ${line.body} … Enviar?" else "To ${line.name}: ${line.body} … Send?"
+            is Line.Outcome -> when (line.outcome) {
+                SendOutcome.SENT -> if (pt) "Enviado." else "Sent."
+                SendOutcome.OPENED_FOR_THUMB -> if (pt) "Abri no celular. Toque em Enviar lá." else "Opened on the phone. Tap Send there."
+                SendOutcome.WAITING_FOR_UNLOCK -> if (pt) "Desbloqueie o celular para enviar." else "Unlock the phone to send."
+                SendOutcome.NOT_INSTALLED -> if (pt) "O WhatsApp não está instalado." else "WhatsApp is not installed."
+                SendOutcome.FAILED -> if (pt) "Não consegui enviar." else "Couldn't send."
+            }
+            Line.Cancelled -> if (pt) "Cancelado. Não enviei." else "Cancelled. Not sent."
+            Line.NotHeard -> if (pt) "Não ouvi. Fica para depois." else "Didn't hear you. Maybe later."
+        }
+    }
+
+    private fun listen(long: Boolean) {
+        if (!canListen(app)) {
+            lastProblem = "no-mic-access"
+            run(flow.onHeard(""))
+            return
+        }
+        showPill()
+        startVoiceService()
+        routeToHeadsetMic()
+        val generation = ++listenGeneration
+        main.postDelayed({ if (generation == listenGeneration) startRecognizer(long, generation) }, SCO_SETTLE_MS)
+    }
+
+    private fun startRecognizer(long: Boolean, generation: Int) {
+        recognizer?.destroy()
+        val onDevice = Build.VERSION.SDK_INT >= 31 && SpeechRecognizer.isOnDeviceRecognitionAvailable(app)
+        val created = runCatching {
+            if (onDevice) SpeechRecognizer.createOnDeviceSpeechRecognizer(app) else SpeechRecognizer.createSpeechRecognizer(app)
+        }.getOrNull()
+        if (created == null) {
+            lastProblem = "no-recognizer"
+            heard(generation, "")
+            return
+        }
+        recognizer = created
+        created.setRecognitionListener(object : RecognitionListener {
+            override fun onResults(results: Bundle?) {
+                val text = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty()
+                heard(generation, text)
+            }
+            override fun onError(error: Int) {
+                if (error != SpeechRecognizer.ERROR_NO_MATCH && error != SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
+                    lastProblem = "recognizer-error-$error"
+                }
+                heard(generation, "")
+            }
+            override fun onReadyForSpeech(params: Bundle?) = Unit
+            override fun onBeginningOfSpeech() = Unit
+            override fun onRmsChanged(rmsdB: Float) = Unit
+            override fun onBufferReceived(buffer: ByteArray?) = Unit
+            override fun onEndOfSpeech() = Unit
+            override fun onPartialResults(partialResults: Bundle?) = Unit
+            override fun onEvent(eventType: Int, params: Bundle?) = Unit
+        })
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+            .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            .putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toLanguageTag())
+            .putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
+            .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+            .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, if (long) 2_500L else 1_200L)
+        runCatching { created.startListening(intent) }.onFailure {
+            lastProblem = "start-failed"
+            heard(generation, "")
+            return
+        }
+        main.postDelayed({
+            if (generation == listenGeneration) {
+                recognizer?.cancel()
+                heard(generation, "")
+            }
+        }, if (long) LONG_TIMEOUT_MS else SHORT_TIMEOUT_MS)
+    }
+
+    private fun heard(generation: Int, text: String) = main.post {
+        if (generation != listenGeneration) return@post
+        listenGeneration++ // later callbacks for this round are stale
+        Log.i(TAG, "heard ${text.length} chars")
+        clearRoute()
+        run(flow.onHeard(text))
+    }
+
+    private fun release() {
+        listenGeneration++
+        recognizer?.destroy()
+        recognizer = null
+        clearRoute()
+        hidePill()
+        runCatching { app.stopService(Intent(app, ZapVoiceService::class.java)) }
+    }
+
+    // --- audio route, pill, foreground service --------------------------------------
+
+    private fun inCall(): Boolean {
+        val mode = app.getSystemService(AudioManager::class.java)?.mode ?: return false
+        return mode == AudioManager.MODE_IN_CALL || mode == AudioManager.MODE_IN_COMMUNICATION
+    }
+
+    private fun routeToHeadsetMic() {
+        val audio = app.getSystemService(AudioManager::class.java) ?: return
+        if (Build.VERSION.SDK_INT >= 31) {
+            audio.availableCommunicationDevices
+                .firstOrNull { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO || it.type == AudioDeviceInfo.TYPE_BLE_HEADSET }
+                ?.let { runCatching { audio.setCommunicationDevice(it) } }
+        } else {
+            @Suppress("DEPRECATION")
+            runCatching { audio.startBluetoothSco() }
+        }
+    }
+
+    private fun clearRoute() {
+        val audio = app.getSystemService(AudioManager::class.java) ?: return
+        if (Build.VERSION.SDK_INT >= 31) {
+            runCatching { audio.clearCommunicationDevice() }
+        } else {
+            @Suppress("DEPRECATION")
+            runCatching { audio.stopBluetoothSco() }
+        }
+    }
+
+    private fun showPill() {
+        if (pill != null || !Settings.canDrawOverlays(app)) return
+        val pt = Locale.getDefault().language == "pt"
+        val view = TextView(app).apply {
+            text = if (pt) "Zap · ouvindo" else "Zap · listening"
+            setTextColor(0xFF7CFF7C.toInt())
+            setBackgroundColor(0xE6000000.toInt())
+            textSize = 13f
+            val pad = (8 * resources.displayMetrics.density).toInt()
+            setPadding(pad * 2, pad, pad * 2, pad)
+        }
+        val params = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+            PixelFormat.TRANSLUCENT,
+        ).apply { gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL; y = 48 }
+        runCatching { app.getSystemService(WindowManager::class.java).addView(view, params) }
+            .onSuccess { pill = view }
+            .onFailure { lastProblem = "pill" }
+    }
+
+    private fun hidePill() {
+        val view = pill ?: return
+        pill = null
+        runCatching { app.getSystemService(WindowManager::class.java).removeView(view) }
+    }
+
+    private fun startVoiceService() {
+        runCatching { app.startForegroundService(Intent(app, ZapVoiceService::class.java)) }
+            .onFailure { lastProblem = "service: ${it.javaClass.simpleName}" }
+    }
+
+    private const val NEXUS_PACKAGE = "com.anezium.rokidbus.phone"
+    private val BLUETOOTH_OUTPUTS = setOf(
+        AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
+        AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+        AudioDeviceInfo.TYPE_BLE_HEADSET,
+    )
+}
+
+/** Keeps the microphone allowed while Zap listens with the phone in a pocket. Lives only during an answer. */
+class ZapVoiceService : Service() {
+    override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val manager = getSystemService(NotificationManager::class.java)
+        val pt = Locale.getDefault().language == "pt"
+        manager.createNotificationChannel(
+            NotificationChannel(CHANNEL, if (pt) "Zap ouvindo" else "Zap listening", NotificationManager.IMPORTANCE_LOW),
+        )
+        val notification = Notification.Builder(this, CHANNEL)
+            .setSmallIcon(R.drawable.nexus_glyph_zap)
+            .setContentTitle(if (pt) "Zap está ouvindo sua resposta" else "Zap is listening for your reply")
+            .setOngoing(true)
+            .build()
+        runCatching {
+            if (Build.VERSION.SDK_INT >= 30) {
+                startForeground(ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+            } else {
+                startForeground(ID, notification)
+            }
+        }.onFailure { stopSelf() }
+        return START_NOT_STICKY
+    }
+
+    private companion object {
+        const val CHANNEL = "zap_voice"
+        const val ID = 41
+    }
+}
