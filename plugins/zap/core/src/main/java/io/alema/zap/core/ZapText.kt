@@ -84,6 +84,8 @@ class ZapText(private val pt: Boolean = Locale.getDefault().language == "pt") {
     val audioNotFound get() = if (pt) "O WhatsApp ainda não baixou este áudio" else "WhatsApp hasn't downloaded this one yet"
     val audioPlayFailed get() = if (pt) "Achei o áudio, mas o celular não conseguiu tocar" else "Found the voice message, but the phone couldn't play it"
     val noHeadphones get() = if (pt) "Sem áudio dos óculos ou fone: não toco no alto-falante do celular" else "No glasses audio or earbuds: won't play on the phone speaker"
+    fun sendTo(name: String) = if (pt) "Enviar para $name?" else "Send to $name?"
+    val photoOfferHint get() = if (pt) "Deslize para trocar · toque para escolher" else "Swipe to change · tap to pick"
     val photoOffer get() = if (pt) "Enviar pelo Zap?" else "Send with Zap?"
     val otherPerson get() = if (pt) "Outra pessoa" else "Someone else"
     val sayCaptionNow get() = if (pt) "Diga a legenda" else "Say the caption"

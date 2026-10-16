@@ -101,6 +101,19 @@ sealed interface Step {
         val message: ZapMessage get() = conversation.voiceNotes[index]
     }
 
+    /**
+     * A photo just taken with the glasses button while Zap is open: shown full
+     * screen, swipe through who to send it to ([choices], then "someone else"
+     * at [index] == choices.size), tap to pick. Back returns to [returnTo].
+     */
+    data class PhotoOffer(
+        val photo: String,
+        val choices: List<Recipient>,
+        val index: Int = 0,
+        val returnTo: Step,
+        val returnSelected: Int = 0,
+    ) : Step
+
     /** "Say the name" first, then the people the wearer wrote to or heard from lately. */
     data class NewMessage(val recent: List<ZapContact>) : Step
 
@@ -190,7 +203,31 @@ class ComposeFlow(
     /** The browsing screen to return to after a reply or a new message. */
     private var base: Step = Step.Inbox(emptyList())
 
+    /** A photo waiting for a person picked through "someone else": the pick goes straight to review with it. */
+    private var carryPhoto: String? = null
+
+    /**
+     * A photo was just taken with the glasses button while Zap is open. Offered
+     * right here unless the wearer is in the middle of writing or sending; the
+     * open chat's person comes first. Returns false when it was not shown.
+     */
+    fun offerPhoto(photo: String, recent: List<Recipient>): Boolean {
+        when (step) {
+            is Step.Inbox, is Step.Thread, is Step.Read, is Step.Photo, is Step.Audio, is Step.Done -> Unit
+            else -> return false
+        }
+        val here = (step as? Step.Thread)?.conversation?.takeIf { !it.isGroup && it.waDigits != null }?.recipient()
+        val choices = (listOfNotNull(here) + recent.filter { it.digits != null })
+            .distinctBy { it.digits }
+            .take(3)
+        val back = step
+        val backSelected = selected
+        go(Step.PhotoOffer(photo, choices, returnTo = back, returnSelected = backSelected))
+        return true
+    }
+
     fun open(inbox: List<ZapConversation>): List<Effect> {
+        carryPhoto = null
         conversations = inbox
         go(Step.Inbox(inbox), asBase = true)
         return emptyList()
@@ -234,6 +271,7 @@ class ComposeFlow(
         is Step.Photo -> s.conversation.photos.size
         is Step.Audio -> 1
         is Step.ChoosePhoto -> s.photos.size
+        is Step.PhotoOffer -> s.choices.size + 1
         is Step.AttachFrom -> ATTACH_CHOICES
         is Step.NewMessage -> 1 + s.recent.size
         is Step.Pick -> s.choices.size + 1
@@ -254,6 +292,10 @@ class ComposeFlow(
             // Photos don't wrap around: the ends are where the conversation's photos end.
             val next = (s.index + delta).coerceIn(0, s.conversation.photos.size - 1)
             step = s.copy(index = next)
+            return emptyList()
+        }
+        (step as? Step.PhotoOffer)?.let { s ->
+            step = s.copy(index = (s.index + delta).coerceIn(0, s.choices.size))
             return emptyList()
         }
         (step as? Step.ChoosePhoto)?.let { s ->
@@ -323,6 +365,12 @@ class ComposeFlow(
             else -> listOf(Effect.StopSpeaking) + listen(s.recipient, s.photo)
         }
         is Step.ChoosePhoto -> review(s.recipient, s.body, s.photo)
+        is Step.PhotoOffer -> s.choices.getOrNull(s.index)?.let { review(it, "", s.photo) } ?: run {
+            // Someone else: pick or say the name; the photo comes along to the review card.
+            carryPhoto = s.photo
+            go(Step.NewMessage(recentPeople()))
+            emptyList()
+        }
         is Step.AttachFrom -> if (selected == ATTACH_CAMERA) {
             snap(s.recipient, s.body, s.previousPhoto)
         } else {
@@ -373,6 +421,7 @@ class ComposeFlow(
             listOf(Effect.StopSpeaking)
         }
         is Step.NewMessage -> {
+            carryPhoto = null
             go(Step.Inbox(conversations), asBase = true)
             listOf(Effect.StopSpeaking)
         }
@@ -384,6 +433,12 @@ class ComposeFlow(
         // A photo that arrives after back is simply dropped.
         is Step.Snapping -> backToSource(s.recipient, s.body, s.previousPhoto, ATTACH_CAMERA)
         is Step.ChoosePhoto -> backToSource(s.recipient, s.body, s.previousPhoto, ATTACH_GALLERY)
+        is Step.PhotoOffer -> {
+            // Dropped: back exactly where the wearer was.
+            step = s.returnTo
+            selected = s.returnSelected
+            emptyList()
+        }
         is Step.AttachFrom -> {
             // From a review card: back to it, as it was. From a chat: back to the chat.
             if (s.body.isNotEmpty() || s.previousPhoto != null) review(s.recipient, s.body, s.previousPhoto) else go(base)
@@ -505,6 +560,12 @@ class ComposeFlow(
         val recipient = Recipient.of(contact, defaultCountryCode)
         // Without a number, only a chat whose WhatsApp reply is still live on the phone can be reached.
         val live = recipient.conversationKey?.let { key -> conversations.any { it.key == key && it.canReplyLive } } == true
+        carryPhoto?.let { photo ->
+            carryPhoto = null
+            // A photo goes through the chat itself, so it needs the number.
+            if (recipient.digits == null) return done(Step.Done(recipient, null, note = Note.NO_NUMBER))
+            return review(recipient, "", photo)
+        }
         if (recipient.digits == null && !live) return done(Step.Done(recipient, null, note = Note.NO_NUMBER))
         return listen(recipient)
     }

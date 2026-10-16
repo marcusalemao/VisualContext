@@ -125,8 +125,15 @@ internal object ZapNotifier : NexusPluginCallbacks {
      * A photo just came over from the glasses: offer it once. Skipped while Zap is
      * open (attach it there) or while the band is busy answering a message.
      */
+    /** Set while Zap is open on the glasses: it shows the offer itself, inside the app. */
+    @Volatile var inAppOffer: ((String) -> Unit)? = null
+
     fun offerPhoto(context: Context, key: String) = main.post {
-        if (inboxOpen || reply != Reply.NONE) return@post
+        if (inboxOpen) {
+            inAppOffer?.invoke(key)
+            return@post
+        }
+        if (reply != Reply.NONE) return@post
         val photo = ZapPhotos.loadAny(context, key) ?: return@post
         appContext = context.applicationContext
         // A photo goes through the chat itself, so only people with a number.

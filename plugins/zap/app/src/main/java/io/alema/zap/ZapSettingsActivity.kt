@@ -130,6 +130,10 @@ class ZapSettingsActivity : Activity() {
             ),
             how = t("Na próxima tela, ligue o Zap.", "On the next screen, turn Zap on."),
             intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS),
+            loses = t(
+                "As conversas param de chegar ao Zap: nos óculos, só aparece o que já estava guardado. Na próxima tela, desligue o Zap.",
+                "Chats stop reaching Zap: the glasses only show what was already saved. On the next screen, turn Zap off.",
+            ),
         )
         val autoSend = ZapSendService.isEnabled(this)
         permissionCard(
@@ -138,12 +142,20 @@ class ZapSettingsActivity : Activity() {
             why = t(
                 "Para enviar sem pegar o celular: o Zap aperta Enviar no WhatsApp depois que você confirma nos óculos. Sem isso, o WhatsApp abre no celular com o texto pronto.",
                 "To send without picking up the phone: Zap presses Send in WhatsApp after you confirm on the glasses. Without it, WhatsApp opens on the phone with the text ready.",
+            ) + t(
+                "\n\nAlguns apps de banco não abrem com a Acessibilidade de outros apps ligada. Se acontecer, pause pelo atalho \"Zap\" no Painel rápido (o painel que você arrasta para baixo, onde ficam o Wi-Fi, o Bluetooth e outros atalhos) e religue depois.",
+                "\n\nSome banking apps won't open while another app's Accessibility is on. If that happens, pause it with the \"Zap\" tile in Quick Settings (the panel you pull down, with Wi-Fi, Bluetooth and other shortcuts) and turn it back on later.",
             ),
             how = t(
                 "Na próxima tela, toque em \"Aplicativos instalados\", depois em \"Zap — enviar pelo WhatsApp\", e ligue. Não precisa criar atalho.",
                 "On the next screen, tap \"Installed apps\", then \"Zap — send with WhatsApp\", and turn it on. No shortcut needed.",
             ),
             intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS),
+            loses = t(
+                "O Zap para de apertar Enviar sozinho: a conversa abre no celular com o texto pronto e você toca Enviar. Para religar, o Android pede que você passe pela tela de Acessibilidade.",
+                "Zap stops pressing Send by itself: the chat opens on the phone with the text ready and you tap Send. To turn it back on, Android asks you to go through the Accessibility screen.",
+            ),
+            onDisable = { if (!ZapSendService.pause()) startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) },
         )
         val background = ZapSender.canStartFromBackground(this)
         permissionCard(
@@ -155,6 +167,10 @@ class ZapSettingsActivity : Activity() {
             ),
             how = t("Na próxima tela, ligue o Zap.", "On the next screen, turn Zap on."),
             intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")),
+            loses = t(
+                "Com o celular bloqueado ou no bolso, o Zap não consegue mais abrir o WhatsApp para enviar. Na próxima tela, desligue o Zap.",
+                "With the phone locked or in a pocket, Zap can no longer open WhatsApp to send. On the next screen, turn Zap off.",
+            ),
         )
         // Videos need their own Android permission; "Selected photos only" (Android 14) hides new glasses shots.
         val access = ZapGallery.access(this)
@@ -175,7 +191,11 @@ class ZapSettingsActivity : Activity() {
                 t("Escolha \"Permitir tudo\".", "Choose \"Allow all\".")
             },
             onAllow = { requestPermissions(ZapGallery.permissions(), REQUEST_PHOTOS) },
-            intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")),
+            intent = appInfo(),
+            loses = t(
+                "Você não poderá anexar fotos nem receber o \"Enviar pelo Zap?\". Na próxima tela, toque em Permissões → Fotos e vídeos → Não permitir.",
+                "You won't be able to attach photos or get \"Send with Zap?\". On the next screen, tap Permissions → Photos and videos → Don't allow.",
+            ),
         )
         val voice = ZapVoiceNotes.hasAccess(this)
         permissionCard(
@@ -188,6 +208,12 @@ class ZapSettingsActivity : Activity() {
             how = t("Na próxima tela, toque em \"Usar esta pasta\" e em \"Permitir\".", "On the next screen, tap \"Use this folder\" and \"Allow\"."),
             onAllow = { runCatching { startActivityForResult(ZapVoiceNotes.pickIntent(), REQUEST_VOICE) } },
             intent = null,
+            loses = t("Os áudios do WhatsApp não tocam mais nos óculos.", "WhatsApp voice messages won't play on the glasses anymore."),
+            onDisable = {
+                contentResolver.persistedUriPermissions.forEach {
+                    runCatching { contentResolver.releasePersistableUriPermission(it.uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+                }
+            },
         )
         permissionCard(
             granted = ZapContacts(this).hasPermission(),
@@ -198,7 +224,11 @@ class ZapSettingsActivity : Activity() {
             ),
             how = t("Toque em \"Permitir\".", "Tap \"Allow\"."),
             onAllow = { requestPermissions(arrayOf(Manifest.permission.READ_CONTACTS), REQUEST_CONTACTS) },
-            intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")),
+            intent = appInfo(),
+            loses = t(
+                "Quando o WhatsApp esconder o número de alguém, o Zap não vai conseguir responder, e a sua agenda some da lista de pessoas. Na próxima tela, toque em Permissões → Contatos → Não permitir.",
+                "When WhatsApp hides someone's number, Zap won't be able to reply, and your contacts leave the people list. On the next screen, tap Permissions → Contacts → Don't allow.",
+            ),
         )
         if (!notifications || !autoSend) {
             infoCard(
@@ -444,6 +474,10 @@ class ZapSettingsActivity : Activity() {
         how: String,
         intent: Intent?,
         onAllow: (() -> Unit)? = null,
+        /** What stops working without it, said before turning it off. */
+        loses: String? = null,
+        /** Turns it off when Zap can; otherwise the Android screen opens. */
+        onDisable: (() -> Unit)? = null,
     ) {
         content.addView(
             NexusUi.card(this).apply {
@@ -460,14 +494,30 @@ class ZapSettingsActivity : Activity() {
                         },
                         LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT),
                     )
-                } else if (intent != null) {
-                    setOnClickListener { runCatching { startActivity(intent) } }
+                } else if (loses != null) {
+                    addView(BusTheme.gap(this@ZapSettingsActivity, 6))
+                    addView(
+                        NexusUi.textButton(this@ZapSettingsActivity, t("Desligar", "Turn off")).apply {
+                            setOnClickListener { confirmOff(title, loses) { runCatching { onDisable?.invoke() ?: intent?.let { startActivity(it) } } } }
+                        },
+                    )
                 }
             },
             NexusUi.block(),
         )
         gap(8)
     }
+
+    private fun confirmOff(title: String, loses: String, off: () -> Unit) {
+        android.app.AlertDialog.Builder(this)
+            .setTitle(t("Desligar $title?", "Turn off $title?"))
+            .setMessage(loses)
+            .setPositiveButton(t("Desligar", "Turn off")) { _, _ -> off(); render() }
+            .setNegativeButton(t("Cancelar", "Cancel"), null)
+            .show()
+    }
+
+    private fun appInfo() = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
 
     private fun switchCard(title: String, subtitle: String, checked: Boolean, onChanged: (Boolean) -> Unit) {
         content.addView(

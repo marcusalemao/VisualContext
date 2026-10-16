@@ -50,6 +50,17 @@ class ScreenMaker(
             ?: Screen.Card(title = fitTitle(step.conversation.title), rows = listOf(Row(text = text.emptyChat, tone = Tone.DIM)))
         is Step.Photo -> photo(step)
         is Step.Audio -> audio(step)
+        is Step.PhotoOffer -> Screen.Picture(
+            photoKey = step.photo,
+            // Who it goes to, up top where the wearer reads; swipe for the others.
+            title = fitTitle(
+                step.choices.getOrNull(step.index)?.let { text.sendTo(it.name) } ?: text.otherPerson,
+            ).let { t -> if (step.choices.isEmpty()) t else fitTitle("$t · ${step.index + 1}/${step.choices.size + 1}") },
+            // No caption: the bottom of the lens is hard to see; swiping is the same as everywhere in Zap.
+            caption = null,
+            footer = null,
+            missing = Screen.Card(title = fitTitle(text.photoOffer), rows = listOf(Row(text = text.photoGone, tone = Tone.DIM))),
+        )
         is Step.ChoosePhoto -> Screen.Picture(
             photoKey = step.photo,
             // Where it came from, and how far along, up top: "Para Leo · Óculos 2/7".

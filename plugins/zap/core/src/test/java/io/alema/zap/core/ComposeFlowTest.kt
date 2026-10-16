@@ -404,6 +404,41 @@ class ComposeFlowTest {
         assertEquals(1, f.selected)
     }
 
+    @Test
+    fun `a photo taken while Zap is open is offered right there, the open chat first, back drops it`() {
+        val f = ComposeFlow({ people }, recentPeople = { listOf(leo) }).also { it.open(listOf(family, leoChat)) }
+        f.move(2); f.tap() // Leo's chat
+        val before = f.step
+        val ana = Recipient("Ana", "5511999990000")
+        assertTrue(f.offerPhoto("g:o:i:7", listOf(ana, leoChat.recipient())))
+        val offer = f.step as Step.PhotoOffer
+        assertEquals(listOf("Leo", "Ana"), offer.choices.map { it.name }) // this chat first, no duplicates
+        f.move(5) // stops at "someone else"
+        assertEquals(2, (f.step as Step.PhotoOffer).index)
+        f.back()
+        assertEquals(before, f.step)
+        assertEquals(1, f.selected)
+
+        f.offerPhoto("g:o:i:7", listOf(ana))
+        f.tap() // Leo
+        assertEquals(Step.Review(leoChat.recipient(), "", "g:o:i:7"), f.step)
+    }
+
+    @Test
+    fun `someone else carries the photo to the person picked, and writing is never interrupted`() {
+        val f = ComposeFlow({ people }, recentPeople = { listOf(leo) }).also { it.open(listOf(leoChat)) }
+        assertTrue(f.offerPhoto("g:o:i:8", emptyList()))
+        f.tap() // only "someone else"
+        assertTrue(f.step is Step.NewMessage)
+        f.move(1); f.tap() // Leo from the recent people
+        assertEquals("g:o:i:8", (f.step as Step.Review).photo)
+
+        val g = ComposeFlow({ people }).also { it.open(listOf(leoChat)) }
+        g.tap(); g.tap() // new message → listening for a name
+        assertFalse(g.offerPhoto("g:o:i:9", emptyList()))
+        assertTrue(g.step is Step.Listening)
+    }
+
     private companion object {
         /** A text message's options: Reply · Read it aloud · Send a photo. */
         const val TEXT_SEND_PHOTO = 2

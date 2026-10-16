@@ -95,6 +95,8 @@ class ZapPluginService : NexusPluginService() {
         }
         contentResolver.registerContentObserver(MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL), true, galleryChanged)
         screens = ScreenMaker(text, version = BuildConfig.VERSION_NAME, reach = ZapSettings(this).reachPx())
+        // A photo taken with the glasses button while Zap is open is offered here, not by the notice.
+        ZapNotifier.inAppOffer = { key -> main.post { offerPhotoHere(key) } }
         preferInstantSync()
         surface = nexusSurfaceSession(SURFACE_ID)
         shown = Shown.NOTHING
@@ -236,6 +238,7 @@ class ZapPluginService : NexusPluginService() {
         runCatching { contentResolver.unregisterContentObserver(galleryChanged) }
         main.removeCallbacks(refreshGallery)
         ZapNotifier.inboxOpen = false
+        ZapNotifier.inAppOffer = null
         unobserveInbox?.invoke()
         unobserveInbox = null
         stopListening()
@@ -251,6 +254,20 @@ class ZapPluginService : NexusPluginService() {
             KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_UP -> run(flow.move(-1))
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> run(flow.tap())
             KeyEvent.KEYCODE_BACK -> run(flow.back())
+        }
+    }
+
+    private fun offerPhotoHere(key: String) {
+        if (!::flow.isInitialized || surface == null) return
+        val recents = ZapInbox.list(this)
+            .filter { !it.isGroup && it.waDigits != null }
+            .sortedByDescending { it.lastTimeMs }
+            .take(2)
+            .map { it.recipient() }
+        if (flow.offerPhoto(key, recents)) {
+            getSharedPreferences("zap_photo_offer", MODE_PRIVATE).edit()
+                .putLong(ZapPhotoWatcher.KEY_SHOWN, System.currentTimeMillis()).apply()
+            render(show = true)
         }
     }
 

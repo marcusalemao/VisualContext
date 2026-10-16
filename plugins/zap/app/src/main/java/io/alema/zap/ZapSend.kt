@@ -181,6 +181,13 @@ class ZapSendService : AccessibilityService() {
     private val handler = Handler(Looper.getMainLooper())
 
     companion object {
+        /** Turns Zap's Accessibility off right now (bank apps); false if it was not running. */
+        fun pause(): Boolean {
+            val running = instance ?: return false
+            running.disableSelf()
+            return true
+        }
+
         private val SEND_LABELS = listOf("Enviar", "Send", "Senden")
         /** Caption box ids WhatsApp has used on its photo preview. */
         private val CAPTION_IDS = listOf("caption", "media_caption", "caption_text")
