@@ -32,7 +32,8 @@ internal class ZapContacts(private val context: Context) {
         val recents = ZapRecents(context)
         val learned = ZapPeople(context).all(recents)
         val imported = ZapImported(context).all(recents)
-        val book = if (ZapSettings(context).importAddressBook()) loadAddressBook() else emptyList()
+        // Allowing Contacts is the switch: no second toggle to forget.
+        val book = loadAddressBook()
         // Address book first (its names are the wearer's own), then people learned, then imports; each number once.
         val known = mutableSetOf<String>()
         return (book + learned + imported).filter { contact ->

@@ -189,6 +189,17 @@ class ZapSettingsActivity : Activity() {
             onAllow = { runCatching { startActivityForResult(ZapVoiceNotes.pickIntent(), REQUEST_VOICE) } },
             intent = null,
         )
+        permissionCard(
+            granted = ZapContacts(this).hasPermission(),
+            title = t("Contatos", "Contacts"),
+            why = t(
+                "Para responder mesmo quando o WhatsApp esconde o número de alguém, e para escrever a quem ainda não te mandou mensagem. O Zap só lê nome e número; nada sai do celular.",
+                "To reply even when WhatsApp hides someone's number, and to write to people who haven't messaged you yet. Zap reads only name and number; nothing leaves the phone.",
+            ),
+            how = t("Toque em \"Permitir\".", "Tap \"Allow\"."),
+            onAllow = { requestPermissions(arrayOf(Manifest.permission.READ_CONTACTS), REQUEST_CONTACTS) },
+            intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")),
+        )
         if (!notifications || !autoSend) {
             infoCard(
                 t("O botão está cinza?", "Is the switch greyed out?"),
@@ -279,22 +290,10 @@ class ZapSettingsActivity : Activity() {
         infoCard(
             t("Sua lista de contatos", "Your contacts list"),
             t(
-                "O Zap monta a lista sozinho com quem te manda mensagem no WhatsApp. Para escrever também para quem ainda não te escreveu, use a agenda do celular ou importe um arquivo de contatos.",
-                "Zap builds the list by itself from who messages you on WhatsApp. To also write to people who haven't messaged you yet, use the phone's contacts or import a contacts file.",
+                "O Zap monta a lista sozinho com quem te manda mensagem no WhatsApp, mais a agenda do celular (permissão Contatos, acima). Também dá para importar um arquivo de contatos.",
+                "Zap builds the list by itself from who messages you on WhatsApp, plus the phone's contacts (Contacts permission, above). You can also import a contacts file.",
             ),
         )
-        switchCard(
-            title = t("Usar a agenda do celular", "Use the phone's contacts"),
-            subtitle = t("Os contatos ficam no celular; o Zap só lê nome e número", "Contacts stay on the phone; Zap reads only name and number"),
-            checked = settings.importAddressBook() && ZapContacts(this).hasPermission(),
-        ) { on ->
-            if (on && !ZapContacts(this).hasPermission()) {
-                requestPermissions(arrayOf(Manifest.permission.READ_CONTACTS), REQUEST_CONTACTS)
-            } else {
-                settings.setImportAddressBook(on)
-            }
-        }
-        gap(8)
         val imported = ZapImported(this).count()
         infoCard(
             t("Importar arquivo de contatos", "Import a contacts file"),
