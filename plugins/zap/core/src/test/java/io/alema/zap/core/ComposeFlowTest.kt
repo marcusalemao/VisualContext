@@ -37,12 +37,13 @@ class ComposeFlowTest {
         val f = flow()
         f.move(2) // Leo's chat
         f.tap()
-        assertEquals(Step.Thread(leoChat), f.step) // reading: the whole chat, scrolled on the glasses
-        assertEquals(0, f.choiceCount())
-        f.tap() // the choices
-        assertEquals(Step.Thread(leoChat, reading = false), f.step)
+        assertEquals(Step.Thread(leoChat), f.step) // the messages, newest first, under Reply
+        assertEquals(1 + leoChat.messages.size, f.choiceCount())
+        assertEquals(1, f.selected) // the newest message is marked
+        f.tap() // what to do with it
+        assertEquals(Step.Thread(leoChat, reading = false, focus = 0), f.step)
 
-        f.move(1) // Listen again
+        f.move(1) // Read it aloud
         assertEquals(listOf(Effect.SpeakMessage(ZapMessage("Leo", "Tô no centro", 2_000L))), f.tap())
 
         f.move(-1) // Reply
@@ -172,12 +173,10 @@ class ComposeFlowTest {
     fun `back returns to where the wearer came from`() {
         val f = flow()
         f.move(2); f.tap() // thread
-        f.tap() // choices
+        f.tap() // the newest message's options
         f.tap() // reply → listening
         assertEquals(listOf(Effect.StopListening), f.back())
-        assertEquals(Step.Thread(leoChat, reading = false), f.step)
-        f.back()
-        assertEquals(Step.Thread(leoChat), f.step)
+        assertEquals(Step.Thread(leoChat), f.step) // the chat's list
         f.back()
         assertTrue(f.step is Step.Inbox)
         assertEquals(listOf(Effect.Close), f.back())
@@ -218,9 +217,8 @@ class ComposeFlowTest {
             ZapMessage("Leo", "Olha isso", 6_000L, image = "b"),
         ))
         val f = ComposeFlow({ people }).also { it.open(listOf(chat)) }
-        f.move(1); f.tap(); f.tap() // open the chat, then its choices
-        assertEquals(4, f.choiceCount()) // Reply · Listen again · Send a photo or video · See photos
-        f.move(ComposeFlow.THREAD_PHOTO)
+        f.move(1); f.tap(); f.tap() // open the chat, then the newest message (a photo with a caption)
+        assertEquals(4, f.choiceCount()) // See the photo · Reply · Read it aloud · Send a photo
         f.tap()
         assertEquals("b", (f.step as Step.Photo).message.image) // newest first
         f.move(-1)
@@ -228,8 +226,8 @@ class ComposeFlowTest {
         f.move(-1) // no wrap past the first photo
         assertEquals("a", (f.step as Step.Photo).message.image)
         f.back()
-        assertEquals(Step.Thread(chat, reading = false), f.step)
-        assertEquals(ComposeFlow.THREAD_PHOTO, f.selected)
+        assertEquals(Step.Thread(chat, focus = 1), f.step) // the list, on photo "a"
+        assertEquals(2, f.selected)
     }
 
     @Test
@@ -245,7 +243,7 @@ class ComposeFlowTest {
     fun `send a photo from a chat, alone or with a caption`() {
         val f = ComposeFlow({ people }, gallery = { listOf("g:3", "g:2", "g:1") }).also { it.open(listOf(leoChat)) }
         f.move(1); f.tap(); f.tap() // Leo's chat, its choices
-        f.move(ComposeFlow.THREAD_SEND_PHOTO)
+        f.move(TEXT_SEND_PHOTO)
         f.tap()
         assertTrue(f.step is Step.AttachFrom) // Camera / Gallery
         f.move(ComposeFlow.ATTACH_GALLERY); f.tap()
@@ -282,12 +280,12 @@ class ComposeFlowTest {
         val lid = leoChat.copy(key = "1@lid", waDigits = null, canReplyLive = true)
         val noNumber = ComposeFlow({ people }, gallery = { listOf("g:1") }).also { it.open(listOf(lid)) }
         noNumber.move(1); noNumber.tap(); noNumber.tap()
-        noNumber.move(ComposeFlow.THREAD_SEND_PHOTO); noNumber.tap()
+        noNumber.move(TEXT_SEND_PHOTO); noNumber.tap()
         assertEquals(Note.NO_NUMBER, (noNumber.step as Step.Done).note)
 
         val empty = ComposeFlow({ people }).also { it.open(listOf(leoChat)) }
         empty.move(1); empty.tap(); empty.tap()
-        empty.move(ComposeFlow.THREAD_SEND_PHOTO); empty.tap()
+        empty.move(TEXT_SEND_PHOTO); empty.tap()
         empty.move(ComposeFlow.ATTACH_GALLERY); empty.tap()
         assertEquals(Note.NO_PHOTOS, (empty.step as Step.Done).note)
     }
@@ -297,7 +295,7 @@ class ComposeFlowTest {
         var gallery = listOf("g:c:i:2", "g:c:i:1")
         val f = ComposeFlow({ people }, gallery = { gallery }).also { it.open(listOf(leoChat)) }
         f.move(1); f.tap(); f.tap()
-        f.move(ComposeFlow.THREAD_SEND_PHOTO)
+        f.move(TEXT_SEND_PHOTO)
         assertTrue(Effect.PullGlassesMedia in f.tap()) // already on Camera / Gallery
         f.move(ComposeFlow.ATTACH_GALLERY); f.tap()
         f.move(1) // on g:c:i:1
@@ -318,7 +316,7 @@ class ComposeFlowTest {
     fun `take a photo with the glasses, check it, attach it`() {
         val f = ComposeFlow({ people }).also { it.open(listOf(leoChat)) }
         f.move(1); f.tap(); f.tap()
-        f.move(ComposeFlow.THREAD_SEND_PHOTO); f.tap()
+        f.move(TEXT_SEND_PHOTO); f.tap()
         assertEquals(ComposeFlow.ATTACH_CAMERA, f.selected) // Camera comes first
         assertTrue(Effect.TakeSnapshot in f.tap())
         assertTrue(f.step is Step.Snapping)
@@ -331,12 +329,12 @@ class ComposeFlowTest {
     @Test
     fun `a failed or abandoned snapshot never attaches anything`() {
         val f = ComposeFlow({ people }).also { it.open(listOf(leoChat)) }
-        f.move(1); f.tap(); f.tap(); f.move(ComposeFlow.THREAD_SEND_PHOTO); f.tap(); f.tap()
+        f.move(1); f.tap(); f.tap(); f.move(TEXT_SEND_PHOTO); f.tap(); f.tap()
         f.onSnapshotFailed()
         assertEquals(Note.CAMERA_FAILED, (f.step as Step.Done).note)
         assertFalse((f.step as Step.Done).canRetry)
         val g = ComposeFlow({ people }).also { it.open(listOf(leoChat)) }
-        g.move(1); g.tap(); g.tap(); g.move(ComposeFlow.THREAD_SEND_PHOTO); g.tap(); g.tap()
+        g.move(1); g.tap(); g.tap(); g.move(TEXT_SEND_PHOTO); g.tap(); g.tap()
         g.back()
         assertTrue(g.step is Step.AttachFrom)
         g.onSnapshot("snap:late")
@@ -366,10 +364,8 @@ class ComposeFlowTest {
         assertEquals(65, voice.voiceNotes.last().voiceSeconds)
         assertEquals(null, ZapMessage.voiceSeconds("oi"))
         val f = ComposeFlow({ people }).also { it.open(listOf(voice)) }
-        f.move(1); f.tap(); f.tap() // the chat's choices
-        val audioRow = ThreadOption.of(voice).indexOf(ThreadOption.AUDIO)
-        f.move(audioRow)
-        val play = f.tap()
+        f.move(1); f.tap(); f.tap() // the newest message: a voice note
+        val play = f.tap() // ▶ Play this voice message
         assertEquals(Effect.PlayAudio(voice.voiceNotes.last(), voice.key), play.last())
         assertTrue((f.step as Step.Audio).playing)
         assertFalse((f.step as Step.Audio).started) // "Loading…" until the sound starts
@@ -383,6 +379,33 @@ class ComposeFlowTest {
         f.onAudioFailed(Note.NO_HEADPHONES)
         assertEquals(Note.NO_HEADPHONES, (f.step as Step.Audio).problem)
         assertEquals(listOf(Effect.StopAudio), f.back())
-        assertEquals(audioRow, f.selected)
+        assertEquals(2, f.selected) // the list, on the voice note just heard
+    }
+
+    @Test
+    fun `a long chat is a list with no wrap, a tap acts on the marked message, back keeps the mark`() {
+        val long = "palavra ".repeat(20).trim()
+        val chat = leoChat.copy(messages = leoChat.messages + ZapMessage("Leo", long, 9_000L))
+        val f = ComposeFlow({ people }).also { it.open(listOf(chat)) }
+        f.move(1); f.tap()
+        f.move(-5) // up stops at Reply
+        assertEquals(0, f.selected)
+        f.move(50) // down stops at the oldest
+        assertEquals(chat.messages.size, f.selected)
+        f.move(-(chat.messages.size - 1)) // back to the newest (the long one)
+        f.tap()
+        assertEquals(MessageOption.of(chat.newestFirst()[0]), listOf(MessageOption.REPLY, MessageOption.READ_ALOUD, MessageOption.READ_FULL, MessageOption.SEND_PHOTO))
+        f.move(2); f.tap() // Read the whole message
+        assertTrue(f.step is Step.Read)
+        f.back()
+        assertEquals(2, f.selected) // on "Read the whole message"
+        f.back()
+        assertEquals(Step.Thread(chat), f.step)
+        assertEquals(1, f.selected)
+    }
+
+    private companion object {
+        /** A text message's options: Reply · Read it aloud · Send a photo. */
+        const val TEXT_SEND_PHOTO = 2
     }
 }

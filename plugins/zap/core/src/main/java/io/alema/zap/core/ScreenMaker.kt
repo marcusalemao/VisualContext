@@ -45,7 +45,9 @@ class ScreenMaker(
 
     private fun build(step: Step, selected: Int, status: Status): Screen = when (step) {
         is Step.Inbox -> inbox(step, selected, status)
-        is Step.Thread -> if (step.reading) reader(step.conversation) else choices(step.conversation, selected, status)
+        is Step.Thread -> if (step.reading) messageList(step.conversation, selected) else messageOptions(step, selected, status)
+        is Step.Read -> step.message?.let { readOne(step.conversation, it) }
+            ?: Screen.Card(title = fitTitle(step.conversation.title), rows = listOf(Row(text = text.emptyChat, tone = Tone.DIM)))
         is Step.Photo -> photo(step)
         is Step.Audio -> audio(step)
         is Step.ChoosePhoto -> Screen.Picture(
@@ -144,70 +146,83 @@ class ScreenMaker(
         return Screen.Card(title = text.inboxTitle, rows = rows, handlesBack = false, subtitle = version?.let { "Zap $it" })
     }
 
-    /**
-     * One chat, read like a document, newest first: every kept message in
-     * full, the glasses scroll it. A new header whenever the sender changes or
-     * time passes.
-     */
-    private fun reader(chat: ZapConversation): Screen.Reader {
-        val today = LocalDate.ofInstant(Instant.ofEpochMilli(now()), zone)
-        val built = ArrayList<Segment>()
-        var lastSender: String? = null
-        var lastTime = Long.MAX_VALUE
-        var cut = false
-        var chars = 0
-        // Newest first: what just arrived sits at the top of the lens, older messages below it.
-        for (message in chat.messages.sortedByDescending { it.timeMs }) {
-            val unit = ArrayList<Segment>(4)
-            if (message.sender != lastSender || lastTime - message.timeMs > NEW_HEADER_AFTER_MS) {
-                if (built.isNotEmpty()) unit += Segment(Segment.Kind.PROSE, "") // paragraph break
-                unit += Segment(Segment.Kind.HEADER, "${senderLabel(message)} · ${clock(message.timeMs, today)}", emphasis = message.sender == ZapMessage.ME)
-            }
-            if (message.image != null) unit += Segment(Segment.Kind.ASIDE, ZapMessage.PHOTO)
-            val body = message.text.takeIf { it.isNotBlank() && !(message.image != null && it == ZapMessage.PHOTO) }
-            body?.let { unit += Segment(Segment.Kind.PROSE, it.take(MAX_SEGMENT_CHARS)) }
-            // The glasses take 240 segments and 40,000 characters: older messages that don't fit are left out.
-            val unitChars = unit.sumOf { it.text.length }
-            if (built.size + unit.size > MAX_SEGMENTS - 2 || chars + unitChars > MAX_READER_CHARS - 200) {
-                cut = true
-                break
-            }
-            built += unit
-            chars += unitChars
-            lastSender = message.sender
-            lastTime = message.timeMs
-        }
-        if (built.isEmpty()) built += Segment(Segment.Kind.ASIDE, text.emptyChat)
-        if (cut) built += Segment(Segment.Kind.ASIDE, "⋯ ${text.earlier}")
-        return Screen.Reader(
-            title = fitTitle(chat.title),
-            segments = built,
-            subtitle = text.readerFooter(chat.photos.isNotEmpty()),
-            contentKey = "zap-chat-${chat.key}".take(128),
-        )
-    }
-
     private fun clock(timeMs: Long, today: LocalDate): String {
         val at = Instant.ofEpochMilli(timeMs).atZone(zone)
         return if (at.toLocalDate() == today) at.format(HOUR) else at.format(DAY_HOUR)
     }
 
-    /** One chat's choices: Reply · Listen again (· See photos). Reply is always there. */
-    private fun choices(chat: ZapConversation, selected: Int, status: Status): Screen.Card {
+    /**
+     * One chat as a list, newest first, under "Reply": each message a row with
+     * the selection mark, so the wearer always sees what a tap acts on. Long
+     * messages are cut at about three lens lines; their options offer the rest.
+     */
+    private fun messageList(chat: ZapConversation, selected: Int): Screen.Card {
+        val today = LocalDate.ofInstant(Instant.ofEpochMilli(now()), zone)
         val rows = buildList {
-            val choices = ThreadOption.of(chat).map { option ->
-                when (option) {
-                    ThreadOption.REPLY -> text.reply
-                    ThreadOption.LISTEN -> text.listenAgain
-                    ThreadOption.SEND_PHOTO -> text.sendPhoto
-                    ThreadOption.PHOTOS -> text.seePhotos(chat.photos.size)
-                    ThreadOption.AUDIO -> text.hearAudios(chat.voiceNotes.size)
-                }
+            add(Row(text = text.replyRow, selected = selected == 0))
+            chat.newestFirst().forEachIndexed { index, message ->
+                add(
+                    Row(
+                        text = rowText(message),
+                        sub = listOfNotNull(
+                            senderLabel(message).takeIf { chat.isGroup || message.sender == ZapMessage.ME },
+                            clock(message.timeMs, today),
+                        ).joinToString(" · "),
+                        selected = selected == index + 1,
+                    ),
+                )
             }
-            choices.forEachIndexed { index, label -> add(Row(text = label, selected = selected == index)) }
+            if (chat.messages.isEmpty()) add(Row(text = text.emptyChat, tone = Tone.DIM))
+        }
+        return Screen.Card(title = fitTitle(chat.title), rows = rows, subtitle = text.chatHint)
+    }
+
+    /** What a message row says: the words (cut), or what it carries. */
+    private fun rowText(message: ZapMessage): String = when {
+        message.voiceSeconds != null -> text.voiceRow(message.voiceSeconds)
+        message.image != null && (message.text.isBlank() || message.text == ZapMessage.PHOTO) -> ZapMessage.PHOTO
+        message.image != null -> fit("📷 ${message.text}", MessageOption.SHOWN_CHARS)
+        else -> fit(message.text.ifBlank { "…" }, MessageOption.SHOWN_CHARS)
+    }
+
+    /** One message's options: the message itself on top, then what can be done with it. */
+    private fun messageOptions(step: Step.Thread, selected: Int, status: Status): Screen.Card {
+        val message = step.message ?: return Screen.Card(title = fitTitle(step.conversation.title), rows = listOf(Row(text = text.emptyChat, tone = Tone.DIM)))
+        val today = LocalDate.ofInstant(Instant.ofEpochMilli(now()), zone)
+        val rows = buildList {
+            add(Row(text = rowText(message), tone = Tone.BODY))
+            MessageOption.of(message).forEachIndexed { index, option ->
+                val label = when (option) {
+                    MessageOption.PLAY_AUDIO -> text.playThisAudio
+                    MessageOption.SEE_PHOTO -> text.seeThisPhoto
+                    MessageOption.READ_ALOUD -> text.readAloud
+                    MessageOption.READ_FULL -> text.readFull
+                    MessageOption.REPLY -> text.reply
+                    MessageOption.SEND_PHOTO -> text.sendPhoto
+                }
+                add(Row(text = label, selected = selected == index))
+            }
             if (status.voiceTrouble) add(Row(text = text.voiceHelp, tone = Tone.DIM))
         }
-        return Screen.Card(title = fitTitle(chat.title), rows = rows)
+        return Screen.Card(
+            title = fitTitle(step.conversation.title),
+            rows = rows,
+            subtitle = "${senderLabel(message)} · ${clock(message.timeMs, today)}",
+        )
+    }
+
+    /** One long message in full: the glasses wrap and scroll it. */
+    private fun readOne(chat: ZapConversation, message: ZapMessage): Screen.Reader {
+        val today = LocalDate.ofInstant(Instant.ofEpochMilli(now()), zone)
+        return Screen.Reader(
+            title = fitTitle(chat.title),
+            segments = listOf(
+                Segment(Segment.Kind.HEADER, "${senderLabel(message)} · ${clock(message.timeMs, today)}", emphasis = message.sender == ZapMessage.ME),
+                Segment(Segment.Kind.PROSE, message.text.take(MAX_SEGMENT_CHARS)),
+            ),
+            subtitle = text.readAloud,
+            contentKey = "zap-msg-${chat.key}-${message.timeMs}".take(128),
+        )
     }
 
     /** New message: "Say the name" first, then recent people for one tap. */
@@ -320,7 +335,8 @@ class ScreenMaker(
      * ("▴ 2" above, "▾ 7" below) so it's clear there is more.
      */
     private fun withinReach(rows: List<Row>, top: Int): List<Row> {
-        val limit = reach ?: return rows
+        // "All of the lens" still ends at the lens: a long chat is windowed either way.
+        val limit = reach ?: LENS_PX
         val budget = limit - top
         val heights = rows.map(::rowHeight)
         if (heights.sum() <= budget) return rows
@@ -352,6 +368,7 @@ class ScreenMaker(
         const val MAX_ROWS = 64
         /** Most wearers read the top ~70% of the 640 px lens comfortably. */
         const val REACH_PX = 460
+        const val LENS_PX = 620
         const val TOP_PX = 72
         const val TOP_WITH_SUBTITLE_PX = 92
         const val ROW_PX = 34

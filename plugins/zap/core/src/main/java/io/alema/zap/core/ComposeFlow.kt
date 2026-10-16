@@ -10,25 +10,50 @@ enum class Note {
     NO_AUDIO_ACCESS, AUDIO_NOT_FOUND, NO_HEADPHONES, AUDIO_PLAY_FAILED,
 }
 
-/** What a chat's choices card offers, in order. Photos and voice messages only when the chat has some. */
-enum class ThreadOption { REPLY, LISTEN, SEND_PHOTO, PHOTOS, AUDIO;
+/**
+ * What a tap on one message offers, in order: what that message carries (play
+ * it, see it), Reply, hear it read or read it whole, then send a photo.
+ */
+enum class MessageOption { PLAY_AUDIO, SEE_PHOTO, REPLY, READ_ALOUD, READ_FULL, SEND_PHOTO;
     companion object {
-        fun of(chat: ZapConversation): List<ThreadOption> = listOf(REPLY, LISTEN, SEND_PHOTO) +
-            listOfNotNull(PHOTOS.takeIf { chat.photos.isNotEmpty() }, AUDIO.takeIf { chat.voiceNotes.isNotEmpty() })
+        fun of(message: ZapMessage): List<MessageOption> = buildList {
+            val voice = message.voiceSeconds != null
+            if (voice) add(PLAY_AUDIO)
+            if (message.image != null) add(SEE_PHOTO)
+            add(REPLY)
+            val words = message.text.isNotBlank() && !voice && message.text != ZapMessage.PHOTO
+            if (words) add(READ_ALOUD)
+            if (words && message.text.length > SHOWN_CHARS) add(READ_FULL)
+            add(SEND_PHOTO)
+        }
+
+        /** About three lens lines: longer messages are cut in the list and offer "Read it all". */
+        const val SHOWN_CHARS = 84
     }
 }
+
+/** A chat's messages as the list shows them: newest first. */
+fun ZapConversation.newestFirst(): List<ZapMessage> = messages.sortedByDescending { it.timeMs }
 
 sealed interface Step {
     /** Home: "New message" first, then the conversations, newest first. */
     data class Inbox(val conversations: List<ZapConversation>) : Step
 
     /**
-     * One conversation open. [reading]: the whole chat as a document the wearer
-     * scrolls, every message in full. A tap brings up the choices instead:
-     * Reply · Listen again · Send a photo or video (· See photos, when it has some). Back from the
-     * choices returns to reading; back from reading returns home.
+     * One conversation open. [reading]: its messages as a list, newest first,
+     * under "Reply"; the selected one is marked, so the wearer always knows
+     * what a tap acts on. A tap on a message ([focus], its place newest-first)
+     * brings up what can be done with it ([MessageOption]); back returns to the
+     * list on that message; back from the list returns home.
      */
-    data class Thread(val conversation: ZapConversation, val reading: Boolean = true) : Step
+    data class Thread(val conversation: ZapConversation, val reading: Boolean = true, val focus: Int = 0) : Step {
+        val message: ZapMessage? get() = conversation.newestFirst().getOrNull(focus)
+    }
+
+    /** One long message in full, scrolled by the glasses. Back to its options. */
+    data class Read(val conversation: ZapConversation, val focus: Int) : Step {
+        val message: ZapMessage? get() = conversation.newestFirst().getOrNull(focus)
+    }
 
     /** A photo from the conversation, full screen. Swipe for the others; back to the conversation. */
     data class Photo(val conversation: ZapConversation, val index: Int) : Step {
@@ -181,9 +206,13 @@ class ComposeFlow(
                 selected = keep.coerceIn(0, maxOf(0, choiceCount() - 1))
                 base = step
             }
-            is Step.Thread -> inbox.firstOrNull { it.key == s.conversation.key }?.let {
-                step = s.copy(conversation = it)
-                base = step
+            is Step.Thread -> inbox.firstOrNull { it.key == s.conversation.key }?.let { fresh ->
+                // New messages arrive on top: keep the mark on the same message, not the same row.
+                val newer = fresh.messages.size - s.conversation.messages.size
+                val focus = if (s.reading) s.focus else (s.focus + maxOf(0, newer)).coerceIn(0, maxOf(0, fresh.messages.size - 1))
+                step = s.copy(conversation = fresh, focus = focus)
+                if (s.reading && selected > 0) selected = (selected + maxOf(0, newer)).coerceIn(0, fresh.messages.size)
+                if (s.reading) base = step
             }
             is Step.Audio -> inbox.firstOrNull { it.key == s.conversation.key }?.let { fresh ->
                 val index = fresh.voiceNotes.indexOfFirst { it.timeMs == s.message.timeMs && it.sender == s.message.sender }
@@ -200,7 +229,8 @@ class ComposeFlow(
 
     fun choiceCount(): Int = when (val s = step) {
         is Step.Inbox -> 1 + s.conversations.size
-        is Step.Thread -> if (s.reading) 0 else ThreadOption.of(s.conversation).size // reading: the glasses scroll it
+        is Step.Thread -> if (s.reading) 1 + s.conversation.messages.size else s.message?.let { MessageOption.of(it).size } ?: 0
+        is Step.Read -> 0
         is Step.Photo -> s.conversation.photos.size
         is Step.Audio -> 1
         is Step.ChoosePhoto -> s.photos.size
@@ -231,6 +261,11 @@ class ComposeFlow(
             return emptyList()
         }
         val count = choiceCount()
+        if ((step as? Step.Thread)?.reading == true) {
+            // A long chat doesn't wrap: the oldest message is the end.
+            selected = (selected + delta).coerceIn(0, maxOf(0, count - 1))
+            return emptyList()
+        }
         if (count > 0) selected = Math.floorMod(selected + delta, count)
         return emptyList()
     }
@@ -240,27 +275,41 @@ class ComposeFlow(
             go(Step.NewMessage(recentPeople()), asBase = true)
             emptyList()
         } else {
-            go(Step.Thread(s.conversations[selected - 1]), asBase = true)
+            openChat(s.conversations[selected - 1])
             emptyList()
         }
         is Step.Thread -> if (s.reading) {
-            go(s.copy(reading = false), asBase = true)
-            emptyList()
-        } else when (ThreadOption.of(s.conversation).getOrNull(selected)) {
-            ThreadOption.REPLY -> reply(s.conversation)
-            ThreadOption.SEND_PHOTO -> attachFrom(s.conversation.recipient(), body = "", previous = null)
-            ThreadOption.PHOTOS -> {
-                go(Step.Photo(s.conversation, s.conversation.photos.size - 1))
+            if (selected == 0 || s.conversation.messages.isEmpty()) {
+                reply(s.conversation)
+            } else {
+                go(s.copy(reading = false, focus = selected - 1))
                 listOf(Effect.StopSpeaking)
             }
-            ThreadOption.AUDIO -> {
-                // The newest voice message, playing straight away: "tap and listen".
-                val audio = Step.Audio(s.conversation, s.conversation.voiceNotes.size - 1, playing = true)
-                go(audio)
-                listOf(Effect.StopSpeaking, Effect.PlayAudio(audio.message, s.conversation.key))
+        } else {
+            val message = s.message
+            when (message?.let { MessageOption.of(it).getOrNull(selected) }) {
+                MessageOption.PLAY_AUDIO -> {
+                    // That voice message, playing straight away: "tap and listen".
+                    val index = s.conversation.voiceNotes.indexOf(message).coerceAtLeast(0)
+                    val audio = Step.Audio(s.conversation, index, playing = true)
+                    go(audio)
+                    listOf(Effect.StopSpeaking, Effect.PlayAudio(audio.message, s.conversation.key))
+                }
+                MessageOption.SEE_PHOTO -> {
+                    go(Step.Photo(s.conversation, s.conversation.photos.indexOf(message).coerceAtLeast(0)))
+                    listOf(Effect.StopSpeaking)
+                }
+                MessageOption.READ_ALOUD -> listOf(Effect.SpeakMessage(message))
+                MessageOption.READ_FULL -> {
+                    go(Step.Read(s.conversation, s.focus))
+                    emptyList()
+                }
+                MessageOption.REPLY -> reply(s.conversation)
+                MessageOption.SEND_PHOTO -> attachFrom(s.conversation.recipient(), body = "", previous = null)
+                null -> emptyList()
             }
-            ThreadOption.LISTEN, null -> s.conversation.last?.let { listOf(Effect.SpeakMessage(it)) } ?: emptyList()
         }
+        is Step.Read -> s.message?.let { listOf(Effect.SpeakMessage(it)) } ?: emptyList()
         is Step.NewMessage -> if (selected == 0) {
             listen(null)
         } else {
@@ -302,17 +351,25 @@ class ComposeFlow(
     fun back(): List<Effect> = when (val s = step) {
         is Step.Inbox -> listOf(Effect.Close)
         is Step.Photo -> {
-            step = Step.Thread(s.conversation, reading = false)
-            selected = ThreadOption.of(s.conversation).indexOf(ThreadOption.PHOTOS).coerceAtLeast(0)
+            backToList(s.conversation, s.message)
             listOf(Effect.StopSpeaking)
         }
         is Step.Audio -> {
-            step = Step.Thread(s.conversation, reading = false)
-            selected = ThreadOption.of(s.conversation).indexOf(ThreadOption.AUDIO).coerceAtLeast(0)
+            backToList(s.conversation, s.message)
             listOf(Effect.StopAudio)
         }
+        is Step.Read -> {
+            go(Step.Thread(s.conversation, reading = false, focus = s.focus))
+            selected = s.message?.let { MessageOption.of(it).indexOf(MessageOption.READ_FULL).coerceAtLeast(0) } ?: 0
+            listOf(Effect.StopSpeaking)
+        }
         is Step.Thread -> {
-            if (s.reading) go(Step.Inbox(conversations), asBase = true) else go(s.copy(reading = true), asBase = true)
+            if (s.reading) {
+                go(Step.Inbox(conversations), asBase = true)
+            } else {
+                go(s.copy(reading = true), asBase = true)
+                selected = s.focus + 1
+            }
             listOf(Effect.StopSpeaking)
         }
         is Step.NewMessage -> {
@@ -422,6 +479,19 @@ class ComposeFlow(
     }
 
     /** Reply is one button; whether it goes through the live notification or a reopened chat is decided at send. */
+    /** A chat opens on its newest message, marked; "Reply" is one swipe up. */
+    private fun openChat(chat: ZapConversation) {
+        go(Step.Thread(chat), asBase = true)
+        selected = if (chat.messages.isEmpty()) 0 else 1
+    }
+
+    /** Back from a photo or voice message: the list, with that message marked. */
+    private fun backToList(chat: ZapConversation, message: ZapMessage) {
+        val index = chat.newestFirst().indexOf(message)
+        go(Step.Thread(chat, focus = maxOf(0, index)), asBase = true)
+        selected = if (index >= 0) index + 1 else 0
+    }
+
     private fun reply(conversation: ZapConversation): List<Effect> {
         if (!conversation.canReply) {
             return done(Step.Done(conversation.recipient(), null, note = Note.REPLY_ON_PHONE))
@@ -492,10 +562,6 @@ class ComposeFlow(
     }
 
     companion object {
-        const val THREAD_REPLY = 0
-        const val THREAD_LISTEN = 1
-        const val THREAD_SEND_PHOTO = 2
-        const val THREAD_PHOTO = 3
         const val ATTACH_CAMERA = 0
         const val ATTACH_GALLERY = 1
         private const val ATTACH_CHOICES = 2

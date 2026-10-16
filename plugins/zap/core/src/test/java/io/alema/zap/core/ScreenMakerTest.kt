@@ -39,42 +39,50 @@ class ScreenMakerTest {
     }
 
     @Test
-    fun `a chat reads as a document, newest first, every message in full`() {
-        val long = "Olha, ".repeat(200) + "fim."
+    fun `a chat is a list of messages, newest first, under Reply, the marked one is what a tap acts on`() {
+        val long = "Olha, ".repeat(40) + "fim."
         val chat = leoChat.copy(messages = leoChat.messages + ZapMessage("Leo", long, 5_000L))
-        val reader = maker.make(Step.Thread(chat), 0) as Screen.Reader
-        val segments = reader.segments
-        // The newest message opens the document, at the top of the lens. Nothing cut.
-        assertEquals(Segment(Segment.Kind.HEADER, "Leo · 00:00"), segments[0])
-        assertEquals(Segment(Segment.Kind.PROSE, long), segments[1])
-        assertEquals(Segment(Segment.Kind.ASIDE, ZapMessage.PHOTO), segments[2]) // the photo, then its caption
-        assertEquals(Segment(Segment.Kind.PROSE, "o lugar"), segments[3])
-        // A photo without caption is one quiet line; with a caption, the caption follows.
-        assertTrue(segments.contains(Segment(Segment.Kind.ASIDE, ZapMessage.PHOTO)))
-        assertFalse(segments.contains(Segment(Segment.Kind.PROSE, ZapMessage.PHOTO)))
-        // Your own turn: its own header, bright. The oldest message comes last.
-        assertTrue(segments.contains(Segment(Segment.Kind.HEADER, "Você · 00:00", emphasis = true)))
-        assertEquals(Segment(Segment.Kind.PROSE, "Bora almoçar?"), segments.last())
-        assertEquals("Responder · Ouvir de novo · Fotos", reader.subtitle) // up top, never at the bottom
-        assertNull(reader.footer)
-        assertEquals("zap-chat-5511987650003", reader.contentKey)
+        val list = card(maker.make(Step.Thread(chat), selected = 1))
+        assertEquals("✎ Responder", list.rows[0].text)
+        assertFalse(list.rows[0].selected)
+        assertTrue(list.rows[1].selected) // the newest message
+        assertEquals(MessageOption.SHOWN_CHARS, list.rows[1].text.length) // cut at about three lines
+        assertTrue(list.rows[1].text.endsWith("…"))
+        assertEquals("00:00", list.rows[1].sub) // a one-to-one chat: no name on every row
+        assertEquals("📷 o lugar", list.rows[2].text)
+        assertEquals("Toque numa mensagem para ver o que fazer", list.subtitle) // up top
+        assertNull(list.footer)
+        assertTrue(fits(list))
     }
 
     @Test
-    fun `a huge chat keeps the newest messages and says older ones are left out`() {
+    fun `a huge chat stays above the reach and slides with the mark`() {
         val many = (1..300).map { ZapMessage(if (it % 2 == 0) "Leo" else ZapMessage.ME, "mensagem $it", it * 60_000L * 31) }
-        val reader = maker.make(Step.Thread(leoChat.copy(messages = many)), 0) as Screen.Reader
-        assertTrue(reader.segments.size <= ScreenMaker.MAX_SEGMENTS)
-        assertEquals(Segment.Kind.HEADER, reader.segments[0].kind)
-        assertEquals("mensagem 300", reader.segments[1].text)
-        assertEquals(Segment.Kind.ASIDE, reader.segments.last().kind)
+        val chat = leoChat.copy(messages = many)
+        val top = card(maker.make(Step.Thread(chat), selected = 1))
+        assertEquals("mensagem 300", top.rows[1].text)
+        assertEquals("▾", top.rows.last().text.take(1))
+        assertTrue(fits(top))
+        val deep = card(maker.make(Step.Thread(chat), selected = 150))
+        assertEquals("▴", deep.rows.first().text.take(1))
+        assertTrue(deep.rows.any { it.selected && it.text == "mensagem 151" })
+        assertTrue(deep.rows.any { it.sub?.startsWith("Você · ") == true }) // your own rows say so
+        assertTrue(fits(deep))
     }
 
     @Test
-    fun `a tap on the chat brings its choices`() {
-        val choices = card(maker.make(Step.Thread(leoChat, reading = false), selected = 0))
-        assertEquals(listOf("Responder", "Ouvir de novo", "Enviar foto ou vídeo", "Ver fotos (2)"), choices.rows.map { it.text })
-        assertTrue(choices.rows[0].selected)
+    fun `a tap on a message offers what fits it, the message on top`() {
+        val options = card(maker.make(Step.Thread(leoChat, reading = false, focus = 0), selected = 0))
+        assertEquals(
+            listOf("📷 o lugar", "Ver a foto", "Responder", "🔊 Ler em voz alta", "Enviar foto ou vídeo"),
+            options.rows.map { it.text },
+        )
+        assertFalse(options.rows[0].selected)
+        assertTrue(options.rows[1].selected)
+        assertEquals("Leo · 00:00", options.subtitle)
+        val voice = leoChat.copy(messages = listOf(ZapMessage("Leo", "🎤 Mensagem de voz (0:12)", 1_000L)))
+        val audio = card(maker.make(Step.Thread(voice, reading = false, focus = 0), selected = 0))
+        assertEquals(listOf("🎤 Áudio 0:12", "▶ Ouvir este áudio", "Responder", "Enviar foto ou vídeo"), audio.rows.map { it.text })
     }
 
     @Test
@@ -118,7 +126,7 @@ class ScreenMakerTest {
     fun `home shows the installed version under the title, other screens don't`() {
         val withVersion = ScreenMaker(ZapText(pt = true), version = "0.5.2")
         assertEquals("Zap 0.5.2", card(withVersion.make(Step.Inbox(emptyList()), 0)).subtitle)
-        assertNull(card(withVersion.make(Step.Thread(leoChat, reading = false), 0)).subtitle)
+        assertNull(card(withVersion.make(Step.Review(leoChat.recipient(), "oi"), 0)).subtitle)
     }
 
     @Test
@@ -145,7 +153,7 @@ class ScreenMakerTest {
         assertTrue(fits(down))
         // The whole lens, when the wearer sees all of it.
         val whole = ScreenMaker(ZapText(pt = true), java.time.ZoneOffset.UTC, now = { 10_000L }, reach = null)
-        assertEquals(13, card(whole.make(Step.Inbox(chats), 0)).rows.size)
+        assertTrue(card(whole.make(Step.Inbox(chats), 0)).rows.size > top.rows.size)
     }
 
     private fun fits(card: Screen.Card): Boolean {

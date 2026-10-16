@@ -18,6 +18,14 @@ class ZapText(private val pt: Boolean = Locale.getDefault().language == "pt") {
     val sayName get() = if (pt) "Dizer o nome" else "Say the name"
     val noRecent get() = if (pt) "Ainda sem contatos recentes" else "No recent contacts yet"
     val reply get() = if (pt) "Responder" else "Reply"
+    val readAloud get() = if (pt) "🔊 Ler em voz alta" else "🔊 Read it aloud"
+    val readFull get() = if (pt) "Ler a mensagem inteira" else "Read the whole message"
+    val playThisAudio get() = if (pt) "▶ Ouvir este áudio" else "▶ Play this voice message"
+    val seeThisPhoto get() = if (pt) "Ver a foto" else "See the photo"
+    val replyRow get() = if (pt) "✎ Responder" else "✎ Reply"
+    fun voiceRow(seconds: Int?) = (if (pt) "🎤 Áudio" else "🎤 Voice message") +
+        (seconds?.takeIf { it > 0 }?.let { " %d:%02d".format(it / 60, it % 60) } ?: "")
+    val chatHint get() = if (pt) "Toque numa mensagem para ver o que fazer" else "Tap a message for what you can do"
     val listenAgain get() = if (pt) "Ouvir de novo" else "Listen again"
     val me get() = if (pt) "Você" else "You"
     /** Under a chat being read: what a tap brings up. */
