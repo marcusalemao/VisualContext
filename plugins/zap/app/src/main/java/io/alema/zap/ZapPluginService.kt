@@ -174,7 +174,7 @@ class ZapPluginService : NexusPluginService() {
                     this,
                     uri,
                     onDone = { main.post { flow.onAudioDone(); render() } },
-                    onError = { main.post { audioFailed(Note.AUDIO_NOT_FOUND) } },
+                    onError = { main.post { audioFailed(Note.AUDIO_PLAY_FAILED) } },
                 )
             }
         }.start()

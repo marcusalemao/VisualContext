@@ -243,6 +243,7 @@ class ScreenMaker(
         Note.NO_AUDIO_ACCESS -> text.noAudioAccess
         Note.AUDIO_NOT_FOUND -> text.audioNotFound
         Note.NO_HEADPHONES -> text.noHeadphones
+        Note.AUDIO_PLAY_FAILED -> text.audioPlayFailed
         else -> text.failed
     }
 
@@ -278,7 +279,7 @@ class ScreenMaker(
             step.note == Note.REPLY_ON_PHONE -> text.replyOnPhone
             step.note == Note.NO_PHOTOS -> text.noPhotos
             step.note == Note.CAMERA_FAILED -> text.cameraFailed
-            step.note == Note.NO_AUDIO_ACCESS || step.note == Note.AUDIO_NOT_FOUND || step.note == Note.NO_HEADPHONES -> noteText(step.note)
+            step.note == Note.NO_AUDIO_ACCESS || step.note == Note.AUDIO_NOT_FOUND || step.note == Note.NO_HEADPHONES || step.note == Note.AUDIO_PLAY_FAILED -> noteText(step.note)
             step.note == Note.NO_SPEECH -> text.noSpeech
             else -> text.speechUnavailable
         }

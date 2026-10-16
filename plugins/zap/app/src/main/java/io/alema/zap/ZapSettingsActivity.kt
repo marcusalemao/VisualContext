@@ -228,6 +228,7 @@ class ZapSettingsActivity : Activity() {
             ),
             checked = settings.offerNewPhotos(),
         ) { on -> settings.setOfferNewPhotos(on) }
+        photoTiming()?.let { infoCard(t("Última foto oferecida", "Last photo offered"), it) }
 
         section(t("Tela dos óculos", "Glasses display"))
         choiceCard(
@@ -359,6 +360,25 @@ class ZapSettingsActivity : Activity() {
                 "Antes estava a $last. Nos óculos, se o Nexus pedir, aprove o Zap de novo: as novidades podem precisar de permissões novas.",
                 "It was $last. On the glasses, if Nexus asks, approve Zap again: new features may need new permissions.",
             ),
+        )
+    }
+
+    /** Where the wait went for the last photo offer: Nexus' sync, then Zap. */
+    private fun photoTiming(): String? {
+        val prefs = getSharedPreferences("zap_photo_offer", MODE_PRIVATE)
+        val taken = prefs.getLong(ZapPhotoWatcher.KEY_TAKEN, 0L)
+        val arrived = prefs.getLong(ZapPhotoWatcher.KEY_ARRIVED, 0L)
+        val noticed = prefs.getLong(ZapPhotoWatcher.KEY_NOTICED, 0L)
+        val shown = prefs.getLong(ZapPhotoWatcher.KEY_SHOWN, 0L)
+        if (noticed == 0L) return null
+        fun secs(from: Long, to: Long) = if (from > 0 && to >= from) "${(to - from + 500) / 1000} s" else "?"
+        return t(
+            "Tirada às ${time(taken.takeIf { it > 0 } ?: arrived)}.\n" +
+                "• Dos óculos até o celular (sincronização do Nexus): ${secs(taken, arrived)}\n" +
+                "• Até aparecer na lente (Zap): ${secs(arrived, shown.takeIf { it >= noticed } ?: noticed)}",
+            "Taken at ${time(taken.takeIf { it > 0 } ?: arrived)}.\n" +
+                "• Glasses to phone (Nexus sync): ${secs(taken, arrived)}\n" +
+                "• Until it showed on the lens (Zap): ${secs(arrived, shown.takeIf { it >= noticed } ?: noticed)}",
         )
     }
 

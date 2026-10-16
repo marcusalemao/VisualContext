@@ -172,6 +172,8 @@ internal object ZapNotifier : NexusPluginCallbacks {
         pendingPhoto?.let { offer ->
             pendingPhoto = null
             showPhotoOffer(current, offer)
+            appContext?.getSharedPreferences("zap_photo_offer", Context.MODE_PRIVATE)?.edit()
+                ?.putLong(ZapPhotoWatcher.KEY_SHOWN, System.currentTimeMillis())?.apply()
             return
         }
         val arrival = pending ?: return

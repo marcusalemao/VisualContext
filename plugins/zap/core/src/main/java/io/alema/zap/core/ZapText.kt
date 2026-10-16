@@ -73,6 +73,7 @@ class ZapText(private val pt: Boolean = Locale.getDefault().language == "pt") {
     val stopAudio get() = if (pt) "■ Parar" else "■ Stop"
     val noAudioAccess get() = if (pt) "No celular: Zap › \"Ouvir áudios do WhatsApp\"" else "On the phone: Zap › \"Play WhatsApp voice messages\""
     val audioNotFound get() = if (pt) "O WhatsApp ainda não baixou este áudio" else "WhatsApp hasn't downloaded this one yet"
+    val audioPlayFailed get() = if (pt) "Achei o áudio, mas o celular não conseguiu tocar" else "Found the voice message, but the phone couldn't play it"
     val noHeadphones get() = if (pt) "Sem áudio dos óculos ou fone: não toco no alto-falante do celular" else "No glasses audio or earbuds: won't play on the phone speaker"
     val photoOffer get() = if (pt) "Enviar pelo Zap?" else "Send with Zap?"
     val otherPerson get() = if (pt) "Outra pessoa" else "Someone else"

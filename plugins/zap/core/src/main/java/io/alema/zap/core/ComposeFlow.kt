@@ -7,7 +7,7 @@ enum class SendOutcome { SENT, OPENED_FOR_THUMB, WAITING_FOR_UNLOCK, NOT_INSTALL
 enum class Note {
     NO_SPEECH, SPEECH_UNAVAILABLE, NO_CONTACT, NO_NUMBER, REPLY_ON_PHONE, NO_PHOTOS, CAMERA_FAILED,
     /** Voice messages: no folder access yet, not downloaded yet, or nowhere private to play (no glasses audio/earbuds). */
-    NO_AUDIO_ACCESS, AUDIO_NOT_FOUND, NO_HEADPHONES,
+    NO_AUDIO_ACCESS, AUDIO_NOT_FOUND, NO_HEADPHONES, AUDIO_PLAY_FAILED,
 }
 
 /** What a chat's choices card offers, in order. Photos and voice messages only when the chat has some. */

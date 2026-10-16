@@ -23,14 +23,20 @@ internal class ZapPhotoWatcher(private val context: Context) {
 
     private val observer = object : ContentObserver(main) {
         override fun onChange(selfChange: Boolean) {
+            // Short and never pushed back forever: a busy gallery must not starve the offer.
+            val now = android.os.SystemClock.uptimeMillis()
+            if (firstChangeAt == 0L) firstChangeAt = now
             main.removeCallbacks(check)
-            main.postDelayed(check, SETTLE_MS)
+            main.postDelayed(check, if (now - firstChangeAt > MAX_WAIT_MS) 0L else SETTLE_MS)
         }
     }
 
+    private var firstChangeAt = 0L
+
     private val check = Runnable {
+        firstChangeAt = 0L
         if (!ZapSettings(context).offerNewPhotos()) return@Runnable
-        val (key, addedSec) = ZapGallery.newestGlassesPhoto(context) ?: return@Runnable
+        val (key, addedSec, takenMs) = ZapGallery.newestGlassesPhotoTimes(context) ?: return@Runnable
         val seen = prefs.getLong(KEY_LAST_ID, -1L)
         if (key.id == seen) return@Runnable
         prefs.edit().putLong(KEY_LAST_ID, key.id).apply()
@@ -40,6 +46,13 @@ internal class ZapPhotoWatcher(private val context: Context) {
             Log.i(TAG, "glasses photo ${key.id} not offered (first run or ${ageMs / 1000}s old)")
             return@Runnable
         }
+        // How long each leg took, shown in the phone settings: glasses→phone is Nexus' sync, the rest is Zap.
+        val now = System.currentTimeMillis()
+        prefs.edit()
+            .putLong(KEY_TAKEN, takenMs)
+            .putLong(KEY_ARRIVED, addedSec * 1000)
+            .putLong(KEY_NOTICED, now)
+            .apply()
         ZapNotifier.offerPhoto(context, key.toString())
     }
 
@@ -61,7 +74,12 @@ internal class ZapPhotoWatcher(private val context: Context) {
     companion object {
         private const val TAG = "ZapPhotoWatcher"
         private const val KEY_LAST_ID = "last_offered_id"
-        private const val SETTLE_MS = 1_500L
+        private const val SETTLE_MS = 250L
+        private const val MAX_WAIT_MS = 1_000L
+        const val KEY_TAKEN = "last_taken_ms"
+        const val KEY_ARRIVED = "last_arrived_ms"
+        const val KEY_NOTICED = "last_noticed_ms"
+        const val KEY_SHOWN = "last_shown_ms"
         /** Nexus waits ~5 s for a stable file and ~5 s to copy it: a minute is generous. */
         private const val FRESH_MS = 2 * 60_000L
     }

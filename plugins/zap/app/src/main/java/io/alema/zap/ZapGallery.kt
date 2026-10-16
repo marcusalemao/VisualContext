@@ -100,19 +100,22 @@ internal object ZapGallery {
         permissions().any { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }
 
     /** The newest photo that came over from the glasses (not videos), with when it was added, epoch seconds. */
-    fun newestGlassesPhoto(context: Context): Pair<GalleryKey, Long>? {
+    /** The newest glasses photo, when it reached the phone (seconds) and when it was taken (ms, 0 if unknown). */
+    fun newestGlassesPhoto(context: Context): Pair<GalleryKey, Long>? = newestGlassesPhotoTimes(context)?.let { it.first to it.second }
+
+    fun newestGlassesPhotoTimes(context: Context): Triple<GalleryKey, Long, Long>? {
         if (access(context) != Access.FULL) return null
         return runCatching {
             val path = MediaStore.MediaColumns.RELATIVE_PATH
             val bucket = MediaStore.MediaColumns.BUCKET_DISPLAY_NAME
             context.contentResolver.query(
                 MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                arrayOf(MediaStore.Images.Media._ID, MediaStore.MediaColumns.DATE_ADDED),
+                arrayOf(MediaStore.Images.Media._ID, MediaStore.MediaColumns.DATE_ADDED, MediaStore.MediaColumns.DATE_TAKEN),
                 "(COALESCE($path, '') LIKE ? OR COALESCE($bucket, '') LIKE ?)",
                 arrayOf("%rokid%", "%rokid%"),
                 "${MediaStore.MediaColumns.DATE_ADDED} DESC",
             )?.use { cursor ->
-                if (cursor.moveToFirst()) GalleryKey(fromGlasses = true, video = false, id = cursor.getLong(0)) to cursor.getLong(1) else null
+                if (cursor.moveToFirst()) Triple(GalleryKey(fromGlasses = true, video = false, id = cursor.getLong(0)), cursor.getLong(1), cursor.getLong(2)) else null
             }
         }.onFailure { Log.w(TAG, "newest glasses photo query failed", it) }.getOrNull()
     }
