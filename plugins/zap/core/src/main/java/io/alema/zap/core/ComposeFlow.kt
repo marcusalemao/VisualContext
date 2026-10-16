@@ -494,7 +494,9 @@ class ComposeFlow(
 
     private fun reply(conversation: ZapConversation): List<Effect> {
         if (!conversation.canReply) {
-            return done(Step.Done(conversation.recipient(), null, note = Note.REPLY_ON_PHONE))
+            // A group can only be answered on the phone; a person just lacks a number this time.
+            val note = if (conversation.isGroup) Note.REPLY_ON_PHONE else Note.NO_NUMBER
+            return done(Step.Done(conversation.recipient(), null, note = note))
         }
         return listOf(Effect.StopSpeaking) + listen(conversation.recipient())
     }

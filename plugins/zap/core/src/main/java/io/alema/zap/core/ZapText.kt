@@ -98,7 +98,7 @@ class ZapText(private val pt: Boolean = Locale.getDefault().language == "pt") {
     val notInstalled get() = if (pt) "WhatsApp não está instalado" else "WhatsApp is not installed"
     val failed get() = if (pt) "Não consegui abrir o WhatsApp" else "Could not open WhatsApp"
     fun noContact(name: String) = if (pt) "Não achei \"$name\" nas conversas nem nos contatos" else "Couldn't find \"$name\" in chats or contacts"
-    val noNumber get() = if (pt) "Sem o número dessa pessoa. Responda quando ela escrever de novo, ou importe os contatos nos ajustes do Zap" else "No number for this person. Reply when they write again, or import contacts in Zap's settings"
+    val noNumber get() = if (pt) "O WhatsApp não mandou o número dessa pessoa (comum quando a conversa está aberta no celular). Responda pelo celular, ou salve-a na agenda e ligue \"Usar a agenda\" no Zap" else "WhatsApp didn't share this person's number (common when the chat is open on the phone). Answer on the phone, or save them in contacts and turn on \"Use the phone's contacts\" in Zap"
     val noSpeech get() = if (pt) "Não ouvi nada" else "Didn't hear anything"
     val speechUnavailable get() = if (pt) "Voz indisponível" else "Voice unavailable"
 
