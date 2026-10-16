@@ -61,6 +61,24 @@ object LiveProtocol {
     fun toolResponse(id: String, name: String, response: JSONObject): String = JSONObject().put("toolResponse", JSONObject()
         .put("functionResponses", JSONArray().put(JSONObject().put("id", id).put("name", name).put("response", response)))).toString()
 
+    const val MODELS_URL = "https://generativelanguage.googleapis.com/v1beta/models?pageSize=200"
+
+    /**
+     * Picks the Live model this key can actually use, from the ListModels answer, instead of trusting a hard-coded name
+     * (Google renames Live models often). Only models that speak `bidiGenerateContent` qualify;
+     * native-audio ones win, then the newest-looking name.
+     */
+    fun pickLiveModel(listModelsJson: String): String? {
+        val models = try { JSONObject(listModelsJson).optJSONArray("models") } catch (_: Exception) { null } ?: return null
+        val live = (0 until models.length()).mapNotNull { i ->
+            val m = models.optJSONObject(i) ?: return@mapNotNull null
+            val methods = m.optJSONArray("supportedGenerationMethods") ?: return@mapNotNull null
+            if ((0 until methods.length()).none { methods.optString(it) == "bidiGenerateContent" }) null else m.optString("name")
+        }.filter { it.startsWith("models/") }
+        fun score(n: String) = (if ("native-audio" in n) 4 else 0) + (if ("live" in n) 2 else 0) + (if ("preview" in n || "exp" in n) 0 else 1)
+        return live.sortedWith(compareByDescending<String> { score(it) }.thenByDescending { it }).firstOrNull()
+    }
+
     sealed class Event {
         object SetupComplete : Event()
         data class Audio(val base64Pcm24k: String) : Event()

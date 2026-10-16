@@ -111,7 +111,20 @@ class SoloActivity : ComponentActivity(), LiveSession.Listener {
         transcript.clear(); question.setLength(0); turnDone = true; lastPhoto = null
         hud.set("VisualContext", listOf("conectando…"), "voltar: cancelar")
         speaker.start()
-        live.connect(c.geminiKey, c.voice, resumeHandle, c.model)
+        io.execute {
+            val model = model(c)
+            main.post { if (state == State.CONNECTING) live.connect(c.geminiKey, c.voice, resumeHandle, model) }
+        }
+    }
+
+    /** The QR's model if the user set one; otherwise the Live model Google lists for this key (asked once, then cached). */
+    private fun model(c: SoloConfig): String {
+        if (c.model != LiveProtocol.MODEL) return c.model
+        val prefs = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        prefs.getString("resolved_model", null)?.let { return it }
+        val picked = live.listModels(c.geminiKey)?.let { LiveProtocol.pickLiveModel(it) } ?: return LiveProtocol.MODEL
+        prefs.edit().putString("resolved_model", picked).apply()
+        return picked
     }
 
     private fun endSession(note: String? = null) {
@@ -153,6 +166,7 @@ class SoloActivity : ComponentActivity(), LiveSession.Listener {
     private fun handle(e: LiveProtocol.Event) {
         when (e) {
             is LiveProtocol.Event.SetupComplete -> {
+                if (state != State.CONNECTING && state != State.OPEN) return
                 state = State.OPEN
                 reconnecting = false
                 hud.live = true
@@ -206,6 +220,8 @@ class SoloActivity : ComponentActivity(), LiveSession.Listener {
             // The resumed connection itself failed: give up cleanly instead of hanging on "conectando".
             if (reconnecting) { reconnecting = false; endSession(reason); return@post }
             if (state == State.OPEN && resumeHandle != null) { reconnect(); return@post }
+            // Refused before the session even started: maybe the model changed name; ask Google again next time.
+            if (state == State.CONNECTING) getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove("resolved_model").apply()
             if (state != State.IDLE && state != State.SETUP) endSession(reason)
         }
     }

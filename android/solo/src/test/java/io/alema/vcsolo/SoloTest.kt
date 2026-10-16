@@ -19,6 +19,15 @@ class SoloTest {
         assertEquals(LiveProtocol.MODEL, SetupCode.parse("VCSOLO1:{\"gemini\":\"$key\",\"model\":\"bad model!\"}")!!.model)
     }
 
+    @Test fun picksALiveModelFromTheKeysOwnList() {
+        val list = """{"models":[
+            {"name":"models/gemini-flash-latest","supportedGenerationMethods":["generateContent"]},
+            {"name":"models/gemini-2.5-flash-live","supportedGenerationMethods":["bidiGenerateContent"]},
+            {"name":"models/gemini-2.5-flash-native-audio-preview","supportedGenerationMethods":["bidiGenerateContent","countTokens"]}]}"""
+        assertEquals("models/gemini-2.5-flash-native-audio-preview", LiveProtocol.pickLiveModel(list))
+        assertNull(LiveProtocol.pickLiveModel("""{"models":[{"name":"models/x","supportedGenerationMethods":["generateContent"]}]}"""))
+    }
+
     @Test fun foreignQrIsIgnored() {
         assertNull(SetupCode.parse("WIFI:T:WPA;S:x;P:y;;"))
         assertNull(SetupCode.parse("VCSOLO1:{\"gemini\":\"short\"}"))

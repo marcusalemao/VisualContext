@@ -58,6 +58,13 @@ class LiveSession(private val listener: Listener) {
         })
     }
 
+    /** Blocking: the ListModels answer for this key (null when offline or the key is refused). */
+    fun listModels(apiKey: String): String? = try {
+        http.newCall(Request.Builder().url(LiveProtocol.MODELS_URL).header("x-goog-api-key", apiKey).build()).execute().use { r ->
+            if (r.isSuccessful) r.body?.string() else null
+        }
+    } catch (_: Exception) { null }
+
     fun send(json: String): Boolean = open && ws?.send(json) == true
 
     fun close() {
