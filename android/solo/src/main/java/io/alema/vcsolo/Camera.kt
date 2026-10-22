@@ -11,6 +11,8 @@ import android.util.Size
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
+import androidx.camera.core.Preview
+import androidx.camera.view.PreviewView
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
@@ -20,6 +22,7 @@ import com.google.zxing.DecodeHintType
 import com.google.zxing.MultiFormatReader
 import com.google.zxing.PlanarYUVLuminanceSource
 import com.google.zxing.common.HybridBinarizer
+import com.google.zxing.qrcode.detector.Detector
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.Executors
 
@@ -32,11 +35,17 @@ class Camera(private val ctx: Context, private val owner: LifecycleOwner) {
     private var provider: ProcessCameraProvider? = null
     @Volatile private var pendingPhoto: ((ByteArray?) -> Unit)? = null
     @Volatile private var qrListener: ((String) -> Unit)? = null
+    @Volatile private var qrStatus: ((QrHint.State) -> Unit)? = null
+    private var cam: androidx.camera.core.Camera? = null
+    private var previewing = false
     @Volatile var bound = false
         private set
 
-    fun start(onReady: (Boolean) -> Unit) {
-        if (bound) { onReady(true); return }
+    /** With [preview], the wearer sees the camera live on the glasses (used to aim at a QR). */
+    fun start(onReady: (Boolean) -> Unit) = start(null, onReady)
+
+    fun start(preview: PreviewView?, onReady: (Boolean) -> Unit) {
+        if (bound && (preview == null || previewing)) { onReady(true); return }
         val f = ProcessCameraProvider.getInstance(ctx)
         f.addListener({
             try {
@@ -48,7 +57,13 @@ class Camera(private val ctx: Context, private val owner: LifecycleOwner) {
                     .build()
                 analysis.setAnalyzer(exec) { img -> handle(img) }
                 p.unbindAll()
-                p.bindToLifecycle(owner, CameraSelector.DEFAULT_BACK_CAMERA, analysis)
+                cam = if (preview != null) {
+                    val pv = Preview.Builder().build().also { it.setSurfaceProvider(preview.surfaceProvider) }
+                    p.bindToLifecycle(owner, CameraSelector.DEFAULT_BACK_CAMERA, pv, analysis)
+                } else {
+                    p.bindToLifecycle(owner, CameraSelector.DEFAULT_BACK_CAMERA, analysis)
+                }
+                previewing = preview != null
                 bound = true
                 boundAt = System.currentTimeMillis()
                 onReady(true)
@@ -61,14 +76,28 @@ class Camera(private val ctx: Context, private val owner: LifecycleOwner) {
     fun stop() {
         provider?.unbindAll()
         bound = false
+        previewing = false
+        cam = null
         qrListener = null
+        qrStatus = null
         pendingPhoto?.invoke(null); pendingPhoto = null
     }
 
     /** Next frame as a JPEG, longest side ≤ 768 px (what the Live API wants). */
     fun photo(cb: (ByteArray?) -> Unit) { pendingPhoto = cb }
 
-    fun scanQr(cb: (String) -> Unit) { qrListener = cb }
+    fun scanQr(status: (QrHint.State) -> Unit, cb: (String) -> Unit) { qrStatus = status; qrListener = cb }
+
+    /** Digital zoom: the Rokid lens is wide, so codes look farther than they are. Returns the ratio applied. */
+    fun zoomTo(ratio: Float): Float {
+        val c = cam ?: return 1f
+        val st = c.cameraInfo.zoomState.value
+        val r = ratio.coerceIn(st?.minZoomRatio ?: 1f, st?.maxZoomRatio ?: 1f)
+        c.cameraControl.setZoomRatio(r)
+        return r
+    }
+
+    val zoom: Float get() = cam?.cameraInfo?.zoomState?.value?.zoomRatio ?: 1f
 
     private var lastQrAt = 0L
     @Volatile private var boundAt = 0L
@@ -81,7 +110,8 @@ class Camera(private val ctx: Context, private val owner: LifecycleOwner) {
             val now = System.currentTimeMillis()
             if (q != null && now - lastQrAt > 300) {
                 lastQrAt = now
-                readQr(img)?.let { q(it) }
+                val text = readQr(img)
+                if (text != null) q(text) else qrStatus?.invoke(QrHint.of(locate(img), img.width, img.height))
             }
         } finally {
             img.close()
@@ -93,12 +123,21 @@ class Camera(private val ctx: Context, private val owner: LifecycleOwner) {
     }
 
     private fun readQr(img: ImageProxy): String? {
+        val src = luminance(img)
+        return try { reader.decodeWithState(BinaryBitmap(HybridBinarizer(src))).text } catch (_: Exception) { null } finally { reader.reset() }
+    }
+
+    /** Where ZXing sees the QR's finder patterns, even when it can't read the code yet. */
+    private fun locate(img: ImageProxy): List<Pair<Float, Float>> = try {
+        val bits = BinaryBitmap(HybridBinarizer(luminance(img))).blackMatrix
+        Detector(bits).detect(mapOf(DecodeHintType.TRY_HARDER to true)).points.map { it.x to it.y }
+    } catch (_: Exception) { emptyList() }
+
+    private fun luminance(img: ImageProxy): PlanarYUVLuminanceSource {
         val y = img.planes[0]
-        val stride = y.rowStride
         val buf = y.buffer.duplicate().apply { rewind() }
         val data = ByteArray(buf.remaining()).also { buf.get(it) }
-        val src = PlanarYUVLuminanceSource(data, stride, img.height, 0, 0, img.width, img.height, false)
-        return try { reader.decodeWithState(BinaryBitmap(HybridBinarizer(src))).text } catch (_: Exception) { null } finally { reader.reset() }
+        return PlanarYUVLuminanceSource(data, y.rowStride, img.height, 0, 0, img.width, img.height, false)
     }
 
     private fun jpeg(img: ImageProxy): ByteArray? = try {

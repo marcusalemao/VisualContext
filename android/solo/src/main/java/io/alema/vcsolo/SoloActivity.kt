@@ -66,25 +66,61 @@ class SoloActivity : ComponentActivity(), LiveSession.Listener {
 
     // ---- setup by QR -------------------------------------------------------------------------
 
+    private var scanView: android.widget.FrameLayout? = null
+    private var overlay: ScanOverlay? = null
+    private var lastHintAt = 0L
+
+    /**
+     * Reading the setup QR: the camera is shown live on the glasses, zoomed 2×, with corner marks,
+     * a sweeping line and one hint at the top ("chegue mais perto", "fique parado…").
+     * Swipe = zoom in/out. The wide lens and the camera on the left temple make blind aiming impossible.
+     */
     private fun startSetup() {
         state = State.SETUP
         if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            showHud()
             hud.set("Configurar", listOf("falta liberar a câmera", "adb shell pm grant", "io.alema.vcsolo …CAMERA"), "voltar: sair"); return
         }
-        hud.set("Configurar", listOf("no computador, abra", "visualcontext.alema.io/solo", "e olhe para o QR code"), "procurando o QR… · voltar: sair")
-        camera.start { ok ->
-            if (!ok) { hud.set("Configurar", listOf("a câmera não abriu"), "voltar: sair"); return@start }
-            camera.scanQr { raw ->
-                val c = SetupCode.parse(raw) ?: return@scanQr
+        val preview = androidx.camera.view.PreviewView(this).apply {
+            implementationMode = androidx.camera.view.PreviewView.ImplementationMode.COMPATIBLE
+            scaleType = androidx.camera.view.PreviewView.ScaleType.FILL_CENTER
+        }
+        val ov = ScanOverlay(this).apply { detail = "no computador: visualcontext.alema.io/solo" }
+        overlay = ov
+        scanView = android.widget.FrameLayout(this).apply { addView(preview); addView(ov) }
+        setContentView(scanView)
+        camera.start(preview) { ok ->
+            if (!ok) { showHud(); hud.set("Configurar", listOf("a câmera não abriu"), "voltar: sair"); return@start }
+            val z = camera.zoomTo(2f)
+            ov.set(QrHint.State.POINT.text, "zoom ${"%.1f".format(z)}× · deslize: zoom · voltar: sair")
+            camera.scanQr(status = { st ->
+                main.post {
+                    // Hints change at most twice a second, so the text doesn't flicker.
+                    val now = SystemClock.elapsedRealtime()
+                    if (state == State.SETUP && now - lastHintAt > 500) { lastHintAt = now; ov.set(st.text) }
+                }
+            }) { raw ->
+                val c = SetupCode.parse(raw)
                 main.post {
                     if (state != State.SETUP) return@post
+                    if (c == null) { ov.set("esse QR não é do VisualContext"); return@post }
                     saveConfig(c)
                     config = c
                     camera.stop()
+                    showHud()
                     showIdle("✓ configurado")
                 }
             }
         }
+    }
+
+    private fun zoomStep(delta: Float) {
+        val z = camera.zoomTo(camera.zoom + delta)
+        overlay?.set(overlay?.hint ?: "", "zoom ${"%.1f".format(z)}× · deslize: zoom · voltar: sair")
+    }
+
+    private fun showHud() {
+        if (scanView != null) { scanView = null; overlay = null; setContentView(hud) }
     }
 
     // ---- session --------------------------------------------------------------------------
@@ -279,8 +315,8 @@ class SoloActivity : ComponentActivity(), LiveSession.Listener {
         when (keyCode) {
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> onTap()
             KeyEvent.KEYCODE_BACK -> onBack()
-            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN,
-            KeyEvent.KEYCODE_VOLUME_UP, KeyEvent.KEYCODE_VOLUME_DOWN -> if (state == State.OPEN || state == State.CONNECTING) endSession() else return super.onKeyDown(keyCode, event)
+            KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_VOLUME_UP -> if (state == State.SETUP) zoomStep(0.5f) else if (state == State.OPEN || state == State.CONNECTING) endSession() else return super.onKeyDown(keyCode, event)
+            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_VOLUME_DOWN -> if (state == State.SETUP) zoomStep(-0.5f) else if (state == State.OPEN || state == State.CONNECTING) endSession() else return super.onKeyDown(keyCode, event)
             KeyEvent.KEYCODE_MENU -> { endSession(); getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().clear().apply(); config = null; startSetup() }
             else -> {
                 // Unknown key: show its code once, so we learn this glasses' touchpad mapping.

@@ -28,6 +28,14 @@ class SoloTest {
         assertNull(LiveProtocol.pickLiveModel("""{"models":[{"name":"models/x","supportedGenerationMethods":["generateContent"]}]}"""))
     }
 
+    @Test fun qrHints() {
+        assertEquals(QrHint.State.POINT, QrHint.of(emptyList(), 1280, 960))
+        // finder patterns 100 px apart in a 960 px tall frame: too small
+        assertEquals(QrHint.State.CLOSER, QrHint.of(listOf(100f to 100f, 200f to 100f, 100f to 200f), 1280, 960))
+        // 400 px apart: big enough, hold still while it focuses
+        assertEquals(QrHint.State.HOLD, QrHint.of(listOf(300f to 200f, 700f to 200f, 300f to 600f), 1280, 960))
+    }
+
     @Test fun foreignQrIsIgnored() {
         assertNull(SetupCode.parse("WIFI:T:WPA;S:x;P:y;;"))
         assertNull(SetupCode.parse("VCSOLO1:{\"gemini\":\"short\"}"))
