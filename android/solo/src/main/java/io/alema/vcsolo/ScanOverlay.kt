@@ -1,5 +1,6 @@
 package io.alema.vcsolo
 
+import io.alema.qrcore.QrHint
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color

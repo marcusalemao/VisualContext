@@ -1,5 +1,6 @@
 package io.alema.vcsolo
 
+import io.alema.qrcore.QrHint
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager

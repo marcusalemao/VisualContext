@@ -15,6 +15,9 @@ android {
         versionName = "0.1.3"
     }
 
+    // QR hints shared with the Leitor QR plugin: plain Kotlin, no Android.
+    sourceSets["main"].kotlin.srcDir("../../libs/qr-core/src/main/kotlin")
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11

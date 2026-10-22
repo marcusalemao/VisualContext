@@ -1,4 +1,4 @@
-package io.alema.vcsolo
+package io.alema.qrcore
 
 /**
  * What to tell the wearer while aiming at a QR. Plain Kotlin, unit-tested.

@@ -1,5 +1,6 @@
 package io.alema.vcsolo
 
+import io.alema.qrcore.QrHint
 import org.json.JSONObject
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull

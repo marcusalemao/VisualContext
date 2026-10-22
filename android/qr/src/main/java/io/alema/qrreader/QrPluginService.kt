@@ -14,6 +14,7 @@ import com.anezium.rokidbus.client.plugin.NexusSnapshotSession
 import com.anezium.rokidbus.client.plugin.NexusSurfaceSession
 import com.anezium.rokidbus.shared.ImageSurfaceContract
 import com.anezium.rokidbus.shared.plugin.NexusInputEvent
+import io.alema.qrcore.QrHint
 import io.alema.qrcore.QrParser
 import java.util.concurrent.Executors
 
@@ -41,6 +42,7 @@ class QrPluginService : NexusPluginService() {
     private var card: Card? = null
     private var revision = 0
     private var generation = 0   // bumps on every new scan, so late results from an old scan are ignored
+    private var zoom = 2f        // the Rokid lens is wide: codes look farther than they are
 
     override fun onNexusOpen() {
         surface = nexusSurfaceSession(SURFACE_ID)
@@ -60,6 +62,8 @@ class QrPluginService : NexusPluginService() {
         when (event.keyCode) {
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> onTap()
             KeyEvent.KEYCODE_BACK -> onBack()
+            KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_VOLUME_UP -> zoomStep(+0.5f)
+            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_VOLUME_DOWN -> zoomStep(-0.5f)
         }
     }
 
@@ -81,6 +85,14 @@ class QrPluginService : NexusPluginService() {
         }
     }
 
+    /** Swipe while scanning = zoom (1×–4×). The next viewfinder frame shows it. */
+    private fun zoomStep(delta: Float) {
+        if (state != State.SCANNING) return
+        zoom = (zoom + delta).coerceIn(1f, 4f)
+    }
+
+    private fun detail() = "zoom ${"%.1f".format(zoom)}× · deslize: zoom · voltar: fechar"
+
     private fun onBack() {
         when (state) {
             State.RESULT, State.GAVE_UP -> startScan()
@@ -97,7 +109,7 @@ class QrPluginService : NexusPluginService() {
         errors = 0
         lastError = ""
         scanStartedAt = SystemClock.elapsedRealtime()
-        show("Leitor QR", listOf("olhe para o QR code", "de perto, sem pressa"), "lendo… · voltar: fechar")
+        show("Leitor QR", listOf("abrindo a câmera…", "a imagem aparece aqui"), "deslize: zoom · voltar: fechar")
         captureNext(generation)
     }
 
@@ -115,9 +127,15 @@ class QrPluginService : NexusPluginService() {
         val s = nexusSnapshotSession(object : NexusSnapshotCallbacks {
             override fun onSnapshotCaptured(jpeg: ByteArray) {
                 main.post { if (gen == generation) { photos++; waitingFor = 0 } }
+                val z = zoom
                 io.execute {
-                    val raw = QrDecoder.decode(jpeg)   // jpeg is dropped right after this line
-                    main.post { onDecoded(gen, raw) }
+                    // Decoded and drawn in memory; the photo is dropped right after.
+                    val bmp = Viewfinder.load(jpeg)
+                    if (bmp == null) { main.post { onDecoded(gen, null, null) }; return@execute }
+                    val (raw, pts) = QrDecoder.analyze(bmp)
+                    val frame = if (raw == null) Viewfinder.render(bmp, z, QrHint.of(pts, bmp.width, bmp.height).text, detail()) else null
+                    bmp.recycle()
+                    main.post { onDecoded(gen, raw, frame) }
                 }
             }
 
@@ -140,10 +158,11 @@ class QrPluginService : NexusPluginService() {
         }, PHOTO_TIMEOUT_MS)
     }
 
-    private fun onDecoded(gen: Int, raw: String?) {
+    private fun onDecoded(gen: Int, raw: String?, frame: ByteArray?) {
         if (gen != generation || state != State.SCANNING) return
         if (raw.isNullOrBlank()) {
-            if (photos % 5 == 1) show("Leitor QR", listOf("olhe para o QR code", "de perto, sem pressa", "lendo… $photos fotos"), "voltar: fechar")
+            // Viewfinder: what the camera sees, so the wearer can aim (camera on the left temple, wide lens).
+            if (frame != null) showFrame(frame)
             main.postDelayed({ captureNext(gen) }, BETWEEN_SHOTS_MS)
             return
         }
@@ -188,6 +207,14 @@ class QrPluginService : NexusPluginService() {
         main.removeCallbacksAndMessages(null)
         surface?.hide()
         surface = null
+    }
+
+    private fun showFrame(jpeg: ByteArray) {
+        val s = surface ?: return
+        if (nexusClient?.supportsImageSurface != true) return
+        revision++
+        s.showImage(NexusImage(contentKey = "qr-view-$revision", mimeType = ImageSurfaceContract.MIME_JPEG,
+            pixelWidth = Viewfinder.SIZE, pixelHeight = Viewfinder.SIZE, handlesBack = true), jpeg)
     }
 
     /** Whole card as one image when the glasses support it (sharpest result); text card otherwise. */

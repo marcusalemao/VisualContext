@@ -11,6 +11,7 @@ import com.google.zxing.NotFoundException
 import com.google.zxing.RGBLuminanceSource
 import com.google.zxing.common.GlobalHistogramBinarizer
 import com.google.zxing.common.HybridBinarizer
+import com.google.zxing.qrcode.detector.Detector
 
 /**
  * Finds a QR code in one camera snapshot. Runs on the phone, in memory only:
@@ -36,6 +37,23 @@ object QrDecoder {
         } finally {
             bmp.recycle()
         }
+    }
+
+    /**
+     * One snapshot, read once: the QR text if it can be read, else where the code seems to be
+     * (finder-pattern centres) so the viewfinder can say "chegue mais perto" or "fique parado".
+     */
+    fun analyze(bmp: Bitmap): Pair<String?, List<Pair<Float, Float>>> {
+        val w = bmp.width; val h = bmp.height
+        val px = IntArray(w * h)
+        bmp.getPixels(px, 0, w, 0, 0, w, h)
+        val text = decodePixels(px, w, h)
+        if (text != null) return text to emptyList()
+        val pts = try {
+            Detector(BinaryBitmap(HybridBinarizer(RGBLuminanceSource(w, h, px))).blackMatrix)
+                .detect(mapOf(DecodeHintType.TRY_HARDER to true)).points.map { it.x to it.y }
+        } catch (_: Exception) { emptyList() }
+        return null to pts
     }
 
     /** ARGB pixels → QR text. No Android types, so it is tested on the JVM. */
