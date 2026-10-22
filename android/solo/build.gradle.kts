@@ -11,8 +11,8 @@ android {
         applicationId = "io.alema.vcsolo"
         minSdk = 30          // Rokid Glasses: YodaOS = Android 12 (API 32)
         targetSdk = 32
-        versionCode = 3
-        versionName = "0.1.2"
+        versionCode = 4
+        versionName = "0.1.3"
     }
 
     compileOptions {

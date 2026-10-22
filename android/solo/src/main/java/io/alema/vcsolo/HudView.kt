@@ -17,6 +17,17 @@ class HudView(ctx: Context) : View(ctx) {
     var lines: List<String> = emptyList()
     var footer = ""
     var live = false          // small dot when a Gemini session is open
+    private var photo: android.graphics.Bitmap? = null
+    private var photoUntil = 0L
+
+    /** Shows the photo Gemini just received, under the card, for [ms]: the wearer sees if the aim was right. */
+    fun showPhoto(jpeg: ByteArray, ms: Long = 2_000) {
+        photo?.recycle()
+        photo = android.graphics.BitmapFactory.decodeByteArray(jpeg, 0, jpeg.size)
+        photoUntil = android.os.SystemClock.uptimeMillis() + ms
+        invalidate()
+        postDelayed({ invalidate() }, ms + 50)
+    }
 
     private val green = Color.rgb(0, 255, 136)
     private val soft = Color.rgb(143, 223, 181)
@@ -45,6 +56,17 @@ class HudView(ctx: Context) : View(ctx) {
         y += 34f
         for (l in lines.take(3)) { c.drawText(fit(l, lineP, w - 40f), 20f, y, lineP); y += 32f }
         if (footer.isNotBlank()) c.drawText(fit(footer, footP, w - 40f), 20f, h - 14f, footP)
+        val p = photo
+        if (p != null && android.os.SystemClock.uptimeMillis() < photoUntil) {
+            // Right under the card, inside the upper part of the view (the bottom is hard to see on the glasses).
+            val top = h + 10f
+            val maxH = (height * 0.72f - top).coerceAtLeast(80f)
+            val scale = minOf((w - 40f) / p.width, maxH / p.height)
+            val dw = p.width * scale; val dh = p.height * scale
+            val left = (w - dw) / 2f
+            c.drawBitmap(p, null, RectF(left, top, left + dw, top + dh), null)
+            c.drawRect(RectF(left, top, left + dw, top + dh), box)
+        }
     }
 
     private fun fit(t: String, p: Paint, max: Float): String {

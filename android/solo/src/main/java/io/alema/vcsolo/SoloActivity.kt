@@ -291,7 +291,11 @@ class SoloActivity : ComponentActivity(), LiveSession.Listener {
         camera.start { ok ->
             if (!ok) { done(null); return@start }
             camera.photo { jpeg ->
-                if (jpeg != null) { lastPhoto = jpeg; live.send(LiveProtocol.image(Base64.encodeToString(jpeg, Base64.NO_WRAP))) }
+                if (jpeg != null) {
+                    lastPhoto = jpeg
+                    live.send(LiveProtocol.image(Base64.encodeToString(jpeg, Base64.NO_WRAP)))
+                    main.post { hud.showPhoto(jpeg) }
+                }
                 main.post { done(jpeg) }
             }
         }
