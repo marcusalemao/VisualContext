@@ -1,4 +1,4 @@
-package io.alema.vcsolo
+package io.alema.livecore
 
 /**
  * What the HUD shows while Gemini talks: the answer so far, cut to the last lines that fit.

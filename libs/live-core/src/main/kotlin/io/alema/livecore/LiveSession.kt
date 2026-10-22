@@ -1,4 +1,4 @@
-package io.alema.vcsolo
+package io.alema.livecore
 
 import okhttp3.OkHttpClient
 import okhttp3.Request

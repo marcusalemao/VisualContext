@@ -1,5 +1,8 @@
 package io.alema.vcsolo
 
+import io.alema.livecore.LiveProtocol
+import io.alema.livecore.LiveSession
+import io.alema.livecore.Transcript
 import io.alema.qrcore.QrHint
 import org.json.JSONObject
 import org.junit.jupiter.api.Assertions.assertEquals

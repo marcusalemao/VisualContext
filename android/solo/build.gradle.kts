@@ -17,6 +17,8 @@ android {
 
     // QR hints shared with the Leitor QR plugin: plain Kotlin, no Android.
     sourceSets["main"].kotlin.srcDir("../../libs/qr-core/src/main/kotlin")
+    // Gemini Live protocol + WebSocket, shared with the VisualContext Live Nexus plugin.
+    sourceSets["main"].kotlin.srcDir("../../libs/live-core/src/main/kotlin")
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11

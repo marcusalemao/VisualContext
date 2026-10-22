@@ -1,4 +1,4 @@
-package io.alema.vcsolo
+package io.alema.livecore
 
 import org.json.JSONArray
 import org.json.JSONObject

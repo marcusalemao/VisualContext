@@ -20,6 +20,7 @@ class SettingsActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE) // pairing code on screen
         col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(48, 96, 48, 48) }
         setContentView(ScrollView(this).apply { addView(col); setBackgroundColor(Color.rgb(3, 12, 6)) })
         requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
@@ -36,7 +37,8 @@ class SettingsActivity : Activity() {
         if (pair == null && connect == null) {
             col.addView(label("Ainda sem comandos. Abra o plugin nos óculos primeiro.", 14f, green))
         }
-        pair?.let { col.addView(label("1ª vez (pareamento, só uma vez por computador):")); col.addView(command(it)) }
+        pair?.let { col.addView(label("1ª vez (pareamento, só uma vez por computador; o código vale 2 minutos):")); col.addView(command(it)) }
+        if (pair == null && connect != null) col.addView(label("Código de pareamento expirado: nos óculos, toque no plugin para gerar outro.", 12f))
         connect?.let { col.addView(label("Toda vez:")); col.addView(command(it)) }
         col.addView(label("Depois: adb install nome-do-app.apk", 14f))
         col.addView(label("Para desligar: nos óculos, abra o plugin e deslize. A porta muda toda vez que liga.", 12f))
