@@ -31,6 +31,14 @@ Approved direction 11/10: a free, open-source QR reader for the Rokid Glasses, l
 - **On the HUD:** a box around the code and one line: "Wi-Fi · Café da Paim · tap to join". Tap = act, swipe = next code, back = close. Black background, green text, the Nexus grammar.
 - **Hand-off:** the plugin runs on the phone, so links, Pix and contacts are already there. Pix: copy the code and show a notification "Pix ready · open your bank"; bank apps detect a copied Pix code.
 
+### 3b. Built (12/10, v0.1) — what changed from the plan
+- **Still photos instead of the video stream.** Nexus SDK 0.23 has `NexusSnapshotSession` (one JPEG per request, the same API the Nexus Assistant uses to "take a photo"). Far simpler than the H.264 link: the plugin asks for a photo every ~0.4 s for up to 25 s and stops at the first code.
+- **ZXing core instead of ML Kit:** pure Java, Apache-2.0, works offline, no Google Play services. Three passes (normal, inverted, zoom on the centre).
+- **The glasses show, the phone acts:** tap on the glasses → one notification on the phone → tap → Android's own "Save this network?", the browser, the contact form, or Pix Copia e Cola copied. Two human taps, never zero.
+- **No internet permission** in the app.
+- Code: `android/qr/` (module `:qr`, package `io.alema.qrreader`, plugin id `leitor-qr`). 11 tests.
+- To check on the real glasses: snapshot speed, focus on small codes, and whether the hub asks to approve the camera.
+
 ### 4. Wi-Fi on the glasses (v2)
 The café case for VisualContext needs the **glasses** on the network, not just the phone.
 - **Option A, via Nexus:** propose to Anezium a hub operation "join this network" (the hub already turns the glasses' Wi-Fi on through its shell helper). Cleanest; depends on him.
@@ -85,6 +93,14 @@ Direção aprovada em 11/10: um leitor de QR gratuito e de código aberto para o
 - **Leitura:** ML Kit (leitura de códigos), modelo embutido (funciona sem os serviços do Google Play), com o ZXing de reserva.
 - **No HUD:** uma moldura em volta do código e uma linha: "Wi-Fi · Café da Paim · toque para conectar". Toque = agir, deslizar = próximo código, voltar = fechar. Fundo preto, texto verde, a gramática do Nexus.
 - **Passagem para o celular:** o plugin roda no celular, então links, Pix e contatos já estão lá. Pix: copiar o código e mostrar a notificação "Pix pronto · abra o seu banco"; os apps de banco detectam um código Pix copiado.
+
+### 3b. Construído (12/10, v0.1) — o que mudou do plano
+- **Fotos em vez do vídeo.** O SDK 0.23 do Nexus tem `NexusSnapshotSession` (um JPEG por pedido, a mesma API que o Assistant do Nexus usa para "tirar foto"). Bem mais simples que o link H.264: o plugin pede uma foto a cada ~0,4 s por até 25 s e para no primeiro código.
+- **ZXing em vez de ML Kit:** Java puro, Apache-2.0, offline, sem Google Play services. Três tentativas (normal, invertido, zoom no centro).
+- **Os óculos mostram, o celular faz:** toque nos óculos → uma notificação no celular → toque → o próprio Android pergunta "Salvar esta rede?", ou abre o navegador, o formulário de contato, ou copia o Pix Copia e Cola. Dois toques de gente, nunca zero.
+- **Sem permissão de internet** no app.
+- Código: `android/qr/` (módulo `:qr`, pacote `io.alema.qrreader`, id do plugin `leitor-qr`). 11 testes.
+- A conferir nos óculos de verdade: velocidade da foto, foco em código pequeno e se o Nexus pede para aprovar a câmera.
 
 ### 4. Wi-Fi nos óculos (v2)
 O caso do café para o VisualContext precisa dos **óculos** na rede, não só do celular.

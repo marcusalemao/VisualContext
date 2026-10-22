@@ -88,6 +88,26 @@ Approved by Marcus on 11/10. Visual reference: the canvas "VisualContext Manager
 - The old rule "transcript only with a known person" is retired.
 - **Person card during an encounter: always short** (decided 11/10): name, how you know each other, last time you met. No expanded version during the conversation, even with phone or Wi-Fi; the full card belongs to Recall mode.
 
+### 1i. Audio-only mode, accessible from the start (12/10)
+For blind and low-vision people, and for anyone who prefers no display. Same app, a setting: **Output: display · display + voice · voice only**.
+- **Every card has a spoken version written with it** (one short sentence), not read out field by field. The data is the same; only the renderer changes (HUD image or Nexus `tts`).
+- **Person (during an encounter):** a soft sound, then the short card: "Rafael Souza. Supplier, from the Torra Fina meeting. Last time, 12/09." Said once, when the face is recognised, before the conversation gets going, at low volume. Never repeated on its own.
+- **Recall mode** works naturally by voice: ask, hear the answer. "Where is my key?" → "In the bedroom, on the bed, today at 9:10."
+- **Places:** not narrated while walking (that would be noise). Only when asked: "Where am I?" / "What is around me?". Street-crossing and obstacles stay with Rokid's own Vision assistant; VisualContext is memory, not navigation.
+- **Confirmations become sounds and voice:** new face → "New person. Keep?" (double tap cancels, like the ✕ on the countdown); recording → a short tone at start and end; saved → one tick.
+- **Privacy of sound:** open-ear speakers can be heard up close. Default volume low; recommend Bluetooth earbuds for voice-only mode; never say names louder than a whisper level.
+- First version: the spoken sentence is generated together with each card (same AI call that writes the headline), so nothing is built twice.
+
+### 1j. Modules: one app, four modes (decided 22/10)
+Like Rokid's own modes, VisualContext has **modules** chosen at first use and changed on the phone at any time. More than one can be on (a low-vision user may also want Business). Underneath it is the same engine: a module only changes the defaults — what is shown, what is spoken, what is kept.
+- **The four switches stay in every module** (Marcus, 22/10): Faces/People, Places, Things and Memories can be turned on or off in any module; a module only sets their starting values.
+- **General (default):** everyday memory — people, key, motorbike, places.
+- **Business:** the person's dossier (company, what you talked about, open follow-ups), encounter summary in the Manager, next actions.
+- **Low vision:** output "voice only" (1i) by default; "who is in front of me", whispered; reading signs and texts aloud; Gemini describing the surroundings and guiding the aim by voice ("turn a little to the right", like Google's Guided Vision). Never obstacle avoidance or navigation.
+- **Deaf / hard of hearing:** live captions of the conversation on the lens, with the speaker's name when known; WhatsApp voice notes transcribed (Zap); bridge to the LIBRAS project.
+- **Follow Rokid, don't fight it:** if the glasses are in Rokid's "Visual assistance" or "Hearing assistance" mode, suggest the matching module. Marcus to record those Rokid modes first (backlog).
+- **Why now:** glasses for low vision today cost thousands of dollars (e.g. Envision) and Google's glasses are not out yet; Rokid is affordable and ships to Brazil. Accessibility can be the launch hook in the store, while memory stays the product for everyone. First tester: a relative with severe low vision; then an institution (e.g. Fundação Dorina Nowill).
+
 ### 2. Settings
 - **On the glasses:** the 4 main switches (Faces, Places, Things, Memories). No sub-settings.
 - **Encounter recording:** "Needs speech" / "A look is enough".
@@ -224,6 +244,26 @@ Aprovado pelo Marcus em 11/10. Referência visual: o canvas "VisualContext Manag
 - A transcrição só é descartada se você cancelar (✕ no countdown) ou se o encontro for curto demais (o timer).
 - A regra antiga "transcrição só com pessoa conhecida" sai.
 - **Card da pessoa durante o encontro: sempre curto** (decidido em 11/10): nome, de onde se conhecem, última vez que se viram. Sem versão expandida durante a conversa, mesmo com celular ou Wi-Fi; o card completo é do modo Recordar.
+
+### 1i. Modo só áudio, acessível desde o começo (12/10)
+Para pessoas cegas e com baixa visão, e para quem prefere sem tela. Mesmo app, um ajuste: **Saída: tela · tela + voz · só voz**.
+- **Cada card tem uma versão falada escrita junto** (uma frase curta), não lida campo por campo. O dado é o mesmo; só muda quem desenha (imagem no HUD ou `tts` do Nexus).
+- **Pessoa (durante o encontro):** um som suave e o card curto: "Rafael Souza. Fornecedor, do encontro da Torra Fina. Última vez, 12/09." Dito uma vez, quando o rosto é reconhecido, antes de a conversa engrenar, em volume baixo. Nunca repete sozinho.
+- **Modo Recordar** funciona naturalmente por voz: pergunta, ouve a resposta. "Onde está minha chave?" → "No quarto, em cima da cama, hoje às 9h10."
+- **Lugares:** não são narrados enquanto você anda (seria barulho). Só quando pedir: "Onde estou?" / "O que tem em volta?". Atravessar a rua e obstáculos ficam com o assistente Vision da própria Rokid; o VisualContext é memória, não navegação.
+- **Confirmações viram som e voz:** rosto novo → "Pessoa nova. Guardo?" (toque duplo cancela, como o ✕ do countdown); gravação → um tom curto no começo e no fim; salvo → um clique.
+- **Privacidade do som:** o alto-falante aberto pode ser ouvido de perto. Volume baixo por padrão; recomendar fone Bluetooth no modo só voz; nunca falar nomes acima de um sussurro.
+- Primeira versão: a frase falada é gerada junto com cada card (na mesma chamada de IA que escreve o gancho), para nada ser construído duas vezes.
+
+### 1j. Módulos: um app, quatro modos (decidido em 22/10)
+Como os modos da própria Rokid, o VisualContext tem **módulos**, escolhidos no primeiro uso e trocados no celular quando quiser. Dá para ligar mais de um (uma pessoa de baixa visão pode querer também o Business). Por baixo é o mesmo motor: o módulo só muda os padrões — o que aparece, o que é falado, o que é guardado.
+- **As quatro chaves continuam em todos os módulos** (Marcus, 22/10): Pessoas, Lugares, Coisas e Lembranças podem ser ligadas ou desligadas em qualquer módulo; o módulo só define como elas começam.
+- **Geral (padrão):** memória do dia a dia — pessoas, chave, moto, lugares.
+- **Business:** o dossiê da pessoa (empresa, o que já conversaram, pendências), resumo do encontro no Manager, próximas ações.
+- **Baixa visão:** saída "só voz" (1i) por padrão; "quem está na minha frente", dito baixinho; leitura de placas e textos em voz alta; o Gemini descrevendo o ambiente e orientando a mira por voz ("vire um pouco para a direita", como o Guided Vision do Google). Nunca desvio de obstáculo nem navegação.
+- **Surdez:** legenda ao vivo da conversa na lente, com o nome de quem fala quando a pessoa é conhecida; áudios do WhatsApp transcritos (Zap); ponte com o projeto de LIBRAS.
+- **Seguir a Rokid, não brigar:** se os óculos estão no modo "Assistência visual" ou "Assistência auditiva" da Rokid, sugerir o módulo correspondente. Antes, o Marcus grava esses modos da Rokid (backlog).
+- **Por que agora:** óculos para baixa visão hoje custam milhares de dólares (ex.: Envision) e os óculos do Google ainda não saíram; a Rokid é acessível e entrega no Brasil. A acessibilidade pode ser o gancho de lançamento na loja, enquanto a memória continua sendo o produto para todo mundo. Primeiro testador: um parente com baixa visão grave; depois uma instituição (ex.: Fundação Dorina Nowill).
 
 ### 2. Ajustes
 - **Nos óculos:** as 4 chaves principais (Rostos, Lugares, Coisas, Memórias). Sem subconfigurações.

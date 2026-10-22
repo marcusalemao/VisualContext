@@ -17,3 +17,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "VisualContext"
 include(":app")
+include(":qr")
+include(":wifiadb")
+include(":solo")
+include(":live")
