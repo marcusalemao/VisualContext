@@ -33,6 +33,7 @@
 #   ./glasscast.sh phone-watch [s]   a phone screenshot every N seconds (watch/phone-latest.png)
 #   ./glasscast.sh phone-snap        one phone screenshot
 #   ./glasscast.sh log               Zap's log from the phone into logs/zap-latest.log
+#   ./glasscast.sh fotos             photo timeline: taken on the glasses → reached the phone
 #   ./glasscast.sh status            what is connected, and how
 #   ./glasscast.sh ui                the panel: switches for all of the above, in the browser
 #
@@ -388,6 +389,44 @@ case "$cmd" in
     done
     ;;
 
+  photos|fotos)
+    # Photo timeline: when each photo appears on the glasses, and when it reaches the phone.
+    # Goes to logs/fotos-latest.log and into the Zap log, so one file tells where a photo stopped:
+    # never reached the phone = Nexus; reached it but no offer = Zap.
+    dev="$(ensure_connected)" || exit 1
+    mkdir -p "$DIR/logs"
+    out="$DIR/logs/fotos-latest.log"; zlog="$DIR/logs/zap-latest.log"
+    seen="$DIR/logs/.fotos-seen"; times="$DIR/logs/.fotos-times"
+    : > "$out"; : > "$seen"; : > "$times"
+    MARK=/data/local/tmp/glasscast_mark
+    DIRS="/sdcard/DCIM /sdcard/Pictures /sdcard/Movies"
+    adb -s "$dev" shell "touch $MARK" >/dev/null 2>&1
+    p="$(phone_serial)"; [ -n "$p" ] && adb -s "$p" shell "touch $MARK" >/dev/null 2>&1
+    note() { local line; line="$(date +%H:%M:%S) $*"; say "$line"; printf '%s\n' "$line" >> "$out"; printf '%s FOTOS %s\n' "$(date '+%m-%d %H:%M:%S')" "$*" >> "$zlog"; }
+    newer() { adb -s "$1" shell "find $DIRS -type f -newer $MARK \\( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.mp4' \\) 2>/dev/null" 2>/dev/null | tr -d '\r'; }
+    note "linha do tempo ligada (óculos $dev${p:+, celular $p})"
+    trap 'exit 0' INT
+    while true; do
+      for f in $(newer "$dev"); do
+        grep -qxF "G $f" "$seen" && continue
+        printf 'G %s\n' "$f" >> "$seen"
+        name="${f##*/}"; printf '%s %s\n' "$name" "$(date +%s)" >> "$times"
+        note "ÓCULOS  nova: $name"
+      done
+      if [ -n "$p" ]; then
+        for f in $(newer "$p"); do
+          grep -qxF "P $f" "$seen" && continue
+          printf 'P %s\n' "$f" >> "$seen"
+          name="${f##*/}"
+          took="$(awk -v n="$name" '$1==n {print $2; exit}' "$times")"
+          if [ -n "$took" ]; then note "CELULAR chegou: $name ($(( $(date +%s) - took )) s depois)"
+          else note "CELULAR arquivo novo: $name (${f%/*})"; fi
+        done
+      fi
+      sleep 1
+    done
+    ;;
+
   ui|painel)
     command -v python3 >/dev/null 2>&1 || die "python3 is missing. Run: xcode-select --install"
     exec python3 "$(cd "$(dirname "$0")" && pwd)/glasscast-panel.py" "$@"
@@ -408,6 +447,6 @@ case "$cmd" in
     ;;
 
   *)
-    sed -n '2,39p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,40p' "$0" | sed 's/^# \{0,1\}//'
     ;;
 esac
