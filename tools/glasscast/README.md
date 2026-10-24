@@ -21,6 +21,21 @@ Ferramenta independente da [alema.io](https://alema.io). Não é da Rokid nem os
 | `./glasscast.sh compose scene.mp4 hud.mp4` | The "through the lens" look from two videos you already have. |
 | `./glasscast.sh off` | Disconnect. / Desconecta. |
 
+## Panel / Painel
+
+Double-click **`Glasscast.command`** (or `./glasscast.sh ui`): a page opens in the browser with switches for everything above, plus the phone — mirror it, screenshot it, and save **Zap's log** to `logs/zap-latest.log`. The page only answers this Mac (127.0.0.1).
+Clique duas vezes em **`Glasscast.command`**: abre uma página com botões liga/desliga para tudo, inclusive o celular e o log do Zap.
+
+**Cable or Wi-Fi / Cabo ou Wi-Fi:** with a USB cable plugged in, Glasscast uses it (no pairing, faster); without one, Wi-Fi as before. The phone needs *Developer options › USB debugging* on.
+Com o cabo ligado, ele usa o cabo; sem cabo, o Wi-Fi. No celular, ligue *Opções do desenvolvedor › Depuração USB*.
+
+| Command / Comando | |
+|---|---|
+| `./glasscast.sh phone` | The phone, live. / O celular, ao vivo. |
+| `./glasscast.sh phone-watch 5` | A phone screenshot every 5 s (`watch/phone-latest.png`). |
+| `./glasscast.sh log` | Zap's log from the phone (`logs/zap-latest.log`). / O log do Zap. |
+| `./glasscast.sh status` | What is connected, and how. / O que está conectado, e como. |
+
 ## Install (once) / Instalar (uma vez)
 
 ```

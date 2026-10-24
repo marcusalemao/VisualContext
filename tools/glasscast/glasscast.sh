@@ -27,6 +27,15 @@
 #   ./glasscast.sh compose scene.mp4 hud.mp4 [out.mp4]   same look, from two videos you have
 #   ./glasscast.sh off               disconnect
 #
+# Cable or Wi-Fi: a USB cable is used first when plugged in (no pairing); Wi-Fi otherwise.
+# The phone too (anything adb sees that isn't the glasses; cable, USB debugging on):
+#   ./glasscast.sh phone             live window of the phone
+#   ./glasscast.sh phone-watch [s]   a phone screenshot every N seconds (watch/phone-latest.png)
+#   ./glasscast.sh phone-snap        one phone screenshot
+#   ./glasscast.sh log               Zap's log from the phone into logs/zap-latest.log
+#   ./glasscast.sh status            what is connected, and how
+#   ./glasscast.sh ui                the panel: switches for all of the above, in the browser
+#
 # Files go into the folder this script is in (change with GLASSCAST_DIR).
 # Connect that folder to Claude and it can look at what the glasses show.
 
@@ -64,9 +73,33 @@ through_lens() { # scene.mp4 hud.mp4 out.mp4
 # Only the glasses, never a phone plugged in for something else: adb lists the
 # Rokid Glasses as model RG_glasses (override with ROKID_MODEL).
 MODEL="${ROKID_MODEL:-RG_glasses}"
-glasses_online() { adb devices -l 2>/dev/null | awk -v m="model:$MODEL" '$2=="device" && index($0, m) {print $1; exit}'; }
+# Cable first, Wi-Fi second: a cable is faster and needs no pairing.
+# Over Wi-Fi adb names a device "IP:PORT" or "adb-…_adb-tls-connect…"; over a cable, a plain serial.
+is_wifi() { case "$1" in *:*|*_adb-tls*) return 0 ;; *) return 1 ;; esac; }
+glasses_all() { adb devices -l 2>/dev/null | awk -v m="model:$MODEL" '$2=="device" && index($0, m) {print $1}'; }
+glasses_usb() { local d; for d in $(glasses_all); do is_wifi "$d" || { printf '%s' "$d"; return; }; done; }
+glasses_online() { local u; u="$(glasses_usb)"; [ -n "$u" ] && { printf '%s' "$u"; return; }; glasses_all | head -n 1; }
+
+# The phone: anything adb sees that isn't the glasses (or exactly ROKID_PHONE). Cable first.
+phone_all() { adb devices -l 2>/dev/null | awk -v m="model:$MODEL" 'NR>1 && $2=="device" && !index($0, m) {print $1}'; }
+phone_serial() {
+  if [ -n "${ROKID_PHONE:-}" ]; then printf '%s' "$ROKID_PHONE"; return; fi
+  local d; for d in $(phone_all); do is_wifi "$d" || { printf '%s' "$d"; return; }; done
+  phone_all | head -n 1
+}
+need_phone() {
+  local p; p="$(phone_serial)"
+  [ -n "$p" ] || die "celular não encontrado. Ligue pelo cabo e aceite 'Permitir depuração USB?' no celular (Opções do desenvolvedor > Depuração USB)."
+  printf '%s' "$p"
+}
+
+# Zap's own log tags, plus crashes (any app) so a Zap crash is never missed.
+ZAP_TAGS="Zap:V ZapNotifier:V ZapInbox:V ZapGallery:V ZapPhotoWatcher:V ZapSkills:V ZapPhotos:V ZapVoiceNotes:V AndroidRuntime:E"
 
 device() {
+  # A cable beats any remembered Wi-Fi address.
+  local usb; usb="$(glasses_usb)"
+  if [ -n "$usb" ]; then printf '%s' "$usb"; return; fi
   if [ -f "$STATE" ]; then cat "$STATE"; return; fi
   local found
   found="$(glasses_online)"
@@ -119,6 +152,7 @@ case "$cmd" in
     pkill -f "screenrecord --output-format=h264" 2>/dev/null
     rm -f "$STATE"
     adb start-server >/dev/null 2>&1
+    [ -n "$(glasses_usb)" ] && say "óculos no cabo: sem Wi-Fi nem pareamento."
     # Addresses Claude left for us (conectar.txt: "connect IP:PORT" / "pair IP:PORT CODE"),
     # so nobody has to type numbers into the Terminal.
     if [ -f "$DIR/conectar.txt" ]; then
@@ -285,6 +319,80 @@ case "$cmd" in
     done
     ;;
 
+  status)
+    # One line per device, for the panel: "glasses usb SERIAL" / "glasses wifi ADDR" / "glasses none".
+    need adb "brew install --cask android-platform-tools"
+    adb start-server >/dev/null 2>&1
+    g="$(glasses_online)"; p="$(phone_serial)"
+    if [ -z "$g" ]; then say "glasses none"; elif is_wifi "$g"; then say "glasses wifi $g"; else say "glasses usb $g"; fi
+    if [ -z "$p" ]; then say "phone none"; elif is_wifi "$p"; then say "phone wifi $p"; else say "phone usb $p"; fi
+    # A phone that is plugged in but hasn't accepted this Mac yet.
+    adb devices 2>/dev/null | awk '$2=="unauthorized" {print "unauthorized " $1}'
+    ;;
+
+  find)
+    # No questions asked: cable, then the remembered or announced Wi-Fi address.
+    need adb "brew install --cask android-platform-tools"
+    adb start-server >/dev/null 2>&1
+    dev="$(ensure_connected)" || exit 1
+    say "óculos: $dev"
+    ;;
+
+  phone)
+    need scrcpy "brew install scrcpy"
+    p="$(need_phone)" || exit 1
+    scrcpy -s "$p" --no-audio --window-title "Celular" --stay-awake
+    ;;
+
+  phone-snap)
+    p="$(need_phone)" || exit 1
+    file="$DIR/shots/${1:-celular}_$(stamp).png"
+    adb -s "$p" exec-out screencap -p > "$file" && say "saved: $file"
+    ;;
+
+  phone-watch)
+    p="$(need_phone)" || exit 1
+    every="${1:-5}"
+    say "a phone screenshot every ${every}s in $DIR/watch (phone-latest.png is the newest). Ctrl+C to stop."
+    trap 'exit 0' INT
+    while true; do
+      tmp="$DIR/watch/.phone-next.png"
+      if adb -s "$p" exec-out screencap -p > "$tmp" 2>/dev/null && [ "$(wc -c < "$tmp")" -gt 2000 ] && head -c 4 "$tmp" | grep -q PNG; then
+        cp "$tmp" "$DIR/watch/phone_$(stamp).png"
+        mv "$tmp" "$DIR/watch/phone-latest.png"
+        ls -1t "$DIR"/watch/phone_*.png 2>/dev/null | tail -n +41 | while read -r old; do rm -f "$old"; done
+      else
+        rm -f "$tmp"
+        p="$(phone_serial)"; [ -n "$p" ] || sleep 5
+      fi
+      sleep "$every"
+    done
+    ;;
+
+  log)
+    # Zap's log from the phone into logs/zap-latest.log (fresh each start) and a dated copy.
+    # Survives Zap restarts: it follows the tags, not one process.
+    p="$(need_phone)" || exit 1
+    mkdir -p "$DIR/logs"
+    latest="$DIR/logs/zap-latest.log"
+    dated="$DIR/logs/zap_$(stamp).log"
+    : > "$latest"
+    say "Zap log in $latest — Ctrl+C to stop."
+    trap 'exit 0' INT
+    while true; do
+      # -T 1: from now on, not the phone's whole history.
+      # shellcheck disable=SC2086
+      adb -s "$p" logcat -v time -T 1 -s $ZAP_TAGS 2>/dev/null | tee -a "$dated" >> "$latest"
+      sleep 2 # cable pulled or phone restarted: wait and follow again
+      p="$(phone_serial)"; [ -n "$p" ] || sleep 5
+    done
+    ;;
+
+  ui|painel)
+    command -v python3 >/dev/null 2>&1 || die "python3 is missing. Run: xcode-select --install"
+    exec python3 "$(cd "$(dirname "$0")" && pwd)/glasscast-panel.py" "$@"
+    ;;
+
   compose)
     need ffmpeg "brew install ffmpeg"
     [ $# -ge 2 ] || die "usage: compose scene.mp4 hud.mp4 [out.mp4]"
@@ -300,6 +408,6 @@ case "$cmd" in
     ;;
 
   *)
-    sed -n '2,29p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,39p' "$0" | sed 's/^# \{0,1\}//'
     ;;
 esac
