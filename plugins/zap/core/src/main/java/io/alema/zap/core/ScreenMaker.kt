@@ -405,6 +405,7 @@ class ScreenMaker(
         val message = when {
             step.outcome == SendOutcome.SENT -> text.sent
             step.outcome == SendOutcome.OPENED_FOR_THUMB -> text.openedForThumb
+            step.outcome == SendOutcome.HELPER_OFF -> text.helperOff
             step.outcome == SendOutcome.WAITING_FOR_UNLOCK -> text.waitingUnlock
             step.outcome == SendOutcome.NOT_INSTALLED -> text.notInstalled
             step.outcome == SendOutcome.FAILED -> text.failed

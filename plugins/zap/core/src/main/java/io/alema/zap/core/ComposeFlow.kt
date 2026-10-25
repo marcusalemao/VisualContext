@@ -1,7 +1,8 @@
 package io.alema.zap.core
 
 /** Where a send ended up. Shared by the phone sender and the flow. */
-enum class SendOutcome { SENT, OPENED_FOR_THUMB, WAITING_FOR_UNLOCK, NOT_INSTALLED, FAILED }
+/** HELPER_OFF: WhatsApp opened with the message typed, but Zap's send helper is off on the phone. */
+enum class SendOutcome { SENT, OPENED_FOR_THUMB, HELPER_OFF, WAITING_FOR_UNLOCK, NOT_INSTALLED, FAILED }
 
 /** Why the flow stopped somewhere other than a sent message. */
 enum class Note {

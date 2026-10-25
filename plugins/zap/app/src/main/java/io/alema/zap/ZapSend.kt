@@ -51,10 +51,10 @@ internal object ZapSender {
         }
         if (photo != null) {
             val digits = recipient.digits ?: return onDone(SendOutcome.FAILED)
-            return sendPhoto(context, digits, photo, text) { outcome ->
+            return sendPhoto(context, digits, photo, text, { outcome ->
                 record(outcome, text.ifBlank { ZapInbox.PHOTO }.let { if (text.isBlank()) it else "📷 $it" })
                 onDone(outcome)
-            }
+            }, name = recipient.name)
         }
         if (key != null && ZapInbox.replyLive(context, key, text)) return onDone(SendOutcome.SENT)
         val digits = recipient.digits ?: return onDone(SendOutcome.FAILED)
@@ -65,7 +65,7 @@ internal object ZapSender {
     }
 
     /** Sent, or handed to WhatsApp and only waiting for the phone to unlock or a thumb on Send. */
-    private val ON_ITS_WAY = setOf(SendOutcome.SENT, SendOutcome.WAITING_FOR_UNLOCK, SendOutcome.OPENED_FOR_THUMB)
+    private val ON_ITS_WAY = setOf(SendOutcome.SENT, SendOutcome.WAITING_FOR_UNLOCK, SendOutcome.OPENED_FOR_THUMB, SendOutcome.HELPER_OFF)
 
     fun send(context: Context, digits: String, text: String, onDone: (SendOutcome) -> Unit) {
         val pkg = whatsAppPackage(context) ?: return onDone(SendOutcome.NOT_INSTALLED)
@@ -81,7 +81,7 @@ internal object ZapSender {
      * chat and shows its contact picker, the helper finds no caption box and
      * presses nothing — the wearer's thumb finishes it.
      */
-    fun sendPhoto(context: Context, digits: String, photo: String, caption: String, onDone: (SendOutcome) -> Unit) {
+    fun sendPhoto(context: Context, digits: String, photo: String, caption: String, onDone: (SendOutcome) -> Unit, name: String? = null) {
         val pkg = whatsAppPackage(context) ?: return onDone(SendOutcome.NOT_INSTALLED)
         val uri = ZapGallery.shareable(context, photo) ?: return onDone(SendOutcome.FAILED)
         val intent = Intent(Intent.ACTION_SEND)
@@ -92,10 +92,10 @@ internal object ZapSender {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
         if (caption.isNotBlank()) intent.putExtra(Intent.EXTRA_TEXT, caption)
         context.grantUriPermission(pkg, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        open(context, pkg, intent, caption, photo = true, onDone)
+        open(context, pkg, intent, caption, photo = true, onDone, name)
     }
 
-    private fun open(context: Context, pkg: String, intent: Intent, text: String, photo: Boolean, onDone: (SendOutcome) -> Unit) {
+    private fun open(context: Context, pkg: String, intent: Intent, text: String, photo: Boolean, onDone: (SendOutcome) -> Unit, name: String? = null) {
         // Smart Lock trusting the glasses (no PIN needed now): step past the lock screen and send at once.
         val trusted = ZapUnlockActivity.trusted(context)
         val locked = !trusted && context.getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true
@@ -107,7 +107,7 @@ internal object ZapSender {
         var armed: PendingSend? = null
         val windowMs = if (locked) UNLOCK_WINDOW_MS else SEND_WINDOW_MS
         if (auto) {
-            armed = PendingSend(pkg, text, System.currentTimeMillis() + windowMs, photo)
+            armed = PendingSend(pkg, text, System.currentTimeMillis() + windowMs, photo, name)
             ZapSendService.arm(armed, onDone)
         }
         try {
@@ -116,7 +116,7 @@ internal object ZapSender {
             ZapSendService.disarm()
             return onDone(SendOutcome.FAILED)
         }
-        if (armed == null) return onDone(SendOutcome.OPENED_FOR_THUMB)
+        if (armed == null) return onDone(SendOutcome.HELPER_OFF)
         // A locked phone reports now and again when the send happens after unlock.
         if (locked) onDone(SendOutcome.WAITING_FOR_UNLOCK)
         main.postDelayed({ ZapSendService.expire(armed) }, windowMs + 500)
@@ -164,7 +164,8 @@ internal object ZapSendTrace {
         val end = when (runCatching { SendOutcome.valueOf(p.getString("outcome", "") ?: "") }.getOrNull()) {
             SendOutcome.SENT -> if (pt) "enviado" else "sent"
             SendOutcome.WAITING_FOR_UNLOCK -> if (pt) "esperando desbloqueio" else "waiting for unlock"
-            SendOutcome.OPENED_FOR_THUMB -> if (pt) "ficou aberto para tocar Enviar" else "left open to tap Send"
+            SendOutcome.OPENED_FOR_THUMB -> if (pt) "não achou o botão Enviar; ficou aberto para o dedo" else "Send button not found; left open for the thumb"
+            SendOutcome.HELPER_OFF -> if (pt) "ajudante desligado; ficou aberto para o dedo" else "helper off; left open for the thumb"
             SendOutcome.NOT_INSTALLED -> if (pt) "WhatsApp não encontrado" else "WhatsApp not found"
             SendOutcome.FAILED -> if (pt) "falhou" else "failed"
             null -> if (pt) "em andamento" else "in progress"
@@ -173,7 +174,11 @@ internal object ZapSendTrace {
     }
 }
 
-internal data class PendingSend(val pkg: String, val text: String, val expiresAtMs: Long, val photo: Boolean = false)
+internal data class PendingSend(val pkg: String, val text: String, val expiresAtMs: Long, val photo: Boolean = false, val name: String? = null) {
+    /** Where the helper is on WhatsApp's contact picker, when a photo share lands there instead of the chat. */
+    enum class Picker { NONE, SEARCHING, TYPED, CHOSEN }
+    @Volatile var picker: Picker = Picker.NONE
+}
 
 /**
  * Presses WhatsApp's Send button once, for one message the wearer confirmed.
@@ -206,7 +211,11 @@ class ZapSendService : AccessibilityService() {
         if (event?.packageName?.toString() != armed.pkg) return
         val root = rootInActiveWindow ?: return
         if (armed.photo) {
-            if (!isPhotoPreview(root, armed)) return
+            if (!isPhotoPreview(root, armed)) {
+                // WhatsApp ignored the chat and opened its contact picker: find the person there.
+                if (!armed.name.isNullOrBlank()) drivePicker(root, armed)
+                return
+            }
         } else {
             val entry = root.findAccessibilityNodeInfosByViewId("${armed.pkg}:id/entry").firstOrNull() ?: return
             if (entry.text?.toString()?.trim() != armed.text.trim()) return
@@ -237,6 +246,63 @@ class ZapSendService : AccessibilityService() {
         val shown = caption.text?.toString()?.trim().orEmpty()
         // An empty caption box shows its hint ("Add a caption…") as text on some versions.
         return if (armed.text.isBlank()) shown.isEmpty() || caption.isShowingHintText else shown == armed.text.trim()
+    }
+
+    /**
+     * WhatsApp's "Send to…" picker (a share that did not land in the chat): search the
+     * recipient's name, choose the row that is exactly that name, press the picker's Send.
+     * The preview that follows is handled as usual. Each step runs once; a step that
+     * finds nothing leaves the screen to the wearer's thumb. Nothing but the name is typed.
+     */
+    private fun drivePicker(root: AccessibilityNodeInfo, armed: PendingSend) {
+        val name = armed.name?.trim().orEmpty()
+        val box = editables(root).firstOrNull()
+        when (armed.picker) {
+            PendingSend.Picker.NONE -> {
+                if (box != null) {
+                    armed.picker = PendingSend.Picker.SEARCHING
+                    return drivePicker(root, armed)
+                }
+                // No search box yet: open it (the magnifier in the toolbar).
+                val search = SEARCH_IDS.firstNotNullOfOrNull { id ->
+                    root.findAccessibilityNodeInfosByViewId("${armed.pkg}:id/$id").firstOrNull()
+                } ?: SEARCH_LABELS.firstNotNullOfOrNull { label ->
+                    root.findAccessibilityNodeInfosByText(label)
+                        .firstOrNull { it.contentDescription?.toString().equals(label, ignoreCase = true) }
+                } ?: return
+                clickable(search)?.performAction(AccessibilityNodeInfo.ACTION_CLICK) ?: return
+                armed.picker = PendingSend.Picker.SEARCHING
+            }
+            PendingSend.Picker.SEARCHING -> {
+                box ?: return
+                val args = android.os.Bundle().apply {
+                    putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, name)
+                }
+                if (box.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)) armed.picker = PendingSend.Picker.TYPED
+            }
+            PendingSend.Picker.TYPED -> {
+                if (box?.text?.toString()?.trim() != name) return
+                // The one row that is this person: exact name, not the search box itself.
+                val row = walk(root).firstOrNull { node ->
+                    !node.isEditable && node.childCount == 0 && sameName(node.text?.toString(), name)
+                }?.let(::clickable) ?: return
+                if (row.performAction(AccessibilityNodeInfo.ACTION_CLICK)) armed.picker = PendingSend.Picker.CHOSEN
+            }
+            PendingSend.Picker.CHOSEN -> {
+                // Multi-select pickers show a green Send once someone is chosen; a single-tap
+                // picker goes straight to the preview, where the next event finds the caption.
+                val button = findSendButton(root, armed.pkg) ?: return
+                button.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                armed.picker = PendingSend.Picker.NONE
+            }
+        }
+    }
+
+    /** "Beto" is "beto" and "Béto": accents and case don't decide who gets the photo. */
+    private fun sameName(a: String?, b: String): Boolean {
+        fun fold(s: String) = java.text.Normalizer.normalize(s.trim(), java.text.Normalizer.Form.NFD)
+            .replace(Regex("\\p{M}+"), "").lowercase()
+        return a != null && fold(a) == fold(b)
     }
 
     private fun findSendButton(root: AccessibilityNodeInfo, pkg: String): AccessibilityNodeInfo? {
@@ -313,6 +379,8 @@ class ZapSendService : AccessibilityService() {
         }
 
         private val SEND_LABELS = listOf("Enviar", "Send", "Senden")
+        private val SEARCH_LABELS = listOf("Pesquisar", "Buscar", "Search", "Suchen")
+        private val SEARCH_IDS = listOf("menuitem_search", "search", "search_button", "action_search")
         /** Send button ids WhatsApp has used, newest guesses after the classic one. */
         private val SEND_IDS = listOf("send", "send_media_btn", "send_button", "sendButton", "media_send_button")
         /** Caption box ids WhatsApp has used on its photo preview. */

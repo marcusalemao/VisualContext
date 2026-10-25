@@ -498,6 +498,7 @@ internal object ZapNotifier : NexusPluginCallbacks {
                 val status = when (outcome) {
                     SendOutcome.SENT -> text.sent
                     SendOutcome.OPENED_FOR_THUMB -> text.openedForThumb
+                    SendOutcome.HELPER_OFF -> text.helperOff
                     SendOutcome.WAITING_FOR_UNLOCK -> text.waitingUnlock
                     SendOutcome.NOT_INSTALLED -> text.notInstalled
                     SendOutcome.FAILED -> text.failed

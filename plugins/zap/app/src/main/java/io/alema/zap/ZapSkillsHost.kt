@@ -73,7 +73,7 @@ internal object ZapSkillsHost {
                 once {
                     when (outcome) {
                         SendOutcome.SENT -> invocation.complete(JSONObject().put("outcome", "sent").put("to", to))
-                        SendOutcome.OPENED_FOR_THUMB ->
+                        SendOutcome.OPENED_FOR_THUMB, SendOutcome.HELPER_OFF ->
                             invocation.accepted(JSONObject().put("outcome", "opened_for_thumb").put("to", to))
                         SendOutcome.WAITING_FOR_UNLOCK ->
                             invocation.accepted(JSONObject().put("outcome", "waiting_for_unlock").put("to", to))

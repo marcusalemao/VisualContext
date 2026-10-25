@@ -545,6 +545,10 @@ class ZapPluginService : NexusPluginService() {
         subtitle = subtitle,
         footer = footer,
         handlesBack = handlesBack,
+        // The glasses hub merges a card into the previous one with the same content key and
+        // fills an absent subtitle/footer from it ("Sending…" stuck on the inbox). A key that
+        // says which shell lines this card has makes a card without them a fresh card.
+        contentKey = "zap-card-" + (if (subtitle != null) "s" else "") + (if (footer != null) "f" else ""),
     )
 
     private fun Tone.toNexus() = when (this) {

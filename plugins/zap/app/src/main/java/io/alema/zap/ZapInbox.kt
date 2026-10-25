@@ -236,6 +236,9 @@ internal object ZapInbox {
 
         var messages = messagingStyle(context, extras, fallbackTimeMs = sbn.postTime)
             .ifEmpty {
+                // Only a real conversation (it has a conversation shortcut) may fall back to the plain
+                // title + text; WhatsApp's own notes ("Couldn't complete backup") have no shortcut.
+                if (n.shortcutId == null) return null
                 val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()?.trim().orEmpty()
                 if (text.isEmpty()) emptyList() else listOf(ZapMessage(title, text, sbn.postTime))
             }
