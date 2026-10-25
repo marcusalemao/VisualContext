@@ -11,15 +11,20 @@ up() { curl -s -m 2 "$URL/status" >/dev/null 2>&1; }
 show() { open -a "Google Chrome" "$URL" 2>/dev/null || open "$URL"; }
 on() { for id in "$@"; do curl -s -m 5 -X POST "$URL/switch" -d "{\"id\":\"$id\",\"on\":true}" >/dev/null; done; }
 
+LABEL="io.alema.glasscast.panel"
 case "${1:-painel}" in
-  desligar) up && curl -s -m 5 -X POST "$URL/quit" >/dev/null; exit 0 ;;
+  desligar) launchctl remove "$LABEL" 2>/dev/null || { up && curl -s -m 5 -X POST "$URL/quit" >/dev/null; }; exit 0 ;;
 esac
 
 echo "panel already running: $(up && echo yes || echo no)"
 started=0
 if ! up; then
   started=1
-  GLASSCAST_NO_BROWSER=1 nohup python3 "$HERE/glasscast-panel.py" > "$HERE/logs/panel.txt" 2>&1 &
+  # Through launchd, not as a child of this app: the app quits right away, and windows
+  # opened by its orphaned children (HUD verde, celular) could not reach the screen.
+  launchctl remove "$LABEL" 2>/dev/null
+  launchctl submit -l "$LABEL" -- /bin/bash -c "export PATH='$PATH' GLASSCAST_NO_BROWSER=1 GLASSCAST_LABEL='$LABEL'; exec python3 '$HERE/glasscast-panel.py' > '$HERE/logs/panel.txt' 2>&1" \
+    || GLASSCAST_NO_BROWSER=1 nohup python3 "$HERE/glasscast-panel.py" > "$HERE/logs/panel.txt" 2>&1 &
   for _ in $(seq 1 30); do up && break; sleep 0.3; done
   sleep 3 # let it find the glasses and the phone
   echo "panel started: $(up && echo yes || echo NO, see logs/panel.txt)"

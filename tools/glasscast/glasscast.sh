@@ -103,6 +103,8 @@ grab() { # serial out.png
   local remote="/data/local/tmp/glasscast_shot.png" err
   # Why a shot failed goes to logs/grab-errors.txt, so a failure can be read instead of guessed.
   err="$(adb -s "$1" shell "screencap -p $remote" 2>&1)" || { printf '%s %s screencap: %s\n' "$(date +%T)" "$1" "$err" >> "$DIR/logs/grab-errors.txt"; return 1; }
+  # Phones with several displays warn on every shot and still capture the main one: not an error.
+  err="$(printf '%s\n' "$err" | grep -v -e 'Multiple displays were found' -e 'dumpsys SurfaceFlinger --display-id' -e 'display id can be specified' | grep -v '^[[:space:]]*$' || true)"
   [ -n "$err" ] && printf '%s %s screencap said: %s\n' "$(date +%T)" "$1" "$err" >> "$DIR/logs/grab-errors.txt"
   err="$(adb -s "$1" pull "$remote" "$2" 2>&1)" || { printf '%s %s pull: %s\n' "$(date +%T)" "$1" "$err" >> "$DIR/logs/grab-errors.txt"; return 1; }
   if [ "$(wc -c < "$2")" -gt 2000 ] && [ "$(head -c 4 "$2" | tail -c 3)" = "PNG" ]; then return 0; fi
@@ -162,7 +164,7 @@ case "$cmd" in
     # Start clean: stop any earlier mirror still running (other Terminal windows)
     # and find the glasses again instead of trusting an old address.
     pkill -f "glasscast.sh (watch|lens)" 2>/dev/null
-    pkill -f "ffplay.*Rokid HUD" 2>/dev/null
+    pkill -f "ffplay.*(Rokid HUD|HUD verde)" 2>/dev/null
     pkill -f "screenrecord --output-format=h264" 2>/dev/null
     rm -f "$STATE"
     adb start-server >/dev/null 2>&1
@@ -249,10 +251,21 @@ case "$cmd" in
     trap 'exit 0' INT
     # Android's own screen recorder streams the HUD; ffplay shows it tinted.
     # It restarts every 3 minutes (the recorder's limit), so expect a blink.
+    # If the window dies within seconds 3 times in a row, stop: retrying at full speed
+    # once filled a 56 MB log and kept the Mac busy (ffplay could not open a window).
+    fails=0
     while true; do
+      t0=$(date +%s)
       adb -s "$dev" exec-out screenrecord --output-format=h264 --time-limit=180 - 2>/dev/null \
-        | ffplay -loglevel warning -f h264 -framerate 30 -window_title "Rokid HUD (lente)" -alwaysontop \
+        | ffplay -loglevel warning -f h264 -framerate 30 -window_title "HUD verde" -alwaysontop \
             -fflags nobuffer -flags low_delay -framedrop -vf "$GREEN" -
+      if [ $(( $(date +%s) - t0 )) -lt 10 ]; then
+        fails=$((fails + 1))
+        [ "$fails" -ge 3 ] && die "a janela do HUD verde fechou sozinha 3 vezes seguidas. Desligue e ligue o Glasscast; se continuar, mande este log para o Claude."
+        sleep $((fails * 3))
+      else
+        fails=0
+      fi
     done
     ;;
 

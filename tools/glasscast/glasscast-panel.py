@@ -358,7 +358,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send(200, "{}")
         elif self.path == "/quit":
             self.send(200, "{}")
-            threading.Timer(0.3, lambda: os.kill(os.getpid(), signal.SIGTERM)).start()
+            threading.Timer(0.3, quit_panel).start()
         elif self.path == "/run":
             cmd, args = b.get("cmd"), [str(a) for a in (b.get("args") or [])][:2]
             if cmd not in ONE_SHOT:
@@ -369,9 +369,35 @@ class Handler(BaseHTTPRequestHandler):
             self.send(404, "{}")
 
 
+def quit_panel():
+    # Started by launchd (glasscast-open.sh), which would start it again if it just exited:
+    # removing the job stops it for good (launchd sends SIGTERM, and bye() switches all off).
+    label = os.environ.get("GLASSCAST_LABEL")
+    if label:
+        subprocess.Popen(["launchctl", "remove", label])
+    else:
+        os.kill(os.getpid(), signal.SIGTERM)
+
+
+def trim_logs(limit=2_000_000):
+    # Logs that only grow (errors, notes) are cut to their last part when the panel starts.
+    for name in ("grab-errors.txt", "notas.log"):
+        path = os.path.join(DIR, "logs", name)
+        try:
+            if os.path.getsize(path) > limit:
+                with open(path, "rb") as f:
+                    f.seek(-limit // 4, os.SEEK_END)
+                    tail = f.read()
+                with open(path, "wb") as f:
+                    f.write(tail)
+        except OSError:
+            pass
+
+
 def main():
     for sub in ("logs", "watch", "shots", "videos", "notas"):
         os.makedirs(os.path.join(DIR, sub), exist_ok=True)
+    trim_logs()
     server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
     url = f"http://127.0.0.1:{PORT}"
     print(f"Glasscast: painel em {url}")
