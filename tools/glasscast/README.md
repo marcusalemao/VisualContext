@@ -3,8 +3,8 @@
 **See, record and capture the Rokid Glasses screen on a Mac — as the lens shows it.**
 Veja, grave e fotografe a tela dos Rokid Glasses no Mac — do jeito que a lente mostra.
 
-Independent tool by [alema.io](https://alema.io). Not affiliated with Rokid, and not the "Rokid Mirror" apps.
-Ferramenta independente da [alema.io](https://alema.io). Não é da Rokid nem os apps "Rokid Mirror".
+Independent tool by [alema.io](https://alema.io). Not affiliated with Rokid.
+Ferramenta independente da [alema.io](https://alema.io). Não é afiliada à Rokid.
 
 ## What it does / O que faz
 

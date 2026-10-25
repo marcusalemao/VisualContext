@@ -1,6 +1,6 @@
 #!/bin/bash
 # Glasscast — see, record and capture the Rokid Glasses screen on a Mac.
-# Independent tool by alema.io; not affiliated with Rokid, and not the "Rokid Mirror" apps.
+# Independent tool by alema.io; not affiliated with Rokid.
 #
 # For any project, not one app: watch the HUD live, record demo videos, and
 # drop screenshots into a folder Claude can read while you test.
@@ -43,7 +43,7 @@
 set -u
 
 # Files land next to this script (e.g. Documents/Glasscast), unless GLASSCAST_DIR says otherwise.
-DIR="${GLASSCAST_DIR:-${ROKID_MIRROR_DIR:-$(cd "$(dirname "$0")" && pwd)}}"
+DIR="${GLASSCAST_DIR:-$(cd "$(dirname "$0")" && pwd)}"
 STATE="$HOME/.glasscast"
 mkdir -p "$DIR/shots" "$DIR/videos" "$DIR/watch"
 
@@ -161,7 +161,7 @@ case "$cmd" in
     fi
     # Start clean: stop any earlier mirror still running (other Terminal windows)
     # and find the glasses again instead of trusting an old address.
-    pkill -f "(rokid-mirror|glasscast).sh (watch|lens)" 2>/dev/null
+    pkill -f "glasscast.sh (watch|lens)" 2>/dev/null
     pkill -f "ffplay.*Rokid HUD" 2>/dev/null
     pkill -f "screenrecord --output-format=h264" 2>/dev/null
     rm -f "$STATE"
