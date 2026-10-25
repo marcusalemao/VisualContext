@@ -77,9 +77,28 @@ def stop(sid):
                 pass
 
 
+devices_cache = {"glasses": ["none", ""], "phone": ["none", ""], "unauthorized": False, "checking": True}
+
+
+def check_devices():
+    # adb can hang on a loose cable; that must never freeze the page, so this runs on its own.
+    while True:
+        lines = run_script("status", timeout=10).splitlines()
+        dev = {"glasses": ["none", ""], "phone": ["none", ""], "unauthorized": False, "checking": False}
+        for line in lines:
+            parts = line.split()
+            if len(parts) >= 2 and parts[0] in ("glasses", "phone"):
+                dev[parts[0]] = [parts[1], parts[2] if len(parts) > 2 else ""]
+            elif parts and parts[0] == "unauthorized":
+                dev["unauthorized"] = True
+        devices_cache.clear()
+        devices_cache.update(dev)
+        time.sleep(3)
+
+
 def status():
-    lines = run_script("status", timeout=10).splitlines()
-    dev = {"glasses": ["none", ""], "phone": ["none", ""], "unauthorized": False}
+    dev = dict(devices_cache)
+    lines = []
     for line in lines:
         parts = line.split()
         if len(parts) >= 2 and parts[0] in ("glasses", "phone"):
@@ -100,7 +119,7 @@ def status():
             except OSError:
                 pass
         switches.append({"id": sid, "group": group, "label": label, "hint": hint,
-                         "on": alive(sid), "last": last})
+                         "on": alive(sid), "failed": failed, "last": last})
     return {"devices": dev, "switches": switches, "folder": DIR}
 
 
@@ -119,7 +138,7 @@ h1{font-size:22px;margin:0 0 4px}.sub{color:var(--dim);margin:0 0 20px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
 h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin:0 0 8px}
 .sw{display:flex;gap:12px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px;cursor:pointer}
-.sw .t{flex:1}.sw .h{color:var(--dim);font-size:13px}.sw .l{color:var(--dim);font:11px ui-monospace,monospace;margin-top:4px;word-break:break-all}
+.sw .t{flex:1}.sw .h{color:var(--dim);font-size:13px}.sw.fail .l{color:var(--bad)}.sw .l{color:var(--dim);font:11px ui-monospace,monospace;margin-top:4px;word-break:break-all}
 .tg{width:42px;height:24px;border-radius:12px;background:#2a3830;position:relative;flex:none;margin-top:2px;transition:.15s}
 .tg:after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#cfe;transition:.15s}
 .sw.on .tg{background:var(--green)}.sw.on .tg:after{left:21px;background:#0b0f0c}
@@ -153,17 +172,18 @@ const label={usb:"pelo cabo ✓",wifi:"pelo Wi-Fi",none:"não encontrado"};
 async function refresh(){
   try{const s=await (await fetch("/status")).json();
     for(const k of ["g","p"]){const d=s.devices[k=="g"?"glasses":"phone"];const el=document.getElementById(k);
-      el.className="st "+d[0];el.textContent=label[d[0]]+(d[1]?"  ·  "+d[1]:"");}
+      el.className="st "+d[0];el.textContent=(s.devices.checking?"procurando…":label[d[0]])+(d[1]?"  ·  "+d[1]:"");}
     if(s.devices.unauthorized){const p=document.getElementById("p");p.className="st wifi";p.textContent="aceite \"Permitir depuração USB?\" no celular";}
     for(const g of ["glasses","phone"]){const box=document.getElementById(g);box.innerHTML="";
-      s.switches.filter(w=>w.group==g).forEach(w=>{const d=document.createElement("div");d.className="sw"+(w.on?" on":"");
+      s.switches.filter(w=>w.group==g).forEach(w=>{const d=document.createElement("div");d.className="sw"+(w.on?" on":"")+(w.failed?" fail":"");d.dataset.id=w.id;
         d.innerHTML=`<div class="tg"></div><div class="t"><div>${w.label}</div><div class="h">${w.hint}</div>${w.last?`<div class="l"></div>`:""}</div>`;
         if(w.last)d.querySelector(".l").textContent=w.last;
         d.onclick=()=>toggle(w.id,!w.on);box.appendChild(d);});}
     document.getElementById("folder").textContent="Pasta: "+s.folder;
   }catch(e){document.getElementById("g").textContent="o painel parou: rode de novo o Glasscast.command";}
 }
-async function toggle(id,on){await fetch("/switch",{method:"POST",body:JSON.stringify({id,on})});setTimeout(refresh,700);}
+async function toggle(id,on){document.querySelectorAll(".sw").forEach(el=>{if(el.dataset.id==id)el.classList.toggle("on",on)});
+  await fetch("/switch",{method:"POST",body:JSON.stringify({id,on})});setTimeout(refresh,700);}
 async function act(cmd,args=[]){const m=document.getElementById("msg");m.textContent="…";
   const r=await (await fetch("/run",{method:"POST",body:JSON.stringify({cmd,args})})).json();m.textContent=r.out||"ok";refresh();}
 function wifi(){const v=document.getElementById("addr").value.trim().replace(/^adb (pair|connect) /,"").split(/\s+/);
@@ -203,8 +223,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/":
             self.send(200, PAGE, "text/html")
         elif self.path == "/status":
-            with lock:
-                self.send(200, json.dumps(status()))
+            self.send(200, json.dumps(status()))
         else:
             self.send(404, "{}")
 
@@ -244,6 +263,7 @@ def main():
 
     signal.signal(signal.SIGINT, bye)
     signal.signal(signal.SIGTERM, bye)
+    threading.Thread(target=check_devices, daemon=True).start()
     threading.Timer(0.8, lambda: webbrowser.open(url)).start()
     server.serve_forever()
 

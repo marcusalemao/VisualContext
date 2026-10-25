@@ -97,6 +97,15 @@ need_phone() {
 # Zap's own log tags, plus crashes (any app) so a Zap crash is never missed.
 ZAP_TAGS="Zap:V ZapNotifier:V ZapInbox:V ZapGallery:V ZapPhotoWatcher:V ZapSkills:V ZapPhotos:V ZapVoiceNotes:V AndroidRuntime:E"
 
+# A screenshot as a real file on the device, then copied over: "exec-out screencap" can
+# mix warnings into the picture on some devices and leave a PNG nothing can open.
+grab() { # serial out.png
+  local remote="/data/local/tmp/glasscast_shot.png"
+  adb -s "$1" shell "screencap -p $remote" >/dev/null 2>&1 || return 1
+  adb -s "$1" pull "$remote" "$2" >/dev/null 2>&1 || return 1
+  [ "$(wc -c < "$2")" -gt 2000 ] && [ "$(head -c 4 "$2" | tail -c 3)" = "PNG" ]
+}
+
 device() {
   # A cable beats any remembered Wi-Fi address.
   local usb; usb="$(glasses_usb)"
@@ -289,7 +298,7 @@ case "$cmd" in
   snap)
     dev="$(ensure_connected)" || exit 1
     file="$DIR/shots/${1:-hud}_$(stamp).png"
-    adb -s "$dev" exec-out screencap -p > "$file" && say "saved: $file"
+    grab "$dev" "$file" && say "saved: $file" || die "não consegui tirar o print dos óculos"
     ;;
 
   watch)
@@ -301,7 +310,7 @@ case "$cmd" in
     while true; do
       tmp="$DIR/watch/.next.png"
       # Keep only whole pictures: a dropped link leaves an empty or cut file.
-      if adb -s "$dev" exec-out screencap -p > "$tmp" 2>/dev/null && [ "$(wc -c < "$tmp")" -gt 2000 ] && head -c 4 "$tmp" | grep -q PNG; then
+      if grab "$dev" "$tmp"; then
         cp "$tmp" "$DIR/watch/$(stamp).png"
         mv "$tmp" "$DIR/watch/latest.png"
         misses=0
@@ -348,7 +357,7 @@ case "$cmd" in
   phone-snap)
     p="$(need_phone)" || exit 1
     file="$DIR/shots/${1:-celular}_$(stamp).png"
-    adb -s "$p" exec-out screencap -p > "$file" && say "saved: $file"
+    grab "$p" "$file" && say "saved: $file" || die "não consegui tirar o print do celular"
     ;;
 
   phone-watch)
@@ -358,7 +367,7 @@ case "$cmd" in
     trap 'exit 0' INT
     while true; do
       tmp="$DIR/watch/.phone-next.png"
-      if adb -s "$p" exec-out screencap -p > "$tmp" 2>/dev/null && [ "$(wc -c < "$tmp")" -gt 2000 ] && head -c 4 "$tmp" | grep -q PNG; then
+      if grab "$p" "$tmp"; then
         cp "$tmp" "$DIR/watch/phone_$(stamp).png"
         mv "$tmp" "$DIR/watch/phone-latest.png"
         ls -1t "$DIR"/watch/phone_*.png 2>/dev/null | tail -n +41 | while read -r old; do rm -f "$old"; done
