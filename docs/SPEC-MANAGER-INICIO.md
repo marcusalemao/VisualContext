@@ -60,6 +60,10 @@ Approved by Marcus on 11/10. Visual reference: the canvas "VisualContext Manager
 - **Which room (optional):** teach each room once ("this is the bedroom"); after that the scene says the room. Without it, the AI describes the spot ("on the bed", "inside the fridge").
 - **Show the last 2–3 sightings**, not only one: the latest frame may be wrong, or the key moved after it.
 - **Capture:** the camera can't stay on all day (heat, battery). Plan: a low-resolution frame every few seconds while the user moves around, checked on the phone against registered things only; frames with no registered thing are discarded at once; kept sightings expire after a few days. Plus a voice shortcut: "save: key here".
+- **Three sources for "last seen", one card** (Marcus, 25/10). The heart stays the description of the last frame where the thing was seen. But many people already use tags, and nobody wears the glasses 24 hours a day, so the card takes the best source it has and says which one:
+  - **Camera** (glasses on): the last photo + its description. Best for "where exactly".
+  - **Tag** the user already has: Find Hub / Find My tags (UGREEN, AirTag, Moto Tag…) through the "Open in Find Hub" button, which can ring it or, on tags with UWB, point to it; generic BLE tags (iTag type) read by our app: near/far, ring. Best for "it's in the house but where" and for when the glasses were off.
+  - **NFC sticker** (phone tap): NFC is a few centimetres, so it doesn't *find*; it *marks*. Tap the sticker on a drawer or a box → "what's in here" (the last photo of its contents); tap the one on the keyring → "key here" without glasses. Cheap and works with no battery.
 - **Today's code** (rvLearnSkill) learns from text only. It needs to accept photos and store the visual signature.
 
 ### 1f. Places you pass by: AR cards on the glasses (11/10)
@@ -113,7 +117,7 @@ Marcus's real case: getting off the bike and leaving the key in the ignition or 
 - **Trigger = the parking moment (1d).** The phone's speed drops from riding to zero, then walking starts. That is when we ask, not before.
 - **"Did the key come with you?"** — checked in this order:
   1. **The glasses camera:** in the parking burst, is the key in your hand or going into the pocket (the key's visual signature from 1e)?
-  2. **Optional, a generic BLE tag** (iTag type, a few reais) on the keyring: its signal stays strong next to the phone = the key came. Our app can read these directly.
+  2. **A generic BLE tag** (iTag type, a few reais) on the keyring, if the user has one: its signal stays strong next to the phone = the key came. Our app can read these directly.
   3. If neither answers, ask on the HUD (one line, tap = "it's with me").
 - **If the key stayed:** HUD card "the key stayed on the bike?" + phone vibration. If you walk about **15 m** away and nothing changed, a louder alarm on the phone.
 - **Snooze 2 minutes** (e.g. you went back to fetch it, or a friend is holding it).
@@ -231,6 +235,10 @@ Aprovado pelo Marcus em 11/10. Referência visual: o canvas "VisualContext Manag
 - **Qual cômodo (opcional):** ensinar cada cômodo uma vez ("esse é o quarto"); depois a cena diz o cômodo. Sem isso, a IA descreve o ponto ("em cima da cama", "dentro da geladeira").
 - **Mostrar as 2–3 últimas vezes**, não só uma: o último quadro pode estar errado, ou a chave mudou de lugar depois.
 - **Captura:** a câmera não pode ficar ligada o dia todo (calor, bateria). Plano: um quadro em baixa resolução a cada poucos segundos enquanto a pessoa se move, conferido no celular só contra as coisas cadastradas; quadro sem coisa cadastrada é descartado na hora; os avistamentos guardados expiram em poucos dias. Mais um atalho de voz: "guarda: chave aqui".
+- **Três fontes para "última vez visto", um card só** (Marcus, 25/10). O coração continua sendo a descrição do último quadro em que a coisa foi vista. Mas muita gente já usa tag, e ninguém fica de óculos 24 horas por dia, então o card usa a melhor fonte que tiver e diz qual foi:
+  - **Câmera** (com os óculos): a última foto + a descrição. A melhor para "onde exatamente".
+  - **Tag** que a pessoa já tem: tags do Find Hub / Buscar (UGREEN, AirTag, Moto Tag…) pelo botão "Abrir no Find Hub", que faz apitar ou, nas tags com UWB, aponta a direção; tags BLE genéricas (tipo iTag) lidas pelo nosso app: perto/longe, apitar. A melhor para "está em casa, mas onde" e para quando os óculos estavam desligados.
+  - **Adesivo NFC** (encostar o celular): o NFC só alcança poucos centímetros, então ele não *acha*, ele *marca*. Encostar no adesivo de uma gaveta ou caixa → "o que tem aqui dentro" (a última foto do conteúdo); encostar no do chaveiro → "chave aqui", sem óculos. Barato e sem bateria.
 - **O código de hoje** (rvLearnSkill) aprende só por texto. Precisa aceitar fotos e guardar a assinatura visual.
 
 ### 1f. Lugares por onde você passa: cards de RA nos óculos (11/10)
@@ -284,7 +292,7 @@ O caso real do Marcus: descer da moto e deixar a chave no contato ou no guidão.
 - **Gatilho = a hora de estacionar (1d).** A velocidade do celular cai de pilotando para zero e depois começa a caminhada. É aí que perguntamos, não antes.
 - **"A chave veio com você?"** — conferido nesta ordem:
   1. **Câmera dos óculos:** na rajada de estacionar, a chave está na sua mão ou indo para o bolso (a assinatura visual da chave, de 1e)?
-  2. **Opcional, uma tag BLE genérica** (tipo iTag, poucos reais) no chaveiro: o sinal continua forte perto do celular = a chave veio. O nosso app lê essas tags direto.
+  2. **Uma tag BLE genérica** (tipo iTag, poucos reais) no chaveiro, se a pessoa tiver: o sinal continua forte perto do celular = a chave veio. O nosso app lê essas tags direto.
   3. Se nenhum dos dois responder, pergunta no HUD (uma linha, toque = "está comigo").
 - **Se a chave ficou:** card no HUD "a chave ficou na moto?" + vibração no celular. Se você se afastar uns **15 m** e nada mudou, alarme mais forte no celular.
 - **Adiar 2 minutos** (ex.: você voltou para buscar, ou um amigo está com ela).
