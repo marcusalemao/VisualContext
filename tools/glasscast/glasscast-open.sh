@@ -13,10 +13,12 @@ case "${1:-painel}" in
   desligar) up && curl -s -m 5 -X POST "$URL/quit" >/dev/null; exit 0 ;;
 esac
 
+echo "panel already running: $(up && echo yes || echo no)"
 if ! up; then
   GLASSCAST_NO_BROWSER=1 nohup python3 "$HERE/glasscast-panel.py" > "$HERE/logs/panel.txt" 2>&1 &
   for _ in $(seq 1 30); do up && break; sleep 0.3; done
   sleep 3 # let it find the glasses and the phone
+  echo "panel started: $(up && echo yes || echo NO, see logs/panel.txt)"
 fi
 
 case "${1:-painel}" in

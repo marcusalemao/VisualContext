@@ -23,7 +23,7 @@
 #   ./glasscast.sh demo [name]       records HUD + camera together; Ctrl+C ends and builds
 #                                       the "through the lens" video (HUD light over the world)
 #   ./glasscast.sh snap [name]       one screenshot
-#   ./glasscast.sh watch [seconds]   a screenshot every N seconds (default 3), last 40 kept
+#   ./glasscast.sh watch [seconds]   a screenshot every N seconds (default 3), last 400 kept (~20 min)
 #   ./glasscast.sh compose scene.mp4 hud.mp4 [out.mp4]   same look, from two videos you have
 #   ./glasscast.sh off               disconnect
 #
@@ -322,7 +322,7 @@ case "$cmd" in
         mv "$tmp" "$DIR/watch/latest.png"
         misses=0
         # keep the last 40 timestamped shots
-        ls -1t "$DIR"/watch/20*.png 2>/dev/null | tail -n +41 | while read -r old; do rm -f "$old"; done
+        ls -1t "$DIR"/watch/20*.png 2>/dev/null | tail -n +$(( ${GLASSCAST_KEEP_HUD:-400} + 1 )) | while read -r old; do rm -f "$old"; done
       else
         rm -f "$tmp"
         misses=$((misses + 1))
@@ -377,7 +377,7 @@ case "$cmd" in
       if grab "$p" "$tmp"; then
         cp "$tmp" "$DIR/watch/phone_$(stamp).png"
         mv "$tmp" "$DIR/watch/phone-latest.png"
-        ls -1t "$DIR"/watch/phone_*.png 2>/dev/null | tail -n +41 | while read -r old; do rm -f "$old"; done
+        ls -1t "$DIR"/watch/phone_*.png 2>/dev/null | tail -n +$(( ${GLASSCAST_KEEP_PHONE:-240} + 1 )) | while read -r old; do rm -f "$old"; done
       else
         rm -f "$tmp"
         p="$(phone_serial)"; [ -n "$p" ] || sleep 5
