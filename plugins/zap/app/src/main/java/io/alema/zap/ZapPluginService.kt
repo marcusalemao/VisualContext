@@ -33,6 +33,8 @@ import com.anezium.rokidbus.client.plugin.NexusTtsDoneReason
 import com.anezium.rokidbus.client.plugin.NexusTtsSession
 import com.anezium.rokidbus.shared.plugin.NexusInputEvent
 import io.alema.zap.core.ComposeFlow
+import io.alema.zap.core.BriefDone
+import io.alema.zap.core.BriefState
 import io.alema.zap.core.Effect
 import io.alema.zap.core.Note
 import io.alema.zap.core.Step
@@ -86,6 +88,8 @@ class ZapPluginService : NexusPluginService() {
             // Strictly who you talked to lately, newest first — no favourites, no frequency mix.
             recentPeople = { RecentPeople.build(ZapInbox.list(this), contacts.directory(), SHORTLIST) },
             gallery = { ZapGallery.recent(this) },
+            briefs = { ZapAi.ready(this) },
+            reactions = { ZapSettings(this).reactions(java.util.Locale.getDefault().language == "pt") },
         )
         flow.open(ZapInbox.list(this))
         unobserveInbox = ZapInbox.observe {
@@ -278,6 +282,17 @@ class ZapPluginService : NexusPluginService() {
                 Effect.StopListening -> stopListening()
                 is Effect.SpeakDraft -> speak(text.spoken(effect.recipient.name, effect.body))
                 is Effect.SpeakMessage -> speak(text.heard(screens.senderLabel(effect.message), effect.message.text))
+                is Effect.SpeakText -> speak(effect.text)
+                is Effect.Summarize -> summarize(effect)
+                is Effect.AddToCalendar -> {
+                    val ok = ZapCalendar.add(this, effect.event, effect.chatTitle)
+                    flow.onBriefAction(BriefDone.CALENDAR, ok)
+                }
+                is Effect.RemindToReply -> {
+                    val summary = ((flow.step as? Step.Brief)?.state as? BriefState.Ready)?.brief?.summary
+                    val ok = ZapReminders.schedule(this, effect.conversation, effect.minutes, summary)
+                    flow.onBriefAction(BriefDone.REMIND, ok)
+                }
                 Effect.StopSpeaking -> stopSpeaking()
                 is Effect.Send -> send(effect.recipient, effect.body, effect.photo)
                 Effect.PullGlassesMedia -> pullGlassesMedia()
@@ -291,6 +306,19 @@ class ZapPluginService : NexusPluginService() {
             }
         }
         render()
+    }
+
+    // --- summaries -------------------------------------------------------
+
+    /** Ask the wearer's AI; the card says "Summarizing…" meanwhile and fills in when the answer lands. */
+    private fun summarize(effect: Effect.Summarize) {
+        ZapAi.summarize(this, effect.conversation, effect.messages) { state ->
+            main.post {
+                if (!::flow.isInitialized || surface == null) return@post
+                flow.onBrief(effect.conversation.key, state)
+                render()
+            }
+        }
     }
 
     // --- speech in -------------------------------------------------------
@@ -427,6 +455,8 @@ class ZapPluginService : NexusPluginService() {
         when (val step = flow.step) {
             is Step.Thread -> ZapInbox.markRead(this, step.conversation.key)
             is Step.Read -> ZapInbox.markRead(this, step.conversation.key)
+            // The summary counts as seeing the messages: they leave the unread count.
+            is Step.Brief -> ZapInbox.markRead(this, step.conversation.key)
             else -> Unit
         }
         when (val screen = screens.make(flow.step, flow.selected, status)) {

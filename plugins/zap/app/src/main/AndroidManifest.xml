@@ -14,7 +14,14 @@
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
-    <!-- No INTERNET permission: Zap never talks to a server. -->
+    <!-- Only for summaries, and only when the wearer turns them on: the chat goes
+         straight to the AI provider they chose, with their own key. Off = no traffic. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- "Add to calendar" from a summary: written into the phone's own calendar, asked for in settings. -->
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
+    <!-- "Remind me to reply": a notification on the phone too, in case the glasses are off. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <queries>
         <intent>
@@ -106,5 +113,8 @@
             <meta-data android:name="com.anezium.rokidbus.plugin.SETTINGS_ACTIVITY" android:value=".ZapSettingsActivity" />
             <meta-data android:name="com.anezium.rokidbus.plugin.LAUNCHABLE" android:value="true" />
         </service>
+        <receiver
+            android:name=".ZapReminderReceiver"
+            android:exported="false" />
     </application>
 </manifest>

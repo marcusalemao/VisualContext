@@ -116,6 +116,40 @@ class ZapText(private val pt: Boolean = Locale.getDefault().language == "pt") {
     /** What the glasses say for "Listen": the recipient, then the message. */
     fun spoken(name: String, body: String) = if (pt) "Para $name: ${body.ifBlank { "uma foto" }}" else "To $name: ${body.ifBlank { "a photo" }}"
 
+    // --- summaries and quick actions (0.13) -----------------------------------
+
+    val react get() = if (pt) "🙂 Reagir" else "🙂 React"
+    fun reactTitle(name: String) = if (pt) "Reagir · $name" else "React · $name"
+    fun briefLoading(messages: Int, voice: Int) = (if (pt) "✦ Resumindo $messages mensage${if (messages == 1) "m" else "ns"}" else "✦ Summarizing $messages message${if (messages == 1) "" else "s"}") +
+        (voice.takeIf { it > 0 }?.let { if (pt) " e $it áudio${if (it == 1) "" else "s"}…" else " and $it voice note${if (it == 1) "" else "s"}…" } ?: "…")
+    fun briefTitle(messages: Int, voice: Int) = (if (pt) "✦ Resumo · $messages mensage${if (messages == 1) "m" else "ns"}" else "✦ Summary · $messages message${if (messages == 1) "" else "s"}") +
+        (voice.takeIf { it > 0 }?.let { if (pt) " · $it áudio${if (it == 1) "" else "s"}" else " · $it voice" } ?: "")
+    val briefFailedTitle get() = if (pt) "✦ Sem resumo agora" else "✦ No summary right now"
+    fun voiceLeftOut(count: Int) = if (pt) "$count áudio${if (count == 1) " ficou" else "s ficaram"} fora do resumo" else "$count voice note${if (count == 1) " was" else "s were"} left out"
+    fun briefError(error: BriefError) = when (error) {
+        BriefError.NO_KEY -> if (pt) "Falta a chave de IA: coloque nos ajustes do Zap, no celular" else "No AI key yet: add one in Zap's settings on the phone"
+        BriefError.BAD_KEY -> if (pt) "A IA recusou a chave: confira nos ajustes do Zap" else "The AI refused the key: check it in Zap's settings"
+        BriefError.OFFLINE -> if (pt) "O celular está sem internet agora" else "The phone has no internet right now"
+        BriefError.LIMIT -> if (pt) "A IA chegou ao limite de uso: tente daqui a pouco" else "The AI hit its usage limit: try again soon"
+        BriefError.FAILED -> if (pt) "A IA não respondeu desta vez" else "The AI didn't answer this time"
+    }
+    fun quickReply(text: String) = "↩ “$text”"
+    val dictate get() = if (pt) "✎ Responder falando" else "✎ Reply by voice"
+    fun calendar(label: String, done: Boolean) = if (done) (if (pt) "✓ Na agenda: $label" else "✓ In the calendar: $label") else "📅 ${if (pt) "Agenda" else "Calendar"}: $label"
+    fun remind(minutes: Int, done: Boolean) = if (done) {
+        if (pt) "✓ Lembro você em $minutes min" else "✓ I'll remind you in $minutes min"
+    } else {
+        if (pt) "⏰ Lembrar de responder em $minutes min" else "⏰ Remind me to reply in $minutes min"
+    }
+    val listenBrief get() = if (pt) "🔊 Ouvir o resumo" else "🔊 Hear the summary"
+    fun seeMessages(count: Int) = if (pt) "☰ Ver as mensagens" + (count.takeIf { it > 1 }?.let { " ($it)" } ?: "") else "☰ See the messages" + (count.takeIf { it > 1 }?.let { " ($it)" } ?: "")
+    val actionFailed get() = if (pt) "Não deu certo: confira a permissão de Agenda nos ajustes do Zap" else "That didn't work: check the Calendar permission in Zap's settings"
+    val today get() = if (pt) "hoje" else "today"
+    val tomorrow get() = if (pt) "amanhã" else "tomorrow"
+    /** What the glasses say when the reminder fires: "Responder Bruno". */
+    fun remindNow(name: String) = if (pt) "Responder $name" else "Reply to $name"
+    fun remindWhy(summary: String?) = summary ?: if (pt) "Você pediu para lembrar" else "You asked to be reminded"
+
     /** "•• 4321": enough to tell two Brunos apart without putting a number on the lens. */
     fun numberHint(digits: String?) = digits?.takeLast(4)?.let { "•• $it" }
 

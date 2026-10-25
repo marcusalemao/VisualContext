@@ -102,7 +102,7 @@ class ScreenMakerTest {
     fun `a tap on a message offers what fits it, the message on top`() {
         val options = card(maker.make(Step.Thread(leoChat, reading = false, focus = 0), selected = 0))
         assertEquals(
-            listOf("📷 o lugar", "Ver a foto", "Responder", "🔊 Ler em voz alta", "Enviar foto ou vídeo"),
+            listOf("📷 o lugar", "Ver a foto", "Responder", "🙂 Reagir", "🔊 Ler em voz alta", "Enviar foto ou vídeo"),
             options.rows.map { it.text },
         )
         assertFalse(options.rows[0].selected)
@@ -110,7 +110,7 @@ class ScreenMakerTest {
         assertEquals("Leo · 00:00", options.subtitle)
         val voice = leoChat.copy(messages = listOf(ZapMessage("Leo", "🎤 Mensagem de voz (0:12)", 1_000L)))
         val audio = card(maker.make(Step.Thread(voice, reading = false, focus = 0), selected = 0))
-        assertEquals(listOf("🎤 Áudio 0:12", "▶ Ouvir este áudio", "Responder", "Enviar foto ou vídeo"), audio.rows.map { it.text })
+        assertEquals(listOf("🎤 Áudio 0:12", "▶ Ouvir este áudio", "Responder", "🙂 Reagir", "Enviar foto ou vídeo"), audio.rows.map { it.text })
     }
 
     @Test

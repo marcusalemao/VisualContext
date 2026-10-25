@@ -82,6 +82,24 @@ internal class ZapSettings(context: Context) {
     }
 
     /** Off by default: the people list starts from who messaged you, no contacts permission. */
+    /** Quick reactions, as plain emoji in the wearer's order (empty = WhatsApp's six). */
+    fun reactionEmojis(): List<String> =
+        prefs.getString(KEY_REACTIONS, null)?.split(' ')?.filter { it.isNotBlank() }.orEmpty()
+
+    fun setReactionEmojis(emojis: List<String>) {
+        prefs.edit().putString(KEY_REACTIONS, emojis.take(io.alema.zap.core.Reactions.MAX).joinToString(" ")).apply()
+    }
+
+    fun skinTone(): io.alema.zap.core.SkinTone =
+        runCatching { io.alema.zap.core.SkinTone.valueOf(prefs.getString(KEY_TONE, null) ?: "") }.getOrDefault(io.alema.zap.core.SkinTone.DEFAULT)
+
+    fun setSkinTone(tone: io.alema.zap.core.SkinTone) {
+        prefs.edit().putString(KEY_TONE, tone.name).apply()
+    }
+
+    fun reactions(pt: Boolean): List<io.alema.zap.core.Reaction> =
+        io.alema.zap.core.Reactions.chosen(reactionEmojis(), skinTone(), pt)
+
     fun importAddressBook(): Boolean = prefs.getBoolean(KEY_IMPORT, false)
 
     fun setImportAddressBook(enabled: Boolean) {
@@ -94,6 +112,8 @@ internal class ZapSettings(context: Context) {
         const val ARRIVAL_READ = 2
         private const val KEY_ARRIVAL = "arrival_mode"
         private const val KEY_IMPORT = "import_address_book"
+        private const val KEY_REACTIONS = "reactions"
+        private const val KEY_TONE = "skin_tone"
         private const val KEY_OFFER_PHOTOS = "offer_new_photos"
         private const val KEY_VISIBLE = "visible_percent"
         private const val KEY_CONTRAST = "extra_contrast"

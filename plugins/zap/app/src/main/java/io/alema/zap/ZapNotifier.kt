@@ -106,8 +106,9 @@ internal object ZapNotifier : NexusPluginCallbacks {
     var inboxOpen = false
 
     /** [recipient] is set when the chat can be answered (live reply or a number). */
-    fun announce(context: Context, sender: String, text: String, recipient: Recipient?) = main.post {
-        val mode = ZapSettings(context).arrivalMode()
+    /** [always]: shown even with arrivals switched off (a reminder the wearer asked for). */
+    fun announce(context: Context, sender: String, text: String, recipient: Recipient?, always: Boolean = false) = main.post {
+        val mode = ZapSettings(context).arrivalMode().let { if (always && it == ZapSettings.ARRIVAL_OFF) ZapSettings.ARRIVAL_NOTICE else it }
         if (inboxOpen || mode == ZapSettings.ARRIVAL_OFF) return@post
         // Never pull the band out from under someone answering: the new message waits in the inbox.
         if (reply != Reply.NONE) return@post

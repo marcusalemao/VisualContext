@@ -82,7 +82,7 @@ class ZapSettingsActivity : Activity() {
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == REQUEST_PHOTOS) render()
+        if (requestCode == REQUEST_PHOTOS || requestCode == REQUEST_CALENDAR || requestCode == REQUEST_NOTIFY) render()
         if (requestCode == REQUEST_CONTACTS) {
             ZapSettings(this).setImportAddressBook(grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED)
             render()
@@ -243,6 +243,9 @@ class ZapSettingsActivity : Activity() {
         }
         // Only speaks up when something is wrong; when messages arrive there is nothing to say.
         if (notifications) problemCard()
+
+        aiSection()
+        reactionsSection()
 
         section(t("Avisos nos óculos", "Notices on the glasses"))
         choiceCard(
@@ -428,6 +431,203 @@ class ZapSettingsActivity : Activity() {
         infoCard(t("Ainda não chegou mensagem", "No message yet"), text)
     }
 
+    // --- summary with AI (0.13) --------------------------------------------
+
+    /**
+     * Summaries need an AI, and Zap pays for nobody's: the wearer brings a key
+     * (Gemini's is free) or, later, the Easy plan. Said plainly here, with what
+     * leaves the phone and where it goes.
+     */
+    private fun aiSection() {
+        section(t("Resumo com IA", "AI summary"))
+        val on = ZapAi.enabled(this)
+        switchCard(
+            title = t("Resumir quando chegam várias mensagens", "Summarize when several messages arrive"),
+            subtitle = t(
+                "Ao abrir nos óculos uma conversa com 3 ou mais mensagens novas (ou 2 áudios seguidos), aparece o resumo e o que fazer: responder com um toque, pôr na agenda, lembrar de responder. Só a conversa aberta vai para a IA que você escolher, com a sua chave. Desligado, o Zap não usa a internet.",
+                "When you open a chat on the glasses with 3+ new messages (or 2 voice notes in a row), you get the summary and what to do: a one-tap reply, add to calendar, remind me to reply. Only the open chat goes to the AI you choose, with your key. Off, Zap doesn't use the internet.",
+            ),
+            checked = on,
+        ) { value ->
+            ZapAi.setEnabled(this, value)
+            render()
+        }
+        if (!on) return
+
+        val provider = ZapAi.provider(this)
+        choiceCard(
+            title = t("IA", "AI"),
+            subtitle = t(
+                "Gemini ouve também os áudios do WhatsApp. As outras resumem só o texto.",
+                "Gemini also listens to WhatsApp voice notes. The others summarize text only.",
+            ),
+            options = ZapAi.Provider.values().map { it.ordinal },
+            label = { ZapAi.Provider.values()[it].label.substringAfter(' ').ifBlank { ZapAi.Provider.values()[it].label } },
+            current = provider.ordinal,
+        ) { ZapAi.setProvider(this, ZapAi.Provider.values()[it]) }
+        keyCard(provider)
+
+        val calendar = ZapCalendar.allowed(this)
+        permissionCard(
+            granted = calendar,
+            title = t("Agenda", "Calendar"),
+            why = t(
+                "Para \"Pôr na agenda\": o compromisso vai direto para a agenda do celular (Google, Samsung), com aviso 15 min antes.",
+                "For \"Add to calendar\": the event goes straight into the phone's calendar (Google, Samsung), with an alert 15 min before.",
+            ),
+            how = t("Toque em Ativar e permita o acesso à Agenda.", "Tap Turn on and allow Calendar access."),
+            intent = appInfo(),
+            onAllow = { requestPermissions(arrayOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR), REQUEST_CALENDAR) },
+        )
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            permissionCard(
+                granted = checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED,
+                title = t("Notificações", "Notifications"),
+                why = t(
+                    "Para \"Lembrar de responder\" avisar também no celular, caso os óculos estejam desligados.",
+                    "So \"Remind me to reply\" also shows on the phone, in case the glasses are off.",
+                ),
+                how = t("Toque em Ativar e permita as notificações.", "Tap Turn on and allow notifications."),
+                intent = appInfo(),
+                onAllow = { requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), REQUEST_NOTIFY) },
+            )
+        }
+        if (provider.hearsAudio && !ZapVoiceNotes.hasAccess(this)) {
+            infoCard(
+                t("Áudios no resumo", "Voice notes in the summary"),
+                t(
+                    "Para o Gemini ouvir os áudios, o Zap precisa da pasta de áudios do WhatsApp (a mesma de \"Ouvir este áudio\", em Permissões). Sem ela, o resumo avisa quantos áudios ficaram de fora.",
+                    "For Gemini to hear voice notes, Zap needs WhatsApp's voice notes folder (the same as \"Play this voice message\", in Permissions). Without it, the summary says how many were left out.",
+                ),
+            )
+        }
+    }
+
+    /** The key: masked when saved, a field to paste a new one, Test and Delete. Where to get a free one, for Gemini. */
+    private fun keyCard(provider: ZapAi.Provider) {
+        val masked = ZapAi.maskedKey(this)
+        val field = NexusUi.field(this, t("Cole a chave aqui", "Paste the key here")).apply {
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_DONE
+        }
+        val status = NexusUi.rowSub(this, masked?.let { t("Chave salva: $it", "Saved key: $it") } ?: t("Nenhuma chave ainda", "No key yet"))
+        content.addView(
+            NexusUi.card(this).apply {
+                addView(NexusUi.rowTitle(this@ZapSettingsActivity, t("Chave de IA · ${provider.label}", "AI key · ${provider.label}")))
+                addView(BusTheme.gap(this@ZapSettingsActivity, 4))
+                addView(status)
+                addView(BusTheme.gap(this@ZapSettingsActivity, 10))
+                addView(field, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+                addView(BusTheme.gap(this@ZapSettingsActivity, 10))
+                addView(
+                    LinearLayout(this@ZapSettingsActivity).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        fun pill(label: String, primary: Boolean, onClick: () -> Unit) = addView(
+                            (if (primary) NexusUi.pillButton(this@ZapSettingsActivity, label) else NexusUi.outlinePillButton(this@ZapSettingsActivity, label))
+                                .apply { setOnClickListener { onClick() } },
+                            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = NexusUi.dp(this@ZapSettingsActivity, 6) },
+                        )
+                        pill(t("SALVAR", "SAVE"), primary = true) {
+                            val typed = field.text?.toString().orEmpty()
+                            if (typed.isNotBlank()) ZapAi.setKey(this@ZapSettingsActivity, typed)
+                            render()
+                        }
+                        pill(t("TESTAR", "TEST"), primary = false) {
+                            status.text = t("Testando…", "Testing…")
+                            ZapAi.test(this@ZapSettingsActivity) { error ->
+                                runOnUiThread {
+                                    status.text = if (error == null) t("✓ Funcionou: a IA respondeu", "✓ It works: the AI answered")
+                                    else io.alema.zap.core.ZapText().briefError(error)
+                                }
+                            }
+                        }
+                        if (masked != null) {
+                            pill(t("APAGAR", "DELETE"), primary = false) {
+                                ZapAi.setKey(this@ZapSettingsActivity, null)
+                                render()
+                            }
+                        }
+                    },
+                )
+                if (provider == ZapAi.Provider.GEMINI) {
+                    addView(BusTheme.gap(this@ZapSettingsActivity, 8))
+                    addView(
+                        NexusUi.textButton(this@ZapSettingsActivity, t("Pegar uma chave grátis no Google AI Studio", "Get a free key at Google AI Studio")).apply {
+                            setOnClickListener { runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://aistudio.google.com/apikey"))) } }
+                        },
+                    )
+                }
+                addView(BusTheme.gap(this@ZapSettingsActivity, 6))
+                addView(NexusUi.rowSub(this@ZapSettingsActivity, t("Modelo: ${ZapAi.model(this@ZapSettingsActivity)}", "Model: ${ZapAi.model(this@ZapSettingsActivity)}")))
+            },
+            NexusUi.block(),
+        )
+        gap(8)
+    }
+
+    // --- quick reactions (0.13) ----------------------------------------------
+
+    /** Up to 7 emojis for "React" on the glasses, in the order tapped here, and a skin tone for hands. */
+    private fun reactionsSection() {
+        section(t("Reações rápidas", "Quick reactions"))
+        val chosen = settings.reactionEmojis().ifEmpty { io.alema.zap.core.Reactions.defaults(pt).map { it.emoji } }
+        val tone = settings.skinTone()
+        val palette = io.alema.zap.core.Reactions.palette(pt)
+        content.addView(
+            NexusUi.card(this).apply {
+                addView(NexusUi.rowTitle(this@ZapSettingsActivity, t("Emojis para reagir (${chosen.size}/${io.alema.zap.core.Reactions.MAX})", "Emojis to react with (${chosen.size}/${io.alema.zap.core.Reactions.MAX})")))
+                addView(BusTheme.gap(this@ZapSettingsActivity, 4))
+                addView(
+                    NexusUi.rowSub(
+                        this@ZapSettingsActivity,
+                        t(
+                            "Nos óculos, toque numa mensagem e escolha Reagir: o emoji vai como mensagem. Toque aqui para tirar ou pôr; a ordem é a dos toques.",
+                            "On the glasses, tap a message and choose React: the emoji goes as a message. Tap here to add or remove; the order is the tap order.",
+                        ),
+                    ),
+                )
+                addView(BusTheme.gap(this@ZapSettingsActivity, 10))
+                palette.chunked(4).forEach { row ->
+                    addView(
+                        LinearLayout(this@ZapSettingsActivity).apply {
+                            orientation = LinearLayout.HORIZONTAL
+                            row.forEach { reaction ->
+                                val on = reaction.emoji in chosen
+                                val label = io.alema.zap.core.Reactions.withTone(reaction, tone).emoji
+                                val button = if (on) NexusUi.pillButton(this@ZapSettingsActivity, label) else NexusUi.outlinePillButton(this@ZapSettingsActivity, label)
+                                button.isAllCaps = false
+                                button.textSize = 20f
+                                button.contentDescription = reaction.word
+                                button.setOnClickListener {
+                                    val next = if (on) chosen - reaction.emoji else chosen + reaction.emoji
+                                    if (next.size <= io.alema.zap.core.Reactions.MAX && next.isNotEmpty()) settings.setReactionEmojis(next)
+                                    render()
+                                }
+                                addView(button, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                                    marginEnd = NexusUi.dp(this@ZapSettingsActivity, 6)
+                                    bottomMargin = NexusUi.dp(this@ZapSettingsActivity, 6)
+                                })
+                            }
+                        },
+                    )
+                }
+            },
+            NexusUi.block(),
+        )
+        gap(8)
+        val tones = io.alema.zap.core.SkinTone.values().toList()
+        choiceCard(
+            title = t("Tom de pele", "Skin tone"),
+            subtitle = t(
+                "Para as mãos (👍 🙏 👏…). Nos óculos tudo fica verde, mas quem recebe vê a cor certa.",
+                "For hands (👍 🙏 👏…). On the glasses everything is green, but the person receiving sees the right color.",
+            ),
+            options = tones.map { it.ordinal },
+            label = { "👍" + tones[it].modifier },
+            current = tone.ordinal,
+        ) { settings.setSkinTone(tones[it]) }
+    }
+
     // --- cards in the Nexus style ------------------------------------------
 
     private fun section(label: String) {
@@ -594,6 +794,8 @@ class ZapSettingsActivity : Activity() {
         const val REQUEST_FILE = 8
         const val REQUEST_PHOTOS = 9
         const val REQUEST_VOICE = 10
+        const val REQUEST_CALENDAR = 11
+        const val REQUEST_NOTIFY = 12
         const val MAX_FILE_BYTES = 5 * 1024 * 1024
     }
 }

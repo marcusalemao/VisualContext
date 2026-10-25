@@ -43,10 +43,10 @@ class ComposeFlowTest {
         f.tap() // what to do with it
         assertEquals(Step.Thread(leoChat, reading = false, focus = 0), f.step)
 
-        f.move(1) // Read it aloud
+        f.move(2) // Read it aloud (after Reply and React)
         assertEquals(listOf(Effect.SpeakMessage(ZapMessage("Leo", "Tô no centro", 2_000L))), f.tap())
 
-        f.move(-1) // Reply
+        f.move(-2) // Reply
         assertEquals(Effect.StartListening, f.tap().last())
         f.onSpeechFinal("chego em dez minutos")
         val review = f.step as Step.Review
@@ -218,7 +218,7 @@ class ComposeFlowTest {
         ))
         val f = ComposeFlow({ people }).also { it.open(listOf(chat)) }
         f.move(1); f.tap(); f.tap() // open the chat, then the newest message (a photo with a caption)
-        assertEquals(4, f.choiceCount()) // See the photo · Reply · Read it aloud · Send a photo
+        assertEquals(5, f.choiceCount()) // See the photo · Reply · React · Read it aloud · Send a photo
         f.tap()
         assertEquals("b", (f.step as Step.Photo).message.image) // newest first
         f.move(-1)
@@ -394,11 +394,11 @@ class ComposeFlowTest {
         assertEquals(chat.messages.size, f.selected)
         f.move(-(chat.messages.size - 1)) // back to the newest (the long one)
         f.tap()
-        assertEquals(MessageOption.of(chat.newestFirst()[0]), listOf(MessageOption.REPLY, MessageOption.READ_ALOUD, MessageOption.READ_FULL, MessageOption.SEND_PHOTO))
-        f.move(2); f.tap() // Read the whole message
+        assertEquals(MessageOption.of(chat.newestFirst()[0]), listOf(MessageOption.REPLY, MessageOption.REACT, MessageOption.READ_ALOUD, MessageOption.READ_FULL, MessageOption.SEND_PHOTO))
+        f.move(3); f.tap() // Read the whole message
         assertTrue(f.step is Step.Read)
         f.back()
-        assertEquals(2, f.selected) // on "Read the whole message"
+        assertEquals(3, f.selected) // on "Read the whole message"
         f.back()
         assertEquals(Step.Thread(chat), f.step)
         assertEquals(1, f.selected)
@@ -441,6 +441,6 @@ class ComposeFlowTest {
 
     private companion object {
         /** A text message's options: Reply · Read it aloud · Send a photo. */
-        const val TEXT_SEND_PHOTO = 2
+        const val TEXT_SEND_PHOTO = 3 // Reply · React · Read it aloud · Send a photo
     }
 }

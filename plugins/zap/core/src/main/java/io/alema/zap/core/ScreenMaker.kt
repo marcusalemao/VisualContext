@@ -48,6 +48,11 @@ class ScreenMaker(
             ?: Screen.Card(title = fitTitle(step.conversation.title), rows = listOf(Row(text = text.emptyChat, tone = Tone.DIM)))
         is Step.Photo -> photo(step)
         is Step.Audio -> audio(step)
+        is Step.Brief -> brief(step, selected)
+        is Step.React -> Screen.Card(
+            title = fitTitle(text.reactTitle(step.conversation.title)),
+            rows = step.reactions.mapIndexed { index, r -> Row(text = "${r.emoji}  ${r.word}", selected = index == selected) },
+        )
         is Step.PhotoOffer -> Screen.Picture(
             photoKey = step.photo,
             // Who it goes to, up top where the wearer reads; swipe for the others.
@@ -211,6 +216,55 @@ class ScreenMaker(
         return Screen.Card(title = fitTitle(chat.title), rows = rows, subtitle = text.chatHint)
     }
 
+    /**
+     * The summary card: the short version first (it is what the wearer came
+     * for), then one row per thing they will likely do. Rows already done turn
+     * into "✓ …" so a second tap never adds the same event twice.
+     */
+    private fun brief(step: Step.Brief, selected: Int): Screen.Card {
+        val chat = step.conversation
+        val unread = BriefRules.unreadOf(chat)
+        val voice = unread.count { it.voiceSeconds != null }
+        val today = LocalDate.ofInstant(Instant.ofEpochMilli(now()), zone)
+        val rows = mutableListOf<Row>()
+        val subtitle = when (val state = step.state) {
+            BriefState.Loading -> text.briefLoading(unread.size, voice)
+            is BriefState.Ready -> {
+                rows += Row(text = fit(state.brief.summary), tone = Tone.BODY)
+                if (state.brief.voiceMissing > 0) rows += Row(text = text.voiceLeftOut(state.brief.voiceMissing), tone = Tone.DIM)
+                text.briefTitle(unread.size, voice)
+            }
+            is BriefState.Failed -> {
+                rows += Row(text = text.briefError(state.error), tone = Tone.ALERT)
+                text.briefFailedTitle
+            }
+        }
+        if (step.actionFailed) rows += Row(text = text.actionFailed, tone = Tone.ALERT)
+        step.choices().forEachIndexed { index, choice ->
+            val label = when (choice) {
+                is BriefChoice.SendReply -> text.quickReply(choice.text)
+                BriefChoice.Dictate -> text.dictate
+                is BriefChoice.Calendar -> text.calendar(eventLabel(choice.event, today), BriefDone.CALENDAR in step.done)
+                is BriefChoice.Remind -> text.remind(choice.minutes, BriefDone.REMIND in step.done)
+                BriefChoice.Listen -> text.listenBrief
+                BriefChoice.SeeMessages -> text.seeMessages(unread.size)
+            }
+            rows += Row(text = fit(label), selected = index == selected)
+        }
+        return Screen.Card(title = fitTitle(chat.title), rows = rows, subtitle = subtitle)
+    }
+
+    /** "Almoço no Lume · amanhã 12:00": what and when, short enough for one lens line. */
+    private fun eventLabel(event: SuggestedEvent, today: LocalDate): String {
+        val at = Instant.ofEpochMilli(event.startMs).atZone(zone)
+        val day = when (at.toLocalDate()) {
+            today -> text.today
+            today.plusDays(1) -> text.tomorrow
+            else -> at.format(WEEKDAY_DATE)
+        }
+        return "${fit(event.title, 28)} · $day ${at.format(HOUR)}"
+    }
+
     /** What a message row says: the words (cut), or what it carries. */
     private fun rowText(message: ZapMessage): String = when {
         message.voiceSeconds != null -> text.voiceRow(message.voiceSeconds)
@@ -232,6 +286,7 @@ class ScreenMaker(
                     MessageOption.READ_ALOUD -> text.readAloud
                     MessageOption.READ_FULL -> text.readFull
                     MessageOption.REPLY -> text.reply
+                    MessageOption.REACT -> text.react
                     MessageOption.SEND_PHOTO -> text.sendPhoto
                 }
                 add(Row(text = label, selected = selected == index))
@@ -424,5 +479,6 @@ class ScreenMaker(
         private val HOUR = DateTimeFormatter.ofPattern("HH:mm")
         private val DAY_HOUR = DateTimeFormatter.ofPattern("dd/MM HH:mm")
         private val DAY = DateTimeFormatter.ofPattern("dd/MM")
+        private val WEEKDAY_DATE = DateTimeFormatter.ofPattern("EEE dd/MM", java.util.Locale.getDefault())
     }
 }

@@ -14,13 +14,15 @@ enum class Note {
  * What a tap on one message offers, in order: what that message carries (play
  * it, see it), Reply, hear it read or read it whole, then send a photo.
  */
-enum class MessageOption { PLAY_AUDIO, SEE_PHOTO, REPLY, READ_ALOUD, READ_FULL, SEND_PHOTO;
+enum class MessageOption { PLAY_AUDIO, SEE_PHOTO, REPLY, REACT, READ_ALOUD, READ_FULL, SEND_PHOTO;
     companion object {
         fun of(message: ZapMessage): List<MessageOption> = buildList {
             val voice = message.voiceSeconds != null
             if (voice) add(PLAY_AUDIO)
             if (message.image != null) add(SEE_PHOTO)
             add(REPLY)
+            // Only to what someone else said: reacting to yourself makes no sense.
+            if (message.sender != ZapMessage.ME) add(REACT)
             val words = message.text.isNotBlank() && !voice && message.text != ZapMessage.PHOTO
             if (words) add(READ_ALOUD)
             if (words && message.text.length > SHOWN_CHARS) add(READ_FULL)
@@ -49,6 +51,24 @@ sealed interface Step {
     data class Thread(val conversation: ZapConversation, val reading: Boolean = true, val focus: Int = 0) : Step {
         val message: ZapMessage? get() = conversation.newestFirst().getOrNull(focus)
     }
+
+    /**
+     * A chat opened with a pile of new messages: the AI's short version on top,
+     * then what the wearer will likely do — a ready reply, the calendar, a
+     * reminder, hear it, or see the messages. Back goes home, like the chat.
+     */
+    data class Brief(
+        val conversation: ZapConversation,
+        val state: BriefState,
+        val done: Set<BriefDone> = emptySet(),
+        /** The last calendar or reminder action did not work. */
+        val actionFailed: Boolean = false,
+    ) : Step {
+        fun choices(): List<BriefChoice> = BriefRules.choices(state, conversation.canReply)
+    }
+
+    /** Pick a quick reaction for a message; it goes as an emoji message of its own. Back to the message. */
+    data class React(val conversation: ZapConversation, val focus: Int, val reactions: List<Reaction>) : Step
 
     /** One long message in full, scrolled by the glasses. Back to its options. */
     data class Read(val conversation: ZapConversation, val focus: Int) : Step {
@@ -156,6 +176,18 @@ sealed interface Effect {
 
     /** Read a received message aloud: "Bruno: on my way". */
     data class SpeakMessage(val message: ZapMessage) : Effect
+
+    /** Say any sentence (the summary). */
+    data class SpeakText(val text: String) : Effect
+
+    /** Ask the wearer's AI for a [Brief] of these messages (oldest first); the answer comes back through onBrief. */
+    data class Summarize(val conversation: ZapConversation, val messages: List<ZapMessage>) : Effect
+
+    /** Put the event in the phone's calendar; the result comes back through onBriefAction. */
+    data class AddToCalendar(val event: SuggestedEvent, val chatTitle: String) : Effect
+
+    /** In [minutes], remind the wearer (on the glasses and the phone) to answer this chat. */
+    data class RemindToReply(val conversation: ZapConversation, val minutes: Int) : Effect
     object StopSpeaking : Effect
 
     /** Play a voice message on the glasses' audio; [chatKey] says which chat it came from. */
@@ -192,6 +224,10 @@ class ComposeFlow(
     private val defaultCountryCode: String = PhoneNumbers.BRAZIL,
     /** Keys of the phone photos the wearer may attach, newest first (glasses photos when there are any). */
     private val gallery: () -> List<String> = { emptyList() },
+    /** True when the wearer turned summaries on and gave the AI a key (or has Easy). */
+    private val briefs: () -> Boolean = { false },
+    /** The quick reactions chosen on the phone, already in the wearer's skin tone. */
+    private val reactions: () -> List<Reaction> = { Reactions.defaults(true) },
 ) {
     var step: Step = Step.Inbox(emptyList())
         private set
@@ -203,6 +239,9 @@ class ComposeFlow(
     /** The browsing screen to return to after a reply or a new message. */
     private var base: Step = Step.Inbox(emptyList())
 
+    /** Summaries already made, by chat, valid while no newer message arrived: reopening never pays twice. */
+    private val briefCache = mutableMapOf<String, Pair<Long, Brief>>()
+
     /** A photo waiting for a person picked through "someone else": the pick goes straight to review with it. */
     private var carryPhoto: String? = null
 
@@ -213,7 +252,7 @@ class ComposeFlow(
      */
     fun offerPhoto(photo: String, recent: List<Recipient>): Boolean {
         when (step) {
-            is Step.Inbox, is Step.Thread, is Step.Read, is Step.Photo, is Step.Audio, is Step.Done -> Unit
+            is Step.Inbox, is Step.Thread, is Step.Read, is Step.Photo, is Step.Audio, is Step.Done, is Step.Brief -> Unit
             else -> return false
         }
         val here = (step as? Step.Thread)?.conversation?.takeIf { !it.isGroup && it.waDigits != null }?.recipient()
@@ -255,6 +294,13 @@ class ComposeFlow(
                 val index = fresh.voiceNotes.indexOfFirst { it.timeMs == s.message.timeMs && it.sender == s.message.sender }
                 if (index >= 0) step = s.copy(conversation = fresh, index = index)
             }
+            is Step.Brief -> inbox.firstOrNull { it.key == s.conversation.key }?.let { fresh ->
+                // The summary stays; the chat behind it (reply route, newest message) updates.
+                // Opening it marks it read on the phone side: the card keeps counting what was new when it opened.
+                step = s.copy(conversation = fresh.copy(readUpToMs = s.conversation.readUpToMs))
+                selected = selected.coerceIn(0, maxOf(0, choiceCount() - 1))
+                base = step
+            }
             is Step.Photo -> inbox.firstOrNull { it.key == s.conversation.key }?.let { fresh ->
                 // Keep showing the same photo even if newer ones arrived.
                 val index = fresh.photos.indexOfFirst { it.image == s.message.image }
@@ -268,6 +314,8 @@ class ComposeFlow(
         is Step.Inbox -> 1 + s.conversations.size
         is Step.Thread -> if (s.reading) 1 + s.conversation.messages.size else s.message?.let { MessageOption.of(it).size } ?: 0
         is Step.Read -> 0
+        is Step.Brief -> s.choices().size
+        is Step.React -> s.reactions.size
         is Step.Photo -> s.conversation.photos.size
         is Step.Audio -> 1
         is Step.ChoosePhoto -> s.photos.size
@@ -318,8 +366,28 @@ class ComposeFlow(
             emptyList()
         } else {
             openChat(s.conversations[selected - 1])
-            emptyList()
         }
+        is Step.Brief -> when (val choice = s.choices().getOrNull(selected)) {
+            is BriefChoice.SendReply -> listOf(Effect.StopSpeaking) + review(s.conversation.recipient(), choice.text)
+            BriefChoice.Dictate -> reply(s.conversation)
+            is BriefChoice.Calendar ->
+                if (BriefDone.CALENDAR in s.done) emptyList()
+                else listOf(Effect.AddToCalendar(choice.event, s.conversation.title))
+            is BriefChoice.Remind ->
+                if (BriefDone.REMIND in s.done) emptyList()
+                else listOf(Effect.RemindToReply(s.conversation, choice.minutes))
+            BriefChoice.Listen -> (s.state as? BriefState.Ready)?.let { listOf(Effect.SpeakText(it.brief.summary)) } ?: emptyList()
+            BriefChoice.SeeMessages -> {
+                go(Step.Thread(s.conversation), asBase = true)
+                selected = if (s.conversation.messages.isEmpty()) 0 else 1
+                listOf(Effect.StopSpeaking)
+            }
+            null -> emptyList()
+        }
+        is Step.React -> s.reactions.getOrNull(selected)?.let { reaction ->
+            val chat = s.conversation
+            if (!chat.canReply) reply(chat) else send(chat.recipient(), reaction.emoji)
+        } ?: emptyList()
         is Step.Thread -> if (s.reading) {
             if (selected == 0 || s.conversation.messages.isEmpty()) {
                 reply(s.conversation)
@@ -347,6 +415,12 @@ class ComposeFlow(
                     emptyList()
                 }
                 MessageOption.REPLY -> reply(s.conversation)
+                MessageOption.REACT -> if (!s.conversation.canReply) {
+                    reply(s.conversation)
+                } else {
+                    go(Step.React(s.conversation, s.focus, reactions()))
+                    listOf(Effect.StopSpeaking)
+                }
                 MessageOption.SEND_PHOTO -> attachFrom(s.conversation.recipient(), body = "", previous = null)
                 null -> emptyList()
             }
@@ -398,6 +472,16 @@ class ComposeFlow(
 
     fun back(): List<Effect> = when (val s = step) {
         is Step.Inbox -> listOf(Effect.Close)
+        is Step.Brief -> {
+            go(Step.Inbox(conversations), asBase = true)
+            listOf(Effect.StopSpeaking)
+        }
+        is Step.React -> {
+            go(Step.Thread(s.conversation, reading = false, focus = s.focus))
+            selected = s.conversation.newestFirst().getOrNull(s.focus)
+                ?.let { MessageOption.of(it).indexOf(MessageOption.REACT).coerceAtLeast(0) } ?: 0
+            emptyList()
+        }
         is Step.Photo -> {
             backToList(s.conversation, s.message)
             listOf(Effect.StopSpeaking)
@@ -533,11 +617,45 @@ class ComposeFlow(
         }
     }
 
-    /** Reply is one button; whether it goes through the live notification or a reopened chat is decided at send. */
-    /** A chat opens on its newest message, marked; "Reply" is one swipe up. */
-    private fun openChat(chat: ZapConversation) {
+    /** The AI's answer for a chat: shown if that chat's summary card is still up, kept for reopening. */
+    fun onBrief(key: String, state: BriefState) {
+        val s = step as? Step.Brief
+        if (s?.conversation?.key != key) {
+            // The wearer left before the answer came: keep it, so reopening shows it at once.
+            if (state is BriefState.Ready) conversations.firstOrNull { it.key == key }?.let { briefCache[key] = it.lastTimeMs to state.brief }
+            return
+        }
+        if (state is BriefState.Ready) briefCache[key] = s.conversation.lastTimeMs to state.brief
+        val wasLoading = s.state == BriefState.Loading
+        step = s.copy(state = state)
+        base = step
+        // From "Summarizing…" (one row) to the full card: start on the first suggestion.
+        if (wasLoading) selected = 0
+    }
+
+    /** A calendar or reminder action finished: the row becomes "✓ …", or the card says it didn't work. */
+    fun onBriefAction(done: BriefDone, ok: Boolean) {
+        val s = step as? Step.Brief ?: return
+        step = if (ok) s.copy(done = s.done + done, actionFailed = false) else s.copy(actionFailed = true)
+        base = step
+    }
+
+    /**
+     * A chat opens on its newest message, marked; "Reply" is one swipe up.
+     * With a pile of new messages and summaries on, it opens on the summary instead.
+     */
+    private fun openChat(chat: ZapConversation): List<Effect> {
+        if (briefs() && BriefRules.worthBriefing(chat)) {
+            briefCache[chat.key]?.takeIf { it.first == chat.lastTimeMs }?.let { (_, brief) ->
+                go(Step.Brief(chat, BriefState.Ready(brief)), asBase = true)
+                return emptyList()
+            }
+            go(Step.Brief(chat, BriefState.Loading), asBase = true)
+            return listOf(Effect.Summarize(chat, BriefRules.messagesFor(chat)))
+        }
         go(Step.Thread(chat), asBase = true)
         selected = if (chat.messages.isEmpty()) 0 else 1
+        return emptyList()
     }
 
     /** Back from a photo or voice message: the list, with that message marked. */
