@@ -25,8 +25,7 @@ PORT = int(os.environ.get("GLASSCAST_PORT", "8765"))
 # Each switch is one glasscast.sh command that keeps running until switched off.
 SWITCHES = [
     # id, group, label, help, command
-    ("lens", "glasses", "Lente (verde)", "Janela como a lente mostra", ["lens"]),
-    ("view", "glasses", "HUD colorido", "Janela com as cores do app", ["view"]),
+    ("lens", "glasses", "Lente (verde)", "A tela como a lente mostra: só verde, em intensidades", ["lens"]),
     ("watch", "glasses", "Capturas para o Claude", "Um print do HUD a cada 3 s em watch/latest.png", ["watch", "3"]),
     ("camera", "glasses", "Câmera dos óculos", "O que você está olhando", ["camera"]),
     ("record", "glasses", "Gravar o HUD", "Vídeo em videos/ até desligar. Não usa a câmera", ["record", "teste"]),
