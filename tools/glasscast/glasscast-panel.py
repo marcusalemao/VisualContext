@@ -155,7 +155,13 @@ input{flex:1;min-width:200px}.msg{color:var(--dim);font-size:13px;margin-top:8px
 @media(max-width:640px){.grid,.devices{grid-template-columns:1fr}}
 </style></head><body><main>
 <h1>Glasscast</h1><p class="sub">Óculos e celular no Mac, pelo cabo ou pelo Wi-Fi. Só para desenvolvimento.</p>
-<div class="row" style="margin:-8px 0 16px"><button class="primary" onclick="anotar()">✎ Anotar este momento</button><span class="msg" id="amsg"></span></div>
+<div class="row" style="margin:-8px 0 16px">
+  <button class="primary" onclick="anotar()">✎ Anotar este momento</button>
+  <button onclick="preset(['lens','view','watch','phone','phonewatch','log','fotos'])">Ligar tudo</button>
+  <button onclick="preset(['lens','view','watch'])">Só óculos</button>
+  <button onclick="preset(['phone','phonewatch','log'])">Só celular</button>
+  <button onclick="bye()">Desligar tudo</button>
+  <span class="msg" id="amsg"></span></div>
 <div class="devices">
   <div class="dev"><b>Óculos</b><div id="g" class="st none">procurando…</div></div>
   <div class="dev"><b>Celular</b><div id="p" class="st none">procurando…</div></div>
@@ -171,7 +177,6 @@ input{flex:1;min-width:200px}.msg{color:var(--dim);font-size:13px;margin-top:8px
   <div class="row"><input id="addr" placeholder="O que o Wireless ADB mostra: 192.168.0.31:40701 969774">
   <button class="primary" onclick="wifi()">Conectar</button></div>
   <div id="msg" class="msg"></div></div>
-<div class="row"><button onclick="bye()">Desligar tudo</button></div>
 <div class="foot" id="folder"></div>
 </main><script>
 const label={usb:"pelo cabo ✓",wifi:"pelo Wi-Fi",none:"não encontrado"};
@@ -194,6 +199,7 @@ async function act(cmd,args=[]){const m=document.getElementById("msg");m.textCon
   const r=await (await fetch("/run",{method:"POST",body:JSON.stringify({cmd,args})})).json();m.textContent=r.out||"ok";refresh();}
 function wifi(){const v=document.getElementById("addr").value.trim().replace(/^adb (pair|connect) /,"").split(/\s+/);
   if(!v[0])return; act(v[1]?"pair":"connect",v[1]?[v[0],v[1]]:[v[0]]);}
+async function preset(ids){for(const id of ids)await fetch("/switch",{method:"POST",body:JSON.stringify({id,on:true})});setTimeout(refresh,700);}
 async function anotar(){const r=await (await fetch("/freeze",{method:"POST"})).json();
   if(!r.hud&&!r.phone){document.getElementById("amsg").textContent=" Nenhum print ainda: ligue as capturas.";return;}
   window.open("/anotar?s="+r.stamp,"_blank");}
