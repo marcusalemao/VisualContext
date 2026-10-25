@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="send_service_label">Zap — send with WhatsApp</string>
+    <string name="send_service_description">Presses WhatsApp\'s Send button only after you confirm a message on the glasses. It doesn\'t read your chats and does nothing on its own.</string>
+    <string name="send_tile_label">Zap auto send</string>
+</resources>

@@ -1,0 +1,221 @@
+From ab35e3c345cb95e40b88b1f8ffe6b917809cb987 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Marcus=20de=20Magalh=C3=A3es?= <marcusdemagalhaes@gmail.com>
+Date: Tue, 13 Oct 2026 00:59:56 -0300
+Subject: [PATCH] relay: speak a conversation's newest message when it is
+ opened
+
+Adds an opt-in switch, 'Speak conversations when opened'. Opening a
+conversation from the inbox speaks its newest message over the tts
+capability, so a message or voice-note transcript missed on the band can
+be heard again by reopening it. Tap still replies and stops the voice
+before the microphone opens; Back stops it and returns to the list.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01JrecJaswUTk7nYaLedQ14R
+---
+ plugins/relay/CHANGELOG.md                    |  9 +++
+ .../plugin/relay/RelayPluginService.kt        | 63 ++++++++++++++++++-
+ .../rokidbus/plugin/relay/RelaySettings.kt    | 17 +++++
+ .../plugin/relay/RelaySettingsActivity.kt     |  9 +++
+ 4 files changed, 97 insertions(+), 1 deletion(-)
+
+diff --git a/plugins/relay/CHANGELOG.md b/plugins/relay/CHANGELOG.md
+index 1dc28c2..8d6833b 100644
+--- a/plugins/relay/CHANGELOG.md
++++ b/plugins/relay/CHANGELOG.md
+@@ -1,5 +1,14 @@
+ # Changelog
+ 
++## Unreleased
++
++- **Hear a conversation again.** A new switch, off by default: *Speak
++  conversations when opened*. Opening a conversation from the inbox speaks its
++  newest message through the glasses, so a message or voice-note transcript
++  missed while the band was up can be heard again by opening it again. Tap
++  still replies (and stops the voice first, so the microphone does not take
++  the glasses' own speech); Back still returns to the list.
++
+ ## 1.2.4
+ 
+ - **Switch to typing mid-dictation.** About a second after dictation starts, a
+diff --git a/plugins/relay/src/main/java/com/anezium/rokidbus/plugin/relay/RelayPluginService.kt b/plugins/relay/src/main/java/com/anezium/rokidbus/plugin/relay/RelayPluginService.kt
+index 4a832b6..95a32d6 100644
+--- a/plugins/relay/src/main/java/com/anezium/rokidbus/plugin/relay/RelayPluginService.kt
++++ b/plugins/relay/src/main/java/com/anezium/rokidbus/plugin/relay/RelayPluginService.kt
+@@ -15,6 +15,9 @@ import com.anezium.rokidbus.client.plugin.NexusSpeechSession
+ import com.anezium.rokidbus.client.plugin.NexusSpeechState
+ import com.anezium.rokidbus.client.plugin.NexusSpeechStopReason
+ import com.anezium.rokidbus.client.plugin.NexusSurfaceSession
++import com.anezium.rokidbus.client.plugin.NexusTtsCallbacks
++import com.anezium.rokidbus.client.plugin.NexusTtsDoneReason
++import com.anezium.rokidbus.client.plugin.NexusTtsSession
+ import com.anezium.rokidbus.shared.NoticeSurfaceContract
+ import com.anezium.rokidbus.shared.plugin.NexusInputEvent
+ 
+@@ -57,6 +60,8 @@ class RelayPluginService : NexusPluginService() {
+     private var speechFinalReceived = false
+     private var speechGeneration = 0
+     private var speech: NexusSpeechSession? = null
++    private var tts: NexusTtsSession? = null
++    private var ttsGeneration = 0
+ 
+     override fun onNexusOpen() {
+         // One client per plugin id on the bus: the band steps aside while the
+@@ -73,6 +78,7 @@ class RelayPluginService : NexusPluginService() {
+     override fun onNexusClose() {
+         NotificationControl.inboxClosed(this)
+         invalidateSpeech()
++        closeThreadReadAloud()
+         entries = emptyList()
+         selection.reset(emptyList())
+         resetThreadMode()
+@@ -127,7 +133,7 @@ class RelayPluginService : NexusPluginService() {
+             refreshEntries()
+             if (selection.openSelected() != null) {
+                 resetThreadMode()
+-                renderThread(show = false)
++                if (renderThread(show = false)) readOpenedThreadAloud()
+             }
+             return
+         }
+@@ -208,6 +214,7 @@ class RelayPluginService : NexusPluginService() {
+             renderThread(show = false)
+             return
+         }
++        stopThreadReadAloud()
+         when (selection.back()) {
+             RelayInboxBackResult.SHOW_LIST -> {
+                 resetThreadMode()
+@@ -419,6 +426,8 @@ class RelayPluginService : NexusPluginService() {
+         }
+ 
+         invalidateSpeech()
++        // The glasses must not dictate their own voice into the reply.
++        stopThreadReadAloud()
+         threadMode = ThreadMode.LISTENING
+         threadStatus = null
+         transcript = null
+@@ -559,6 +568,58 @@ class RelayPluginService : NexusPluginService() {
+         return entries.firstOrNull { it.id == id }
+     }
+ 
++    /**
++     * Speaks the newest message of the conversation just opened.
++     *
++     * The text is the same one the reader shows, so a voice note arrives as
++     * its transcript whenever the source app supplied one. The wearer is
++     * looking at the conversation they chose, so the band's "sender only"
++     * rule does not apply here, as it does not apply to reading the thread.
++     */
++    private fun readOpenedThreadAloud() {
++        if (!settings.readThreadOnOpen()) return
++        val snapshot = currentEntry()?.snapshot ?: return
++        val text = RelayReadAloud.textFor(
++            enabled = true,
++            senderOnly = false,
++            sender = snapshot.sender,
++            renderedThread = snapshot.renderedText,
++        ) ?: return
++        stopThreadReadAloud()
++        val session = tts ?: nexusTtsSession(threadReadAloudCallbacks)?.also { tts = it } ?: return
++        ttsGeneration += 1
++        val utteranceId = "thread-$ttsGeneration"
++        activeThreadUtteranceId = utteranceId
++        val result = session.speak(text, utteranceId)
++        if (result != NexusSdkResult.SENT && activeThreadUtteranceId == utteranceId) {
++            activeThreadUtteranceId = null
++        }
++    }
++
++    private var activeThreadUtteranceId: String? = null
++
++    private val threadReadAloudCallbacks = object : NexusTtsCallbacks {
++        override fun onTtsStarted(utteranceId: String) = Unit
++
++        override fun onTtsDone(utteranceId: String, reason: NexusTtsDoneReason) {
++            main.post {
++                if (utteranceId == activeThreadUtteranceId) activeThreadUtteranceId = null
++            }
++        }
++    }
++
++    private fun stopThreadReadAloud() {
++        if (activeThreadUtteranceId == null) return
++        activeThreadUtteranceId = null
++        tts?.stop()
++    }
++
++    private fun closeThreadReadAloud() {
++        stopThreadReadAloud()
++        tts?.close()
++        tts = null
++    }
++
+     private fun refreshEntries() {
+         entries = ReplyRepository.inboxEntries()
+         selection.replaceItems(entries.map(RelayInboxEntry::id))
+diff --git a/plugins/relay/src/main/java/com/anezium/rokidbus/plugin/relay/RelaySettings.kt b/plugins/relay/src/main/java/com/anezium/rokidbus/plugin/relay/RelaySettings.kt
+index 2bd3c83..da7a3c0 100644
+--- a/plugins/relay/src/main/java/com/anezium/rokidbus/plugin/relay/RelaySettings.kt
++++ b/plugins/relay/src/main/java/com/anezium/rokidbus/plugin/relay/RelaySettings.kt
+@@ -105,6 +105,21 @@ internal class RelaySettings(context: Context) {
+         prefs.edit().putBoolean(KEY_READ_ALOUD, enabled).apply()
+     }
+ 
++    /**
++     * Opening a conversation from the inbox speaks its newest message.
++     *
++     * The arriving band reads once and is gone in seconds; a voice note's
++     * transcript or a long message is often missed exactly then. Reopening the
++     * thread is the way to hear it again, with no new gesture: tap still
++     * replies, Back still returns. Off by default, like every voice output.
++     */
++    fun readThreadOnOpen(): Boolean =
++        prefs.getBoolean(KEY_READ_THREAD_ON_OPEN, DEFAULT_READ_THREAD_ON_OPEN)
++
++    fun setReadThreadOnOpen(enabled: Boolean) {
++        prefs.edit().putBoolean(KEY_READ_THREAD_ON_OPEN, enabled).apply()
++    }
++
+     /**
+      * The one Reply chip opens an editable field instead of starting to
+      * listen. Off by default: dictation needs no accessory, and the field
+@@ -136,6 +151,7 @@ internal class RelaySettings(context: Context) {
+         const val DEFAULT_CLEAR_AFTER_REPLY = true
+         const val DEFAULT_NOTICE_BACKDROP = false
+         const val DEFAULT_READ_ALOUD = false
++        const val DEFAULT_READ_THREAD_ON_OPEN = false
+         const val DEFAULT_HIDE_NOTICE_TEXT = false
+         const val DEFAULT_HIDE_INBOX_PREVIEWS = false
+         const val DEFAULT_REPLY_BY_TYPING = false
+@@ -168,6 +184,7 @@ internal class RelaySettings(context: Context) {
+         private const val KEY_HIDE_NOTICE_TEXT = "hide_notice_text"
+         private const val KEY_HIDE_INBOX_PREVIEWS = "hide_inbox_previews"
+         private const val KEY_READ_ALOUD = "read_aloud"
++        private const val KEY_READ_THREAD_ON_OPEN = "read_thread_on_open"
+         private const val KEY_REPLY_BY_TYPING = "reply_by_typing"
+     }
+ }
+diff --git a/plugins/relay/src/main/java/com/anezium/rokidbus/plugin/relay/RelaySettingsActivity.kt b/plugins/relay/src/main/java/com/anezium/rokidbus/plugin/relay/RelaySettingsActivity.kt
+index 118ace6..a67e6e1 100644
+--- a/plugins/relay/src/main/java/com/anezium/rokidbus/plugin/relay/RelaySettingsActivity.kt
++++ b/plugins/relay/src/main/java/com/anezium/rokidbus/plugin/relay/RelaySettingsActivity.kt
+@@ -214,6 +214,15 @@ class RelaySettingsActivity : Activity() {
+             NexusUi.block(),
+         )
+         content.addView(BusTheme.gap(this, 8))
++        content.addView(
++            switchCard(
++                "Speak conversations when opened",
++                "Opening a conversation in the inbox speaks its newest message — open it again to hear it again",
++                settings.readThreadOnOpen(),
++            ) { enabled -> settings.setReadThreadOnOpen(enabled) },
++            NexusUi.block(),
++        )
++        content.addView(BusTheme.gap(this, 8))
+         content.addView(
+             switchCard(
+                 "Reply by typing",
+-- 
+2.43.0
+

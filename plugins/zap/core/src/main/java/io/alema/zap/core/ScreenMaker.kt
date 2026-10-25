@@ -1,0 +1,512 @@
+package io.alema.zap.core
+
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+
+/**
+ * Turns the current [Step] of [ComposeFlow] into the [Screen] every host draws.
+ *
+ * HUD rules from the VisualContext design: green on black only, no gesture
+ * hints (the wearer knows the native gestures), short lines. Widths are the
+ * ones Relay measured on the Rokid optics.
+ *
+ * Top-heavy: the lens is 480×640, but for many wearers (Marcus included) the
+ * bottom third is out of sight. So nothing useful lives at the bottom: lists
+ * show only the rows that end above [reach] (the chosen one always among
+ * them, "▴ 3" / "▾ 5" for the rest), hints sit under the
+ * title, and a chat reads newest first, from the top.
+ */
+class ScreenMaker(
+    private val text: ZapText = ZapText(),
+    private val zone: ZoneId = ZoneId.systemDefault(),
+    private val now: () -> Long = System::currentTimeMillis,
+    /** How far down (in lens pixels, of 640) the wearer reads comfortably; null = the whole lens. */
+    private val reach: Int? = REACH_PX,
+) {
+
+    /** Phone-side facts a screen may need to mention. */
+    data class Status(
+        /** Off means an empty inbox is a missing permission, not a quiet phone. */
+        val notificationAccess: Boolean = true,
+        /** The read-back voice failed: show where to fix it. */
+        val voiceTrouble: Boolean = false,
+        /** AI summaries are new and the wearer hasn't decided yet: one quiet line on home says where to turn them on. */
+        val aiHint: Boolean = false,
+        /** Why the last dictation ended — test builds only, never in a release. */
+        val debugLine: String? = null,
+    )
+
+    fun make(step: Step, selected: Int, status: Status = Status()): Screen = when (val screen = build(step, selected, status)) {
+        is Screen.Card -> screen.copy(rows = withinReach(screen.rows, top = if (screen.subtitle != null) TOP_WITH_SUBTITLE_PX else TOP_PX))
+        else -> screen
+    }
+
+    private fun build(step: Step, selected: Int, status: Status): Screen = when (step) {
+        is Step.Inbox -> inbox(step, selected, status)
+        is Step.Thread -> if (step.reading) messageList(step.conversation, selected) else messageOptions(step, selected, status)
+        is Step.Read -> step.message?.let { readOne(step.conversation, it) }
+            ?: Screen.Card(title = fitTitle(step.conversation.title), rows = listOf(Row(text = text.emptyChat, tone = Tone.DIM)))
+        is Step.Photo -> photo(step)
+        is Step.Audio -> audio(step)
+        is Step.Brief -> brief(step, selected)
+        is Step.React -> Screen.Card(
+            title = fitTitle(text.reactTitle(step.conversation.title)),
+            rows = step.reactions.mapIndexed { index, r -> Row(text = "${r.emoji}  ${r.word}", selected = index == selected) },
+        )
+        is Step.PhotoOffer -> Screen.Picture(
+            photoKey = step.photo,
+            // Who it goes to, up top where the wearer reads; swipe for the others.
+            title = fitTitle(
+                step.choices.getOrNull(step.index)?.let { text.sendTo(it.name) } ?: text.otherPerson,
+            ).let { t -> if (step.choices.isEmpty()) t else fitTitle("$t · ${step.index + 1}/${step.choices.size + 1}") },
+            // No caption: the bottom of the lens is hard to see; swiping is the same as everywhere in Zap.
+            caption = null,
+            footer = null,
+            missing = Screen.Card(title = fitTitle(text.photoOffer), rows = listOf(Row(text = text.photoGone, tone = Tone.DIM))),
+        )
+        is Step.ChoosePhoto -> Screen.Picture(
+            photoKey = step.photo,
+            // Where it came from, and how far along, up top: "Para Leo · Óculos 2/7".
+            title = fitTitle(
+                listOfNotNull(
+                    text.to(step.recipient.name),
+                    listOfNotNull(
+                        GalleryKey.parse(step.photo)?.let { if (it.fromGlasses) text.fromGlasses else text.fromPhone },
+                        "${step.index + 1}/${step.photos.size}".takeIf { step.photos.size > 1 },
+                    ).joinToString(" ").ifBlank { null },
+                    // A video says so up top, where the wearer reads: the caption sits low on the lens.
+                    text.video.takeIf { GalleryKey.isVideo(step.photo) },
+                ).joinToString(" · "),
+            ),
+            caption = listOfNotNull(text.video.takeIf { GalleryKey.isVideo(step.photo) }, step.body.ifBlank { null })
+                .joinToString(" · ").ifBlank { null }?.take(MAX_CAPTION),
+            footer = null,
+            missing = Screen.Card(title = fitTitle(text.to(step.recipient.name)), rows = listOf(Row(text = text.photoGone, tone = Tone.DIM))),
+        )
+        is Step.NewMessage -> newMessage(step, selected)
+        is Step.Listening -> Screen.Card(
+            title = fitTitle(step.recipient?.let { text.to(it.name) } ?: text.whoTitle),
+            rows = listOf(
+                Row(
+                    text = fit(step.partial.ifBlank { if (step.recipient == null) text.sayOnlyName else text.sayMessage }),
+                    tone = if (step.partial.isBlank()) Tone.DIM else Tone.BODY,
+                ),
+            ),
+            subtitle = text.listening,
+        )
+        is Step.Pick -> Screen.Card(
+            title = fitTitle(text.pickTitle(step.spoken)),
+            rows = step.choices.take(MAX_ROWS - 1).mapIndexed { index, contact ->
+                Row(
+                    text = fit(contact.name, LIST_CHARS),
+                    // The end of the number tells two people with the same name apart.
+                    sub = text.numberHint(contact.target()) ?: text.fromChat.takeIf { contact.conversationKey != null },
+                    selected = index == selected,
+                )
+            } + Row(text = text.sayNameAgain, selected = selected == step.choices.size),
+        )
+        is Step.Review -> Screen.Card(
+            title = fitTitle(text.to(step.recipient.name)),
+            rows = draft(step.body, step.photo) +
+                listOf(
+                    text.send,
+                    text.listen,
+                    if (step.photo != null && step.body.isBlank()) text.sayCaption else text.redo,
+                    if (step.photo == null) text.attachPhoto else text.changePhoto,
+                ).mapIndexed { index, label -> Row(text = label, selected = index == selected) } +
+                listOfNotNull(Row(text = text.voiceHelp, tone = Tone.DIM).takeIf { status.voiceTrouble }),
+        )
+        is Step.AttachFrom -> Screen.Card(
+            title = fitTitle(text.attachFrom),
+            rows = listOf(
+                Row(text = text.camera, sub = text.cameraHint, selected = selected == ComposeFlow.ATTACH_CAMERA),
+                Row(text = text.gallery, sub = text.galleryHint, selected = selected == ComposeFlow.ATTACH_GALLERY),
+            ),
+            subtitle = text.to(step.recipient.name),
+        )
+        is Step.Snapping -> Screen.Card(
+            title = fitTitle(text.to(step.recipient.name)),
+            rows = listOf(Row(text = text.takingPhoto, tone = Tone.DIM)),
+            subtitle = text.takingPhoto,
+        )
+        is Step.Sending -> Screen.Card(
+            title = fitTitle(text.to(step.recipient.name)),
+            rows = draft(step.body, step.photo),
+            subtitle = text.sending,
+        )
+        is Step.Done -> done(step, status)
+    }
+
+    /**
+     * Home: "+ New message", then one row per chat — name on top, last message
+     * under it, like WhatsApp on the phone: a short time on the right, and an
+     * unread count before it. Read chats are quieter, unread ones stay bright.
+     * No version here: the lens needs the room (the phone's settings show it).
+     */
+    private fun inbox(step: Step.Inbox, selected: Int, status: Status): Screen.Card {
+        val today = LocalDate.ofInstant(Instant.ofEpochMilli(now()), zone)
+        val rows = buildList {
+            // Always bright and bold: an action, set apart from the chats under it.
+            add(Row(text = "+ ${text.newMessage}", tone = Tone.ALERT, selected = selected == 0))
+            step.conversations.take(MAX_ROWS - 1).forEachIndexed { index, chat ->
+                val isSelected = selected == index + 1
+                val unread = chat.unread
+                add(
+                    Row(
+                        text = fit(chat.title, LIST_CHARS),
+                        sub = chat.last?.let { fit(preview(chat, it), PREVIEW_CHARS) },
+                        trail = listOfNotNull(
+                            "● $unread".takeIf { unread > 0 },
+                            chat.last?.let { shortTime(it.timeMs, today) },
+                        ),
+                        // The chosen row always lights up; otherwise read chats step back.
+                        tone = if (unread == 0 && !isSelected) Tone.DIM else Tone.NORMAL,
+                        selected = isSelected,
+                    ),
+                )
+            }
+            if (step.conversations.isEmpty()) {
+                add(
+                    if (status.notificationAccess) Row(text = text.emptyInbox, tone = Tone.DIM)
+                    else Row(text = text.noAccess, tone = Tone.ALERT),
+                )
+            }
+        }
+        return Screen.Card(title = text.inboxTitle, rows = rows, handlesBack = false, subtitle = text.aiHint.takeIf { status.aiHint })
+    }
+
+    /** WhatsApp's list time: today "14:32", then "Ontem", then "23/10". */
+    internal fun shortTime(timeMs: Long, today: LocalDate): String {
+        val day = Instant.ofEpochMilli(timeMs).atZone(zone)
+        return when (day.toLocalDate()) {
+            today -> day.format(HOUR)
+            today.minusDays(1) -> text.yesterday
+            else -> day.format(DAY)
+        }
+    }
+
+    private fun clock(timeMs: Long, today: LocalDate): String {
+        val at = Instant.ofEpochMilli(timeMs).atZone(zone)
+        return if (at.toLocalDate() == today) at.format(HOUR) else at.format(DAY_HOUR)
+    }
+
+    /**
+     * One chat as a list, newest first, under "Reply": each message a row with
+     * the selection mark, so the wearer always sees what a tap acts on. Long
+     * messages are cut at about three lens lines; their options offer the rest.
+     */
+    private fun messageList(chat: ZapConversation, selected: Int): Screen.Card {
+        val today = LocalDate.ofInstant(Instant.ofEpochMilli(now()), zone)
+        val rows = buildList {
+            add(Row(text = text.replyRow, selected = selected == 0))
+            chat.newestFirst().forEachIndexed { index, message ->
+                val who = listOfNotNull(
+                    senderLabel(message).takeIf { chat.isGroup || message.sender == ZapMessage.ME },
+                    clock(message.timeMs, today),
+                ).joinToString(" · ")
+                if (selected == index + 1) {
+                    // The message the wearer is on opens up: up to three lens lines, bright,
+                    // then who and when. The others stay one line, so the list still scans.
+                    add(Row(text = rowText(message), tone = Tone.BODY, selected = true))
+                    add(Row(text = who, tone = Tone.DIM))
+                } else {
+                    add(Row(text = rowText(message), sub = who))
+                }
+            }
+            if (chat.messages.isEmpty()) add(Row(text = text.emptyChat, tone = Tone.DIM))
+        }
+        return Screen.Card(title = fitTitle(chat.title), rows = rows, subtitle = text.chatHint)
+    }
+
+    /**
+     * Text longer than three lens lines as several prose rows: the glasses show at
+     * most three lines per row, so a long summary is cut at word breaks instead of "…".
+     */
+    private fun bodyRows(value: String): List<Row> {
+        val out = mutableListOf<Row>()
+        var rest = value.trim()
+        while (rest.isNotEmpty()) {
+            if (rest.length <= BODY_CHARS) {
+                out += Row(text = rest, tone = Tone.BODY)
+                break
+            }
+            val cut = rest.lastIndexOf(' ', BODY_CHARS).takeIf { it > BODY_CHARS / 2 } ?: BODY_CHARS
+            out += Row(text = rest.substring(0, cut).trimEnd(), tone = Tone.BODY)
+            rest = rest.substring(cut).trimStart()
+        }
+        return out
+    }
+
+    /**
+     * The summary card: the short version first (it is what the wearer came
+     * for), then one row per thing they will likely do. Rows already done turn
+     * into "✓ …" so a second tap never adds the same event twice.
+     */
+    private fun brief(step: Step.Brief, selected: Int): Screen.Card {
+        val chat = step.conversation
+        val unread = BriefRules.unreadOf(chat)
+        val voice = unread.count { it.voiceSeconds != null }
+        val today = LocalDate.ofInstant(Instant.ofEpochMilli(now()), zone)
+        val rows = mutableListOf<Row>()
+        val subtitle = when (val state = step.state) {
+            BriefState.Loading -> text.briefLoading(unread.size, voice)
+            is BriefState.Ready -> {
+                rows += bodyRows(state.brief.summary)
+                if (state.brief.voiceMissing > 0) rows += Row(text = text.voiceLeftOut(state.brief.voiceMissing), tone = Tone.DIM)
+                text.briefTitle(unread.size, voice)
+            }
+            is BriefState.Failed -> {
+                rows += Row(text = text.briefError(state.error), tone = Tone.ALERT)
+                text.briefFailedTitle
+            }
+        }
+        if (step.actionFailed) rows += Row(text = text.actionFailed, tone = Tone.ALERT)
+        step.choices().forEachIndexed { index, choice ->
+            val label = when (choice) {
+                is BriefChoice.SendReply -> text.quickReply(choice.text)
+                BriefChoice.Dictate -> text.dictate
+                is BriefChoice.Calendar -> text.calendar(eventLabel(choice.event, today), BriefDone.CALENDAR in step.done)
+                is BriefChoice.Remind -> text.remind(choice.minutes, BriefDone.REMIND in step.done)
+                BriefChoice.Listen -> text.listenBrief
+                BriefChoice.SeeMessages -> text.seeMessages(unread.size)
+            }
+            rows += Row(text = fit(label), selected = index == selected)
+        }
+        return Screen.Card(title = fitTitle(chat.title), rows = rows, subtitle = subtitle)
+    }
+
+    /** "Almoço no Lume · amanhã 12:00": what and when, short enough for one lens line. */
+    private fun eventLabel(event: SuggestedEvent, today: LocalDate): String {
+        val at = Instant.ofEpochMilli(event.startMs).atZone(zone)
+        val day = when (at.toLocalDate()) {
+            today -> text.today
+            today.plusDays(1) -> text.tomorrow
+            else -> at.format(WEEKDAY_DATE)
+        }
+        return "${fit(event.title, 28)} · $day ${at.format(HOUR)}"
+    }
+
+    /** What a message row says: the words (cut), or what it carries. */
+    private fun rowText(message: ZapMessage): String = when {
+        message.voiceSeconds != null -> text.voiceRow(message.voiceSeconds)
+        message.image != null && (message.text.isBlank() || message.text == ZapMessage.PHOTO) -> ZapMessage.PHOTO
+        message.image != null -> fit("📷 ${message.text}", MessageOption.SHOWN_CHARS)
+        else -> fit(message.text.ifBlank { "…" }, MessageOption.SHOWN_CHARS)
+    }
+
+    /** One message's options: the message itself on top, then what can be done with it. */
+    private fun messageOptions(step: Step.Thread, selected: Int, status: Status): Screen.Card {
+        val message = step.message ?: return Screen.Card(title = fitTitle(step.conversation.title), rows = listOf(Row(text = text.emptyChat, tone = Tone.DIM)))
+        val today = LocalDate.ofInstant(Instant.ofEpochMilli(now()), zone)
+        val rows = buildList {
+            add(Row(text = rowText(message), tone = Tone.BODY))
+            MessageOption.of(message).forEachIndexed { index, option ->
+                val label = when (option) {
+                    MessageOption.PLAY_AUDIO -> text.playThisAudio
+                    MessageOption.SEE_PHOTO -> text.seeThisPhoto
+                    MessageOption.READ_ALOUD -> text.readAloud
+                    MessageOption.READ_FULL -> text.readFull
+                    MessageOption.REPLY -> text.reply
+                    MessageOption.REACT -> text.react
+                    MessageOption.SEND_PHOTO -> text.sendPhoto
+                }
+                add(Row(text = label, selected = selected == index))
+            }
+            if (status.voiceTrouble) add(Row(text = text.voiceHelp, tone = Tone.DIM))
+        }
+        return Screen.Card(
+            title = fitTitle(step.conversation.title),
+            rows = rows,
+            subtitle = "${senderLabel(message)} · ${clock(message.timeMs, today)}",
+        )
+    }
+
+    /** One long message in full: the glasses wrap and scroll it. */
+    private fun readOne(chat: ZapConversation, message: ZapMessage): Screen.Reader {
+        val today = LocalDate.ofInstant(Instant.ofEpochMilli(now()), zone)
+        return Screen.Reader(
+            title = fitTitle(chat.title),
+            segments = listOf(
+                Segment(Segment.Kind.HEADER, "${senderLabel(message)} · ${clock(message.timeMs, today)}", emphasis = message.sender == ZapMessage.ME),
+                Segment(Segment.Kind.PROSE, message.text.take(MAX_SEGMENT_CHARS)),
+            ),
+            subtitle = text.readAloud,
+            contentKey = "zap-msg-${chat.key}-${message.timeMs}".take(128),
+        )
+    }
+
+    /** New message: "Say the name" first, then recent people for one tap. */
+    private fun newMessage(step: Step.NewMessage, selected: Int): Screen.Card {
+        val rows = buildList {
+            add(Row(text = text.sayName, selected = selected == 0))
+            step.recent.take(MAX_ROWS - 2).forEachIndexed { index, contact ->
+                add(Row(text = fit(contact.name, LIST_CHARS), selected = selected == index + 1))
+            }
+            if (step.recent.isEmpty()) add(Row(text = text.noRecent, tone = Tone.DIM))
+        }
+        return Screen.Card(title = text.newMessage, rows = rows)
+    }
+
+    /** One voice message: who and when up top, Listen or Stop, and why it can't play when it can't. */
+    private fun audio(step: Step.Audio): Screen.Card {
+        val message = step.message
+        val chat = step.conversation
+        val count = chat.voiceNotes.size
+        val today = LocalDate.ofInstant(Instant.ofEpochMilli(now()), zone)
+        val length = message.voiceSeconds?.takeIf { it > 0 }?.let { "%d:%02d".format(it / 60, it % 60) }
+        return Screen.Card(
+            title = fitTitle(listOfNotNull("🎤 ${senderLabel(message)}", "${step.index + 1}/$count".takeIf { count > 1 }).joinToString(" · ")),
+            subtitle = listOfNotNull(clock(message.timeMs, today), length).joinToString(" · "),
+            rows = listOfNotNull(
+                Row(
+                    text = when {
+                        step.playing && !step.started -> text.loadingAudio
+                        step.playing -> text.stopAudio
+                        else -> text.playAudio
+                    },
+                    selected = true,
+                ),
+                step.problem?.let { Row(text = fit(noteText(it)), tone = Tone.ALERT) },
+            ),
+        )
+    }
+
+    private fun noteText(note: Note) = when (note) {
+        Note.NO_AUDIO_ACCESS -> text.noAudioAccess
+        Note.AUDIO_NOT_FOUND -> text.audioNotFound
+        Note.NO_HEADPHONES -> text.noHeadphones
+        Note.AUDIO_PLAY_FAILED -> text.audioPlayFailed
+        else -> text.failed
+    }
+
+    /** One photo, full screen; swipe for the others in this chat. */
+    private fun photo(step: Step.Photo): Screen {
+        val message = step.message
+        val chat = step.conversation
+        val missing = Screen.Card(title = fitTitle(chat.title), rows = listOf(Row(text = text.photoGone, tone = Tone.DIM)))
+        val key = message.image ?: return missing
+        return Screen.Picture(
+            photoKey = key,
+            title = fitTitle(
+                listOfNotNull(
+                    if (chat.isGroup) "${chat.title} · ${senderLabel(message)}" else senderLabel(message),
+                    "${step.index + 1}/${chat.photos.size}".takeIf { chat.photos.size > 1 },
+                ).joinToString(" · "),
+            ),
+            caption = message.text.takeIf { it.isNotBlank() && it != ZapMessage.PHOTO }?.take(MAX_CAPTION),
+            footer = null,
+            missing = missing,
+        )
+    }
+
+    private fun done(step: Step.Done, status: Status): Screen.Card {
+        val message = when {
+            step.outcome == SendOutcome.SENT -> text.sent
+            step.outcome == SendOutcome.OPENED_FOR_THUMB -> text.openedForThumb
+            step.outcome == SendOutcome.WAITING_FOR_UNLOCK -> text.waitingUnlock
+            step.outcome == SendOutcome.NOT_INSTALLED -> text.notInstalled
+            step.outcome == SendOutcome.FAILED -> text.failed
+            step.note == Note.NO_CONTACT -> text.noContact(step.spoken.orEmpty())
+            step.note == Note.NO_NUMBER -> text.noNumber
+            step.note == Note.REPLY_ON_PHONE -> text.replyOnPhone
+            step.note == Note.NO_PHOTOS -> text.noPhotos
+            step.note == Note.CAMERA_FAILED -> text.cameraFailed
+            step.note == Note.NO_AUDIO_ACCESS || step.note == Note.AUDIO_NOT_FOUND || step.note == Note.NO_HEADPHONES || step.note == Note.AUDIO_PLAY_FAILED -> noteText(step.note)
+            step.note == Note.NO_SPEECH -> text.noSpeech
+            else -> text.speechUnavailable
+        }
+        val rows = buildList {
+            step.body?.takeIf { it.isNotBlank() }?.let { add(Row(text = fit(it), tone = Tone.BODY)) }
+            add(Row(text = fit(message), tone = if (step.outcome != SendOutcome.SENT) Tone.ALERT else Tone.NORMAL))
+            if (step.note == Note.SPEECH_UNAVAILABLE) add(Row(text = text.voiceHelp, tone = Tone.DIM))
+            if (step.note != null) status.debugLine?.let { add(Row(text = fit("test: $it"), tone = Tone.DIM)) }
+            add(Row(text = if (step.canRetry) text.tryAgain else text.backToChats, selected = true))
+        }
+        return Screen.Card(title = fitTitle(step.recipient?.let { text.to(it.name) } ?: text.appTitle), rows = rows)
+    }
+
+    /** What is about to go: the text, and a line for the photo when one is attached. */
+    private fun draft(body: String, photo: String?): List<Row> = listOfNotNull(
+        Row(text = fit(body), tone = Tone.BODY).takeIf { body.isNotBlank() },
+        Row(text = if (GalleryKey.isVideo(photo)) text.videoAttached else text.photoAttached, tone = Tone.BODY).takeIf { photo != null },
+    )
+
+    fun senderLabel(message: ZapMessage): String = if (message.sender == ZapMessage.ME) text.me else message.sender
+
+    private fun preview(chat: ZapConversation, message: ZapMessage): String = when {
+        message.sender == ZapMessage.ME -> "${text.me}: ${message.text}"
+        chat.isGroup -> "${message.sender}: ${message.text}"
+        else -> message.text
+    }
+
+    /**
+     * The rows that end above [reach], always including the chosen one: as the
+     * wearer moves down the list it slides along. Hidden rows are counted
+     * ("▴ 2" above, "▾ 7" below) so it's clear there is more.
+     */
+    private fun withinReach(rows: List<Row>, top: Int): List<Row> {
+        // "All of the lens" still ends at the lens: a long chat is windowed either way.
+        val limit = reach ?: LENS_PX
+        val budget = limit - top
+        val heights = rows.map(::rowHeight)
+        if (heights.sum() <= budget) return rows
+        val chosen = rows.indexOfFirst { it.selected }.coerceAtLeast(0)
+        fun cost(from: Int, to: Int) = heights.subList(from, to + 1).sum() +
+            (if (from > 0) MARKER_PX else 0) + (if (to < rows.size - 1) MARKER_PX else 0)
+        var from = 0
+        while (from < chosen && cost(from, chosen) > budget) from++
+        var to = chosen
+        while (to + 1 < rows.size && cost(from, to + 1) <= budget) to++
+        while (from > 0 && cost(from - 1, to) <= budget) from--
+        return buildList {
+            if (from > 0) add(Row(text = "▴ $from", tone = Tone.DIM))
+            addAll(rows.subList(from, to + 1))
+            if (to < rows.size - 1) add(Row(text = "▾ ${rows.size - 1 - to}", tone = Tone.DIM))
+        }
+    }
+
+    /** Lens pixels a row takes, measured on the Nexus card: 34 for one line, 19 more for a sub line, 24 per extra wrapped line. */
+    private fun rowHeight(row: Row): Int {
+        // List rows are one line (the rest is cut with "…"); prose rows wrap to three at most.
+        val lines = if (row.tone != Tone.BODY) 1 else ((row.text.length + WRAP_CHARS - 1) / WRAP_CHARS).coerceIn(1, BODY_LINES)
+        return ROW_PX + (lines - 1) * LINE_PX + (if (row.sub != null) SUB_PX else 0)
+    }
+
+    private fun fit(value: String, max: Int = MAX_LINE) = if (value.length <= max) value else value.take(max - 1) + "…"
+    private fun fitTitle(value: String) = fit(value, MAX_TITLE)
+
+    companion object {
+        const val MAX_ROWS = 64
+        /** Most wearers read the top ~70% of the 640 px lens comfortably. */
+        const val REACH_PX = 460
+        const val LENS_PX = 620
+        const val TOP_PX = 72
+        const val TOP_WITH_SUBTITLE_PX = 92
+        const val ROW_PX = 34
+        const val SUB_PX = 19
+        const val LINE_PX = 24
+        const val MARKER_PX = 34
+        const val WRAP_CHARS = 28
+        const val MAX_LINE = 240
+        const val MAX_TITLE = 48
+        const val MAX_CAPTION = 240
+        /** Same widths Relay measured on the optics for list rows and their sub line. */
+        const val LIST_CHARS = 26
+        /** Nexus wraps a prose row to three lines at most. */
+        const val BODY_LINES = 3
+        /** About what three lens lines hold. */
+        const val BODY_CHARS = 84
+        const val PREVIEW_CHARS = 40
+        const val MAX_SEGMENTS = 240
+        const val MAX_SEGMENT_CHARS = 4_096
+        const val MAX_READER_CHARS = 40_000
+        /** A pause this long starts a new header even from the same sender. */
+        const val NEW_HEADER_AFTER_MS = 30 * 60_000L
+        private val HOUR = DateTimeFormatter.ofPattern("HH:mm")
+        private val DAY_HOUR = DateTimeFormatter.ofPattern("dd/MM HH:mm")
+        private val DAY = DateTimeFormatter.ofPattern("dd/MM")
+        private val WEEKDAY_DATE = DateTimeFormatter.ofPattern("EEE dd/MM", java.util.Locale.getDefault())
+    }
+}

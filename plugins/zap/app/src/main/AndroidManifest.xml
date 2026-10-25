@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- Who the wearer can message: the address book, including the rows
+         WhatsApp itself syncs there (which say who is on WhatsApp). -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <!-- "Display over other apps": lets Zap open the WhatsApp chat while the
+         phone sits in a pocket (Android blocks background activity starts otherwise). -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- Photos to attach: only read when the wearer chooses "Send a photo". -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <!-- Only for summaries, and only when the wearer turns them on: the chat goes
+         straight to the AI provider they chose, with their own key. Off = no traffic. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- "Add to calendar" from a summary: written into the phone's own calendar, asked for in settings. -->
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
+    <!-- "Remind me to reply": a notification on the phone too, in case the glasses are off. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <queries>
+        <intent>
+            <action android:name="com.anezium.rokidbus.action.HUB" />
+        </intent>
+        <package android:name="com.whatsapp" />
+        <package android:name="com.whatsapp.w4b" />
+        <package android:name="com.anezium.rokidbus.phone" />
+    </queries>
+
+    <application
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Zap">
+
+        <!-- Settings. The Nexus build has no launcher entry (the registry rejects one);
+             the site build adds one in src/site/AndroidManifest.xml. -->
+        <activity
+            android:name=".ZapSettingsActivity"
+            android:exported="true" />
+
+        <!-- Hands WhatsApp the one photo being sent; never exported. -->
+        <provider
+            android:name=".ZapShareProvider"
+            android:authorities="${applicationId}.share"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+
+        <service
+            android:name=".ZapNotificationListener"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <service
+            android:name=".ZapSendService"
+            android:exported="true"
+            android:label="@string/send_service_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/zap_send_service" />
+        </service>
+
+        <service
+            android:name=".ZapSendTile"
+            android:exported="true"
+            android:icon="@drawable/nexus_glyph_zap"
+            android:label="@string/send_tile_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data android:name="android.service.quicksettings.ACTIVE_TILE" android:value="false" />
+        </service>
+
+        <service
+            android:name=".ZapPluginService"
+            android:exported="true"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="glasses-session" />
+            <intent-filter>
+                <action android:name="com.anezium.rokidbus.action.PLUGIN" />
+            </intent-filter>
+            <meta-data android:name="com.anezium.rokidbus.plugin.ID" android:value="zap" />
+            <meta-data android:name="com.anezium.rokidbus.plugin.DISPLAY_NAME" android:value="Zap" />
+            <meta-data android:name="com.anezium.rokidbus.plugin.ICON" android:value="zap" />
+            <meta-data android:name="com.anezium.rokidbus.plugin.ICON_DRAWABLE" android:resource="@drawable/nexus_glyph_zap" />
+            <meta-data android:name="com.anezium.rokidbus.plugin.GLYPHS" android:resource="@array/nexus_glyphs" />
+            <meta-data android:name="com.anezium.rokidbus.plugin.API_VERSION" android:value="3" />
+            <meta-data android:name="com.anezium.rokidbus.plugin.CAPABILITIES" android:value="surfaces,stt,tts,mediasync,camera" />
+            <meta-data
+                android:name="com.anezium.rokidbus.plugin.RECEIVE_PREFIXES"
+                android:value="/plugin/zap,/system/plugin,/stt,/tts/started,/tts/done,/mediasync/status,/camera/snapshot/result,/camera/snapshot/error" />
+            <!-- Skills: the wearer's assistant can list, read and (after the wearer picks Send) send. Kept out of
+                 CAPABILITIES on purpose: hubs older than skills would refuse the whole plugin. -->
+            <meta-data android:name="com.anezium.rokidbus.plugin.SKILLS" android:resource="@raw/nexus_skills" />
+            <meta-data android:name="com.anezium.rokidbus.plugin.SETTINGS_ACTIVITY" android:value=".ZapSettingsActivity" />
+            <meta-data android:name="com.anezium.rokidbus.plugin.LAUNCHABLE" android:value="true" />
+        </service>
+        <!-- Invisible: lights the screen and steps past a lock screen that needs no PIN
+             (Smart Lock trusting the glasses), then opens WhatsApp. Never exported. -->
+        <activity
+            android:name=".ZapUnlockActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <receiver
+            android:name=".ZapReminderReceiver"
+            android:exported="false" />
+    </application>
+</manifest>
