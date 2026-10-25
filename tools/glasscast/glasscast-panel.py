@@ -7,7 +7,10 @@ Opens http://127.0.0.1:8765 (this Mac only; nothing is reachable from the networ
 
     ./glasscast.sh ui            or double-click "Glasscast.command"
 """
+import base64
 import json
+import re
+import shutil
 import os
 import signal
 import subprocess
@@ -21,6 +24,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPT = os.path.join(HERE, "glasscast.sh")
 DIR = os.environ.get("GLASSCAST_DIR", HERE)
 PORT = int(os.environ.get("GLASSCAST_PORT", "8765"))
+STAMP = re.compile(r"\d{4}-\d\d-\d\d_\d\d-\d\d-\d\d")
 
 # Each switch is one glasscast.sh command that keeps running until switched off.
 SWITCHES = [
@@ -151,6 +155,7 @@ input{flex:1;min-width:200px}.msg{color:var(--dim);font-size:13px;margin-top:8px
 @media(max-width:640px){.grid,.devices{grid-template-columns:1fr}}
 </style></head><body><main>
 <h1>Glasscast</h1><p class="sub">Óculos e celular no Mac, pelo cabo ou pelo Wi-Fi. Só para desenvolvimento.</p>
+<div class="row" style="margin:-8px 0 16px"><button class="primary" onclick="anotar()">✎ Anotar este momento</button><span class="msg" id="amsg"></span></div>
 <div class="devices">
   <div class="dev"><b>Óculos</b><div id="g" class="st none">procurando…</div></div>
   <div class="dev"><b>Celular</b><div id="p" class="st none">procurando…</div></div>
@@ -189,8 +194,71 @@ async function act(cmd,args=[]){const m=document.getElementById("msg");m.textCon
   const r=await (await fetch("/run",{method:"POST",body:JSON.stringify({cmd,args})})).json();m.textContent=r.out||"ok";refresh();}
 function wifi(){const v=document.getElementById("addr").value.trim().replace(/^adb (pair|connect) /,"").split(/\s+/);
   if(!v[0])return; act(v[1]?"pair":"connect",v[1]?[v[0],v[1]]:[v[0]]);}
+async function anotar(){const r=await (await fetch("/freeze",{method:"POST"})).json();
+  if(!r.hud&&!r.phone){document.getElementById("amsg").textContent=" Nenhum print ainda: ligue as capturas.";return;}
+  window.open("/anotar?s="+r.stamp,"_blank");}
 async function bye(){await fetch("/quit",{method:"POST"});document.querySelector("main").innerHTML="<h1>Glasscast desligado</h1><p class=sub>Pode fechar esta aba. Para abrir de novo: app Glasscast Painel.</p>";}
 refresh();setInterval(refresh,3000);
+</script></body></html>"""
+
+
+ANNOTATE = r"""<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Anotar</title>
+<style>
+:root{--bg:#0b0f0c;--card:#121a15;--line:#1f2b23;--text:#e6f2ea;--dim:#8fa597;--green:#4dff8c;--pin:#ffd400}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 -apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif}
+header{display:flex;gap:8px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+header h1{font-size:18px;margin:0 12px 0 0}
+button{font:inherit;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--text);padding:8px 12px;cursor:pointer}
+button.on{border-color:var(--pin);color:var(--pin)}button.primary{background:var(--green);color:#0b0f0c;border-color:var(--green);font-weight:600}
+.wrap{display:flex;gap:16px;padding:16px;align-items:flex-start;flex-wrap:wrap}
+.shot{display:flex;flex-direction:column;gap:6px}.shot b{color:var(--dim);font-size:13px;font-weight:500}
+canvas{max-height:72vh;max-width:42vw;background:#000;border:1px solid var(--line);border-radius:8px;cursor:crosshair}
+aside{flex:1;min-width:260px}
+.pin{display:flex;gap:8px;margin-bottom:8px}.pin span{flex:none;width:26px;height:26px;border-radius:50%;background:var(--pin);color:#000;font-weight:700;display:grid;place-items:center}
+textarea{width:100%;font:inherit;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px;min-height:38px}
+.hint{color:var(--dim);font-size:13px}
+</style></head><body>
+<header><h1>Anotar</h1>
+<button id="bpin" class="on" onclick="mode('pin')">① Alfinete</button>
+<button id="bpen" onclick="mode('pen')">✎ Pincel</button>
+<button onclick="undo()">Desfazer</button>
+<span class="hint" id="when"></span>
+<span style="flex:1"></span>
+<button class="primary" onclick="save()">Salvar para o Claude</button></header>
+<div class="wrap">
+ <div class="shot" id="s-hud"><b>Óculos</b><canvas id="hud"></canvas></div>
+ <div class="shot" id="s-phone"><b>Celular</b><canvas id="phone"></canvas></div>
+ <aside><div class="hint">Alfinete: clique no ponto e escreva. Pincel: arraste para riscar.</div><br>
+  <div id="pins"></div>
+  <textarea id="general" placeholder="Comentário geral (opcional)"></textarea>
+  <p class="hint" id="msg"></p></aside>
+</div>
+<script>
+const S=new URLSearchParams(location.search).get("s");let M="pin";const imgs={},ctx={},acts=[];
+document.getElementById("when").textContent="Momento: "+S.replace("_"," ").replaceAll("-",":").replace(/^(\d+):(\d+):(\d+) /,"$3/$2 ");
+function mode(m){M=m;bpin.classList.toggle("on",m=="pin");bpen.classList.toggle("on",m=="pen");}
+function redraw(k){const c=ctx[k];if(!c)return;c.drawImage(imgs[k],0,0);const w=c.canvas.width,r=Math.max(10,w/40);
+  for(const a of acts.filter(a=>a.img==k)){
+    if(a.t=="pen"){c.strokeStyle="#ffd400";c.lineWidth=Math.max(3,w/150);c.lineJoin=c.lineCap="round";c.beginPath();a.pts.forEach((p,i)=>i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1]));c.stroke();}
+    else{c.fillStyle="#ffd400";c.beginPath();c.arc(a.x,a.y,r,0,7);c.fill();c.fillStyle="#000";c.font=`bold ${r*1.2}px sans-serif`;c.textAlign="center";c.textBaseline="middle";c.fillText(a.n,a.x,a.y+1);}}}
+function pos(e,cv){const b=cv.getBoundingClientRect();return[(e.clientX-b.left)*cv.width/b.width,(e.clientY-b.top)*cv.height/b.height];}
+function pinsList(){const box=document.getElementById("pins");const keep={};box.querySelectorAll("textarea").forEach(t=>keep[t.dataset.n]=t.value);box.innerHTML="";
+  acts.filter(a=>a.t=="pin").forEach(a=>{const d=document.createElement("div");d.className="pin";d.innerHTML=`<span>${a.n}</span><textarea data-n="${a.n}" placeholder="${a.img=="hud"?"Óculos":"Celular"}: o que é aqui?"></textarea>`;
+    const t=d.querySelector("textarea");t.value=keep[a.n]??a.text??"";t.oninput=()=>a.text=t.value;box.appendChild(d);});}
+function setup(k){const cv=document.getElementById(k),im=new Image();im.onload=()=>{cv.width=im.naturalWidth;cv.height=im.naturalHeight;imgs[k]=im;ctx[k]=cv.getContext("2d");redraw(k);};
+  im.onerror=()=>document.getElementById("s-"+k).style.display="none";im.src=`/notas/${S}/${k}.png`;let drawing=null;
+  cv.onmousedown=e=>{if(M=="pin"){const [x,y]=pos(e,cv);const n=acts.filter(a=>a.t=="pin").length+1;acts.push({t:"pin",img:k,x,y,n,text:""});redraw(k);pinsList();
+      document.querySelector(`textarea[data-n="${n}"]`).focus();e.preventDefault();}else{drawing={t:"pen",img:k,pts:[pos(e,cv)]};acts.push(drawing);}};
+  cv.onmousemove=e=>{if(drawing){drawing.pts.push(pos(e,cv));redraw(k);}};window.addEventListener("mouseup",()=>drawing=null);}
+function undo(){const a=acts.pop();if(a){redraw(a.img);pinsList();}}
+async function save(){const body={pins:acts.filter(a=>a.t=="pin").map(a=>({n:a.n,onde:a.img=="hud"?"óculos":"celular",x:Math.round(a.x),y:Math.round(a.y),texto:a.text||""})),
+   riscos:acts.filter(a=>a.t=="pen").length,geral:document.getElementById("general").value};
+  for(const k of ["hud","phone"])if(ctx[k])body[k]=ctx[k].canvas.toDataURL("image/png");
+  const r=await fetch(`/nota/${S}`,{method:"POST",body:JSON.stringify(body)});
+  document.getElementById("msg").textContent=r.ok?"Salvo. Pode fechar esta aba.":"Não consegui salvar.";if(r.ok)setTimeout(()=>window.close(),900);}
+setup("hud");setup("phone");
 </script></body></html>"""
 
 # Only these one-shot commands can be run from the page, never anything else.
@@ -226,6 +294,16 @@ class Handler(BaseHTTPRequestHandler):
             self.send(200, PAGE, "text/html")
         elif self.path == "/status":
             self.send(200, json.dumps(status()))
+        elif self.path.startswith("/anotar"):
+            self.send(200, ANNOTATE, "text/html")
+        elif self.path.startswith("/notas/"):
+            parts = self.path.split("?")[0].split("/")
+            if len(parts) == 4 and STAMP.fullmatch(parts[2]) and parts[3] in ("hud.png", "phone.png"):
+                f = os.path.join(DIR, "notas", parts[2], parts[3])
+                if os.path.isfile(f):
+                    with open(f, "rb") as fh:
+                        return self.send(200, fh.read(), "image/png")
+            self.send(404, "{}")
         else:
             self.send(404, "{}")
 
@@ -239,6 +317,38 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(400, "{}")
             with lock:
                 start(sid) if b.get("on") else stop(sid)
+            self.send(200, "{}")
+        elif self.path == "/freeze":
+            # The newest shot of each screen, copied so it stays put while the wearer annotates.
+            stamp = time.strftime("%Y-%m-%d_%H-%M-%S")
+            folder = os.path.join(DIR, "notas", stamp)
+            os.makedirs(folder, exist_ok=True)
+            got = {}
+            for name, src in (("hud", "latest.png"), ("phone", "phone-latest.png")):
+                path = os.path.join(DIR, "watch", src)
+                got[name] = os.path.isfile(path) and time.time() - os.path.getmtime(path) < 60
+                if got[name]:
+                    shutil.copyfile(path, os.path.join(folder, name + ".png"))
+            self.send(200, json.dumps({"stamp": stamp, **got}))
+        elif self.path.startswith("/nota/"):
+            stamp = self.path.split("/")[2]
+            folder = os.path.join(DIR, "notas", stamp)
+            if not STAMP.fullmatch(stamp) or not os.path.isdir(folder):
+                return self.send(400, "{}")
+            for name in ("hud", "phone"):
+                url = b.pop(name, None)
+                if isinstance(url, str) and url.startswith("data:image/png;base64,"):
+                    with open(os.path.join(folder, name + "-anotado.png"), "wb") as fh:
+                        fh.write(base64.b64decode(url.split(",", 1)[1]))
+            with open(os.path.join(folder, "nota.json"), "w") as fh:
+                json.dump(b, fh, ensure_ascii=False, indent=1)
+            lines = [f"Nota de {stamp}"] + [f"  ({p['n']}) {p['onde']}: {p['texto']}" for p in b.get("pins", [])]
+            if b.get("geral"):
+                lines.append(f"  geral: {b['geral']}")
+            with open(os.path.join(folder, "nota.txt"), "w") as fh:
+                fh.write("\n".join(lines) + "\n")
+            with open(os.path.join(DIR, "logs", "notas.log"), "a") as fh:
+                fh.write("\n".join(lines) + "\n")
             self.send(200, "{}")
         elif self.path == "/quit":
             self.send(200, "{}")
@@ -254,7 +364,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    for sub in ("logs", "watch", "shots", "videos"):
+    for sub in ("logs", "watch", "shots", "videos", "notas"):
         os.makedirs(os.path.join(DIR, sub), exist_ok=True)
     server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
     url = f"http://127.0.0.1:{PORT}"
