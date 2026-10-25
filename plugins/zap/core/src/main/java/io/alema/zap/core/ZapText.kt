@@ -13,6 +13,7 @@ class ZapText(private val pt: Boolean = Locale.getDefault().language == "pt") {
     val whoTitle get() = if (pt) "Para quem?" else "To whom?"
     val listening get() = if (pt) "Ouvindo…" else "Listening…"
     val inboxTitle get() = if (pt) "Conversas" else "Chats"
+    val yesterday get() = if (pt) "Ontem" else "Yesterday"
     val emptyInbox get() = if (pt) "As conversas aparecem aqui quando chegarem mensagens" else "Chats appear here as messages arrive"
     val noAccess get() = if (pt) "Zap sem acesso às notificações: permita nos ajustes do Zap, no celular" else "Zap can't see notifications: allow it in Zap's settings on the phone"
     val sayName get() = if (pt) "Dizer o nome" else "Say the name"

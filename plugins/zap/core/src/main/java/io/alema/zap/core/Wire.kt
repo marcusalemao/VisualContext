@@ -36,7 +36,10 @@ object Wire {
             "v" to VERSION, "t" to "card", "title" to screen.title, "sub" to screen.subtitle,
             "back" to screen.handlesBack, "foot" to screen.footer,
             "rows" to screen.rows.map { row ->
-                obj("x" to row.text, "s" to row.sub, "b" to row.badge, "tone" to row.tone.name, "sel" to row.selected.takeIf { it })
+                obj(
+                    "x" to row.text, "s" to row.sub, "b" to row.badge, "tr" to row.trail.takeIf { it.isNotEmpty() },
+                    "tone" to row.tone.name, "sel" to row.selected.takeIf { it },
+                )
             },
         )
         is Screen.Reader -> obj(
@@ -64,6 +67,7 @@ object Wire {
                         text = it.str("x") ?: "",
                         sub = it.str("s"),
                         badge = it.str("b"),
+                        trail = (it["tr"] as? List<*>).orEmpty().filterIsInstance<String>(),
                         tone = runCatching { Tone.valueOf(it.str("tone") ?: "NORMAL") }.getOrDefault(Tone.NORMAL),
                         selected = it["sel"] == true,
                     )

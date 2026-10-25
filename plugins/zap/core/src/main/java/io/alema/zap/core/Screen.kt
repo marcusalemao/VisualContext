@@ -56,6 +56,8 @@ data class Row(
     val sub: String? = null,
     /** A short label before the text: "You", or the sender in a group. */
     val badge: String? = null,
+    /** Short marks at the right end of the line: "● 2" (unread) then "14:32". The first one is bright, the rest quiet. */
+    val trail: List<String> = emptyList(),
     val tone: Tone = Tone.NORMAL,
     val selected: Boolean = false,
 )

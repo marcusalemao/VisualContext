@@ -56,7 +56,7 @@ class ZapPluginService : NexusPluginService() {
     private val main = Handler(Looper.getMainLooper())
     private val text = ZapText()
     /** Rebuilt on every open: the wearer may have changed the visible area in settings. */
-    private var screens = ScreenMaker(text, version = BuildConfig.VERSION_NAME)
+    private var screens = ScreenMaker(text)
     private lateinit var contacts: ZapContacts
     private lateinit var flow: ComposeFlow
 
@@ -94,7 +94,7 @@ class ZapPluginService : NexusPluginService() {
             render()
         }
         contentResolver.registerContentObserver(MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL), true, galleryChanged)
-        screens = ScreenMaker(text, version = BuildConfig.VERSION_NAME, reach = ZapSettings(this).reachPx())
+        screens = ScreenMaker(text, reach = ZapSettings(this).reachPx())
         // A photo taken with the glasses button while Zap is open is offered here, not by the notice.
         ZapNotifier.inAppOffer = { key -> main.post { offerPhotoHere(key) } }
         preferInstantSync()
@@ -423,6 +423,12 @@ class ZapPluginService : NexusPluginService() {
             voiceTrouble = ttsProblem,
             debugLine = speechDetail.takeIf { BuildConfig.DEBUG },
         )
+        // A chat open on the lens has been seen: it leaves the unread count, like on the phone.
+        when (val step = flow.step) {
+            is Step.Thread -> ZapInbox.markRead(this, step.conversation.key)
+            is Step.Read -> ZapInbox.markRead(this, step.conversation.key)
+            else -> Unit
+        }
         when (val screen = screens.make(flow.step, flow.selected, status)) {
             is Screen.Card -> showCard(screen, show)
             is Screen.Reader -> showReader(screen, show)
@@ -502,7 +508,7 @@ class ZapPluginService : NexusPluginService() {
         title = title,
         lines = emptyList(),
         richLines = rows.map { row ->
-            NexusCardLine(text = row.text, sub = row.sub, badge = row.badge, tone = row.tone.toNexus(), selected = row.selected)
+            NexusCardLine(text = row.text, sub = row.sub, badge = row.badge, trail = row.trail, tone = row.tone.toNexus(), selected = row.selected)
         },
         subtitle = subtitle,
         footer = footer,

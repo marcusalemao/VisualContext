@@ -15,15 +15,13 @@ import java.time.format.DateTimeFormatter
  * Top-heavy: the lens is 480×640, but for many wearers (Marcus included) the
  * bottom third is out of sight. So nothing useful lives at the bottom: lists
  * show only the rows that end above [reach] (the chosen one always among
- * them, "▴ 3" / "▾ 5" for the rest), hints and the version sit under the
+ * them, "▴ 3" / "▾ 5" for the rest), hints sit under the
  * title, and a chat reads newest first, from the top.
  */
 class ScreenMaker(
     private val text: ZapText = ZapText(),
     private val zone: ZoneId = ZoneId.systemDefault(),
     private val now: () -> Long = System::currentTimeMillis,
-    /** Shown small under the title of home, so the wearer can tell which Zap is installed. */
-    private val version: String? = null,
     /** How far down (in lens pixels, of 640) the wearer reads comfortably; null = the whole lens. */
     private val reach: Int? = REACH_PX,
 ) {
@@ -134,16 +132,31 @@ class ScreenMaker(
         is Step.Done -> done(step, status)
     }
 
-    /** Home: "New message", then one row per chat — name on top, last message under it. */
+    /**
+     * Home: "+ New message", then one row per chat — name on top, last message
+     * under it, like WhatsApp on the phone: a short time on the right, and an
+     * unread count before it. Read chats are quieter, unread ones stay bright.
+     * No version here: the lens needs the room (the phone's settings show it).
+     */
     private fun inbox(step: Step.Inbox, selected: Int, status: Status): Screen.Card {
+        val today = LocalDate.ofInstant(Instant.ofEpochMilli(now()), zone)
         val rows = buildList {
-            add(Row(text = text.newMessage, selected = selected == 0))
+            // Always bright and bold: an action, set apart from the chats under it.
+            add(Row(text = "+ ${text.newMessage}", tone = Tone.ALERT, selected = selected == 0))
             step.conversations.take(MAX_ROWS - 1).forEachIndexed { index, chat ->
+                val isSelected = selected == index + 1
+                val unread = chat.unread
                 add(
                     Row(
                         text = fit(chat.title, LIST_CHARS),
                         sub = chat.last?.let { fit(preview(chat, it), PREVIEW_CHARS) },
-                        selected = selected == index + 1,
+                        trail = listOfNotNull(
+                            "● $unread".takeIf { unread > 0 },
+                            chat.last?.let { shortTime(it.timeMs, today) },
+                        ),
+                        // The chosen row always lights up; otherwise read chats step back.
+                        tone = if (unread == 0 && !isSelected) Tone.DIM else Tone.NORMAL,
+                        selected = isSelected,
                     ),
                 )
             }
@@ -154,7 +167,17 @@ class ScreenMaker(
                 )
             }
         }
-        return Screen.Card(title = text.inboxTitle, rows = rows, handlesBack = false, subtitle = version?.let { "Zap $it" })
+        return Screen.Card(title = text.inboxTitle, rows = rows, handlesBack = false)
+    }
+
+    /** WhatsApp's list time: today "14:32", then "Ontem", then "23/10". */
+    internal fun shortTime(timeMs: Long, today: LocalDate): String {
+        val day = Instant.ofEpochMilli(timeMs).atZone(zone)
+        return when (day.toLocalDate()) {
+            today -> day.format(HOUR)
+            today.minusDays(1) -> text.yesterday
+            else -> day.format(DAY)
+        }
     }
 
     private fun clock(timeMs: Long, today: LocalDate): String {
@@ -400,5 +423,6 @@ class ScreenMaker(
         const val NEW_HEADER_AFTER_MS = 30 * 60_000L
         private val HOUR = DateTimeFormatter.ofPattern("HH:mm")
         private val DAY_HOUR = DateTimeFormatter.ofPattern("dd/MM HH:mm")
+        private val DAY = DateTimeFormatter.ofPattern("dd/MM")
     }
 }

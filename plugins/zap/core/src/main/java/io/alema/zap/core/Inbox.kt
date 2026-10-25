@@ -43,8 +43,16 @@ data class ZapConversation(
     val messages: List<ZapMessage>,
     /** True while WhatsApp's own reply action for this chat is still alive on the phone. */
     val canReplyLive: Boolean = false,
+    /** Everything up to this time has been seen: opened in Zap, answered, or read on the phone. */
+    val readUpToMs: Long = 0L,
 ) {
     val lastTimeMs: Long get() = messages.maxOfOrNull { it.timeMs } ?: 0L
+
+    /** Messages from others the wearer has not seen yet, like WhatsApp's green counter. */
+    val unread: Int get() = messages.count { it.sender != ZapMessage.ME && it.timeMs > readUpToMs }
+
+    /** The same chat, seen up to its newest message. */
+    fun seen(): ZapConversation = if (readUpToMs >= lastTimeMs) this else copy(readUpToMs = lastTimeMs)
     val last: ZapMessage? get() = messages.maxByOrNull { it.timeMs }
 
     /** Voice messages, oldest first. */
@@ -93,6 +101,8 @@ object InboxRules {
         return incoming.copy(
             waDigits = incoming.waDigits ?: stored?.waDigits,
             messages = all,
+            // A new notification never makes old messages unread again.
+            readUpToMs = maxOf(stored?.readUpToMs ?: 0L, incoming.readUpToMs),
         )
     }
 

@@ -26,8 +26,36 @@ class ScreenMakerTest {
         val home = card(maker.make(Step.Inbox(listOf(leoChat)), selected = 1))
         assertEquals("Conversas", home.title)
         assertFalse(home.handlesBack)
-        assertEquals(Row("Nova mensagem"), home.rows[0])
-        assertEquals(Row("Leo", sub = "o lugar", selected = true), home.rows[1])
+        assertEquals(Row("+ Nova mensagem", tone = Tone.ALERT), home.rows[0])
+        // Three messages from Leo not seen yet, and today's time, like WhatsApp's list.
+        assertEquals(Row("Leo", sub = "o lugar", trail = listOf("● 3", "00:00"), selected = true), home.rows[1])
+    }
+
+    @Test
+    fun `a chat already seen has no count and steps back, unless it is the chosen row`() {
+        val seen = leoChat.seen()
+        assertEquals(0, seen.unread)
+        val home = card(maker.make(Step.Inbox(listOf(seen)), selected = 0))
+        assertEquals(listOf("00:00"), home.rows[1].trail)
+        assertEquals(Tone.DIM, home.rows[1].tone)
+        val chosen = card(maker.make(Step.Inbox(listOf(seen)), selected = 1))
+        assertEquals(Tone.NORMAL, chosen.rows[1].tone)
+        // A newer message from Leo counts again; one of my own does not.
+        val more = InboxRules.merge(seen, seen.copy(messages = listOf(ZapMessage("Leo", "e aí?", 9_000L))))
+        assertEquals(1, more.unread)
+        val mine = InboxRules.merge(seen, seen.copy(messages = listOf(ZapMessage(ZapMessage.ME, "já vou", 9_000L))))
+        assertEquals(0, mine.unread)
+    }
+
+    @Test
+    fun `list times read like WhatsApp - hour today, Ontem, then only the date`() {
+        val day = 24L * 60 * 60 * 1000
+        val now = 10 * day + 15 * 60 * 60 * 1000 // day 10, 15:00 UTC
+        val m = ScreenMaker(ZapText(pt = true), java.time.ZoneOffset.UTC, now = { now })
+        val today = java.time.LocalDate.ofEpochDay(10)
+        assertEquals("09:05", m.shortTime(10 * day + (9 * 60 + 5) * 60_000L, today))
+        assertEquals("Ontem", m.shortTime(9 * day + 23 * 60 * 60 * 1000, today))
+        assertEquals("08/01", m.shortTime(7 * day, today))
     }
 
     @Test
@@ -123,10 +151,9 @@ class ScreenMakerTest {
     }
 
     @Test
-    fun `home shows the installed version under the title, other screens don't`() {
-        val withVersion = ScreenMaker(ZapText(pt = true), version = "0.5.2")
-        assertEquals("Zap 0.5.2", card(withVersion.make(Step.Inbox(emptyList()), 0)).subtitle)
-        assertNull(card(withVersion.make(Step.Review(leoChat.recipient(), "oi"), 0)).subtitle)
+    fun `no screen shows the version - the lens needs the room`() {
+        assertNull(card(maker.make(Step.Inbox(listOf(leoChat)), 0)).subtitle)
+        assertNull(card(maker.make(Step.Review(leoChat.recipient(), "oi"), 0)).subtitle)
     }
 
     @Test

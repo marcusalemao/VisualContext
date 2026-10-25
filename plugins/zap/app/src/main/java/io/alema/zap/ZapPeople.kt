@@ -129,7 +129,7 @@ class ZapNotificationListener : NotificationListenerService() {
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification?) {
-        ZapInbox.released(sbn ?: return)
+        ZapInbox.released(this, sbn ?: return)
     }
 
     private fun capture(sbn: StatusBarNotification) {

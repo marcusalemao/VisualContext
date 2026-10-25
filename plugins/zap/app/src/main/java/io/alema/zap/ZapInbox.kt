@@ -118,10 +118,31 @@ internal object ZapInbox {
     }
 
     /** The notification is gone (read on the phone, dismissed): Reply falls back to reopening the chat. */
-    fun released(sbn: StatusBarNotification) {
+    fun released(context: Context, sbn: StatusBarNotification) {
         val key = keyOf(sbn) ?: return
         val removed = synchronized(lock) { liveReplies.remove(key) != null }
-        if (removed) notifyChanged()
+        // WhatsApp clears its notification once the chat is read on the phone: read here too.
+        val read = markSeen(context, key, notify = false)
+        if (removed || read) notifyChanged()
+    }
+
+    /** The wearer saw this chat (opened it in Zap): it stops counting as unread. */
+    fun markRead(context: Context, key: String) {
+        if (markSeen(context, key, notify = false)) notifyChanged()
+    }
+
+    private fun markSeen(context: Context, key: String, notify: Boolean): Boolean {
+        val changed = synchronized(lock) {
+            ensureLoaded(context)
+            val chat = chats[key] ?: return@synchronized false
+            val seen = chat.seen()
+            if (seen === chat) return@synchronized false
+            chats[key] = seen
+            save(context)
+            true
+        }
+        if (changed && notify) notifyChanged()
+        return changed
     }
 
     /** Listener lost: every live reply token is unusable now. */
@@ -152,7 +173,7 @@ internal object ZapInbox {
             action.actionIntent.send(context, 0, intent)
             synchronized(lock) {
                 chats[key]?.let { chat ->
-                    chats[key] = InboxRules.merge(chat, chat.copy(messages = listOf(ZapMessage(ME, text, System.currentTimeMillis()))))
+                    chats[key] = InboxRules.merge(chat, chat.copy(messages = listOf(ZapMessage(ME, text, System.currentTimeMillis())))).seen()
                 }
                 save(context)
             }
@@ -170,7 +191,7 @@ internal object ZapInbox {
         key ?: return
         synchronized(lock) {
             val chat = chats[key] ?: return
-            chats[key] = InboxRules.merge(chat, chat.copy(messages = listOf(ZapMessage(ME, text, System.currentTimeMillis()))))
+            chats[key] = InboxRules.merge(chat, chat.copy(messages = listOf(ZapMessage(ME, text, System.currentTimeMillis())))).seen()
             save(context)
         }
         notifyChanged()
@@ -320,6 +341,7 @@ internal object ZapInbox {
 
     private fun toJson(c: ZapConversation) = JSONObject()
         .put("key", c.key).put("title", c.title).put("digits", c.waDigits ?: JSONObject.NULL).put("group", c.isGroup)
+        .put("read", c.readUpToMs)
         .put("messages", JSONArray().apply {
             c.messages.forEach { m ->
                 put(JSONObject().put("s", m.sender).put("t", m.text).put("at", m.timeMs).apply { m.image?.let { put("img", it) } })
@@ -338,6 +360,8 @@ internal object ZapInbox {
             waDigits = if (o.isNull("digits")) null else o.optString("digits"),
             isGroup = o.optBoolean("group"),
             messages = messages,
+            // Chats stored before 0.12 had no read mark: count them as read, not as a wall of unread.
+            readUpToMs = if (o.has("read")) o.optLong("read") else messages.maxOfOrNull { it.timeMs } ?: 0L,
         )
     }.getOrNull()
 
