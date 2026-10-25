@@ -104,7 +104,7 @@ grab() { # serial out.png
   # Why a shot failed goes to logs/grab-errors.txt, so a failure can be read instead of guessed.
   err="$(adb -s "$1" shell "screencap -p $remote" 2>&1)" || { printf '%s %s screencap: %s\n' "$(date +%T)" "$1" "$err" >> "$DIR/logs/grab-errors.txt"; return 1; }
   # Phones with several displays warn on every shot and still capture the main one: not an error.
-  err="$(printf '%s\n' "$err" | grep -v -e 'Multiple displays were found' -e 'dumpsys SurfaceFlinger --display-id' -e 'display id can be specified' | grep -v '^[[:space:]]*$' || true)"
+  err="$(printf '%s\n' "$err" | grep -v -i -e 'Multiple displays were found' -e 'dumpsys SurfaceFlinger --display-id' -e 'display id can be specified' | grep -v '^[[:space:]]*$' || true)"
   [ -n "$err" ] && printf '%s %s screencap said: %s\n' "$(date +%T)" "$1" "$err" >> "$DIR/logs/grab-errors.txt"
   err="$(adb -s "$1" pull "$remote" "$2" 2>&1)" || { printf '%s %s pull: %s\n' "$(date +%T)" "$1" "$err" >> "$DIR/logs/grab-errors.txt"; return 1; }
   if [ "$(wc -c < "$2")" -gt 2000 ] && [ "$(head -c 4 "$2" | tail -c 3)" = "PNG" ]; then return 0; fi

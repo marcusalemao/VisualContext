@@ -40,6 +40,7 @@ SWITCHES = [
     ("log", "phone", "Log do Zap", "logs/zap-latest.log, para o Claude ler", ["log"]),
 ]
 running = {}  # id -> Popen
+wanted = set()  # switches the wearer turned on; restarted when their device comes back
 lock = threading.Lock()
 
 
@@ -59,6 +60,7 @@ def alive(sid):
 
 def start(sid):
     cmd = next(s[4] for s in SWITCHES if s[0] == sid)
+    wanted.add(sid)
     if alive(sid):
         return
     log = open(os.path.join(DIR, "logs", f"panel-{sid}.txt"), "w")
@@ -69,6 +71,7 @@ def start(sid):
 
 
 def stop(sid):
+    wanted.discard(sid)
     p = running.pop(sid, None)
     if p and p.poll() is None:
         try:
@@ -95,6 +98,15 @@ def check_devices():
                 dev[parts[0]] = [parts[1], parts[2] if len(parts) > 2 else ""]
             elif parts and parts[0] == "unauthorized":
                 dev["unauthorized"] = True
+        # A switch turned on before its device was there stops at once ("no glasses yet").
+        # When the device shows up, start those again, so nobody has to flip them twice.
+        for group in ("glasses", "phone"):
+            was = devices_cache.get(group, ["none"])[0]
+            if was == "none" and dev[group][0] != "none":
+                with lock:
+                    for sid, g, *_ in SWITCHES:
+                        if g == group and sid in wanted and not alive(sid):
+                            start(sid)
         devices_cache.clear()
         devices_cache.update(dev)
         time.sleep(3)
@@ -203,7 +215,7 @@ async function preset(ids){for(const id of ids)await fetch("/switch",{method:"PO
 async function anotar(){const r=await (await fetch("/freeze",{method:"POST"})).json();
   if(!r.hud&&!r.phone){document.getElementById("amsg").textContent=" Nenhum print ainda: ligue as capturas.";return;}
   window.open("/anotar?s="+r.stamp,"_blank");}
-async function bye(){await fetch("/quit",{method:"POST"});document.querySelector("main").innerHTML="<h1>Glasscast desligado</h1><p class=sub>Pode fechar esta aba. Para abrir de novo: app Glasscast Painel.</p>";}
+async function bye(){await fetch("/quit",{method:"POST"});document.querySelector("main").innerHTML="<h1>Glasscast desligado</h1><p class=sub>Pode fechar esta aba. Para abrir de novo: app Glasscast, na pasta Aplicativos.</p>";}
 refresh();setInterval(refresh,3000);
 </script></body></html>"""
 
