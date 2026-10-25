@@ -76,11 +76,24 @@ class ScreenMakerTest {
         assertTrue(list.rows[1].selected) // the newest message
         assertEquals(MessageOption.SHOWN_CHARS, list.rows[1].text.length) // cut at about three lines
         assertTrue(list.rows[1].text.endsWith("…"))
-        assertEquals("00:00", list.rows[1].sub) // a one-to-one chat: no name on every row
-        assertEquals("📷 o lugar", list.rows[2].text)
+        assertEquals(Tone.BODY, list.rows[1].tone) // the marked message opens up to three lines
+        assertEquals(Row("00:00", tone = Tone.DIM), list.rows[2]) // a one-to-one chat: no name on every row
+        assertEquals(Row("📷 o lugar", sub = "00:00"), list.rows[3]) // the others stay one line
         assertEquals("Toque numa mensagem para ver o que fazer", list.subtitle) // up top
         assertNull(list.footer)
         assertTrue(fits(list))
+    }
+
+    @Test
+    fun `a long summary is split at word breaks into rows the glasses can wrap whole`() {
+        val summary = ("Bruno chama para almoçar no Lume ao meio-dia e depois academia. " +
+            "Mandou dois áudios explicando que a academia nova fica na Paulista e pergunta se você topa.")
+        val chat = leoChat.copy(readUpToMs = 0L)
+        val card = card(maker.make(Step.Brief(chat, BriefState.Ready(Brief(summary))), 0))
+        val prose = card.rows.takeWhile { it.tone == Tone.BODY }
+        assertEquals(2, prose.size)
+        assertTrue(prose.all { it.text.length <= ScreenMaker.BODY_CHARS })
+        assertEquals(summary, prose.joinToString(" ") { it.text })
     }
 
     @Test

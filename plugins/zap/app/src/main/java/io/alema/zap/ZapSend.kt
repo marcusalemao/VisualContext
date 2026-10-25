@@ -40,20 +40,32 @@ internal object ZapSender {
      */
     fun deliver(context: Context, recipient: Recipient, text: String, photo: String? = null, onDone: (SendOutcome) -> Unit) {
         val key = recipient.conversationKey
+        // What the wearer sent shows in the chat as soon as it is on its way (WhatsApp never
+        // notifies your own messages, so this is the only place Zap learns them). Once per send:
+        // "waiting for unlock" and then "sent" must not add it twice.
+        var recorded = false
+        fun record(outcome: SendOutcome, body: String) {
+            if (recorded || outcome !in ON_ITS_WAY) return
+            recorded = true
+            ZapInbox.recordSent(context, key ?: recipient.digits, body, title = recipient.name, digits = recipient.digits)
+        }
         if (photo != null) {
             val digits = recipient.digits ?: return onDone(SendOutcome.FAILED)
             return sendPhoto(context, digits, photo, text) { outcome ->
-                if (outcome == SendOutcome.SENT) ZapInbox.recordSent(context, key, text.ifBlank { ZapInbox.PHOTO })
+                record(outcome, text.ifBlank { ZapInbox.PHOTO }.let { if (text.isBlank()) it else "📷 $it" })
                 onDone(outcome)
             }
         }
         if (key != null && ZapInbox.replyLive(context, key, text)) return onDone(SendOutcome.SENT)
         val digits = recipient.digits ?: return onDone(SendOutcome.FAILED)
         send(context, digits, text) { outcome ->
-            if (outcome == SendOutcome.SENT) ZapInbox.recordSent(context, key, text)
+            record(outcome, text)
             onDone(outcome)
         }
     }
+
+    /** Sent, or handed to WhatsApp and only waiting for the phone to unlock or a thumb on Send. */
+    private val ON_ITS_WAY = setOf(SendOutcome.SENT, SendOutcome.WAITING_FOR_UNLOCK, SendOutcome.OPENED_FOR_THUMB)
 
     fun send(context: Context, digits: String, text: String, onDone: (SendOutcome) -> Unit) {
         val pkg = whatsAppPackage(context) ?: return onDone(SendOutcome.NOT_INSTALLED)

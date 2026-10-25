@@ -187,10 +187,12 @@ internal object ZapInbox {
     }
 
     /** After a reply sent by reopening the chat, show it in the thread too. */
-    fun recordSent(context: Context, key: String?, text: String) {
+    fun recordSent(context: Context, key: String?, text: String, title: String? = null, digits: String? = null) {
         key ?: return
         synchronized(lock) {
-            val chat = chats[key] ?: return
+            ensureLoaded(context)
+            // A first message to someone who never wrote: the chat starts here, keyed like WhatsApp's own (the number).
+            val chat = chats[key] ?: title?.let { ZapConversation(key, it, digits, isGroup = false, messages = emptyList()) } ?: return
             chats[key] = InboxRules.merge(chat, chat.copy(messages = listOf(ZapMessage(ME, text, System.currentTimeMillis())))).seen()
             save(context)
         }

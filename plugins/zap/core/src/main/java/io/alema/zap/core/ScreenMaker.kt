@@ -200,20 +200,41 @@ class ScreenMaker(
         val rows = buildList {
             add(Row(text = text.replyRow, selected = selected == 0))
             chat.newestFirst().forEachIndexed { index, message ->
-                add(
-                    Row(
-                        text = rowText(message),
-                        sub = listOfNotNull(
-                            senderLabel(message).takeIf { chat.isGroup || message.sender == ZapMessage.ME },
-                            clock(message.timeMs, today),
-                        ).joinToString(" · "),
-                        selected = selected == index + 1,
-                    ),
-                )
+                val who = listOfNotNull(
+                    senderLabel(message).takeIf { chat.isGroup || message.sender == ZapMessage.ME },
+                    clock(message.timeMs, today),
+                ).joinToString(" · ")
+                if (selected == index + 1) {
+                    // The message the wearer is on opens up: up to three lens lines, bright,
+                    // then who and when. The others stay one line, so the list still scans.
+                    add(Row(text = rowText(message), tone = Tone.BODY, selected = true))
+                    add(Row(text = who, tone = Tone.DIM))
+                } else {
+                    add(Row(text = rowText(message), sub = who))
+                }
             }
             if (chat.messages.isEmpty()) add(Row(text = text.emptyChat, tone = Tone.DIM))
         }
         return Screen.Card(title = fitTitle(chat.title), rows = rows, subtitle = text.chatHint)
+    }
+
+    /**
+     * Text longer than three lens lines as several prose rows: the glasses show at
+     * most three lines per row, so a long summary is cut at word breaks instead of "…".
+     */
+    private fun bodyRows(value: String): List<Row> {
+        val out = mutableListOf<Row>()
+        var rest = value.trim()
+        while (rest.isNotEmpty()) {
+            if (rest.length <= BODY_CHARS) {
+                out += Row(text = rest, tone = Tone.BODY)
+                break
+            }
+            val cut = rest.lastIndexOf(' ', BODY_CHARS).takeIf { it > BODY_CHARS / 2 } ?: BODY_CHARS
+            out += Row(text = rest.substring(0, cut).trimEnd(), tone = Tone.BODY)
+            rest = rest.substring(cut).trimStart()
+        }
+        return out
     }
 
     /**
@@ -230,7 +251,7 @@ class ScreenMaker(
         val subtitle = when (val state = step.state) {
             BriefState.Loading -> text.briefLoading(unread.size, voice)
             is BriefState.Ready -> {
-                rows += Row(text = fit(state.brief.summary), tone = Tone.BODY)
+                rows += bodyRows(state.brief.summary)
                 if (state.brief.voiceMissing > 0) rows += Row(text = text.voiceLeftOut(state.brief.voiceMissing), tone = Tone.DIM)
                 text.briefTitle(unread.size, voice)
             }
@@ -446,7 +467,8 @@ class ScreenMaker(
 
     /** Lens pixels a row takes, measured on the Nexus card: 34 for one line, 19 more for a sub line, 24 per extra wrapped line. */
     private fun rowHeight(row: Row): Int {
-        val lines = maxOf(1, (row.text.length + WRAP_CHARS - 1) / WRAP_CHARS)
+        // List rows are one line (the rest is cut with "…"); prose rows wrap to three at most.
+        val lines = if (row.tone != Tone.BODY) 1 else ((row.text.length + WRAP_CHARS - 1) / WRAP_CHARS).coerceIn(1, BODY_LINES)
         return ROW_PX + (lines - 1) * LINE_PX + (if (row.sub != null) SUB_PX else 0)
     }
 
@@ -470,6 +492,10 @@ class ScreenMaker(
         const val MAX_CAPTION = 240
         /** Same widths Relay measured on the optics for list rows and their sub line. */
         const val LIST_CHARS = 26
+        /** Nexus wraps a prose row to three lines at most. */
+        const val BODY_LINES = 3
+        /** About what three lens lines hold. */
+        const val BODY_CHARS = 84
         const val PREVIEW_CHARS = 40
         const val MAX_SEGMENTS = 240
         const val MAX_SEGMENT_CHARS = 4_096
