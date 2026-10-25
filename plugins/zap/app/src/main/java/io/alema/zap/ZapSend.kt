@@ -222,11 +222,17 @@ class ZapSendService : AccessibilityService() {
     /**
      * WhatsApp's photo preview, not a chat and not the contact picker: it has
      * a caption box (holding exactly the confirmed caption) and no message box.
+     * WhatsApp renames its views now and then, so the caption box is also found
+     * as "the editable field holding exactly our caption" — still never a click
+     * on anything that doesn't hold what the wearer confirmed.
      */
     private fun isPhotoPreview(root: AccessibilityNodeInfo, armed: PendingSend): Boolean {
         if (root.findAccessibilityNodeInfosByViewId("${armed.pkg}:id/entry").isNotEmpty()) return false
         val caption = CAPTION_IDS.firstNotNullOfOrNull { id ->
             root.findAccessibilityNodeInfosByViewId("${armed.pkg}:id/$id").firstOrNull()
+        } ?: editables(root).firstOrNull { node ->
+            val shown = node.text?.toString()?.trim().orEmpty()
+            if (armed.text.isBlank()) shown.isEmpty() || node.isShowingHintText else shown == armed.text.trim()
         } ?: return false
         val shown = caption.text?.toString()?.trim().orEmpty()
         // An empty caption box shows its hint ("Add a caption…") as text on some versions.
@@ -234,13 +240,66 @@ class ZapSendService : AccessibilityService() {
     }
 
     private fun findSendButton(root: AccessibilityNodeInfo, pkg: String): AccessibilityNodeInfo? {
-        root.findAccessibilityNodeInfosByViewId("$pkg:id/send").firstOrNull { it.isEnabled }?.let { return it }
+        SEND_IDS.forEach { id ->
+            root.findAccessibilityNodeInfosByViewId("$pkg:id/$id").firstOrNull { it.isEnabled }?.let { return clickable(it) }
+        }
+        // By its spoken label ("Enviar"), on the button itself or the icon inside it.
         SEND_LABELS.forEach { label ->
             root.findAccessibilityNodeInfosByText(label)
-                .firstOrNull { it.isClickable && it.contentDescription?.toString().equals(label, ignoreCase = true) }
-                ?.let { return it }
+                .firstOrNull { it.contentDescription?.toString().equals(label, ignoreCase = true) }
+                ?.let { node -> clickable(node)?.let { return it } }
+        }
+        // Last resort: a clickable view whose id says "send" (send_media_btn, send_button…).
+        return walk(root).firstOrNull { node ->
+            node.isClickable && node.isEnabled &&
+                node.viewIdResourceName?.substringAfter(":id/")?.lowercase()?.let { it == "send" || it.startsWith("send_") || it.endsWith("_send") } == true
+        }
+    }
+
+    /** The node, or the nearest ancestor that takes a click (an icon inside a button). */
+    private fun clickable(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        var at: AccessibilityNodeInfo? = node
+        var hops = 0
+        while (at != null && hops < 4) {
+            if (at.isClickable && at.isEnabled) return at
+            at = at.parent
+            hops++
         }
         return null
+    }
+
+    private fun editables(root: AccessibilityNodeInfo) = walk(root).filter { it.isEditable }
+
+    private fun walk(root: AccessibilityNodeInfo): List<AccessibilityNodeInfo> {
+        val out = ArrayList<AccessibilityNodeInfo>()
+        val queue = ArrayDeque<AccessibilityNodeInfo>().apply { add(root) }
+        while (queue.isNotEmpty() && out.size < 400) {
+            val node = queue.removeFirst()
+            out += node
+            for (i in 0 until node.childCount) node.getChild(i)?.let(queue::addLast)
+        }
+        return out
+    }
+
+    /**
+     * When a photo send ends without a click: which views WhatsApp's screen had
+     * (ids and labels only, never any text), so a renamed button can be fixed.
+     */
+    private fun logLayout() = runCatching {
+        val root = rootInActiveWindow ?: return@runCatching
+        val views = walk(root)
+            .filter { it.isClickable || it.isEditable || it.viewIdResourceName != null }
+            .take(60)
+            .joinToString(" | ") { n ->
+                listOfNotNull(
+                    n.viewIdResourceName?.substringAfter(":id/"),
+                    n.className?.toString()?.substringAfterLast('.'),
+                    n.contentDescription?.toString()?.take(24)?.let { "\"$it\"" },
+                    "click".takeIf { n.isClickable },
+                    "edit".takeIf { n.isEditable },
+                ).joinToString(" ")
+            }
+        android.util.Log.i("Zap", "send helper found no match on ${root.packageName}: $views")
     }
 
     private val handler = Handler(Looper.getMainLooper())
@@ -254,6 +313,8 @@ class ZapSendService : AccessibilityService() {
         }
 
         private val SEND_LABELS = listOf("Enviar", "Send", "Senden")
+        /** Send button ids WhatsApp has used, newest guesses after the classic one. */
+        private val SEND_IDS = listOf("send", "send_media_btn", "send_button", "sendButton", "media_send_button")
         /** Caption box ids WhatsApp has used on its photo preview. */
         private val CAPTION_IDS = listOf("caption", "media_caption", "caption_text")
 
@@ -278,6 +339,7 @@ class ZapSendService : AccessibilityService() {
         /** Window passed without a match: the chat is open, the wearer's thumb finishes it. */
         internal fun expire(which: PendingSend) {
             if (pending !== which) return
+            if (which.photo) instance?.logLayout()
             pending = null
             finish(SendOutcome.OPENED_FOR_THUMB)
         }
