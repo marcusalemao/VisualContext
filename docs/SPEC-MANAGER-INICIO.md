@@ -108,6 +108,20 @@ Like Rokid's own modes, VisualContext has **modules** chosen at first use and ch
 - **Follow Rokid, don't fight it:** if the glasses are in Rokid's "Visual assistance" or "Hearing assistance" mode, suggest the matching module. Marcus to record those Rokid modes first (backlog).
 - **Why now:** glasses for low vision today cost thousands of dollars (e.g. Envision) and Google's glasses are not out yet; Rokid is affordable and ships to Brazil. Accessibility can be the launch hook in the store, while memory stays the product for everyone. First tester: a relative with severe low vision; then an institution (e.g. Fundação Dorina Nowill).
 
+### 1k. Key left on the motorbike (decided 25/10)
+Marcus's real case: getting off the bike and leaving the key in the ignition or on the handlebar. Reference for scenarios and UX only: his MotoKey Guard prototype (made in Gemini; a simulator, no Bluetooth). Find Hub / Find My tags (his UGREEN FineTrack) can't do this: they don't talk to each other and have no API for other apps.
+- **Trigger = the parking moment (1d).** The phone's speed drops from riding to zero, then walking starts. That is when we ask, not before.
+- **"Did the key come with you?"** — checked in this order:
+  1. **The glasses camera:** in the parking burst, is the key in your hand or going into the pocket (the key's visual signature from 1e)?
+  2. **Optional, a generic BLE tag** (iTag type, a few reais) on the keyring: its signal stays strong next to the phone = the key came. Our app can read these directly.
+  3. If neither answers, ask on the HUD (one line, tap = "it's with me").
+- **If the key stayed:** HUD card "the key stayed on the bike?" + phone vibration. If you walk about **15 m** away and nothing changed, a louder alarm on the phone.
+- **Snooze 2 minutes** (e.g. you went back to fetch it, or a friend is holding it).
+- **Home safe zone:** in your own garage (home Wi-Fi name, or the saved location) nothing fires.
+- **Low vision / voice only:** one short spoken line, "A chave ficou na moto?", then the same tap / double tap.
+- **Lost far away** stays with Find Hub: the thing's card only shows the "Open in Find Hub" link (backlog `ble-tags`).
+- Lives under the **Things** switch (key and motorbike are the MVP things). Never acts on its own beyond the warning.
+
 ### 2. Settings
 - **On the glasses:** the 4 main switches (Faces, Places, Things, Memories). No sub-settings.
 - **Encounter recording:** "Needs speech" / "A look is enough".
@@ -264,6 +278,20 @@ Como os modos da própria Rokid, o VisualContext tem **módulos**, escolhidos no
 - **Surdez:** legenda ao vivo da conversa na lente, com o nome de quem fala quando a pessoa é conhecida; áudios do WhatsApp transcritos (Zap); ponte com o projeto de LIBRAS.
 - **Seguir a Rokid, não brigar:** se os óculos estão no modo "Assistência visual" ou "Assistência auditiva" da Rokid, sugerir o módulo correspondente. Antes, o Marcus grava esses modos da Rokid (backlog).
 - **Por que agora:** óculos para baixa visão hoje custam milhares de dólares (ex.: Envision) e os óculos do Google ainda não saíram; a Rokid é acessível e entrega no Brasil. A acessibilidade pode ser o gancho de lançamento na loja, enquanto a memória continua sendo o produto para todo mundo. Primeiro testador: um parente com baixa visão grave; depois uma instituição (ex.: Fundação Dorina Nowill).
+
+### 1k. Chave esquecida na moto (decidido em 25/10)
+O caso real do Marcus: descer da moto e deixar a chave no contato ou no guidão. Referência só de cenários e UX: o protótipo MotoKey Guard dele (feito no Gemini; um simulador, sem Bluetooth). As tags do Find Hub / Buscar (a UGREEN FineTrack dele) não resolvem isso: uma não conversa com a outra e não têm API para outros apps.
+- **Gatilho = a hora de estacionar (1d).** A velocidade do celular cai de pilotando para zero e depois começa a caminhada. É aí que perguntamos, não antes.
+- **"A chave veio com você?"** — conferido nesta ordem:
+  1. **Câmera dos óculos:** na rajada de estacionar, a chave está na sua mão ou indo para o bolso (a assinatura visual da chave, de 1e)?
+  2. **Opcional, uma tag BLE genérica** (tipo iTag, poucos reais) no chaveiro: o sinal continua forte perto do celular = a chave veio. O nosso app lê essas tags direto.
+  3. Se nenhum dos dois responder, pergunta no HUD (uma linha, toque = "está comigo").
+- **Se a chave ficou:** card no HUD "a chave ficou na moto?" + vibração no celular. Se você se afastar uns **15 m** e nada mudou, alarme mais forte no celular.
+- **Adiar 2 minutos** (ex.: você voltou para buscar, ou um amigo está com ela).
+- **Zona segura de casa:** na sua garagem (nome do Wi-Fi de casa ou o local salvo) nada dispara.
+- **Baixa visão / só voz:** uma frase curta falada, "A chave ficou na moto?", e o mesmo toque / toque duplo.
+- **Perdida longe** continua com o Find Hub: o card da coisa só mostra o link "Abrir no Find Hub" (backlog `ble-tags`).
+- Fica sob a chave **Coisas** (chave e moto são as coisas do MVP). Nunca age sozinho além do aviso.
 
 ### 2. Ajustes
 - **Nos óculos:** as 4 chaves principais (Rostos, Lugares, Coisas, Memórias). Sem subconfigurações.
