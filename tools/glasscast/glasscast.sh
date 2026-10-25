@@ -100,10 +100,14 @@ ZAP_TAGS="Zap:V ZapNotifier:V ZapInbox:V ZapGallery:V ZapPhotoWatcher:V ZapSkill
 # A screenshot as a real file on the device, then copied over: "exec-out screencap" can
 # mix warnings into the picture on some devices and leave a PNG nothing can open.
 grab() { # serial out.png
-  local remote="/data/local/tmp/glasscast_shot.png"
-  adb -s "$1" shell "screencap -p $remote" >/dev/null 2>&1 || return 1
-  adb -s "$1" pull "$remote" "$2" >/dev/null 2>&1 || return 1
-  [ "$(wc -c < "$2")" -gt 2000 ] && [ "$(head -c 4 "$2" | tail -c 3)" = "PNG" ]
+  local remote="/data/local/tmp/glasscast_shot.png" err
+  # Why a shot failed goes to logs/grab-errors.txt, so a failure can be read instead of guessed.
+  err="$(adb -s "$1" shell "screencap -p $remote" 2>&1)" || { printf '%s %s screencap: %s\n' "$(date +%T)" "$1" "$err" >> "$DIR/logs/grab-errors.txt"; return 1; }
+  [ -n "$err" ] && printf '%s %s screencap said: %s\n' "$(date +%T)" "$1" "$err" >> "$DIR/logs/grab-errors.txt"
+  err="$(adb -s "$1" pull "$remote" "$2" 2>&1)" || { printf '%s %s pull: %s\n' "$(date +%T)" "$1" "$err" >> "$DIR/logs/grab-errors.txt"; return 1; }
+  if [ "$(wc -c < "$2")" -gt 2000 ] && [ "$(head -c 4 "$2" | tail -c 3)" = "PNG" ]; then return 0; fi
+  printf '%s %s not a picture: %s bytes, starts with %s\n' "$(date +%T)" "$1" "$(wc -c < "$2" | tr -d ' ')" "$(head -c 16 "$2" | od -An -c | tr -s ' ' | head -1)" >> "$DIR/logs/grab-errors.txt"
+  return 1
 }
 
 device() {
