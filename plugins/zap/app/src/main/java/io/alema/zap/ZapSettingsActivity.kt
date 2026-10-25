@@ -591,6 +591,7 @@ class ZapSettingsActivity : Activity() {
             ),
             action = t("Abrir Segurança do Android", "Open Android Security") to Intent(Settings.ACTION_SECURITY_SETTINGS),
         )
+        ZapSendTrace.describe(this, pt)?.let { infoCard(t("Último envio pelo Zap", "Last send through Zap"), it) }
     }
 
     // --- quick reactions (0.13) ----------------------------------------------

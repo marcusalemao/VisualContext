@@ -100,6 +100,10 @@ internal object ZapSender {
         val trusted = ZapUnlockActivity.trusted(context)
         val locked = !trusted && context.getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true
         val auto = ZapSendService.isEnabled(context)
+        ZapSendTrace.start(context, photo, if (trusted) ZapSendTrace.Lock.TRUSTED else if (locked) ZapSendTrace.Lock.PIN else ZapSendTrace.Lock.OPEN, auto)
+        val report = onDone
+        @Suppress("NAME_SHADOWING")
+        val onDone: (SendOutcome) -> Unit = { outcome -> ZapSendTrace.end(context, outcome); report(outcome) }
         var armed: PendingSend? = null
         val windowMs = if (locked) UNLOCK_WINDOW_MS else SEND_WINDOW_MS
         if (auto) {
@@ -121,6 +125,52 @@ internal object ZapSender {
     /** Room for the screen to light and the lock screen to step aside first. */
     private const val SEND_WINDOW_MS = 20_000L
     private const val UNLOCK_WINDOW_MS = 120_000L
+}
+
+/**
+ * The last send, in plain words for the settings screen and the log: photo or
+ * text, how the phone was locked, whether the helper was on, and how it ended.
+ * So "it asked me to unlock again" can be answered without a cable.
+ */
+internal object ZapSendTrace {
+    enum class Lock { OPEN, TRUSTED, PIN }
+    private const val PREFS = "zap_send_trace"
+
+    fun start(context: Context, photo: Boolean, lock: Lock, auto: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putLong("at", System.currentTimeMillis()).putBoolean("photo", photo)
+            .putString("lock", lock.name).putBoolean("auto", auto).remove("outcome").apply()
+        android.util.Log.i("Zap", "send start photo=$photo lock=$lock auto=$auto")
+    }
+
+    fun end(context: Context, outcome: SendOutcome) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("outcome", outcome.name).apply()
+        android.util.Log.i("Zap", "send outcome=$outcome")
+    }
+
+    /** "13:40 · foto · celular bloqueado com PIN · envio automático ligado → esperou o desbloqueio". */
+    fun describe(context: Context, pt: Boolean): String? {
+        val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val at = p.getLong("at", 0L).takeIf { it > 0 } ?: return null
+        val time = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date(at))
+        val what = if (p.getBoolean("photo", false)) (if (pt) "foto" else "photo") else (if (pt) "texto" else "text")
+        val lock = when (runCatching { Lock.valueOf(p.getString("lock", "") ?: "") }.getOrNull()) {
+            Lock.OPEN -> if (pt) "celular desbloqueado" else "phone unlocked"
+            Lock.TRUSTED -> if (pt) "bloqueado sem pedir PIN (dispositivo de confiança)" else "locked, no PIN needed (trusted device)"
+            Lock.PIN -> if (pt) "bloqueado pedindo PIN" else "locked, PIN required"
+            null -> "?"
+        }
+        val auto = if (p.getBoolean("auto", false)) (if (pt) "envio automático ligado" else "auto-send on") else (if (pt) "envio automático DESLIGADO" else "auto-send OFF")
+        val end = when (runCatching { SendOutcome.valueOf(p.getString("outcome", "") ?: "") }.getOrNull()) {
+            SendOutcome.SENT -> if (pt) "enviado" else "sent"
+            SendOutcome.WAITING_FOR_UNLOCK -> if (pt) "esperando desbloqueio" else "waiting for unlock"
+            SendOutcome.OPENED_FOR_THUMB -> if (pt) "ficou aberto para tocar Enviar" else "left open to tap Send"
+            SendOutcome.NOT_INSTALLED -> if (pt) "WhatsApp não encontrado" else "WhatsApp not found"
+            SendOutcome.FAILED -> if (pt) "falhou" else "failed"
+            null -> if (pt) "em andamento" else "in progress"
+        }
+        return "$time · $what · $lock · $auto → $end"
+    }
 }
 
 internal data class PendingSend(val pkg: String, val text: String, val expiresAtMs: Long, val photo: Boolean = false)
