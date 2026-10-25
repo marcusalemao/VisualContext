@@ -7,6 +7,8 @@ export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"   # apps don't get Homebrew
 URL="http://127.0.0.1:${GLASSCAST_PORT:-8765}"
 mkdir -p "$HERE/logs"
 up() { curl -s -m 2 "$URL/status" >/dev/null 2>&1; }
+# Always Chrome when it is installed (the default browser may be another one).
+show() { open -a "Google Chrome" "$URL" 2>/dev/null || open "$URL"; }
 on() { for id in "$@"; do curl -s -m 5 -X POST "$URL/switch" -d "{\"id\":\"$id\",\"on\":true}" >/dev/null; done; }
 
 case "${1:-painel}" in
@@ -24,10 +26,10 @@ if ! up; then
 fi
 
 case "${1:-painel}" in
-  painel)  open "$URL" ;;
-  app)     # the one Glasscast app: everything on the first time, then just the panel
-           [ "$started" = 1 ] && on lens view watch phone phonewatch log fotos; open "$URL" ;;
+  painel)  show ;;
+  app)     # the one Glasscast app: make sure everything is on (switching on twice is harmless), then show the panel
+           on lens view watch phone phonewatch log fotos; show ;;
   hud)     on lens view watch ;;
   celular) on phone phonewatch log ;;
-  teste)   on lens view watch phone phonewatch log fotos; open "$URL" ;;
+  teste)   on lens view watch phone phonewatch log fotos; show ;;
 esac
