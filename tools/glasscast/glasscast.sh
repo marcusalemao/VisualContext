@@ -236,7 +236,10 @@ case "$cmd" in
   view)
     need scrcpy "brew install scrcpy"
     dev="$(ensure_connected)" || exit 1
-    scrcpy -s "$dev" --no-audio --window-title "Rokid HUD" --stay-awake
+    # Small and always on top: a remote control for the keyboard. Look at the green
+    # "HUD verde" window; click this one and use the arrows, Enter, right-click (back).
+    scrcpy -s "$dev" --no-audio --window-title "Controle (clique e use as setas)" --stay-awake \
+      --window-width=180 --always-on-top
     ;;
 
   lens)

@@ -26,7 +26,7 @@ PORT = int(os.environ.get("GLASSCAST_PORT", "8765"))
 SWITCHES = [
     # id, group, label, help, command
     ("lens", "glasses", "HUD verde", "A tela como a lente mostra: só verde, em intensidades", ["lens"]),
-    ("view", "glasses", "Controle pelo teclado", "Navegue com setas, Enter e botão direito (voltar). Cores do Nexus: julgue o visual no HUD verde", ["view"]),
+    ("view", "glasses", "Controle pelo teclado", "Janelinha por cima: clique nela e use setas, Enter e botão direito (voltar). Veja no HUD verde", ["view"]),
     ("watch", "glasses", "Capturas para o Claude", "Um print do HUD a cada 3 s em watch/latest.png", ["watch", "3"]),
     ("camera", "glasses", "Câmera dos óculos", "O que você está olhando", ["camera"]),
     ("record", "glasses", "Gravar o HUD", "Vídeo em videos/ até desligar. Não usa a câmera", ["record", "teste"]),
