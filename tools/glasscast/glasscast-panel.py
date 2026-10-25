@@ -166,6 +166,7 @@ input{flex:1;min-width:200px}.msg{color:var(--dim);font-size:13px;margin-top:8px
   <div class="row"><input id="addr" placeholder="O que o Wireless ADB mostra: 192.168.0.31:40701 969774">
   <button class="primary" onclick="wifi()">Conectar</button></div>
   <div id="msg" class="msg"></div></div>
+<div class="row"><button onclick="bye()">Desligar tudo</button></div>
 <div class="foot" id="folder"></div>
 </main><script>
 const label={usb:"pelo cabo ✓",wifi:"pelo Wi-Fi",none:"não encontrado"};
@@ -188,6 +189,7 @@ async function act(cmd,args=[]){const m=document.getElementById("msg");m.textCon
   const r=await (await fetch("/run",{method:"POST",body:JSON.stringify({cmd,args})})).json();m.textContent=r.out||"ok";refresh();}
 function wifi(){const v=document.getElementById("addr").value.trim().replace(/^adb (pair|connect) /,"").split(/\s+/);
   if(!v[0])return; act(v[1]?"pair":"connect",v[1]?[v[0],v[1]]:[v[0]]);}
+async function bye(){await fetch("/quit",{method:"POST"});document.querySelector("main").innerHTML="<h1>Glasscast desligado</h1><p class=sub>Pode fechar esta aba. Para abrir de novo: app Glasscast Painel.</p>";}
 refresh();setInterval(refresh,3000);
 </script></body></html>"""
 
@@ -238,6 +240,9 @@ class Handler(BaseHTTPRequestHandler):
             with lock:
                 start(sid) if b.get("on") else stop(sid)
             self.send(200, "{}")
+        elif self.path == "/quit":
+            self.send(200, "{}")
+            threading.Timer(0.3, lambda: os.kill(os.getpid(), signal.SIGTERM)).start()
         elif self.path == "/run":
             cmd, args = b.get("cmd"), [str(a) for a in (b.get("args") or [])][:2]
             if cmd not in ONE_SHOT:
@@ -264,7 +269,8 @@ def main():
     signal.signal(signal.SIGINT, bye)
     signal.signal(signal.SIGTERM, bye)
     threading.Thread(target=check_devices, daemon=True).start()
-    threading.Timer(0.8, lambda: webbrowser.open(url)).start()
+    if not os.environ.get("GLASSCAST_NO_BROWSER"):
+        threading.Timer(0.8, lambda: webbrowser.open(url)).start()
     server.serve_forever()
 
 

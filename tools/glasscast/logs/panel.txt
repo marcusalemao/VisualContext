@@ -1,0 +1,2 @@
+Glasscast: painel em http://127.0.0.1:8765
+Para fechar: clique nesta janela e aperte Control + C (desliga tudo).
