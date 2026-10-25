@@ -246,6 +246,7 @@ class ZapSettingsActivity : Activity() {
 
         aiSection()
         reactionsSection()
+        unlockSection()
 
         section(t("Avisos nos óculos", "Notices on the glasses"))
         choiceCard(
@@ -386,12 +387,16 @@ class ZapSettingsActivity : Activity() {
         if (last == now) return
         prefs.edit().putString("version", now).apply()
         if (last == null) return
+        val news = if (now.startsWith("0.13")) t(
+            "\n\nNovidades:\n• Resumo com IA ao abrir uma conversa cheia, com respostas prontas, agenda e lembrete. Ligue em \"Resumo com IA\", logo abaixo.\n• Reagir com emoji: toque numa mensagem nos óculos → Reagir. Escolha os emojis em \"Reações rápidas\".\n• Enviar foto sem desbloquear, com os óculos como dispositivo confiável (veja \"Enviar sem desbloquear\").",
+            "\n\nWhat's new:\n• AI summary when you open a busy chat, with ready replies, calendar and reminder. Turn it on in \"AI summary\", below.\n• React with an emoji: tap a message on the glasses → React. Pick the emojis in \"Quick reactions\".\n• Send photos without unlocking, with the glasses as a trusted device (see \"Send without unlocking\").",
+        ) else ""
         infoCard(
             t("✓ Zap atualizado para $now", "✓ Zap updated to $now"),
             t(
                 "Antes estava a $last. Nos óculos, se o Nexus pedir, aprove o Zap de novo: as novidades podem precisar de permissões novas.",
                 "It was $last. On the glasses, if Nexus asks, approve Zap again: new features may need new permissions.",
-            ),
+            ) + news,
         )
     }
 
@@ -563,6 +568,29 @@ class ZapSettingsActivity : Activity() {
             NexusUi.block(),
         )
         gap(8)
+    }
+
+    // --- sending without unlocking (0.13.2) ------------------------------------
+
+    /**
+     * Photos (and replies whose notification is gone) open WhatsApp, which can't
+     * appear over a locked phone. With the glasses as a trusted device, Android
+     * needs no PIN while they are connected, and Zap steps past the lock screen.
+     */
+    private fun unlockSection() {
+        section(t("Enviar sem desbloquear", "Send without unlocking"))
+        infoCard(
+            t("Óculos como dispositivo confiável", "Glasses as a trusted device"),
+            t(
+                "Texto vai pela notificação do WhatsApp e funciona com o celular bloqueado. Foto (e resposta a conversa já lida no celular) precisa abrir o WhatsApp, que não abre por cima da tela de bloqueio.\n\n" +
+                    "Solução: no Android, em Smart Lock (Tela de bloqueio ou Segurança, depende do celular), adicione os óculos Rokid como dispositivo confiável. Enquanto estiverem conectados, o celular não pede senha, e o Zap acende a tela, passa pelo bloqueio e envia sozinho.\n\n" +
+                    "Atenção: com os óculos ligados por perto, quem pegar o seu celular também entra sem senha.",
+                "Text goes through WhatsApp's notification and works with the phone locked. A photo (or a reply to a chat already read on the phone) has to open WhatsApp, which can't open over the lock screen.\n\n" +
+                    "Fix: in Android's Smart Lock (Lock screen or Security, depending on the phone), add the Rokid glasses as a trusted device. While they are connected the phone asks no PIN, and Zap lights the screen, steps past the lock and sends by itself.\n\n" +
+                    "Note: with the glasses on nearby, anyone holding your phone also gets in without a PIN.",
+            ),
+            action = t("Abrir Segurança do Android", "Open Android Security") to Intent(Settings.ACTION_SECURITY_SETTINGS),
+        )
     }
 
     // --- quick reactions (0.13) ----------------------------------------------

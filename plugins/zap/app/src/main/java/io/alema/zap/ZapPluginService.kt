@@ -88,7 +88,8 @@ class ZapPluginService : NexusPluginService() {
             // Strictly who you talked to lately, newest first — no favourites, no frequency mix.
             recentPeople = { RecentPeople.build(ZapInbox.list(this), contacts.directory(), SHORTLIST) },
             gallery = { ZapGallery.recent(this) },
-            briefs = { ZapAi.ready(this) },
+            // On without a key still opens the summary card: it says what is missing and where to fix it.
+            briefs = { ZapAi.enabled(this) },
             reactions = { ZapSettings(this).reactions(java.util.Locale.getDefault().language == "pt") },
         )
         flow.open(ZapInbox.list(this))
@@ -449,6 +450,7 @@ class ZapPluginService : NexusPluginService() {
         val status = ScreenMaker.Status(
             notificationAccess = ZapSendService.isNotificationAccessGranted(this),
             voiceTrouble = ttsProblem,
+            aiHint = !ZapAi.decided(this),
             debugLine = speechDetail.takeIf { BuildConfig.DEBUG },
         )
         // A chat open on the lens has been seen: it leaves the unread count, like on the phone.

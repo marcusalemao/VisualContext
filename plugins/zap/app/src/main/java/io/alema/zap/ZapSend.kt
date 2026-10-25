@@ -96,7 +96,9 @@ internal object ZapSender {
     }
 
     private fun open(context: Context, pkg: String, intent: Intent, text: String, photo: Boolean, onDone: (SendOutcome) -> Unit) {
-        val locked = context.getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true
+        // Smart Lock trusting the glasses (no PIN needed now): step past the lock screen and send at once.
+        val trusted = ZapUnlockActivity.trusted(context)
+        val locked = !trusted && context.getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true
         val auto = ZapSendService.isEnabled(context)
         var armed: PendingSend? = null
         val windowMs = if (locked) UNLOCK_WINDOW_MS else SEND_WINDOW_MS
@@ -105,7 +107,7 @@ internal object ZapSender {
             ZapSendService.arm(armed, onDone)
         }
         try {
-            context.startActivity(intent)
+            if (trusted) ZapUnlockActivity.open(context, intent) else context.startActivity(intent)
         } catch (_: RuntimeException) {
             ZapSendService.disarm()
             return onDone(SendOutcome.FAILED)
@@ -116,7 +118,8 @@ internal object ZapSender {
         main.postDelayed({ ZapSendService.expire(armed) }, windowMs + 500)
     }
 
-    private const val SEND_WINDOW_MS = 12_000L
+    /** Room for the screen to light and the lock screen to step aside first. */
+    private const val SEND_WINDOW_MS = 20_000L
     private const val UNLOCK_WINDOW_MS = 120_000L
 }
 

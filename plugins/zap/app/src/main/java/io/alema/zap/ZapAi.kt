@@ -55,7 +55,10 @@ internal object ZapAi {
     // --- settings ----------------------------------------------------------
 
     fun enabled(context: Context): Boolean = prefs(context).getBoolean("on", false)
-    fun setEnabled(context: Context, on: Boolean) = prefs(context).edit().putBoolean("on", on).apply()
+    fun setEnabled(context: Context, on: Boolean) = prefs(context).edit().putBoolean("on", on).putBoolean("decided", true).apply()
+
+    /** The wearer has seen the switch and chose, either way: the "new" hint on the glasses goes away. */
+    fun decided(context: Context): Boolean = prefs(context).getBoolean("decided", false)
 
     /** On, with a key: the glasses may open chats on a summary. */
     fun ready(context: Context): Boolean = enabled(context) && key(context) != null

@@ -32,6 +32,8 @@ class ScreenMaker(
         val notificationAccess: Boolean = true,
         /** The read-back voice failed: show where to fix it. */
         val voiceTrouble: Boolean = false,
+        /** AI summaries are new and the wearer hasn't decided yet: one quiet line on home says where to turn them on. */
+        val aiHint: Boolean = false,
         /** Why the last dictation ended — test builds only, never in a release. */
         val debugLine: String? = null,
     )
@@ -172,7 +174,7 @@ class ScreenMaker(
                 )
             }
         }
-        return Screen.Card(title = text.inboxTitle, rows = rows, handlesBack = false)
+        return Screen.Card(title = text.inboxTitle, rows = rows, handlesBack = false, subtitle = text.aiHint.takeIf { status.aiHint })
     }
 
     /** WhatsApp's list time: today "14:32", then "Ontem", then "23/10". */

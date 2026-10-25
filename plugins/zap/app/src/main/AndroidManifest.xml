@@ -113,6 +113,16 @@
             <meta-data android:name="com.anezium.rokidbus.plugin.SETTINGS_ACTIVITY" android:value=".ZapSettingsActivity" />
             <meta-data android:name="com.anezium.rokidbus.plugin.LAUNCHABLE" android:value="true" />
         </service>
+        <!-- Invisible: lights the screen and steps past a lock screen that needs no PIN
+             (Smart Lock trusting the glasses), then opens WhatsApp. Never exported. -->
+        <activity
+            android:name=".ZapUnlockActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
         <receiver
             android:name=".ZapReminderReceiver"
             android:exported="false" />

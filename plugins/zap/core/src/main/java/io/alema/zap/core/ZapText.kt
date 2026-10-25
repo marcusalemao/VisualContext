@@ -118,6 +118,7 @@ class ZapText(private val pt: Boolean = Locale.getDefault().language == "pt") {
 
     // --- summaries and quick actions (0.13) -----------------------------------
 
+    val aiHint get() = if (pt) "✦ Novo: resumo com IA · ligue no celular" else "✦ New: AI summary · turn it on on the phone"
     val react get() = if (pt) "🙂 Reagir" else "🙂 React"
     fun reactTitle(name: String) = if (pt) "Reagir · $name" else "React · $name"
     fun briefLoading(messages: Int, voice: Int) = (if (pt) "✦ Resumindo $messages mensage${if (messages == 1) "m" else "ns"}" else "✦ Summarizing $messages message${if (messages == 1) "" else "s"}") +
