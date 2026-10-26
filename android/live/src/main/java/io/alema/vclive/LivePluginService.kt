@@ -60,10 +60,29 @@ class LivePluginService : NexusPluginService(), LiveSession.Listener {
 
     override fun onNexusOpen() {
         surface = nexusSurfaceSession(SURFACE_ID)
+        // Assistant mode: take over the AI button (long press on the temple), or give it back.
+        setNexusAssistantTakeover(LiveConfig.aiButton(this))
         idle()
     }
 
     override fun onNexusClose() = end(close = true)
+
+    /** AI button (long press): idle → start talking; talking → interrupt; listening → end. */
+    override fun onNexusGlassesAiButton(pressed: Boolean) {
+        if (!pressed) return
+        main.post {
+            if (surface == null) surface = nexusSurfaceSession(SURFACE_ID)
+            when (state) {
+                State.IDLE -> start()
+                State.CONNECTING -> Unit
+                State.OPEN -> if (speaker.speaking) { speaker.flush(); tts?.stop(); footer("interrompido · pode falar") } else { end(close = false); idle("até já") }
+            }
+        }
+    }
+
+    override fun onNexusAssistantTakeoverError(message: String) {
+        main.post { footer("botão de IA: " + message.take(40)) }
+    }
 
     override fun onDestroy() {
         end(close = true)

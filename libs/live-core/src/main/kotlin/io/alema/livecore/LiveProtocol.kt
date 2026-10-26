@@ -57,6 +57,11 @@ object LiveProtocol {
     fun audio(base64Pcm: String, rate: Int = 16_000): String = JSONObject().put("realtimeInput", JSONObject()
         .put("audio", JSONObject().put("mimeType", "audio/pcm;rate=$rate").put("data", base64Pcm))).toString()
 
+    /** A typed turn (used by the voice preview). */
+    fun text(t: String): String = JSONObject().put("clientContent", JSONObject()
+        .put("turns", JSONArray().put(JSONObject().put("role", "user").put("parts", JSONArray().put(JSONObject().put("text", t)))))
+        .put("turnComplete", true)).toString()
+
     fun image(base64Jpeg: String): String = JSONObject().put("realtimeInput", JSONObject()
         .put("video", JSONObject().put("mimeType", "image/jpeg").put("data", base64Jpeg))).toString()
 

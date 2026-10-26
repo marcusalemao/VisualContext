@@ -42,7 +42,7 @@
             <meta-data android:name="com.anezium.rokidbus.plugin.DISPLAY_NAME" android:value="VisualContext Live" />
             <meta-data android:name="com.anezium.rokidbus.plugin.ICON" android:value="lens" />
             <meta-data android:name="com.anezium.rokidbus.plugin.API_VERSION" android:value="3" />
-            <meta-data android:name="com.anezium.rokidbus.plugin.CAPABILITIES" android:value="surfaces,microphone,tts,camera" />
+            <meta-data android:name="com.anezium.rokidbus.plugin.CAPABILITIES" android:value="surfaces,microphone,tts,camera,assistant" />
             <meta-data android:name="com.anezium.rokidbus.plugin.RECEIVE_PREFIXES" android:value="/plugin/vc-live,/system/plugin" />
             <meta-data android:name="com.anezium.rokidbus.plugin.SETTINGS_ACTIVITY" android:value=".LiveSettingsActivity" />
             <meta-data android:name="com.anezium.rokidbus.plugin.LAUNCHABLE" android:value="true" />

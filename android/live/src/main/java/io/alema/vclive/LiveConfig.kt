@@ -17,6 +17,8 @@ object LiveConfig {
     fun key(ctx: Context): String = p(ctx).getString("gemini", "") ?: ""
     fun voiceName(ctx: Context): String = p(ctx).getString("voice_name", "Kore") ?: "Kore"
     fun voice(ctx: Context): Voice = Voice.values().firstOrNull { it.name == p(ctx).getString("voice", null) } ?: Voice.GEMINI
+    fun aiButton(ctx: Context): Boolean = p(ctx).getBoolean("ai_button", false)
+    fun setAiButton(ctx: Context, on: Boolean) = p(ctx).edit().putBoolean("ai_button", on).apply()
     fun model(ctx: Context): String? = p(ctx).getString("resolved_model", null)
     fun saveModel(ctx: Context, m: String?) = p(ctx).edit().putString("resolved_model", m).apply()
     fun save(ctx: Context, key: String, voiceName: String, voice: Voice) {
