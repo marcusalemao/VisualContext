@@ -126,6 +126,14 @@ Marcus's real case: getting off the bike and leaving the key in the ignition or 
 - **Lost far away** stays with Find Hub: the thing's card only shows the "Open in Find Hub" link (backlog `ble-tags`).
 - Lives under the **Things** switch (key and motorbike are the MVP things). Never acts on its own beyond the warning.
 
+### 1l. Memory in moments (idea, 26/10 — after the talk)
+Inspired by Gemma 4 on Marcus's phone (ask questions about a one-hour video; it answers with the clips where a topic came up). The glasses can't record hours of video, so we keep **moments** instead: one frame + the matching stretch of transcript + time and place, a few seconds each.
+- **Ask, get the moment back:** "what did Rafael say about price?", "where did I put the key?" → the answer plus the moment it came from (photo, quote, time), like the Gemma clips.
+- **Search on the phone, nothing sent out:** candidate engine **EmbeddingGemma 2 (740M, LiteRT-LM, Apache-2.0)**: text, image, audio and video in one shared 768-d space; ~26 ms per text on a Galaxy S26 Ultra; 485 MB download. One vector per moment; a question becomes a vector and finds the closest moments. Gemini (or Gemma on the phone) then writes the answer only from those moments.
+- **Also good for Things (1e):** the photos of "this is my key" become vectors; frames are compared against them. Better than face-style signatures for objects.
+- **Not for faces:** general embeddings don't tell two people apart reliably; faces keep the face-recognition model (0.2).
+- **To check:** Portuguese quality (the model page doesn't list languages), battery, and whether the 485 MB download is optional (Plus / later).
+
 ### 2. Settings
 - **On the glasses:** the 4 main switches (Faces, Places, Things, Memories). No sub-settings.
 - **Encounter recording:** "Needs speech" / "A look is enough".
@@ -300,6 +308,14 @@ O caso real do Marcus: descer da moto e deixar a chave no contato ou no guidão.
 - **Baixa visão / só voz:** uma frase curta falada, "A chave ficou na moto?", e o mesmo toque / toque duplo.
 - **Perdida longe** continua com o Find Hub: o card da coisa só mostra o link "Abrir no Find Hub" (backlog `ble-tags`).
 - Fica sob a chave **Coisas** (chave e moto são as coisas do MVP). Nunca age sozinho além do aviso.
+
+### 1l. Memória em momentos (ideia, 26/10 — depois da palestra)
+Inspirado no Gemma 4 no celular do Marcus (perguntas sobre um vídeo de uma hora; ele responde com os trechos onde o assunto apareceu). Os óculos não gravam horas de vídeo, então guardamos **momentos**: um quadro + o trecho da transcrição + hora e lugar, alguns segundos cada.
+- **Pergunta e recebe o momento:** "o que o Rafael falou sobre preço?", "onde deixei a chave?" → a resposta e o momento de onde ela veio (foto, frase, hora), como os trechos do Gemma.
+- **Busca no celular, nada sai:** motor candidato **EmbeddingGemma 2 (740M, LiteRT-LM, Apache-2.0)**: texto, imagem, áudio e vídeo num mesmo espaço de 768 dimensões; ~26 ms por texto num Galaxy S26 Ultra; download de 485 MB. Um vetor por momento; a pergunta vira vetor e acha os momentos mais próximos. Depois o Gemini (ou o Gemma no celular) escreve a resposta só com esses momentos.
+- **Serve também para Coisas (1e):** as fotos de "essa é a minha chave" viram vetores e os quadros são comparados com elas. Melhor que assinatura tipo rosto para objetos.
+- **Não serve para rostos:** embeddings gerais não separam bem duas pessoas; rostos continuam com o modelo de reconhecimento facial (0.2).
+- **A conferir:** qualidade em português (a página do modelo não lista idiomas), bateria, e se o download de 485 MB fica opcional (Plus / depois).
 
 ### 2. Ajustes
 - **Nos óculos:** as 4 chaves principais (Rostos, Lugares, Coisas, Memórias). Sem subconfigurações.

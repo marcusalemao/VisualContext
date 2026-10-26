@@ -18,6 +18,12 @@
 
 **Rollback:** checkpoint before publishing, as usual.
 
+### Part 2 (26/10) — faces taught on the glasses
+Plugin 0.2 recognises faces on the phone (face-api.js 128-d, the same format as `face_embedding`). New faces are named on the phone and stay there for now. Needed from fcProxy:
+- `enroll_face` {person_id?, name?, face_embedding (JSON array of 128), thumb (small JPEG base64)} → links to an existing person or creates one; returns the person.
+- `seen` {person_id, when, context?} → updates `last_seen_date` / `last_seen_context`.
+Only 7 of the 95 people have a `face_embedding` today.
+
 ---
 
 ## PT — Português
@@ -35,3 +41,9 @@
 **Pronto quando:** o Marcus toca em "Conectar óculos" no celular, o plugin abre, ele toca em "Conectar" e a tela do plugin mostra "● conectado · N pessoas na memória" — sem digitar nada.
 
 **Volta atrás:** ponto de restauração antes de publicar, como sempre.
+
+### Parte 2 (26/10) — rostos ensinados nos óculos
+O plugin 0.2 reconhece rostos no celular (face-api.js 128-d, o mesmo formato do `face_embedding`). Rostos novos ganham nome no celular e ficam lá por enquanto. Do fcProxy precisamos de:
+- `enroll_face` {person_id?, name?, face_embedding (array JSON de 128), thumb (JPEG pequeno em base64)} → liga a uma pessoa existente ou cria; devolve a pessoa.
+- `seen` {person_id, when, context?} → atualiza `last_seen_date` / `last_seen_context`.
+Hoje só 7 das 95 pessoas têm `face_embedding`.
