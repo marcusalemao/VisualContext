@@ -78,6 +78,13 @@ class SettingsActivity : Activity() {
             setOnClickListener { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(DeepLink.MANAGER))) }
         })
         faces()
+        col.addView(label("Reconhecimento de rostos", 14f, green))
+        col.addView(Button(this).apply {
+            fun t() = if (Backend.engine(context) == "arc") "Motor: ArcFace (novo) · trocar" else "Motor: face-api (antigo) · trocar"
+            text = t()
+            setOnClickListener { Backend.setEngine(context, if (Backend.engine(context) == "arc") "faceapi" else "arc"); text = t() }
+        })
+        col.addView(label("Cada motor reconhece só os rostos ensinados com ele. Para comparar, ensine a mesma pessoa nos dois.", 12f))
         col.addView(label("Nos óculos: toque triplo → Nexus → VisualContext. Olhe para a pessoa e toque.", 12f))
         if (dev) developer()
     }

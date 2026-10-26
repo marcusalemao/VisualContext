@@ -16,6 +16,9 @@ object Backend {
     private const val PREFS = "visualcontext"
 
     fun url(ctx: Context): String = prefs(ctx).getString("backend_url", DEFAULT_URL) ?: DEFAULT_URL
+    /** Face engine: "arc" (ArcFace, default from 0.3) or "faceapi" (old, compatible with the 7 stored faces). */
+    fun engine(ctx: Context): String = prefs(ctx).getString("face_engine", "arc") ?: "arc"
+    fun setEngine(ctx: Context, e: String) { prefs(ctx).edit().putString("face_engine", e).apply() }
     fun token(ctx: Context): String = prefs(ctx).getString("device_token", "") ?: ""
     fun save(ctx: Context, url: String, token: String) {
         prefs(ctx).edit().putString("backend_url", url.trim().ifEmpty { DEFAULT_URL }).putString("device_token", token.trim()).apply()

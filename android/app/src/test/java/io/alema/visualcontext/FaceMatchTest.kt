@@ -39,3 +39,4 @@ class FaceMatchTest {
         assertNull(FaceMatch.parse("[1,2,3]")); assertNull(FaceMatch.parse(null))
     }
 }
+

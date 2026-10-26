@@ -37,6 +37,7 @@ class VisualContextPluginService : NexusPluginService() {
     private var surface: NexusSurfaceSession? = null
     private var snapshot: NexusSnapshotSession? = null
     private var engine: FaceEngine? = null
+    private var arc: ArcFaceEngine? = null
     private var revision = 0
     private var state = State.IDLE
     @Volatile private var people: List<Backend.Person> = emptyList()
@@ -45,7 +46,8 @@ class VisualContextPluginService : NexusPluginService() {
 
     override fun onNexusOpen() {
         surface = nexusSurfaceSession(SURFACE_ID)
-        if (engine == null) engine = FaceEngine(applicationContext).also { it.warm() }
+        if (Backend.engine(this) == "arc") io.execute { if (arc == null) arc = try { ArcFaceEngine(applicationContext) } catch (_: Throwable) { null } }
+        else if (engine == null) engine = FaceEngine(applicationContext).also { it.warm() }
         state = State.IDLE
         show("VisualContext", listOf("olhe para a pessoa", "e toque"), "toque: quem é? · voltar: fechar")
         loadPeople(force = false)
@@ -55,6 +57,7 @@ class VisualContextPluginService : NexusPluginService() {
 
     override fun onDestroy() {
         engine?.destroy(); engine = null
+        arc?.close(); arc = null
         io.shutdownNow()
         super.onDestroy()
     }
@@ -98,6 +101,14 @@ class VisualContextPluginService : NexusPluginService() {
         if (full == null) { main.post { idle("foto ilegível", null) }; return }
         val scale = minOf(1f, 640f / maxOf(full.width, full.height))
         val bmp = if (scale < 1f) Bitmap.createScaledBitmap(full, (full.width * scale).toInt(), (full.height * scale).toInt(), true) else full
+        if (Backend.engine(this) == "arc") {
+            val a = arc ?: try { ArcFaceEngine(applicationContext).also { arc = it } } catch (_: Throwable) { null }
+            if (a == null) { main.post { idle("motor de rostos não abriu", null) }; return }
+            val face = a.describe(bmp).firstOrNull()
+            if (face == null) main.post { idle("não vi rosto", "chegue mais perto ou olhe direto") }
+            else identify(face, crop(bmp, face))
+            return
+        }
         val small = ByteArrayOutputStream().also { bmp.compress(Bitmap.CompressFormat.JPEG, 88, it) }.toByteArray()
         val b64 = Base64.encodeToString(small, Base64.NO_WRAP)
         main.post {
@@ -130,8 +141,10 @@ class VisualContextPluginService : NexusPluginService() {
         loadPeople(force = false)
         val ppl = people
         val local = LocalFaces.all(applicationContext)
-        val known = ppl.mapNotNull { p -> p.embedding?.let { FaceMatch.Known("p:${p.id}", it) } } +
-            local.filter { it.name != null || it.personId != null }.map { FaceMatch.Known(it.personId?.let { id -> "p:$id" } ?: "l:${it.id}", it.descriptor) }
+        val size = face.descriptor.size
+        val known = (ppl.mapNotNull { p -> p.embedding?.let { FaceMatch.Known("p:${p.id}", it) } } +
+            local.filter { it.name != null || it.personId != null }.map { FaceMatch.Known(it.personId?.let { id -> "p:$id" } ?: "l:${it.id}", it.descriptor) })
+            .filter { it.descriptor.size == size }
         val result = FaceMatch.best(face.descriptor, known)
         main.post {
             when (result) {
