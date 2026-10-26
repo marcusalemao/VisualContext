@@ -14,6 +14,15 @@ object LiveProtocol {
     const val TOOL_LOOK = "olhar"
     const val TOOL_PERSON = "buscar_pessoa"
     const val TOOL_SAVE = "guardar_nota"
+    const val TOOL_WHO = "quem_e"
+    const val TOOL_ENROLL = "guardar_pessoa"
+
+    /** Extra instructions when the app can recognise faces (the Solo app on the glasses). */
+    val FACES = """
+        Se o usuário perguntar quem é a pessoa na frente dele ("quem é?", "como ele se chama?"), chame quem_e. Diga só o nome e de onde se conhecem, baixinho, em uma frase.
+        Se quem_e responder que a pessoa é desconhecida, diga isso em poucas palavras. Só guarde um rosto se o usuário pedir ou disser o nome da pessoa ("essa é a Ana", "guarda o rosto do Rafael"): aí chame guardar_pessoa com o nome.
+        Nunca descreva o corpo, a aparência ou a roupa de alguém sem o usuário pedir.
+    """.trimIndent()
 
     val SYSTEM = """
         Você é o VisualContext, um assistente nos óculos do usuário. Fale sempre em português do Brasil, com sotaque brasileiro.
@@ -26,7 +35,7 @@ object LiveProtocol {
         Para horários, preços e fatos atuais, use a busca do Google. Não invente.
     """.trimIndent()
 
-    fun setup(voice: String, resumeHandle: String?, model: String = MODEL): String {
+    fun setup(voice: String, resumeHandle: String?, model: String = MODEL, faces: Boolean = false): String {
         val gen = JSONObject()
             .put("responseModalities", JSONArray().put("AUDIO"))
             // No languageCode: native-audio models pick the language from the conversation; the system text asks for pt-BR.
@@ -38,10 +47,15 @@ object LiveProtocol {
                 JSONObject().put("type", "OBJECT").put("properties", JSONObject().put("nome", JSONObject().put("type", "STRING"))).put("required", JSONArray().put("nome"))))
             .put(fn(TOOL_SAVE, "Guarda uma nota curta na memória do usuário, quando ele pedir.",
                 JSONObject().put("type", "OBJECT").put("properties", JSONObject().put("texto", JSONObject().put("type", "STRING"))).put("required", JSONArray().put("texto"))))
+        if (faces) {
+            functions.put(fn(TOOL_WHO, "Reconhece o rosto da pessoa na frente do usuário, com a câmera dos óculos e a memória de rostos dele.", null))
+            functions.put(fn(TOOL_ENROLL, "Guarda o rosto da pessoa na frente do usuário com o nome que ele disse. Só quando o usuário pedir.",
+                JSONObject().put("type", "OBJECT").put("properties", JSONObject().put("nome", JSONObject().put("type", "STRING"))).put("required", JSONArray().put("nome"))))
+        }
         val setup = JSONObject()
             .put("model", model)
             .put("generationConfig", gen)
-            .put("systemInstruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", SYSTEM))))
+            .put("systemInstruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", if (faces) SYSTEM + "\n" + FACES else SYSTEM))))
             .put("tools", JSONArray().put(JSONObject().put("functionDeclarations", functions)).put(JSONObject().put("googleSearch", JSONObject())))
             .put("inputAudioTranscription", JSONObject())
             .put("outputAudioTranscription", JSONObject())

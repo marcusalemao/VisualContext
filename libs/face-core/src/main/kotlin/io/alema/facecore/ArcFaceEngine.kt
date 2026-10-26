@@ -1,4 +1,4 @@
-package io.alema.visualcontext
+package io.alema.facecore
 
 import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OrtEnvironment
@@ -35,7 +35,7 @@ class ArcFaceEngine(ctx: Context) {
     )
 
     /** Faces in the picture, biggest first; each with its 512-d unit vector. */
-    fun describe(bmp: Bitmap): List<FaceEngine.Face> {
+    fun describe(bmp: Bitmap): List<Face> {
         val faces = try { Tasks.await(detector.process(InputImage.fromBitmap(bmp, 0))) } catch (_: Exception) { return emptyList() }
         return faces.sortedByDescending { it.boundingBox.width() * it.boundingBox.height() }.mapNotNull { f ->
             val pts = listOf(FaceLandmark.LEFT_EYE, FaceLandmark.RIGHT_EYE, FaceLandmark.NOSE_BASE, FaceLandmark.MOUTH_LEFT, FaceLandmark.MOUTH_RIGHT)
@@ -48,7 +48,7 @@ class ArcFaceEngine(ctx: Context) {
             val v = embed(aligned)
             aligned.recycle()
             val b = f.boundingBox
-            FaceEngine.Face(v, b.left.toFloat(), b.top.toFloat(), b.width().toFloat(), b.height().toFloat(), 1f)
+            Face(v, b.left.toFloat(), b.top.toFloat(), b.width().toFloat(), b.height().toFloat(), 1f)
         }
     }
 

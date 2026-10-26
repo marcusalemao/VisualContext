@@ -1,4 +1,4 @@
-package io.alema.visualcontext
+package io.alema.facecore
 
 import kotlin.math.sqrt
 

@@ -35,12 +35,13 @@ class SoloActivity : ComponentActivity(), LiveSession.Listener {
     private lateinit var camera: Camera
     private val speaker = SpeakerOut()
     private val mic = MicIn { pcm -> onMic(pcm) }
-    private val live = LiveSession(this)
+    private val live = LiveSession(this).apply { faceTools = true }
     private val transcript = Transcript()
 
     private var state = State.IDLE
     private var config: SoloConfig? = null
     private var memory: Memory? = null
+    private val faces by lazy { Faces(applicationContext) { memory } }
     private var resumeHandle: String? = null
     private var lastActivity = 0L
     private var question = StringBuilder()
@@ -276,6 +277,23 @@ class SoloActivity : ComponentActivity(), LiveSession.Listener {
                     else JSONObject().put("ok", true).put("nota", "a foto foi enviada como imagem")
                 live.send(LiveProtocol.toolResponse(call.id, call.name, r))
             }
+            LiveProtocol.TOOL_WHO -> look { jpeg ->
+                io.execute {
+                    val r = faces.who(jpeg)
+                    live.send(LiveProtocol.toolResponse(call.id, call.name, r))
+                    main.post { faceCard(r) }
+                }
+            }
+            LiveProtocol.TOOL_ENROLL -> {
+                val name = call.args.optString("nome")
+                val go = { jpeg: ByteArray? -> io.execute {
+                    val r = faces.enroll(name, jpeg)
+                    live.send(LiveProtocol.toolResponse(call.id, call.name, r))
+                    main.post { if (r.optBoolean("guardado")) { hud.footer = "rosto guardado: $name"; hud.invalidate() } }
+                } }
+                // Reuse the face quem_e just saw; otherwise take a photo now.
+                if (faces.hasRecent()) go(null) else look { go(it) }
+            }
             LiveProtocol.TOOL_PERSON -> io.execute {
                 val r = memory?.findPerson(call.args.optString("nome")) ?: JSONObject().put("erro", "sem memória")
                 live.send(LiveProtocol.toolResponse(call.id, call.name, r))
@@ -286,6 +304,21 @@ class SoloActivity : ComponentActivity(), LiveSession.Listener {
                 live.send(LiveProtocol.toolResponse(call.id, call.name, r))
             }
             else -> live.send(LiveProtocol.toolResponse(call.id, call.name, JSONObject().put("erro", "ferramenta desconhecida")))
+        }
+    }
+
+    /** Short person card (decided 11/10): name, how you know each other, last time. */
+    private fun faceCard(r: JSONObject) {
+        when {
+            r.optBoolean("conhecido") -> {
+                val m = r.optJSONObject("memoria")
+                val how = listOfNotNull(m?.optString("relation")?.takeIf { it.isNotBlank() }, m?.optString("company")?.takeIf { it.isNotBlank() }).joinToString(" · ")
+                val last = m?.optString("last_seen_context")?.takeIf { it.isNotBlank() } ?: r.optString("visto_antes_em").takeIf { it.isNotBlank() }?.let { "visto em $it" }
+                val name = r.optString("nome") + if (r.optString("certeza") == "baixa") "?" else ""
+                hud.set(name, listOfNotNull(how.takeIf { it.isNotBlank() }, last), "")
+            }
+            r.optBoolean("rosto") -> hud.set("Pessoa nova", listOf("diga o nome para guardar"), "")
+            else -> Unit
         }
     }
 

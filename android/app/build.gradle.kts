@@ -16,6 +16,10 @@ android {
         ndk { abiFilters += listOf("arm64-v8a") }
     }
 
+    // Face engines shared with the Solo app (runs on the glasses).
+    sourceSets["main"].kotlin.srcDir("../../libs/face-core/src/main/kotlin")
+    sourceSets["main"].assets.srcDir("../../libs/face-core/assets")
+
     androidResources { noCompress += listOf("bin", "onnx") }
 
     compileOptions {

@@ -1,5 +1,9 @@
 package io.alema.visualcontext
 
+import io.alema.facecore.ArcFaceEngine
+import io.alema.facecore.Face
+import io.alema.facecore.FaceMatch
+import io.alema.facecore.LocalFaces
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Handler
@@ -126,7 +130,7 @@ class VisualContextPluginService : NexusPluginService() {
         }
     }
 
-    private fun crop(bmp: Bitmap, f: FaceEngine.Face): String = try {
+    private fun crop(bmp: Bitmap, f: Face): String = try {
         val pad = f.w * 0.25f
         val x = (f.x - pad).toInt().coerceIn(0, bmp.width - 1)
         val y = (f.y - pad).toInt().coerceIn(0, bmp.height - 1)
@@ -137,7 +141,7 @@ class VisualContextPluginService : NexusPluginService() {
     } catch (_: Exception) { "" }
 
     /** io thread. */
-    private fun identify(face: FaceEngine.Face, thumb: String) {
+    private fun identify(face: Face, thumb: String) {
         loadPeople(force = false)
         val ppl = people
         val local = LocalFaces.all(applicationContext)

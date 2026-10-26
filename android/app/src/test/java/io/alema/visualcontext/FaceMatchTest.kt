@@ -1,5 +1,6 @@
 package io.alema.visualcontext
 
+import io.alema.facecore.FaceMatch
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue

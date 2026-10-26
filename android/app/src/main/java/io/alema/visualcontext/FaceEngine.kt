@@ -10,6 +10,7 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.webkit.WebViewAssetLoader
+import io.alema.facecore.Face
 import org.json.JSONObject
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
@@ -20,7 +21,6 @@ import java.util.concurrent.atomic.AtomicInteger
  * All calls on the main thread; answers come back on the main thread.
  */
 class FaceEngine(ctx: Context) {
-    data class Face(val descriptor: FloatArray, val x: Float, val y: Float, val w: Float, val h: Float, val score: Float)
     sealed class Result {
         data class Faces(val faces: List<Face>, val width: Int, val height: Int) : Result()
         data class Failed(val reason: String) : Result()

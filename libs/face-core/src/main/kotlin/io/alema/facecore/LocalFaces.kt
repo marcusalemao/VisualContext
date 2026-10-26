@@ -1,4 +1,4 @@
-package io.alema.visualcontext
+package io.alema.facecore
 
 import android.content.Context
 import org.json.JSONArray

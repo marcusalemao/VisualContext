@@ -1,5 +1,6 @@
 package io.alema.visualcontext
 
+import io.alema.facecore.FaceMatch
 import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject

@@ -1,5 +1,6 @@
 package io.alema.visualcontext
 
+import io.alema.facecore.LocalFaces
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
