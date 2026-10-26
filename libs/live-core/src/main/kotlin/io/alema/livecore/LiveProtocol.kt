@@ -53,8 +53,9 @@ object LiveProtocol {
     private fun fn(name: String, description: String, params: JSONObject?) =
         JSONObject().put("name", name).put("description", description).apply { params?.let { put("parameters", it) } }
 
-    fun audio(base64Pcm16k: String): String = JSONObject().put("realtimeInput", JSONObject()
-        .put("audio", JSONObject().put("mimeType", "audio/pcm;rate=16000").put("data", base64Pcm16k))).toString()
+    /** PCM16 mono; the rate is whatever the mic really delivers (Gemini resamples). */
+    fun audio(base64Pcm: String, rate: Int = 16_000): String = JSONObject().put("realtimeInput", JSONObject()
+        .put("audio", JSONObject().put("mimeType", "audio/pcm;rate=$rate").put("data", base64Pcm))).toString()
 
     fun image(base64Jpeg: String): String = JSONObject().put("realtimeInput", JSONObject()
         .put("video", JSONObject().put("mimeType", "image/jpeg").put("data", base64Jpeg))).toString()

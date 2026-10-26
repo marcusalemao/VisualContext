@@ -52,7 +52,11 @@ class LivePluginService : NexusPluginService(), LiveSession.Listener {
     private var lastActivity = 0L
     private var revision = 0
     private var resumeHandle: String? = null
-    private val silence = ByteArray(3200)
+    // Mic diagnostics (0.1.1): what Nexus delivers and whether Gemini hears it.
+    @Volatile private var micFormat: NexusAudioFormat? = null
+    @Volatile private var frames = 0L
+    @Volatile private var level = 0
+    private var heard = ""
 
     override fun onNexusOpen() {
         surface = nexusSurfaceSession(SURFACE_ID)
@@ -113,12 +117,16 @@ class LivePluginService : NexusPluginService(), LiveSession.Listener {
 
     private fun startMic(): Boolean {
         val s = nexusAudioSession(object : NexusAudioCallbacks {
-            override fun onAudioStarted(format: NexusAudioFormat) = Unit
+            override fun onAudioStarted(format: NexusAudioFormat) { micFormat = format }
             override fun onAudioFrame(pcm: ByteArray, sequence: Long, timestamp: Long) {
                 if (state != State.OPEN) return
+                frames++
+                val f = micFormat
+                val mono = if (f != null && f.channels == 2) downmix(pcm) else pcm
+                level = peak(mono)
                 // Half-duplex while Gemini talks, so it doesn't hear itself.
-                val data = if (speaker.speaking) ByteArray(pcm.size) else pcm
-                live.send(LiveProtocol.audio(Base64.encodeToString(data, Base64.NO_WRAP)))
+                val data = if (speaker.speaking) ByteArray(mono.size) else mono
+                live.send(LiveProtocol.audio(Base64.encodeToString(data, Base64.NO_WRAP), f?.sampleRate ?: 16_000))
             }
             override fun onAudioStopped(reason: NexusAudioStopReason) {
                 main.post { if (state == State.OPEN) footer("microfone parou: ${reason.name.lowercase()}") }
@@ -126,6 +134,38 @@ class LivePluginService : NexusPluginService(), LiveSession.Listener {
         })
         audio = s
         return s?.start() == NexusSdkResult.SENT
+    }
+
+    /** Every 0.5 s while open: mic format, frames, a level bar and what Gemini transcribed of you. */
+    private val micMeter = object : Runnable {
+        override fun run() {
+            if (state != State.OPEN) return
+            if (turnDone && !speaker.speaking) {
+                val f = micFormat
+                val fmt = if (f == null) "mic: sem som do Nexus" else "mic: ${f.sampleRate / 1000} kHz ${f.channels}ch ${f.encoding}"
+                val bars = "▮".repeat((level * 8 / 32768).coerceIn(0, 8)).padEnd(8, '·')
+                val lines = listOfNotNull(fmt, "$bars  $frames quadros", heard.takeIf { it.isNotEmpty() }?.let { "ouvi: " + it.takeLast(40) })
+                show(lines, "toque: olhar · voltar: encerrar")
+            }
+            main.postDelayed(this, 500)
+        }
+    }
+
+    private fun peak(pcm: ByteArray): Int {
+        var m = 0; var i = 0
+        while (i + 1 < pcm.size) { val v = (pcm[i].toInt() and 0xff) or (pcm[i + 1].toInt() shl 8); m = maxOf(m, kotlin.math.abs(v.toShort().toInt())); i += 2 }
+        return m
+    }
+
+    private fun downmix(pcm: ByteArray): ByteArray {
+        val out = ByteArray(pcm.size / 2); var i = 0; var o = 0
+        while (i + 3 < pcm.size) {
+            val l = ((pcm[i].toInt() and 0xff) or (pcm[i + 1].toInt() shl 8)).toShort().toInt()
+            val r = ((pcm[i + 2].toInt() and 0xff) or (pcm[i + 3].toInt() shl 8)).toShort().toInt()
+            val m = (l + r) / 2
+            out[o] = m.toByte(); out[o + 1] = (m shr 8).toByte(); i += 4; o += 2
+        }
+        return out
     }
 
     private val silenceCheck = object : Runnable {
@@ -153,10 +193,12 @@ class LivePluginService : NexusPluginService(), LiveSession.Listener {
                 state = State.OPEN
                 lastActivity = SystemClock.elapsedRealtime()
                 if (!startMic()) { show(listOf("o Nexus não liberou o microfone", "Plugins → VisualContext Live"), "voltar: fechar"); end(close = false); return }
+                frames = 0; level = 0; heard = ""; micFormat = null
                 show(listOf("pode falar", LiveConfig.route(this)), "toque: olhar · voltar: encerrar")
                 main.postDelayed(silenceCheck, 1000)
+                main.postDelayed(micMeter, 1500)
             }
-            is LiveProtocol.Event.UserText -> lastActivity = SystemClock.elapsedRealtime()
+            is LiveProtocol.Event.UserText -> { lastActivity = SystemClock.elapsedRealtime(); heard = (heard + e.text).takeLast(80) }
             is LiveProtocol.Event.ModelText -> {
                 lastActivity = SystemClock.elapsedRealtime()
                 if (turnDone) { transcript.clear(); turnDone = false }
