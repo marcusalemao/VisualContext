@@ -22,6 +22,10 @@ data class Brief(
     val replies: List<String> = emptyList(),
     /** Something with a day and time in the messages, ready for the calendar. */
     val event: SuggestedEvent? = null,
+    /** Addresses or named places in the messages: open in Google Maps, or keep for later. At most two. */
+    val places: List<SuggestedPlace> = emptyList(),
+    /** Something the wearer has to remember to do (not a meeting), with a time when one was said. */
+    val task: SuggestedTask? = null,
     /** How many messages went into it, and how many voice messages were actually heard. */
     val messages: Int = 0,
     val voiceHeard: Int = 0,
@@ -35,6 +39,12 @@ data class SuggestedEvent(
     val endMs: Long? = null,
     val place: String? = null,
 )
+
+/** "Lume" at "Rua Augusta 1500, São Paulo": [address] is what goes into the map search. */
+data class SuggestedPlace(val name: String, val address: String)
+
+/** "Levar o documento" at Friday 9:00; without [atMs] the reminder is offered for later today. */
+data class SuggestedTask(val text: String, val atMs: Long? = null)
 
 /** Why there is no summary: each one has its own short line on the lens and its own fix. */
 enum class BriefError { NO_KEY, BAD_KEY, OFFLINE, LIMIT, FAILED }
@@ -51,12 +61,18 @@ sealed interface BriefChoice {
     object Dictate : BriefChoice
     data class Calendar(val event: SuggestedEvent) : BriefChoice
     data class Remind(val minutes: Int) : BriefChoice
+    /** Open the place in Google Maps on the phone (and leave it in a notification). */
+    data class Map(val place: SuggestedPlace) : BriefChoice
+    /** Keep the address in Zap's list of saved places, on the phone. */
+    data class SavePlace(val place: SuggestedPlace) : BriefChoice
+    /** A reminder for something to do, on the glasses and the phone. */
+    data class Task(val task: SuggestedTask) : BriefChoice
     object Listen : BriefChoice
     object SeeMessages : BriefChoice
 }
 
 /** What the wearer already did on this card, so the row turns into "✓ …" instead of offering it again. */
-enum class BriefDone { CALENDAR, REMIND }
+enum class BriefDone { CALENDAR, REMIND, TASK }
 
 /** When to summarize, and which messages go in. Pure, so it is unit-tested. */
 object BriefRules {
@@ -68,6 +84,8 @@ object BriefRules {
     const val MAX_MESSAGES = 40
     /** The reminder offered on the card: answer in half an hour. */
     const val REMIND_MINUTES = 30
+    /** A task said without a time is offered for this much later. */
+    const val TASK_LATER_MINUTES = 60
 
     fun worthBriefing(chat: ZapConversation): Boolean {
         val unread = unreadOf(chat)
@@ -98,6 +116,9 @@ object BriefRules {
             if (canReply) state.brief.replies.forEach { add(BriefChoice.SendReply(it)) }
             if (canReply) add(BriefChoice.Dictate)
             state.brief.event?.let { add(BriefChoice.Calendar(it)) }
+            state.brief.task?.let { add(BriefChoice.Task(it)) }
+            state.brief.places.forEach { add(BriefChoice.Map(it)) }
+            state.brief.places.forEach { add(BriefChoice.SavePlace(it)) }
             add(BriefChoice.Remind(REMIND_MINUTES))
             add(BriefChoice.Listen)
             add(BriefChoice.SeeMessages)
@@ -118,7 +139,7 @@ object BriefPrompt {
     fun system(portuguese: Boolean): String = """
 You summarize a WhatsApp chat for someone wearing smart glasses with a tiny display. They glance at it while walking.
 Write every text field in ${if (portuguese) "Brazilian Portuguese, casual and natural" else "English, casual and natural"}.
-Return ONLY a JSON object: {"summary": string, "replies": string[], "event": null | {"title": string, "start": "YYYY-MM-DDTHH:MM", "end": null | "YYYY-MM-DDTHH:MM", "place": null | string}}
+Return ONLY a JSON object: {"summary": string, "replies": string[], "event": null | {"title": string, "start": "YYYY-MM-DDTHH:MM", "end": null | "YYYY-MM-DDTHH:MM", "place": null | string}, "places": [{"name": string, "address": string}], "task": null | {"text": string, "at": null | "YYYY-MM-DDTHH:MM"}}
 
 summary:
 - What the OTHER person wants or said in the NEW messages (marked new), in one or two short sentences, at most 200 characters. Earlier messages are context only.
@@ -130,6 +151,10 @@ summary:
 replies: at most 2 replies the WEARER could send right now, each at most 40 characters, in the tone of the chat. Different from each other (e.g. yes / not now). Empty list if nothing needs an answer.
 
 event: only if the new messages propose or confirm something with a day and time (meeting, lunch, call, appointment). Resolve "amanhã", "sábado", "às 3" against NOW below. Otherwise null.
+
+places: addresses or specific named places in the new messages that the wearer may want to go to or keep (a street address, a restaurant, a venue, a shop). "name" is a short label (at most 30 characters); "address" is what to type in Google Maps: the full address when the messages give one, else the place name plus the city or neighbourhood if mentioned. At most 2. Empty list if none. Never a vague place ("lá", "em casa", "no centro").
+
+task: one thing the WEARER has to remember to do that is not a meeting (buy, bring, send, pay, call back, check), as a short command of at most 50 characters ("Levar o contrato assinado"). "at": when to be reminded, if the messages say a day or time; otherwise null. Null if there is nothing to do, or if it is the same as the event.
 Never invent facts that are not in the messages.
 """.trim()
 
@@ -185,7 +210,17 @@ Never invent facts that are not in the messages.
                 place = (e["place"] as? String)?.trim()?.takeIf { it.isNotBlank() }?.let { cut(it, 60) },
             )
         }
-        Brief(summary = cut(summary, MAX_SUMMARY), replies = replies, event = event)
+        val places = (m["places"] as? List<*>).orEmpty().mapNotNull { p ->
+            val place = p as? Map<*, *> ?: return@mapNotNull null
+            val address = (place["address"] as? String)?.trim()?.takeIf { it.length >= 3 } ?: return@mapNotNull null
+            val name = (place["name"] as? String)?.trim()?.takeIf { it.isNotBlank() } ?: address
+            SuggestedPlace(name = cut(name, 30), address = cut(address, 120))
+        }.distinctBy { it.address.lowercase() }.take(2)
+        val task = (m["task"] as? Map<*, *>)?.let { t ->
+            val what = (t["text"] as? String)?.trim()?.trimEnd('.')?.takeIf { it.isNotBlank() } ?: return@let null
+            SuggestedTask(text = cut(what, 50), atMs = (t["at"] as? String)?.let { time(it, zone) })
+        }
+        Brief(summary = cut(summary, MAX_SUMMARY), replies = replies, event = event, places = places, task = task)
     }.getOrNull()
 
     private fun time(text: String, zone: ZoneId): Long? = runCatching {

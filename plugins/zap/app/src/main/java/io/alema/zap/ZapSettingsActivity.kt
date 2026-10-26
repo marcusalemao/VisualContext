@@ -142,9 +142,6 @@ class ZapSettingsActivity : Activity() {
             why = t(
                 "Para enviar sem pegar o celular: o Zap aperta Enviar no WhatsApp depois que você confirma nos óculos. Sem isso, o WhatsApp abre no celular com o texto pronto.",
                 "To send without picking up the phone: Zap presses Send in WhatsApp after you confirm on the glasses. Without it, WhatsApp opens on the phone with the text ready.",
-            ) + t(
-                "\n\nAlguns apps de banco não abrem com a Acessibilidade de outros apps ligada. Se acontecer, pause pelo atalho \"Zap\" no Painel rápido (o painel que você arrasta para baixo, onde ficam o Wi-Fi, o Bluetooth e outros atalhos) e religue depois.",
-                "\n\nSome banking apps won't open while another app's Accessibility is on. If that happens, pause it with the \"Zap\" tile in Quick Settings (the panel you pull down, with Wi-Fi, Bluetooth and other shortcuts) and turn it back on later.",
             ),
             how = t(
                 "Na próxima tela, toque em \"Aplicativos instalados\", depois em \"Zap — enviar pelo WhatsApp\", e ligue. Não precisa criar atalho.",
@@ -156,6 +153,13 @@ class ZapSettingsActivity : Activity() {
                 "Zap stops pressing Send by itself: the chat opens on the phone with the text ready and you tap Send. To turn it back on, Android asks you to go through the Accessibility screen.",
             ),
             onDisable = { if (!ZapSendService.pause()) startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) },
+        )
+        warningCard(
+            t("Apps de banco", "Banking apps"),
+            t(
+                "Alguns apps de banco não abrem, ou mostram um alerta de risco, quando a Acessibilidade de outro app está ligada. Antes de abrir o banco, pause o Zap pelo atalho \"Zap\" no Painel rápido (deslize a tela de cima para baixo) e religue depois.",
+                "Some banking apps won't open, or show a risk warning, while another app's Accessibility is on. Before opening your bank, pause Zap with the \"Zap\" tile in Quick Settings (swipe down from the top) and turn it back on later.",
+            ),
         )
         val background = ZapSender.canStartFromBackground(this)
         permissionCard(
@@ -245,6 +249,7 @@ class ZapSettingsActivity : Activity() {
         if (notifications) problemCard()
 
         aiSection()
+        placesSection()
         reactionsSection()
         unlockSection()
 
@@ -387,7 +392,10 @@ class ZapSettingsActivity : Activity() {
         if (last == now) return
         prefs.edit().putString("version", now).apply()
         if (last == null) return
-        val news = if (now.startsWith("0.13")) t(
+        val news = if (now.startsWith("0.15")) t(
+            "\n\nNovidades:\n• Resumo do dia: na tela inicial do Zap nos óculos, \"✦ Resumo do dia\" lê as conversas de hoje e mostra o que importa, conversa por conversa.\n• Ações da IA no resumo: abrir endereço no Google Maps, guardar endereço, lembrete de tarefa (\"levar o contrato sexta\"), além de agenda e respostas prontas.\n• \"Enviar foto com o celular bloqueado\" explicado passo a passo, com o nome atual do Android (Desbloqueio estendido).\n• Avisos de segurança e de apps de banco em destaque.",
+            "\n\nWhat's new:\n• The day's summary: on Zap's home on the glasses, \"✦ The day's summary\" reads today's chats and shows what matters, chat by chat.\n• AI actions in the summary: open an address in Google Maps, save an address, a reminder for something to do, plus calendar and ready replies.\n• \"Send photos with the phone locked\" step by step, with Android's current name (Extend Unlock).\n• Security and banking-app notes set apart.",
+        ) else if (now.startsWith("0.13")) t(
             "\n\nNovidades:\n• Resumo com IA ao abrir uma conversa cheia, com respostas prontas, agenda e lembrete. Ligue em \"Resumo com IA\", logo abaixo.\n• Reagir com emoji: toque numa mensagem nos óculos → Reagir. Escolha os emojis em \"Reações rápidas\".\n• Enviar foto sem desbloquear, com os óculos como dispositivo confiável (veja \"Enviar sem desbloquear\").",
             "\n\nWhat's new:\n• AI summary when you open a busy chat, with ready replies, calendar and reminder. Turn it on in \"AI summary\", below.\n• React with an emoji: tap a message on the glasses → React. Pick the emojis in \"Quick reactions\".\n• Send photos without unlocking, with the glasses as a trusted device (see \"Send without unlocking\").",
         ) else ""
@@ -447,10 +455,10 @@ class ZapSettingsActivity : Activity() {
         section(t("Resumo com IA", "AI summary"))
         val on = ZapAi.enabled(this)
         switchCard(
-            title = t("Resumir quando chegam várias mensagens", "Summarize when several messages arrive"),
+            title = t("Resumos e ações com IA", "AI summaries and actions"),
             subtitle = t(
-                "Ao abrir nos óculos uma conversa com 3 ou mais mensagens novas (ou 2 áudios seguidos), aparece o resumo e o que fazer: responder com um toque, pôr na agenda, lembrar de responder. Só a conversa aberta vai para a IA que você escolher, com a sua chave. Desligado, o Zap não usa a internet.",
-                "When you open a chat on the glasses with 3+ new messages (or 2 voice notes in a row), you get the summary and what to do: a one-tap reply, add to calendar, remind me to reply. Only the open chat goes to the AI you choose, with your key. Off, Zap doesn't use the internet.",
+                "Ao abrir nos óculos uma conversa com 3 ou mais mensagens novas (ou 2 áudios seguidos), aparece o resumo e o que fazer: responder com um toque, pôr na agenda, criar um lembrete, abrir ou guardar um endereço. Na tela inicial, \"✦ Resumo do dia\" resume as conversas de hoje. Só o que você abre vai para a IA que você escolher, com a sua chave. Desligado, o Zap não usa a internet.",
+                "When you open a chat on the glasses with 3+ new messages (or 2 voice notes in a row), you get the summary and what to do: a one-tap reply, add to calendar, a reminder, open or save an address. On home, \"✦ The day's summary\" sums up today's chats. Only what you open goes to the AI you choose, with your key. Off, Zap doesn't use the internet.",
             ),
             checked = on,
         ) { value ->
@@ -578,20 +586,95 @@ class ZapSettingsActivity : Activity() {
      * needs no PIN while they are connected, and Zap steps past the lock screen.
      */
     private fun unlockSection() {
-        section(t("Enviar sem desbloquear", "Send without unlocking"))
-        infoCard(
-            t("Óculos como dispositivo confiável", "Glasses as a trusted device"),
+        section(t("Enviar foto com o celular bloqueado", "Send photos with the phone locked"))
+        content.addView(
+            NexusUi.card(this).apply {
+                addView(NexusUi.cardTitle(this@ZapSettingsActivity, t("Óculos como dispositivo confiável", "Glasses as a trusted device")))
+                addView(BusTheme.gap(this@ZapSettingsActivity, 5))
+                addView(
+                    NexusUi.cardBody(
+                        this@ZapSettingsActivity,
+                        t(
+                            "Texto já vai com o celular bloqueado. Foto precisa abrir o WhatsApp, e o Android não deixa abrir por cima da tela de bloqueio.\n\n" +
+                                "Para enviar foto sem pegar o celular, deixe os óculos como dispositivo confiável:\n" +
+                                "1. Toque em \"Abrir o Desbloqueio estendido\".\n" +
+                                "2. Se não abrir, toque em \"Buscar nos Ajustes\" e digite Desbloqueio. Em alguns celulares o nome ainda é Smart Lock.\n" +
+                                "3. Entre em Dispositivos confiáveis, toque em Adicionar e escolha os óculos Rokid.\n\n" +
+                                "Se o seu celular não tiver essa opção, tudo bem: o Zap avisa nos óculos quando for preciso desbloquear.",
+                            "Text already goes with the phone locked. A photo has to open WhatsApp, and Android won't open it over the lock screen.\n\n" +
+                                "To send photos without picking up the phone, make the glasses a trusted device:\n" +
+                                "1. Tap \"Open Extend Unlock\".\n" +
+                                "2. If it doesn't open, tap \"Search Settings\" and type Extend Unlock. Some phones still call it Smart Lock.\n" +
+                                "3. Go to Trusted devices, tap Add and pick the Rokid glasses.\n\n" +
+                                "If your phone doesn't have it, that's fine: Zap tells you on the glasses when the phone needs unlocking.",
+                        ),
+                    ),
+                )
+                addView(BusTheme.gap(this@ZapSettingsActivity, 10))
+                addView(
+                    NexusUi.outlinePillButton(this@ZapSettingsActivity, t("Abrir o Desbloqueio estendido", "Open Extend Unlock")).apply {
+                        setOnClickListener { openExtendUnlock() }
+                    },
+                    LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT),
+                )
+                addView(BusTheme.gap(this@ZapSettingsActivity, 8))
+                addView(
+                    NexusUi.outlinePillButton(this@ZapSettingsActivity, t("Buscar nos Ajustes", "Search Settings")).apply {
+                        setOnClickListener {
+                            runCatching { startActivity(Intent(Settings.ACTION_APP_SEARCH_SETTINGS)) }
+                                .onFailure { runCatching { startActivity(Intent(Settings.ACTION_SETTINGS)) } }
+                        }
+                    },
+                    LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT),
+                )
+            },
+            NexusUi.block(),
+        )
+        gap(8)
+        warningCard(
+            t("Atenção à segurança", "Security note"),
             t(
-                "Texto vai pela notificação do WhatsApp e funciona com o celular bloqueado. Foto (e resposta a conversa já lida no celular) precisa abrir o WhatsApp, que não abre por cima da tela de bloqueio.\n\n" +
-                    "Solução: no Android, em Smart Lock (Tela de bloqueio ou Segurança, depende do celular), adicione os óculos Rokid como dispositivo confiável. Enquanto estiverem conectados, o celular não pede senha, e o Zap acende a tela, passa pelo bloqueio e envia sozinho.\n\n" +
-                    "Atenção: com os óculos ligados por perto, quem pegar o seu celular também entra sem senha.",
-                "Text goes through WhatsApp's notification and works with the phone locked. A photo (or a reply to a chat already read on the phone) has to open WhatsApp, which can't open over the lock screen.\n\n" +
-                    "Fix: in Android's Smart Lock (Lock screen or Security, depending on the phone), add the Rokid glasses as a trusted device. While they are connected the phone asks no PIN, and Zap lights the screen, steps past the lock and sends by itself.\n\n" +
-                    "Note: with the glasses on nearby, anyone holding your phone also gets in without a PIN.",
+                "Com os óculos conectados por perto, o celular fica desbloqueado: quem pegar o seu celular entra sem senha. Desligue o dispositivo confiável quando não precisar.",
+                "While the glasses are connected nearby, the phone stays unlocked: anyone holding it gets in without a PIN. Turn the trusted device off when you don't need it.",
             ),
-            action = t("Abrir Segurança do Android", "Open Android Security") to Intent(Settings.ACTION_SECURITY_SETTINGS),
         )
         ZapSendTrace.describe(this, pt)?.let { infoCard(t("Último envio pelo Zap", "Last send through Zap"), it) }
+    }
+
+    // --- saved places (0.15) ---------------------------------------------------
+
+    /** Addresses kept from the glasses ("☆ Guardar endereço"): open in Maps, or remove. */
+    private fun placesSection() {
+        val places = ZapPlaces.list(this)
+        if (places.isEmpty()) return
+        section(t("Endereços guardados", "Saved places"))
+        places.forEach { place ->
+            content.addView(
+                NexusUi.card(this).apply {
+                    addView(NexusUi.cardTitle(this@ZapSettingsActivity, "📍 ${place.name}"))
+                    addView(BusTheme.gap(this@ZapSettingsActivity, 4))
+                    addView(NexusUi.cardBody(this@ZapSettingsActivity, place.address + "\n" + t("Da conversa com ${place.chat}", "From your chat with ${place.chat}")))
+                    addView(BusTheme.gap(this@ZapSettingsActivity, 8))
+                    addView(
+                        NexusUi.outlinePillButton(this@ZapSettingsActivity, t("Abrir no Maps", "Open in Maps")).apply {
+                            setOnClickListener { runCatching { startActivity(ZapPlaces.mapIntent(place.address)) }.onFailure {
+                                runCatching { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("geo:0,0?q=" + android.net.Uri.encode(place.address)))) }
+                            } }
+                        },
+                        LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT),
+                    )
+                    addView(BusTheme.gap(this@ZapSettingsActivity, 6))
+                    addView(
+                        NexusUi.outlinePillButton(this@ZapSettingsActivity, t("Apagar", "Remove")).apply {
+                            setOnClickListener { ZapPlaces.remove(this@ZapSettingsActivity, place.address); render() }
+                        },
+                        LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT),
+                    )
+                },
+                NexusUi.block(),
+            )
+            gap(8)
+        }
     }
 
     // --- quick reactions (0.13) ----------------------------------------------
@@ -666,6 +749,35 @@ class ZapSettingsActivity : Activity() {
     }
 
     private fun gap(dp: Int) = content.addView(BusTheme.gap(this, dp))
+
+    /** A risk the wearer should know about, set apart from the rest, never hidden in a paragraph. */
+    private fun warningCard(title: String, body: String) {
+        content.addView(
+            NexusUi.card(this).apply {
+                addView(NexusUi.cardTitle(this@ZapSettingsActivity, "⚠ $title"))
+                addView(BusTheme.gap(this@ZapSettingsActivity, 5))
+                addView(NexusUi.cardBody(this@ZapSettingsActivity, body))
+            },
+            NexusUi.block(),
+        )
+        gap(8)
+    }
+
+    /**
+     * Extend Unlock (Smart Lock before Android 14) lives in Google Play services, with
+     * no public shortcut; its screen is tried first, then the phone's Security screen,
+     * then Settings. Each step that Android refuses falls through to the next.
+     */
+    private fun openExtendUnlock() {
+        val attempts = listOf(
+            Intent().setClassName("com.google.android.gms", "com.google.android.gms.trustagent.GoogleTrustAgentPersonalUnlockingSettings"),
+            Intent(Settings.ACTION_SECURITY_SETTINGS),
+            Intent(Settings.ACTION_SETTINGS),
+        )
+        for (intent in attempts) {
+            if (runCatching { startActivity(intent) }.isSuccess) return
+        }
+    }
 
     private fun infoCard(title: String, body: String, action: Pair<String, Intent>? = null, requestCode: Int? = null) {
         content.addView(

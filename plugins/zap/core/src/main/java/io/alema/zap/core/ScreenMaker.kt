@@ -51,6 +51,7 @@ class ScreenMaker(
         is Step.Photo -> photo(step)
         is Step.Audio -> audio(step)
         is Step.Brief -> brief(step, selected)
+        is Step.Digest -> digest(step, selected)
         is Step.React -> Screen.Card(
             title = fitTitle(text.reactTitle(step.conversation.title)),
             rows = step.reactions.mapIndexed { index, r -> Row(text = "${r.emoji}  ${r.word}", selected = index == selected) },
@@ -150,8 +151,10 @@ class ScreenMaker(
         val rows = buildList {
             // Always bright and bold: an action, set apart from the chats under it.
             add(Row(text = "+ ${text.newMessage}", tone = Tone.ALERT, selected = selected == 0))
-            step.conversations.take(MAX_ROWS - 1).forEachIndexed { index, chat ->
-                val isSelected = selected == index + 1
+            // The AI's view of the day, one tap from home: summaries are on, so it is always offered.
+            if (step.digest) add(Row(text = text.digestRow, tone = Tone.ALERT, selected = selected == 1))
+            step.conversations.take(MAX_ROWS - step.head).forEachIndexed { index, chat ->
+                val isSelected = selected == index + step.head
                 val unread = chat.unread
                 add(
                     Row(
@@ -269,6 +272,9 @@ class ScreenMaker(
                 BriefChoice.Dictate -> text.dictate
                 is BriefChoice.Calendar -> text.calendar(eventLabel(choice.event, today), BriefDone.CALENDAR in step.done)
                 is BriefChoice.Remind -> text.remind(choice.minutes, BriefDone.REMIND in step.done)
+                is BriefChoice.Task -> text.task(choice.task.text, choice.task.atMs?.let { whenLabel(it, today) }, BriefDone.TASK in step.done)
+                is BriefChoice.Map -> text.openMap(choice.place.name)
+                is BriefChoice.SavePlace -> text.savePlace(choice.place.name, choice.place.address in step.savedPlaces)
                 BriefChoice.Listen -> text.listenBrief
                 BriefChoice.SeeMessages -> text.seeMessages(unread.size)
             }
@@ -277,15 +283,47 @@ class ScreenMaker(
         return Screen.Card(title = fitTitle(chat.title), rows = rows, subtitle = subtitle)
     }
 
+    /**
+     * The day's summary: the few sentences first, then one row per chat worth
+     * a look (name, and what it wants under it), then "Hear it".
+     */
+    private fun digest(step: Step.Digest, selected: Int): Screen.Card {
+        val rows = mutableListOf<Row>()
+        val subtitle = when (val state = step.state) {
+            DigestState.Loading -> text.digestLoading
+            DigestState.Empty -> {
+                rows += Row(text = text.digestEmpty, tone = Tone.DIM)
+                text.digestTitle
+            }
+            is DigestState.Failed -> {
+                rows += Row(text = text.briefError(state.error), tone = Tone.ALERT)
+                text.briefFailedTitle
+            }
+            is DigestState.Ready -> {
+                rows += bodyRows(state.digest.summary)
+                state.digest.items.forEachIndexed { index, item ->
+                    rows += Row(text = fit(item.title, LIST_CHARS), sub = fit(item.line, PREVIEW_CHARS), selected = index == selected)
+                }
+                rows += Row(text = text.listenBrief, selected = selected == state.digest.items.size)
+                text.digestCount(state.digest.chats, state.digest.messages)
+            }
+        }
+        return Screen.Card(title = fitTitle(text.digestTitle), rows = rows, subtitle = subtitle)
+    }
+
     /** "Almoço no Lume · amanhã 12:00": what and when, short enough for one lens line. */
-    private fun eventLabel(event: SuggestedEvent, today: LocalDate): String {
-        val at = Instant.ofEpochMilli(event.startMs).atZone(zone)
+    private fun eventLabel(event: SuggestedEvent, today: LocalDate): String =
+        "${fit(event.title, 28)} · ${whenLabel(event.startMs, today)}"
+
+    /** "hoje 12:00", "amanhã 9:30", "sex 24/10 18:00". */
+    private fun whenLabel(timeMs: Long, today: LocalDate): String {
+        val at = Instant.ofEpochMilli(timeMs).atZone(zone)
         val day = when (at.toLocalDate()) {
             today -> text.today
             today.plusDays(1) -> text.tomorrow
             else -> at.format(WEEKDAY_DATE)
         }
-        return "${fit(event.title, 28)} · $day ${at.format(HOUR)}"
+        return "$day ${at.format(HOUR)}"
     }
 
     /** What a message row says: the words (cut), or what it carries. */

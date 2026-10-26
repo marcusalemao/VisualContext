@@ -15,9 +15,13 @@ import android.provider.CalendarContract
 import android.util.Log
 import io.alema.zap.core.Recipient
 import io.alema.zap.core.SuggestedEvent
+import io.alema.zap.core.SuggestedPlace
+import io.alema.zap.core.SuggestedTask
 import io.alema.zap.core.WhatsAppLink
 import io.alema.zap.core.ZapConversation
 import io.alema.zap.core.ZapText
+import org.json.JSONArray
+import org.json.JSONObject
 import java.util.TimeZone
 
 /**
@@ -141,10 +145,158 @@ internal object ZapReminders {
             .build()
         manager.notify(title.hashCode(), notification)
     }
+
+    /**
+     * "Levar o contrato" at the time the messages said, or in [laterMinutes] when they
+     * gave none. Comes back on the glasses (always, like the reply reminder) and the phone.
+     */
+    fun scheduleTask(context: Context, task: SuggestedTask, chat: ZapConversation, laterMinutes: Int): Boolean = runCatching {
+        val now = System.currentTimeMillis()
+        val at = task.atMs?.takeIf { it > now + 60_000 } ?: (now + laterMinutes * 60_000L)
+        val intent = Intent(context, ZapReminderReceiver::class.java).setAction(ACTION_TASK)
+            .putExtra("task", task.text)
+            .putExtra("title", chat.title)
+            .putExtra("digits", chat.waDigits)
+        val pending = PendingIntent.getBroadcast(
+            context, (chat.key + task.text).hashCode(), intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        context.getSystemService(AlarmManager::class.java).setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending)
+        true
+    }.onFailure { Log.w("ZapReminders", "task reminder failed", it) }.getOrDefault(false)
+
+    fun fireTask(context: Context, intent: Intent) {
+        val what = intent.getStringExtra("task") ?: return
+        val title = intent.getStringExtra("title").orEmpty()
+        val digits = intent.getStringExtra("digits")
+        val text = ZapText()
+        ZapNotifier.announce(context, "⏰ ${text.taskNow(what)}", text.taskFrom(title), null, always = true)
+        if (context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
+        val manager = context.getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(NotificationChannel(CHANNEL, text.remindNow("…").removeSuffix(" …"), NotificationManager.IMPORTANCE_HIGH))
+        val open = digits?.let {
+            PendingIntent.getActivity(
+                context, what.hashCode(),
+                Intent(Intent.ACTION_VIEW, Uri.parse(WhatsAppLink.appUri(it, null))).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                PendingIntent.FLAG_IMMUTABLE,
+            )
+        }
+        manager.notify(
+            what.hashCode(),
+            android.app.Notification.Builder(context, CHANNEL)
+                .setSmallIcon(R.drawable.nexus_glyph_zap)
+                .setContentTitle(text.taskNow(what))
+                .setContentText(text.taskFrom(title))
+                .setAutoCancel(true)
+                .apply { open?.let { setContentIntent(it) } }
+                .build(),
+        )
+    }
+
+    const val ACTION_TASK = "io.alema.zap.REMIND_TASK"
+}
+
+/**
+ * Places from the chats: open in Google Maps on the phone, or keep in a short
+ * list in Zap's settings (encrypted on the phone, like the inbox). Nothing goes
+ * anywhere else: the map search runs in the wearer's own Maps app.
+ */
+internal object ZapPlaces {
+    private const val TAG = "ZapPlaces"
+    private const val PREFS = "zap_places"
+    private const val CHANNEL = "zap_places"
+    private const val MAX = 30
+
+    data class Saved(val name: String, val address: String, val chat: String, val timeMs: Long)
+
+    fun mapIntent(address: String): Intent {
+        val uri = Uri.parse("geo:0,0?q=" + Uri.encode(address))
+        val maps = Intent(Intent.ACTION_VIEW, uri).setPackage("com.google.android.apps.maps").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        return maps
+    }
+
+    /**
+     * Opens Maps on the phone when Android lets a background app do it (Zap has
+     * "display over other apps"), and always leaves a notification that opens it,
+     * so a locked phone in the pocket still has it waiting.
+     */
+    fun open(context: Context, place: SuggestedPlace, chatTitle: String): Boolean {
+        val text = ZapText()
+        var intent = mapIntent(place.address)
+        if (intent.resolveActivity(context.packageManager) == null) {
+            // No Google Maps: any map app, or the browser.
+            intent = Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=" + Uri.encode(place.address))).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            if (intent.resolveActivity(context.packageManager) == null) {
+                intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/maps/search/?api=1&query=" + Uri.encode(place.address)))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+        }
+        val started = runCatching { context.startActivity(intent) }.isSuccess
+        val notified = runCatching {
+            if (context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return@runCatching false
+            val manager = context.getSystemService(NotificationManager::class.java)
+            manager.createNotificationChannel(NotificationChannel(CHANNEL, if (java.util.Locale.getDefault().language == "pt") "Endereços" else "Places", NotificationManager.IMPORTANCE_DEFAULT))
+            val pending = PendingIntent.getActivity(context, place.address.hashCode(), intent, PendingIntent.FLAG_IMMUTABLE)
+            manager.notify(
+                place.address.hashCode(),
+                android.app.Notification.Builder(context, CHANNEL)
+                    .setSmallIcon(R.drawable.nexus_glyph_zap)
+                    .setContentTitle("📍 ${place.name}")
+                    .setContentText(text.mapFrom(chatTitle))
+                    .setStyle(android.app.Notification.BigTextStyle().bigText(place.address + "\n" + text.mapFrom(chatTitle)))
+                    .setContentIntent(pending)
+                    .setAutoCancel(true)
+                    .build(),
+            )
+            true
+        }.getOrDefault(false)
+        Log.i(TAG, "map: started=$started notified=$notified")
+        return started || notified
+    }
+
+    fun save(context: Context, place: SuggestedPlace, chatTitle: String): Boolean = runCatching {
+        val list = list(context).filterNot { it.address.equals(place.address, ignoreCase = true) }
+        val next = listOf(Saved(place.name, place.address, chatTitle, System.currentTimeMillis())) + list
+        write(context, next.take(MAX))
+        true
+    }.onFailure { Log.w(TAG, "save failed", it) }.getOrDefault(false)
+
+    fun remove(context: Context, address: String) = write(context, list(context).filterNot { it.address == address })
+
+    fun list(context: Context): List<Saved> = runCatching {
+        val stored = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("list", null) ?: return emptyList()
+        val array = JSONArray(decrypt(stored) ?: return emptyList())
+        (0 until array.length()).map { i ->
+            val o = array.getJSONObject(i)
+            Saved(o.optString("name"), o.optString("address"), o.optString("chat"), o.optLong("time"))
+        }
+    }.getOrDefault(emptyList())
+
+    private fun encrypt(plain: String): String {
+        val cipher = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(javax.crypto.Cipher.ENCRYPT_MODE, ZapInbox.secretKey())
+        return android.util.Base64.encodeToString(cipher.iv + cipher.doFinal(plain.toByteArray(Charsets.UTF_8)), android.util.Base64.NO_WRAP)
+    }
+
+    private fun decrypt(stored: String): String? = runCatching {
+        val bytes = android.util.Base64.decode(stored, android.util.Base64.NO_WRAP)
+        val cipher = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(javax.crypto.Cipher.DECRYPT_MODE, ZapInbox.secretKey(), javax.crypto.spec.GCMParameterSpec(128, bytes.copyOfRange(0, 12)))
+        String(cipher.doFinal(bytes.copyOfRange(12, bytes.size)), Charsets.UTF_8)
+    }.getOrNull()
+
+    private fun write(context: Context, list: List<Saved>) {
+        val array = JSONArray()
+        list.forEach { array.put(JSONObject().put("name", it.name).put("address", it.address).put("chat", it.chat).put("time", it.timeMs)) }
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("list", encrypt(array.toString())).apply()
+    }
 }
 
 class ZapReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == ZapReminders.ACTION) ZapReminders.fire(context, intent)
+        when (intent.action) {
+            ZapReminders.ACTION -> ZapReminders.fire(context, intent)
+            ZapReminders.ACTION_TASK -> ZapReminders.fireTask(context, intent)
+        }
     }
 }

@@ -145,7 +145,35 @@ class ZapText(private val pt: Boolean = Locale.getDefault().language == "pt") {
     }
     val listenBrief get() = if (pt) "🔊 Ouvir o resumo" else "🔊 Hear the summary"
     fun seeMessages(count: Int) = if (pt) "☰ Ver as mensagens" + (count.takeIf { it > 1 }?.let { " ($it)" } ?: "") else "☰ See the messages" + (count.takeIf { it > 1 }?.let { " ($it)" } ?: "")
-    val actionFailed get() = if (pt) "Não deu certo: confira a permissão de Agenda nos ajustes do Zap" else "That didn't work: check the Calendar permission in Zap's settings"
+    val actionFailed get() = if (pt) "Não deu certo: confira as permissões nos ajustes do Zap, no celular" else "That didn't work: check the permissions in Zap's settings on the phone"
+    // --- AI actions and the day's summary (0.15) --------------------------------
+
+    fun task(what: String, at: String?, done: Boolean) = when {
+        done -> if (pt) "✓ Lembrete: $what" else "✓ Reminder: $what"
+        at != null -> "⏰ ${if (pt) "Lembrete" else "Reminder"}: $what · $at"
+        else -> if (pt) "⏰ Lembrete: $what · em 1 h" else "⏰ Reminder: $what · in 1 h"
+    }
+    fun openMap(name: String) = if (pt) "📍 Abrir no Maps: $name" else "📍 Open in Maps: $name"
+    fun savePlace(name: String, done: Boolean) = if (done) {
+        if (pt) "✓ Endereço guardado: $name" else "✓ Address saved: $name"
+    } else {
+        if (pt) "☆ Guardar endereço: $name" else "☆ Save address: $name"
+    }
+    val digestRow get() = if (pt) "✦ Resumo do dia" else "✦ The day's summary"
+    val digestTitle get() = if (pt) "Resumo do dia" else "The day's summary"
+    val digestLoading get() = if (pt) "✦ Lendo as conversas de hoje…" else "✦ Reading today's chats…"
+    val digestEmpty get() = if (pt) "Nenhuma mensagem nova hoje" else "No new messages today"
+    fun digestCount(chats: Int, messages: Int) = if (pt) {
+        "✦ $chats conversa${if (chats == 1) "" else "s"} · $messages mensage${if (messages == 1) "m" else "ns"}"
+    } else {
+        "✦ $chats chat${if (chats == 1) "" else "s"} · $messages message${if (messages == 1) "" else "s"}"
+    }
+    /** What the glasses say when a task reminder fires. */
+    fun taskNow(what: String) = if (pt) "Lembrete: $what" else "Reminder: $what"
+    fun taskFrom(chat: String) = if (pt) "Da conversa com $chat" else "From your chat with $chat"
+    /** The phone notification left behind when a place opens in Maps. */
+    fun mapFrom(chat: String) = if (pt) "Endereço da conversa com $chat · toque para abrir no Maps" else "Address from your chat with $chat · tap to open in Maps"
+
     val today get() = if (pt) "hoje" else "today"
     val tomorrow get() = if (pt) "amanhã" else "tomorrow"
     /** What the glasses say when the reminder fires: "Responder Bruno". */

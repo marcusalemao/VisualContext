@@ -72,7 +72,7 @@ class BriefTest {
     fun `opening a busy chat shows the summary card and asks the AI once, reopening reuses it`() {
         val flow = ComposeFlow(directory = { emptyList() }, briefs = { true })
         flow.open(listOf(bruno))
-        flow.move(1)
+        flow.move(2) // past "New message" and "✦ The day's summary"
         val effects = flow.tap()
         val step = flow.step as Step.Brief
         assertEquals(BriefState.Loading, step.state)
@@ -97,7 +97,7 @@ class BriefTest {
         flow.back() // review → the summary (its base)
         assertTrue(flow.step is Step.Brief)
         flow.back() // → home
-        flow.move(1)
+        flow.move(2) // past "New message" and "✦ The day's summary"
         assertTrue(flow.tap().isEmpty()) // cached: no second call
         assertEquals(BriefState.Ready(brief), (flow.step as Step.Brief).state)
     }
@@ -106,7 +106,7 @@ class BriefTest {
     fun `calendar and reminder rows turn into a check once done, and are not repeated`() {
         val flow = ComposeFlow(directory = { emptyList() }, briefs = { true })
         flow.open(listOf(bruno))
-        flow.move(1)
+        flow.move(2) // past "New message" and "✦ The day's summary"
         flow.tap()
         val event = SuggestedEvent("Almoço", 0L)
         flow.onBrief(bruno.key, BriefState.Ready(Brief("Almoço?", event = event)))
@@ -123,7 +123,7 @@ class BriefTest {
     fun `see the messages leaves the summary for the usual chat list, and a failure still offers it`() {
         val flow = ComposeFlow(directory = { emptyList() }, briefs = { true })
         flow.open(listOf(bruno))
-        flow.move(1)
+        flow.move(2) // past "New message" and "✦ The day's summary"
         flow.tap()
         flow.onBrief(bruno.key, BriefState.Failed(BriefError.NO_KEY))
         val failed = flow.step as Step.Brief
@@ -139,7 +139,7 @@ class BriefTest {
     fun `the card keeps counting what was new when it opened, even after the chat is marked read`() {
         val flow = ComposeFlow(directory = { emptyList() }, briefs = { true })
         flow.open(listOf(bruno))
-        flow.move(1)
+        flow.move(2) // past "New message" and "✦ The day's summary"
         flow.tap()
         flow.refresh(listOf(bruno.seen()))
         val step = flow.step as Step.Brief
@@ -152,11 +152,11 @@ class BriefTest {
     fun `an answer that lands after the wearer left is kept for reopening`() {
         val flow = ComposeFlow(directory = { emptyList() }, briefs = { true })
         flow.open(listOf(bruno))
-        flow.move(1)
+        flow.move(2) // past "New message" and "✦ The day's summary"
         flow.tap()
         flow.back()
         flow.onBrief(bruno.key, BriefState.Ready(Brief("Almoço?")))
-        flow.move(1)
+        flow.move(2) // past "New message" and "✦ The day's summary"
         assertTrue(flow.tap().isEmpty())
         assertTrue((flow.step as Step.Brief).state is BriefState.Ready)
     }

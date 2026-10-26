@@ -39,8 +39,23 @@ enum class MessageOption { PLAY_AUDIO, SEE_PHOTO, REPLY, REACT, READ_ALOUD, READ
 fun ZapConversation.newestFirst(): List<ZapMessage> = messages.sortedByDescending { it.timeMs }
 
 sealed interface Step {
-    /** Home: "New message" first, then the conversations, newest first. */
-    data class Inbox(val conversations: List<ZapConversation>) : Step
+    /**
+     * Home: "New message" first, then — with summaries on — "✦ The day's summary",
+     * then the conversations, newest first.
+     */
+    data class Inbox(val conversations: List<ZapConversation>, val digest: Boolean = false) : Step {
+        /** Rows above the first chat. */
+        val head: Int get() = if (digest) 2 else 1
+    }
+
+    /**
+     * The day across all chats, from the wearer's AI: a few sentences, then one
+     * row per chat worth a look (a tap opens it), then "Hear it". Back goes home.
+     */
+    data class Digest(val state: DigestState) : Step {
+        val items: List<DigestItem> get() = (state as? DigestState.Ready)?.digest?.items.orEmpty()
+        val choices: Int get() = if (state is DigestState.Ready) items.size + 1 else 0
+    }
 
     /**
      * One conversation open. [reading]: its messages as a list, newest first,
@@ -64,6 +79,8 @@ sealed interface Step {
         val done: Set<BriefDone> = emptySet(),
         /** The last calendar or reminder action did not work. */
         val actionFailed: Boolean = false,
+        /** Addresses already kept from this card: the row turns into "✓ Guardado". */
+        val savedPlaces: Set<String> = emptySet(),
     ) : Step {
         fun choices(): List<BriefChoice> = BriefRules.choices(state, conversation.canReply)
     }
@@ -189,6 +206,18 @@ sealed interface Effect {
 
     /** In [minutes], remind the wearer (on the glasses and the phone) to answer this chat. */
     data class RemindToReply(val conversation: ZapConversation, val minutes: Int) : Effect
+
+    /** A reminder for something to do: at [atMs] (or [laterMinutes] from now when the messages gave no time). */
+    data class ScheduleTask(val task: SuggestedTask, val conversation: ZapConversation, val laterMinutes: Int) : Effect
+
+    /** Open the place in Google Maps on the phone; the result comes back through onBriefAction-like calls. */
+    data class OpenMap(val place: SuggestedPlace, val chatTitle: String) : Effect
+
+    /** Keep the address in Zap's saved places on the phone; the result comes back through onPlaceSaved. */
+    data class SavePlace(val place: SuggestedPlace, val chatTitle: String) : Effect
+
+    /** Ask the wearer's AI for the day's summary of these chats; the answer comes back through onDigest. */
+    data class SummarizeDay(val chats: List<Pair<ZapConversation, List<ZapMessage>>>) : Effect
     object StopSpeaking : Effect
 
     /** Play a voice message on the glasses' audio; [chatKey] says which chat it came from. */
@@ -227,6 +256,8 @@ class ComposeFlow(
     private val gallery: () -> List<String> = { emptyList() },
     /** True when the wearer turned summaries on and gave the AI a key (or has Easy). */
     private val briefs: () -> Boolean = { false },
+    /** Today's chats for the day's summary, already picked (the clock and zone live on the phone side). */
+    private val today: (List<ZapConversation>) -> List<Pair<ZapConversation, List<ZapMessage>>> = { emptyList() },
     /** The quick reactions chosen on the phone, already in the wearer's skin tone. */
     private val reactions: () -> List<Reaction> = { Reactions.defaults(true) },
 ) {
@@ -253,7 +284,7 @@ class ComposeFlow(
      */
     fun offerPhoto(photo: String, recent: List<Recipient>): Boolean {
         when (step) {
-            is Step.Inbox, is Step.Thread, is Step.Read, is Step.Photo, is Step.Audio, is Step.Done, is Step.Brief -> Unit
+            is Step.Inbox, is Step.Thread, is Step.Read, is Step.Photo, is Step.Audio, is Step.Done, is Step.Brief, is Step.Digest -> Unit
             else -> return false
         }
         val here = (step as? Step.Thread)?.conversation?.takeIf { !it.isGroup && it.waDigits != null }?.recipient()
@@ -269,7 +300,7 @@ class ComposeFlow(
     fun open(inbox: List<ZapConversation>): List<Effect> {
         carryPhoto = null
         conversations = inbox
-        go(Step.Inbox(inbox), asBase = true)
+        go(home(), asBase = true)
         return emptyList()
     }
 
@@ -279,7 +310,7 @@ class ComposeFlow(
         when (val s = step) {
             is Step.Inbox -> {
                 val keep = selected
-                step = Step.Inbox(inbox)
+                step = home()
                 selected = keep.coerceIn(0, maxOf(0, choiceCount() - 1))
                 base = step
             }
@@ -312,7 +343,8 @@ class ComposeFlow(
     }
 
     fun choiceCount(): Int = when (val s = step) {
-        is Step.Inbox -> 1 + s.conversations.size
+        is Step.Inbox -> s.head + s.conversations.size
+        is Step.Digest -> s.choices
         is Step.Thread -> if (s.reading) 1 + s.conversation.messages.size else s.message?.let { MessageOption.of(it).size } ?: 0
         is Step.Read -> 0
         is Step.Brief -> s.choices().size
@@ -362,11 +394,23 @@ class ComposeFlow(
     }
 
     fun tap(): List<Effect> = when (val s = step) {
-        is Step.Inbox -> if (selected == 0) {
-            go(Step.NewMessage(recentPeople()), asBase = true)
-            emptyList()
-        } else {
-            openChat(s.conversations[selected - 1])
+        is Step.Inbox -> when {
+            selected == 0 -> {
+                go(Step.NewMessage(recentPeople()), asBase = true)
+                emptyList()
+            }
+            s.digest && selected == 1 -> summarizeDay()
+            else -> s.conversations.getOrNull(selected - s.head)?.let(::openChat) ?: emptyList()
+        }
+        is Step.Digest -> {
+            val item = s.items.getOrNull(selected)
+            when {
+                item != null -> conversations.firstOrNull { it.key == item.chatKey }
+                    ?.let { listOf(Effect.StopSpeaking) + openChat(it) } ?: emptyList()
+                selected == s.items.size -> (s.state as? DigestState.Ready)
+                    ?.let { listOf(Effect.SpeakText(it.digest.summary)) } ?: emptyList()
+                else -> emptyList()
+            }
         }
         is Step.Brief -> when (val choice = s.choices().getOrNull(selected)) {
             is BriefChoice.SendReply -> listOf(Effect.StopSpeaking) + review(s.conversation.recipient(), choice.text)
@@ -377,6 +421,13 @@ class ComposeFlow(
             is BriefChoice.Remind ->
                 if (BriefDone.REMIND in s.done) emptyList()
                 else listOf(Effect.RemindToReply(s.conversation, choice.minutes))
+            is BriefChoice.Task ->
+                if (BriefDone.TASK in s.done) emptyList()
+                else listOf(Effect.ScheduleTask(choice.task, s.conversation, BriefRules.TASK_LATER_MINUTES))
+            is BriefChoice.Map -> listOf(Effect.StopSpeaking, Effect.OpenMap(choice.place, s.conversation.title))
+            is BriefChoice.SavePlace ->
+                if (choice.place.address in s.savedPlaces) emptyList()
+                else listOf(Effect.SavePlace(choice.place, s.conversation.title))
             BriefChoice.Listen -> (s.state as? BriefState.Ready)?.let { listOf(Effect.SpeakText(it.brief.summary)) } ?: emptyList()
             BriefChoice.SeeMessages -> {
                 go(Step.Thread(s.conversation), asBase = true)
@@ -465,7 +516,7 @@ class ComposeFlow(
         is Step.Done -> if (s.canRetry) {
             listen(s.recipient, s.photo)
         } else {
-            go(Step.Inbox(conversations), asBase = true)
+            go(home(), asBase = true)
             emptyList()
         }
         is Step.Listening, is Step.Sending, is Step.Snapping -> emptyList()
@@ -473,8 +524,14 @@ class ComposeFlow(
 
     fun back(): List<Effect> = when (val s = step) {
         is Step.Inbox -> listOf(Effect.Close)
+        is Step.Digest -> {
+            go(home(), asBase = true)
+            // Back on the row that opened it.
+            selected = if ((step as? Step.Inbox)?.digest == true) 1 else 0
+            listOf(Effect.StopSpeaking)
+        }
         is Step.Brief -> {
-            go(Step.Inbox(conversations), asBase = true)
+            go(home(), asBase = true)
             listOf(Effect.StopSpeaking)
         }
         is Step.React -> {
@@ -498,7 +555,7 @@ class ComposeFlow(
         }
         is Step.Thread -> {
             if (s.reading) {
-                go(Step.Inbox(conversations), asBase = true)
+                go(home(), asBase = true)
             } else {
                 go(s.copy(reading = true), asBase = true)
                 selected = s.focus + 1
@@ -507,7 +564,7 @@ class ComposeFlow(
         }
         is Step.NewMessage -> {
             carryPhoto = null
-            go(Step.Inbox(conversations), asBase = true)
+            go(home(), asBase = true)
             listOf(Effect.StopSpeaking)
         }
         is Step.Listening -> {
@@ -634,6 +691,21 @@ class ComposeFlow(
         if (wasLoading) selected = 0
     }
 
+    /** The day's summary arrived (or failed): shown if its card is still up. */
+    fun onDigest(state: DigestState) {
+        val s = step as? Step.Digest ?: return
+        step = s.copy(state = state)
+        base = step
+        selected = 0
+    }
+
+    /** An address was kept (or not): its row becomes "✓ …", or the card says it didn't work. */
+    fun onPlaceSaved(address: String, ok: Boolean) {
+        val s = step as? Step.Brief ?: return
+        step = if (ok) s.copy(savedPlaces = s.savedPlaces + address, actionFailed = false) else s.copy(actionFailed = true)
+        base = step
+    }
+
     /** A calendar or reminder action finished: the row becomes "✓ …", or the card says it didn't work. */
     fun onBriefAction(done: BriefDone, ok: Boolean) {
         val s = step as? Step.Brief ?: return
@@ -657,6 +729,20 @@ class ComposeFlow(
         go(Step.Thread(chat), asBase = true)
         selected = if (chat.messages.isEmpty()) 0 else 1
         return emptyList()
+    }
+
+    /** Home as it should look now: the day's summary row only with summaries on. */
+    private fun home(): Step.Inbox = Step.Inbox(conversations, digest = briefs())
+
+    /** "✦ The day's summary": nothing came in today → say so without asking the AI. */
+    private fun summarizeDay(): List<Effect> {
+        val chats = today(conversations)
+        if (chats.isEmpty()) {
+            go(Step.Digest(DigestState.Empty))
+            return emptyList()
+        }
+        go(Step.Digest(DigestState.Loading))
+        return listOf(Effect.SummarizeDay(chats))
     }
 
     /** Back from a photo or voice message: the list, with that message marked. */

@@ -8,6 +8,8 @@ import io.alema.zap.core.Brief
 import io.alema.zap.core.BriefError
 import io.alema.zap.core.BriefPrompt
 import io.alema.zap.core.BriefState
+import io.alema.zap.core.DigestPrompt
+import io.alema.zap.core.DigestState
 import io.alema.zap.core.ZapConversation
 import io.alema.zap.core.ZapMessage
 import org.json.JSONArray
@@ -120,6 +122,32 @@ internal object ZapAi {
         }
     }
 
+    /**
+     * The day's summary across chats ("✦ Resumo do dia" on the glasses). Text only:
+     * voice notes go in as "[voice message 12s]", so it is quick and cheap.
+     */
+    fun digest(context: Context, chats: List<Pair<ZapConversation, List<ZapMessage>>>, done: (DigestState) -> Unit) {
+        val app = context.applicationContext
+        worker.execute {
+            val key = key(app)
+            if (!enabled(app) || key == null) {
+                done(DigestState.Failed(BriefError.NO_KEY))
+                return@execute
+            }
+            val started = System.currentTimeMillis()
+            val result = runCatching {
+                val pt = Locale.getDefault().language == "pt"
+                val user = DigestPrompt.user(chats, System.currentTimeMillis(), ZoneId.systemDefault())
+                val answer = ask(app, key, DigestPrompt.system(pt), user, emptyList())
+                val digest = DigestPrompt.parse(answer, chats.map { it.first })
+                if (digest == null) DigestState.Failed(BriefError.FAILED)
+                else DigestState.Ready(digest.copy(chats = chats.size, messages = chats.sumOf { it.second.size }))
+            }.getOrElse { e -> DigestState.Failed(errorOf(e)).also { Log.w(TAG, "digest failed: ${e.javaClass.simpleName} ${e.message?.take(160)}") } }
+            Log.i(TAG, "digest ${result.javaClass.simpleName} in ${System.currentTimeMillis() - started} ms, ${chats.size} chats")
+            done(result)
+        }
+    }
+
     /** "Test the key" in settings: a tiny request, the answer as a short line for the card. */
     fun test(context: Context, done: (BriefError?) -> Unit) {
         val probe = ZapConversation("test", "Ana", null, false, listOf(ZapMessage("Ana", "Almoço amanhã às 12h no Lume?", System.currentTimeMillis())))
@@ -151,11 +179,7 @@ internal object ZapAi {
         val audio = if (provider.hearsAudio) voiceAudio(context, chat, messages) else emptyMap()
         val voiceTotal = messages.count { it.voiceSeconds != null && it.sender != ZapMessage.ME && it.timeMs > chat.readUpToMs }
         val user = BriefPrompt.user(chat, messages, System.currentTimeMillis(), zone, audioFor = audio.keys, me = if (pt) "Eu" else "Me")
-        val answer = when (provider) {
-            Provider.GEMINI -> gemini(key, model(context), BriefPrompt.system(pt), user, audio.values.toList())
-            Provider.OPENAI -> openAiCompatible("https://api.openai.com/v1/chat/completions", key, model(context), BriefPrompt.system(pt), user, openRouter = false)
-            Provider.OPENROUTER -> openAiCompatible("https://openrouter.ai/api/v1/chat/completions", key, model(context), BriefPrompt.system(pt), user, openRouter = true)
-        }
+        val answer = ask(context, key, BriefPrompt.system(pt), user, audio.values.toList())
         val brief: Brief = BriefPrompt.parse(answer, zone) ?: return BriefState.Failed(BriefError.FAILED)
         val heard = audio.keys.count { messages[it].timeMs > chat.readUpToMs }
         return BriefState.Ready(
@@ -166,6 +190,14 @@ internal object ZapAi {
             ),
         )
     }
+
+    /** One request to the provider the wearer chose; audio only reaches Gemini. */
+    private fun ask(context: Context, key: String, system: String, user: String, audio: List<ByteArray>): String =
+        when (provider(context)) {
+            Provider.GEMINI -> gemini(key, model(context), system, user, audio)
+            Provider.OPENAI -> openAiCompatible("https://api.openai.com/v1/chat/completions", key, model(context), system, user, openRouter = false)
+            Provider.OPENROUTER -> openAiCompatible("https://openrouter.ai/api/v1/chat/completions", key, model(context), system, user, openRouter = true)
+        }
 
     /** Index in [messages] → the voice note's bytes, found in WhatsApp's folder (needs the folder access set up for "Play"). */
     private fun voiceAudio(context: Context, chat: ZapConversation, messages: List<ZapMessage>): Map<Int, ByteArray> {

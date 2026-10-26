@@ -90,6 +90,7 @@ class ZapPluginService : NexusPluginService() {
             gallery = { ZapGallery.recent(this) },
             // On without a key still opens the summary card: it says what is missing and where to fix it.
             briefs = { ZapAi.enabled(this) },
+            today = { chats -> io.alema.zap.core.DigestRules.chatsFor(chats, System.currentTimeMillis(), java.time.ZoneId.systemDefault()) },
             reactions = { ZapSettings(this).reactions(java.util.Locale.getDefault().language == "pt") },
         )
         flow.open(ZapInbox.list(this))
@@ -293,6 +294,21 @@ class ZapPluginService : NexusPluginService() {
                     val summary = ((flow.step as? Step.Brief)?.state as? BriefState.Ready)?.brief?.summary
                     val ok = ZapReminders.schedule(this, effect.conversation, effect.minutes, summary)
                     flow.onBriefAction(BriefDone.REMIND, ok)
+                }
+                is Effect.ScheduleTask -> {
+                    val ok = ZapReminders.scheduleTask(this, effect.task, effect.conversation, effect.laterMinutes)
+                    flow.onBriefAction(BriefDone.TASK, ok)
+                }
+                is Effect.OpenMap -> {
+                    if (!ZapPlaces.open(this, effect.place, effect.chatTitle)) flow.onPlaceSaved("", ok = false)
+                }
+                is Effect.SavePlace -> flow.onPlaceSaved(effect.place.address, ZapPlaces.save(this, effect.place, effect.chatTitle))
+                is Effect.SummarizeDay -> ZapAi.digest(this, effect.chats) { state ->
+                    main.post {
+                        if (!::flow.isInitialized || surface == null) return@post
+                        flow.onDigest(state)
+                        render()
+                    }
                 }
                 Effect.StopSpeaking -> stopSpeaking()
                 is Effect.Send -> send(effect.recipient, effect.body, effect.photo)
