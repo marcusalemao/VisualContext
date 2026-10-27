@@ -60,6 +60,10 @@ Approved by Marcus on 11/10. Visual reference: the canvas "VisualContext Manager
 - **Which room (optional):** teach each room once ("this is the bedroom"); after that the scene says the room. Without it, the AI describes the spot ("on the bed", "inside the fridge").
 - **Show the last 2–3 sightings**, not only one: the latest frame may be wrong, or the key moved after it.
 - **Capture:** the camera can't stay on all day (heat, battery). Plan: a low-resolution frame every few seconds while the user moves around, checked on the phone against registered things only; frames with no registered thing are discarded at once; kept sightings expire after a few days. Plus a voice shortcut: "save: key here".
+- **Three sources for "last seen", one card** (Marcus, 25/10). The heart stays the description of the last frame where the thing was seen. But many people already use tags, and nobody wears the glasses 24 hours a day, so the card takes the best source it has and says which one:
+  - **Camera** (glasses on): the last photo + its description. Best for "where exactly".
+  - **Tag** the user already has: Find Hub / Find My tags (UGREEN, AirTag, Moto Tag…) through the "Open in Find Hub" button, which can ring it or, on tags with UWB, point to it; generic BLE tags (iTag type) read by our app: near/far, ring. Best for "it's in the house but where" and for when the glasses were off.
+  - **NFC sticker** (phone tap): NFC is a few centimetres, so it doesn't *find*; it *marks*. Tap the sticker on a drawer or a box → "what's in here" (the last photo of its contents); tap the one on the keyring → "key here" without glasses. Cheap and works with no battery.
 - **Today's code** (rvLearnSkill) learns from text only. It needs to accept photos and store the visual signature.
 
 ### 1f. Places you pass by: AR cards on the glasses (11/10)
@@ -87,6 +91,48 @@ Approved by Marcus on 11/10. Visual reference: the canvas "VisualContext Manager
 - A transcript is discarded only if you cancel it (✕ on the countdown) or if the encounter was too short (the timer).
 - The old rule "transcript only with a known person" is retired.
 - **Person card during an encounter: always short** (decided 11/10): name, how you know each other, last time you met. No expanded version during the conversation, even with phone or Wi-Fi; the full card belongs to Recall mode.
+
+### 1i. Audio-only mode, accessible from the start (12/10)
+For blind and low-vision people, and for anyone who prefers no display. Same app, a setting: **Output: display · display + voice · voice only**.
+- **Every card has a spoken version written with it** (one short sentence), not read out field by field. The data is the same; only the renderer changes (HUD image or Nexus `tts`).
+- **Person (during an encounter):** a soft sound, then the short card: "Rafael Souza. Supplier, from the Torra Fina meeting. Last time, 12/09." Said once, when the face is recognised, before the conversation gets going, at low volume. Never repeated on its own.
+- **Recall mode** works naturally by voice: ask, hear the answer. "Where is my key?" → "In the bedroom, on the bed, today at 9:10."
+- **Places:** not narrated while walking (that would be noise). Only when asked: "Where am I?" / "What is around me?". Street-crossing and obstacles stay with Rokid's own Vision assistant; VisualContext is memory, not navigation.
+- **Confirmations become sounds and voice:** new face → "New person. Keep?" (double tap cancels, like the ✕ on the countdown); recording → a short tone at start and end; saved → one tick.
+- **Privacy of sound:** open-ear speakers can be heard up close. Default volume low; recommend Bluetooth earbuds for voice-only mode; never say names louder than a whisper level.
+- First version: the spoken sentence is generated together with each card (same AI call that writes the headline), so nothing is built twice.
+
+### 1j. Modules: one app, four modes (decided 22/10)
+Like Rokid's own modes, VisualContext has **modules** chosen at first use and changed on the phone at any time. More than one can be on (a low-vision user may also want Business). Underneath it is the same engine: a module only changes the defaults — what is shown, what is spoken, what is kept.
+- **The four switches stay in every module** (Marcus, 22/10): Faces/People, Places, Things and Memories can be turned on or off in any module; a module only sets their starting values.
+- **General (default):** everyday memory — people, key, motorbike, places.
+- **Business:** the person's dossier (company, what you talked about, open follow-ups), encounter summary in the Manager, next actions.
+- **Low vision:** output "voice only" (1i) by default; "who is in front of me", whispered; reading signs and texts aloud; Gemini describing the surroundings and guiding the aim by voice ("turn a little to the right", like Google's Guided Vision). Never obstacle avoidance or navigation.
+- **Deaf / hard of hearing:** live captions of the conversation on the lens, with the speaker's name when known; WhatsApp voice notes transcribed (Zap); bridge to the LIBRAS project.
+- **Follow Rokid, don't fight it:** if the glasses are in Rokid's "Visual assistance" or "Hearing assistance" mode, suggest the matching module. Marcus to record those Rokid modes first (backlog).
+- **Why now:** glasses for low vision today cost thousands of dollars (e.g. Envision) and Google's glasses are not out yet; Rokid is affordable and ships to Brazil. Accessibility can be the launch hook in the store, while memory stays the product for everyone. First tester: a relative with severe low vision; then an institution (e.g. Fundação Dorina Nowill).
+
+### 1k. Key left on the motorbike (decided 25/10)
+Marcus's real case: getting off the bike and leaving the key in the ignition or on the handlebar. Reference for scenarios and UX only: his MotoKey Guard prototype (made in Gemini; a simulator, no Bluetooth). Find Hub / Find My tags (his UGREEN FineTrack) can't do this: they don't talk to each other and have no API for other apps.
+- **Trigger = the parking moment (1d).** The phone's speed drops from riding to zero, then walking starts. That is when we ask, not before.
+- **"Did the key come with you?"** — checked in this order:
+  1. **The glasses camera:** in the parking burst, is the key in your hand or going into the pocket (the key's visual signature from 1e)?
+  2. **A generic BLE tag** (iTag type, a few reais) on the keyring, if the user has one: its signal stays strong next to the phone = the key came. Our app can read these directly.
+  3. If neither answers, ask on the HUD (one line, tap = "it's with me").
+- **If the key stayed:** HUD card "the key stayed on the bike?" + phone vibration. If you walk about **15 m** away and nothing changed, a louder alarm on the phone.
+- **Snooze 2 minutes** (e.g. you went back to fetch it, or a friend is holding it).
+- **Home safe zone:** in your own garage (home Wi-Fi name, or the saved location) nothing fires.
+- **Low vision / voice only:** one short spoken line, "A chave ficou na moto?", then the same tap / double tap.
+- **Lost far away** stays with Find Hub: the thing's card only shows the "Open in Find Hub" link (backlog `ble-tags`).
+- Lives under the **Things** switch (key and motorbike are the MVP things). Never acts on its own beyond the warning.
+
+### 1l. Memory in moments (idea, 26/10 — after the talk)
+Inspired by Gemma 4 on Marcus's phone (ask questions about a one-hour video; it answers with the clips where a topic came up). The glasses can't record hours of video, so we keep **moments** instead: one frame + the matching stretch of transcript + time and place, a few seconds each.
+- **Ask, get the moment back:** "what did Rafael say about price?", "where did I put the key?" → the answer plus the moment it came from (photo, quote, time), like the Gemma clips.
+- **Search on the phone, nothing sent out:** candidate engine **EmbeddingGemma 2 (740M, LiteRT-LM, Apache-2.0)**: text, image, audio and video in one shared 768-d space; ~26 ms per text on a Galaxy S26 Ultra; 485 MB download. One vector per moment; a question becomes a vector and finds the closest moments. Gemini (or Gemma on the phone) then writes the answer only from those moments.
+- **Also good for Things (1e):** the photos of "this is my key" become vectors; frames are compared against them. Better than face-style signatures for objects.
+- **Not for faces:** general embeddings don't tell two people apart reliably; faces keep the face-recognition model (0.2).
+- **To check:** Portuguese quality (the model page doesn't list languages), battery, and whether the 485 MB download is optional (Plus / later).
 
 ### 2. Settings
 - **On the glasses:** the 4 main switches (Faces, Places, Things, Memories). No sub-settings.
@@ -197,6 +243,10 @@ Aprovado pelo Marcus em 11/10. Referência visual: o canvas "VisualContext Manag
 - **Qual cômodo (opcional):** ensinar cada cômodo uma vez ("esse é o quarto"); depois a cena diz o cômodo. Sem isso, a IA descreve o ponto ("em cima da cama", "dentro da geladeira").
 - **Mostrar as 2–3 últimas vezes**, não só uma: o último quadro pode estar errado, ou a chave mudou de lugar depois.
 - **Captura:** a câmera não pode ficar ligada o dia todo (calor, bateria). Plano: um quadro em baixa resolução a cada poucos segundos enquanto a pessoa se move, conferido no celular só contra as coisas cadastradas; quadro sem coisa cadastrada é descartado na hora; os avistamentos guardados expiram em poucos dias. Mais um atalho de voz: "guarda: chave aqui".
+- **Três fontes para "última vez visto", um card só** (Marcus, 25/10). O coração continua sendo a descrição do último quadro em que a coisa foi vista. Mas muita gente já usa tag, e ninguém fica de óculos 24 horas por dia, então o card usa a melhor fonte que tiver e diz qual foi:
+  - **Câmera** (com os óculos): a última foto + a descrição. A melhor para "onde exatamente".
+  - **Tag** que a pessoa já tem: tags do Find Hub / Buscar (UGREEN, AirTag, Moto Tag…) pelo botão "Abrir no Find Hub", que faz apitar ou, nas tags com UWB, aponta a direção; tags BLE genéricas (tipo iTag) lidas pelo nosso app: perto/longe, apitar. A melhor para "está em casa, mas onde" e para quando os óculos estavam desligados.
+  - **Adesivo NFC** (encostar o celular): o NFC só alcança poucos centímetros, então ele não *acha*, ele *marca*. Encostar no adesivo de uma gaveta ou caixa → "o que tem aqui dentro" (a última foto do conteúdo); encostar no do chaveiro → "chave aqui", sem óculos. Barato e sem bateria.
 - **O código de hoje** (rvLearnSkill) aprende só por texto. Precisa aceitar fotos e guardar a assinatura visual.
 
 ### 1f. Lugares por onde você passa: cards de RA nos óculos (11/10)
@@ -224,6 +274,48 @@ Aprovado pelo Marcus em 11/10. Referência visual: o canvas "VisualContext Manag
 - A transcrição só é descartada se você cancelar (✕ no countdown) ou se o encontro for curto demais (o timer).
 - A regra antiga "transcrição só com pessoa conhecida" sai.
 - **Card da pessoa durante o encontro: sempre curto** (decidido em 11/10): nome, de onde se conhecem, última vez que se viram. Sem versão expandida durante a conversa, mesmo com celular ou Wi-Fi; o card completo é do modo Recordar.
+
+### 1i. Modo só áudio, acessível desde o começo (12/10)
+Para pessoas cegas e com baixa visão, e para quem prefere sem tela. Mesmo app, um ajuste: **Saída: tela · tela + voz · só voz**.
+- **Cada card tem uma versão falada escrita junto** (uma frase curta), não lida campo por campo. O dado é o mesmo; só muda quem desenha (imagem no HUD ou `tts` do Nexus).
+- **Pessoa (durante o encontro):** um som suave e o card curto: "Rafael Souza. Fornecedor, do encontro da Torra Fina. Última vez, 12/09." Dito uma vez, quando o rosto é reconhecido, antes de a conversa engrenar, em volume baixo. Nunca repete sozinho.
+- **Modo Recordar** funciona naturalmente por voz: pergunta, ouve a resposta. "Onde está minha chave?" → "No quarto, em cima da cama, hoje às 9h10."
+- **Lugares:** não são narrados enquanto você anda (seria barulho). Só quando pedir: "Onde estou?" / "O que tem em volta?". Atravessar a rua e obstáculos ficam com o assistente Vision da própria Rokid; o VisualContext é memória, não navegação.
+- **Confirmações viram som e voz:** rosto novo → "Pessoa nova. Guardo?" (toque duplo cancela, como o ✕ do countdown); gravação → um tom curto no começo e no fim; salvo → um clique.
+- **Privacidade do som:** o alto-falante aberto pode ser ouvido de perto. Volume baixo por padrão; recomendar fone Bluetooth no modo só voz; nunca falar nomes acima de um sussurro.
+- Primeira versão: a frase falada é gerada junto com cada card (na mesma chamada de IA que escreve o gancho), para nada ser construído duas vezes.
+
+### 1j. Módulos: um app, quatro modos (decidido em 22/10)
+Como os modos da própria Rokid, o VisualContext tem **módulos**, escolhidos no primeiro uso e trocados no celular quando quiser. Dá para ligar mais de um (uma pessoa de baixa visão pode querer também o Business). Por baixo é o mesmo motor: o módulo só muda os padrões — o que aparece, o que é falado, o que é guardado.
+- **As quatro chaves continuam em todos os módulos** (Marcus, 22/10): Pessoas, Lugares, Coisas e Lembranças podem ser ligadas ou desligadas em qualquer módulo; o módulo só define como elas começam.
+- **Geral (padrão):** memória do dia a dia — pessoas, chave, moto, lugares.
+- **Business:** o dossiê da pessoa (empresa, o que já conversaram, pendências), resumo do encontro no Manager, próximas ações.
+- **Baixa visão:** saída "só voz" (1i) por padrão; "quem está na minha frente", dito baixinho; leitura de placas e textos em voz alta; o Gemini descrevendo o ambiente e orientando a mira por voz ("vire um pouco para a direita", como o Guided Vision do Google). Nunca desvio de obstáculo nem navegação.
+- **Surdez:** legenda ao vivo da conversa na lente, com o nome de quem fala quando a pessoa é conhecida; áudios do WhatsApp transcritos (Zap); ponte com o projeto de LIBRAS.
+- **Seguir a Rokid, não brigar:** se os óculos estão no modo "Assistência visual" ou "Assistência auditiva" da Rokid, sugerir o módulo correspondente. Antes, o Marcus grava esses modos da Rokid (backlog).
+- **Por que agora:** óculos para baixa visão hoje custam milhares de dólares (ex.: Envision) e os óculos do Google ainda não saíram; a Rokid é acessível e entrega no Brasil. A acessibilidade pode ser o gancho de lançamento na loja, enquanto a memória continua sendo o produto para todo mundo. Primeiro testador: um parente com baixa visão grave; depois uma instituição (ex.: Fundação Dorina Nowill).
+
+### 1k. Chave esquecida na moto (decidido em 25/10)
+O caso real do Marcus: descer da moto e deixar a chave no contato ou no guidão. Referência só de cenários e UX: o protótipo MotoKey Guard dele (feito no Gemini; um simulador, sem Bluetooth). As tags do Find Hub / Buscar (a UGREEN FineTrack dele) não resolvem isso: uma não conversa com a outra e não têm API para outros apps.
+- **Gatilho = a hora de estacionar (1d).** A velocidade do celular cai de pilotando para zero e depois começa a caminhada. É aí que perguntamos, não antes.
+- **"A chave veio com você?"** — conferido nesta ordem:
+  1. **Câmera dos óculos:** na rajada de estacionar, a chave está na sua mão ou indo para o bolso (a assinatura visual da chave, de 1e)?
+  2. **Uma tag BLE genérica** (tipo iTag, poucos reais) no chaveiro, se a pessoa tiver: o sinal continua forte perto do celular = a chave veio. O nosso app lê essas tags direto.
+  3. Se nenhum dos dois responder, pergunta no HUD (uma linha, toque = "está comigo").
+- **Se a chave ficou:** card no HUD "a chave ficou na moto?" + vibração no celular. Se você se afastar uns **15 m** e nada mudou, alarme mais forte no celular.
+- **Adiar 2 minutos** (ex.: você voltou para buscar, ou um amigo está com ela).
+- **Zona segura de casa:** na sua garagem (nome do Wi-Fi de casa ou o local salvo) nada dispara.
+- **Baixa visão / só voz:** uma frase curta falada, "A chave ficou na moto?", e o mesmo toque / toque duplo.
+- **Perdida longe** continua com o Find Hub: o card da coisa só mostra o link "Abrir no Find Hub" (backlog `ble-tags`).
+- Fica sob a chave **Coisas** (chave e moto são as coisas do MVP). Nunca age sozinho além do aviso.
+
+### 1l. Memória em momentos (ideia, 26/10 — depois da palestra)
+Inspirado no Gemma 4 no celular do Marcus (perguntas sobre um vídeo de uma hora; ele responde com os trechos onde o assunto apareceu). Os óculos não gravam horas de vídeo, então guardamos **momentos**: um quadro + o trecho da transcrição + hora e lugar, alguns segundos cada.
+- **Pergunta e recebe o momento:** "o que o Rafael falou sobre preço?", "onde deixei a chave?" → a resposta e o momento de onde ela veio (foto, frase, hora), como os trechos do Gemma.
+- **Busca no celular, nada sai:** motor candidato **EmbeddingGemma 2 (740M, LiteRT-LM, Apache-2.0)**: texto, imagem, áudio e vídeo num mesmo espaço de 768 dimensões; ~26 ms por texto num Galaxy S26 Ultra; download de 485 MB. Um vetor por momento; a pergunta vira vetor e acha os momentos mais próximos. Depois o Gemini (ou o Gemma no celular) escreve a resposta só com esses momentos.
+- **Serve também para Coisas (1e):** as fotos de "essa é a minha chave" viram vetores e os quadros são comparados com elas. Melhor que assinatura tipo rosto para objetos.
+- **Não serve para rostos:** embeddings gerais não separam bem duas pessoas; rostos continuam com o modelo de reconhecimento facial (0.2).
+- **A conferir:** qualidade em português (a página do modelo não lista idiomas), bateria, e se o download de 485 MB fica opcional (Plus / depois).
 
 ### 2. Ajustes
 - **Nos óculos:** as 4 chaves principais (Rostos, Lugares, Coisas, Memórias). Sem subconfigurações.

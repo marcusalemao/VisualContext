@@ -20,10 +20,18 @@
         <activity
             android:name=".SettingsActivity"
             android:exported="true"
+            android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- "Conectar óculos" in the Manager: visualcontext://conectar?t=TOKEN -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="visualcontext" android:host="conectar" />
             </intent-filter>
         </activity>
 
@@ -41,8 +49,8 @@
             <meta-data android:name="com.anezium.rokidbus.plugin.DISPLAY_NAME" android:value="VisualContext" />
             <meta-data android:name="com.anezium.rokidbus.plugin.ICON" android:value="star" />
             <meta-data android:name="com.anezium.rokidbus.plugin.API_VERSION" android:value="3" />
-            <!-- v0.1: display only. camera, microphone, stt come in the next steps. -->
-            <meta-data android:name="com.anezium.rokidbus.plugin.CAPABILITIES" android:value="surfaces" />
+            <!-- v0.2: camera snapshots for "Quem é?". microphone and stt come next. -->
+            <meta-data android:name="com.anezium.rokidbus.plugin.CAPABILITIES" android:value="surfaces,camera" />
             <meta-data android:name="com.anezium.rokidbus.plugin.RECEIVE_PREFIXES" android:value="/plugin/visualcontext,/system/plugin" />
             <meta-data android:name="com.anezium.rokidbus.plugin.SETTINGS_ACTIVITY" android:value=".SettingsActivity" />
             <meta-data android:name="com.anezium.rokidbus.plugin.LAUNCHABLE" android:value="true" />
