@@ -47,10 +47,11 @@ class ZapSendTile : TileService() {
         tile.state = if (paused) Tile.STATE_INACTIVE else Tile.STATE_ACTIVE
         if (Build.VERSION.SDK_INT >= 29) {
             tile.subtitle = when {
-                paused && pt -> "Envio pausado"
-                paused -> "Sending paused"
-                pt -> "Envio automático"
-                else -> "Auto send"
+                // Short on purpose: Samsung's Quick Panel cuts anything longer under the icon.
+                paused && pt -> "Pausado"
+                paused -> "Paused"
+                pt -> "Ligado"
+                else -> "On"
             }
         }
         tile.updateTile()
