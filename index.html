@@ -135,13 +135,14 @@ html[lang="pt-BR"] [data-only="pt"],html[lang="en"] [data-only="en"]{display:rev
 <div style="background: #0E150F; border: 1px solid #182619; border-radius: 20px; padding: 26px; display: flex; flex-direction: column; gap: 18px">
 <p style="margin: 0; font-family: 'Roboto Mono', monospace; font-size: 13px; font-weight: 700; color: #2F9D5C">02</p>
 <h3 data-i18n="step2Title" style="margin: 0; font-size: 22px; font-weight: 500; color: #DCF3E4">Abra a conversa</h3>
-<p data-i18n="step2Text" style="margin: 0; font-size: 16px; line-height: 1.6; color: #8BA896">As mensagens mais novas aparecem em cima, inteiras, e você rola para ler as anteriores. Toque para Responder, Ouvir de novo ou ver as fotos.</p>
-<div role="img" aria-label="Conversa com Beto nos óculos, com os botões Responder e Ouvir de novo" data-i18n-aria="chatAria" style="background: #000000; border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; color: #4DFF8C; margin-top: auto">
+<p data-i18n="step2Text" style="margin: 0; font-size: 16px; line-height: 1.6; color: #8BA896">As mensagens mais novas aparecem em cima, e você rola para ler as anteriores. Toque numa mensagem para responder, reagir, ouvir em voz alta, ver a foto ou mandar uma foto.</p>
+<div role="img" aria-label="Mensagem do Beto aberta nos óculos, com Responder, Reagir, Ler em voz alta e Enviar foto" data-i18n-aria="chatAria" style="background: #000000; border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; color: #4DFF8C; margin-top: auto">
 <div style="font-size: 17px; font-weight: 500">Beto</div>
-<div data-i18n="msgBeto2" style="font-size: 15px">Me liga quando puder</div>
-<div data-i18n="msgBeto" style="font-size: 15px">Bom dia! Já vi o deploy</div>
+<div data-i18n="msgBeto2" style="font-size: 15px; color: #B8FFD2">Me liga quando puder</div>
 <div data-i18n="reply" style="border: 2px solid #4DFF8C; border-radius: 10px; padding: 7px 10px; font-size: 15px; font-weight: 500">Responder</div>
-<div data-i18n="listenAgain" style="padding: 0 10px; font-size: 15px">Ouvir de novo</div>
+<div data-i18n="lensReact" style="padding: 0 10px; font-size: 15px">🙂 Reagir</div>
+<div data-i18n="lensReadAloud" style="padding: 0 10px; font-size: 15px">🔊 Ler em voz alta</div>
+<div data-i18n="lensSendPhoto" style="padding: 0 10px; font-size: 15px">Enviar foto ou vídeo</div>
 </div>
 </div>
 
@@ -149,12 +150,13 @@ html[lang="pt-BR"] [data-only="pt"],html[lang="en"] [data-only="en"]{display:rev
 <p style="margin: 0; font-family: 'Roboto Mono', monospace; font-size: 13px; font-weight: 700; color: #2F9D5C">03</p>
 <h3 data-i18n="step3Title" style="margin: 0; font-size: 22px; font-weight: 500; color: #DCF3E4">Responda falando</h3>
 <p data-i18n="step3Text" style="margin: 0; font-size: 16px; line-height: 1.6; color: #8BA896">Primeiro o nome, depois a mensagem. O Zap mostra o texto para você conferir, e só envia quando você toca em Enviar.</p>
-<div role="img" aria-label="Revisão nos óculos: Para Beto, Te ligo às 15h, com Enviar, Ouvir antes e Ditar de novo" data-i18n-aria="reviewAria" style="background: #000000; border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; color: #4DFF8C; margin-top: auto">
+<div role="img" aria-label="Revisão nos óculos: Para Beto, Te ligo às 15h, com Enviar, Ouvir antes, Ditar de novo e Anexar foto" data-i18n-aria="reviewAria" style="background: #000000; border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; color: #4DFF8C; margin-top: auto">
 <div data-i18n="toBeto" style="font-size: 17px; font-weight: 500">Para Beto</div>
 <div data-i18n="msgDraft" style="font-size: 15px">Te ligo às 15h</div>
 <div data-i18n="send" style="border: 2px solid #4DFF8C; border-radius: 10px; padding: 7px 10px; font-size: 15px; font-weight: 500">Enviar</div>
 <div data-i18n="listenFirst" style="padding: 0 10px; font-size: 15px">Ouvir antes</div>
 <div data-i18n="sayAgain" style="padding: 0 10px; font-size: 15px">Ditar de novo</div>
+<div data-i18n="lensAttach" style="padding: 0 10px; font-size: 15px">Anexar foto ou vídeo</div>
 </div>
 </div>
 
@@ -410,12 +412,13 @@ const EN = {
   noticeAria: "Notice on the glasses: Beto, Morning! Saw the deploy",
   reply: "Reply",
   step2Title: "Open the chat",
-  step2Text: "The newest messages are on top, in full, and you scroll down for older ones. Tap to Reply, Listen again or see the photos.",
-  chatAria: "Chat with Beto on the glasses, with Reply and Listen again",
+  step2Text: "The newest messages are on top, and you scroll down for older ones. Tap a message to reply, react, hear it aloud, see the photo or send a photo.",
+  chatAria: "A message from Beto open on the glasses, with Reply, React, Read it aloud and Send photo",
+  lensReact: "🙂 React", lensReadAloud: "🔊 Read it aloud", lensSendPhoto: "Send photo or video", lensAttach: "Attach photo or video",
   msgBeto2: "Call me when you can", listenAgain: "Listen again",
   step3Title: "Reply by speaking",
   step3Text: "First the name, then the message. Zap shows you the text to check, and sends only when you tap Send.",
-  reviewAria: "Review on the glasses: To Beto, I'll call you at 3pm, with Send, Listen first and Say it again",
+  reviewAria: "Review on the glasses: To Beto, I'll call you at 3pm, with Send, Listen first, Say it again and Attach photo",
   toBeto: "To Beto", msgDraft: "I'll call you at 3pm", send: "Send", listenFirst: "Listen first", sayAgain: "Say it again",
   chipStart: "Start new chats",
   chipPhotos: 'Photos from the glasses or the phone, <a href="#fotos" style="color: inherit">see below</a>',
