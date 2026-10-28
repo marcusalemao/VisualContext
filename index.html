@@ -27,6 +27,7 @@ a{color:#4DFF8C}a:hover{color:#B8FFD2}
 html[lang="pt-BR"] [data-only="pt"],html[lang="en"] [data-only="en"]{display:revert}
 #langAsk{display:none}
 #langAsk.open{display:flex}
+.emo{filter:grayscale(1) sepia(1) saturate(6) hue-rotate(78deg) brightness(1.05)}
 .helpLink{font:inherit;cursor:pointer;background:none;border:0;padding:0;color:#4DFF8C;text-decoration:underline;text-underline-offset:3px;text-align:left;font-size:15px;line-height:1.55}
 .helpLink:hover{color:#B8FFD2}
 #help{width:min(680px,calc(100vw - 32px));max-height:calc(100vh - 48px);padding:0;border:1px solid #2F9D5C;border-radius:20px;background:#0A100B;color:#DCF3E4;font-family:'Roboto',system-ui,sans-serif;font-weight:300}
@@ -118,6 +119,7 @@ html[lang="pt-BR"] [data-only="pt"],html[lang="en"] [data-only="en"]{display:rev
 <div style="display: flex; flex-direction: column; gap: 14px; max-width: 680px">
 <p data-i18n="navHow" style="margin: 0; font-family: 'Roboto Mono', monospace; font-size: 13px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #4DFF8C">Como funciona</p>
 <h2 data-i18n="howTitle" style="margin: 0; font-size: clamp(30px, 4vw, 42px); line-height: 1.12; font-weight: 300; color: #DCF3E4">Como no WhatsApp do celular, só que na sua frente.</h2>
+<p data-i18n="lensNote" style="margin: 0; font-size: 16px; line-height: 1.6; color: #8BA896">Os quadros pretos imitam a lente dos óculos: lá tudo aparece em verde, até os emojis e as fotos.</p>
 </div>
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px">
 
@@ -140,8 +142,8 @@ html[lang="pt-BR"] [data-only="pt"],html[lang="en"] [data-only="en"]{display:rev
 <div style="font-size: 17px; font-weight: 500">Beto</div>
 <div data-i18n="msgBeto2" style="font-size: 15px; color: #B8FFD2">Me liga quando puder</div>
 <div data-i18n="reply" style="border: 2px solid #4DFF8C; border-radius: 10px; padding: 7px 10px; font-size: 15px; font-weight: 500">Responder</div>
-<div data-i18n="lensReact" style="padding: 0 10px; font-size: 15px">🙂 Reagir</div>
-<div data-i18n="lensReadAloud" style="padding: 0 10px; font-size: 15px">🔊 Ler em voz alta</div>
+<div data-i18n="lensReact" style="padding: 0 10px; font-size: 15px"><span class="emo">🙂</span> Reagir</div>
+<div data-i18n="lensReadAloud" style="padding: 0 10px; font-size: 15px"><span class="emo">🔊</span> Ler em voz alta</div>
 <div data-i18n="lensSendPhoto" style="padding: 0 10px; font-size: 15px">Enviar foto ou vídeo</div>
 </div>
 </div>
@@ -196,8 +198,8 @@ html[lang="pt-BR"] [data-only="pt"],html[lang="en"] [data-only="en"]{display:rev
 <p data-i18n="photo2Text" style="margin: 0; font-size: 16px; line-height: 1.6; color: #8BA896">Ao responder, numa conversa aberta ou numa mensagem nova, toque em Anexar foto. Câmera tira a foto na hora, com os óculos. Galeria mostra primeiro as fotos dos óculos e depois as do celular. Você vê a foto antes, e ela só vai quando você toca em Enviar.</p>
 <div role="img" aria-label="Nos óculos: escolher entre Câmera, foto agora com os óculos, e Galeria, dos óculos e do celular" data-i18n-aria="photo2Aria" style="background: #000000; border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; color: #4DFF8C; margin-top: auto">
 <div data-i18n="toBeto" style="font-size: 17px; font-weight: 500">Para Beto</div>
-<div style="border: 2px solid #4DFF8C; border-radius: 10px; padding: 7px 10px; display: flex; flex-direction: column; gap: 2px"><span data-i18n="lensCamera" style="font-size: 15px; font-weight: 500">📷 Câmera</span><span data-i18n="lensCameraHint" style="font-size: 13px; color: #2F9D5C">foto agora, com os óculos</span></div>
-<div style="padding: 0 10px; display: flex; flex-direction: column; gap: 2px"><span data-i18n="lensGallery" style="font-size: 15px">🖼 Galeria</span><span data-i18n="lensGalleryHint" style="font-size: 13px; color: #2F9D5C">dos óculos e do celular</span></div>
+<div style="border: 2px solid #4DFF8C; border-radius: 10px; padding: 7px 10px; display: flex; flex-direction: column; gap: 2px"><span data-i18n="lensCamera" style="font-size: 15px; font-weight: 500"><span class="emo">📷</span> Câmera</span><span data-i18n="lensCameraHint" style="font-size: 13px; color: #2F9D5C">foto agora, com os óculos</span></div>
+<div style="padding: 0 10px; display: flex; flex-direction: column; gap: 2px"><span data-i18n="lensGallery" style="font-size: 15px"><span class="emo">🖼</span> Galeria</span><span data-i18n="lensGalleryHint" style="font-size: 13px; color: #2F9D5C">dos óculos e do celular</span></div>
 </div>
 </div>
 
@@ -407,6 +409,7 @@ const EN = {
   lensChats: "Chats", lensNew: "New message", family: "Family",
   msgBeto: "Morning! Saw the deploy", msgAna: "Getting there at 7pm", msgFamily: "Mom: Lunch on Sunday",
   howTitle: "Like WhatsApp on your phone, only right in front of you.",
+  lensNote: "The black panels mimic the glasses' lens: there everything shows in green, even emojis and photos.",
   step1Title: "A message arrives",
   step1Text: "A discreet notice shows who wrote and how the message starts. If you like, Zap reads it aloud right away. You can reply straight from the notice.",
   noticeAria: "Notice on the glasses: Beto, Morning! Saw the deploy",
@@ -414,7 +417,7 @@ const EN = {
   step2Title: "Open the chat",
   step2Text: "The newest messages are on top, and you scroll down for older ones. Tap a message to reply, react, hear it aloud, see the photo or send a photo.",
   chatAria: "A message from Beto open on the glasses, with Reply, React, Read it aloud and Send photo",
-  lensReact: "🙂 React", lensReadAloud: "🔊 Read it aloud", lensSendPhoto: "Send photo or video", lensAttach: "Attach photo or video",
+  lensReact: '<span class="emo">🙂</span> React', lensReadAloud: '<span class="emo">🔊</span> Read it aloud', lensSendPhoto: "Send photo or video", lensAttach: "Attach photo or video",
   msgBeto2: "Call me when you can", listenAgain: "Listen again",
   step3Title: "Reply by speaking",
   step3Text: "First the name, then the message. Zap shows you the text to check, and sends only when you tap Send.",
@@ -432,8 +435,8 @@ const EN = {
   photo2Title: "Attach photos in any chat",
   photo2Text: "When replying, in an open chat or in a new message, tap Attach photo. Camera takes one right now with the glasses. Gallery shows the glasses' photos first, then the phone's. You see the photo first, and it only goes when you tap Send.",
   photo2Aria: "On the glasses: choose between Camera, a photo now with the glasses, and Gallery, from the glasses and the phone",
-  lensCamera: "📷 Camera", lensCameraHint: "a photo now, with the glasses",
-  lensGallery: "🖼 Gallery", lensGalleryHint: "from the glasses and the phone",
+  lensCamera: '<span class="emo">📷</span> Camera', lensCameraHint: "a photo now, with the glasses",
+  lensGallery: '<span class="emo">🖼</span> Gallery', lensGalleryHint: "from the glasses and the phone",
   helpLink: "Shortcut, Android's warning and banking apps: see how it looks",
   helpLinkShort: "See how",
   close: "Close",
