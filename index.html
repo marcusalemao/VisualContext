@@ -57,18 +57,18 @@ html[lang="pt-BR"] [data-only="pt"],html[lang="en"] [data-only="en"]{display:rev
 <a href="#privacidade" data-i18n="navPrivacy" style="color: #8BA896; text-decoration: none">Privacidade</a>
 <a href="#apoiar" data-i18n="navSupport" style="color: #8BA896; text-decoration: none">Apoiar</a>
 <div class="lang" role="group" aria-label="Idioma / Language"><button type="button" data-set-lang="pt" aria-pressed="true">PT</button><span aria-hidden="true" style="color: #42574A">|</span><button type="button" data-set-lang="en" aria-pressed="false">EN</button></div>
-<a href="https://github.com/marcusalemao/VisualContext/raw/zap/v0.1/plugins/zap/dist/zap.apk" data-i18n="download" style="background: #4DFF8C; color: #04180D; text-decoration: none; font-weight: 500; padding: 11px 18px; border-radius: 999px; min-height: 22px">Baixar o Zap</a>
+<a href="/zap-phone-0.15.0.apk" download data-i18n="download" style="background: #4DFF8C; color: #04180D; text-decoration: none; font-weight: 500; padding: 11px 18px; border-radius: 999px; min-height: 22px">Baixar o Zap</a>
 </div>
 </div>
 </header>
 
 <section style="max-width: 1180px; margin: 0 auto; padding: 72px 24px 88px; display: flex; flex-wrap: wrap; align-items: center; gap: 56px">
 <div style="flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 26px">
-<p data-i18n="heroKicker" style="margin: 0; font-family: 'Roboto Mono', monospace; font-size: 13px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #4DFF8C">Rokid Glasses · Versão de teste</p>
+<p data-i18n="heroKicker" style="margin: 0; font-family: 'Roboto Mono', monospace; font-size: 13px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #4DFF8C">Rokid Glasses · Beta pública 0.15</p>
 <h1 data-i18n="heroTitle" style="margin: 0; font-size: clamp(40px, 6vw, 68px); line-height: 1.04; font-weight: 300; letter-spacing: -0.02em; color: #DCF3E4">Suas conversas do WhatsApp, nos óculos.</h1>
 <p data-i18n="heroText" style="margin: 0; font-size: clamp(18px, 2vw, 21px); line-height: 1.55; color: #8BA896; max-width: 560px">Leia, ouça de novo e responda por voz sem tirar o celular do bolso. O histórico fica guardado no seu celular, e nada é enviado sem você confirmar.</p>
 <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center">
-<a href="https://github.com/marcusalemao/VisualContext/raw/zap/v0.1/plugins/zap/dist/zap.apk" data-i18n="download" style="background: #4DFF8C; color: #04180D; text-decoration: none; font-weight: 500; font-size: 17px; padding: 15px 26px; border-radius: 999px">Baixar o Zap</a>
+<a href="/zap-phone-0.15.0.apk" download data-i18n="download" style="background: #4DFF8C; color: #04180D; text-decoration: none; font-weight: 500; font-size: 17px; padding: 15px 26px; border-radius: 999px">Baixar o Zap</a>
 <a href="#testar" data-i18n="noGlasses" style="color: #DCF3E4; text-decoration: none; font-weight: 400; font-size: 17px; padding: 14px 24px; border-radius: 999px; border: 1px solid #2F9D5C">Não tenho os óculos</a>
 </div>
 <p data-i18n="heroFacts" style="margin: 0; font-family: 'Roboto Mono', monospace; font-size: 13px; font-weight: 500; color: #8BA896; letter-spacing: 0.02em">Android 11+ · Rokid Nexus · Grátis · Código aberto</p>
@@ -146,6 +146,8 @@ html[lang="pt-BR"] [data-only="pt"],html[lang="en"] [data-only="en"]{display:rev
 <span data-i18n="chipStart" style="border: 1px solid #182619; border-radius: 999px; padding: 9px 16px; font-size: 15px; color: #8BA896">Inicie conversas</span>
 <span data-i18n="chipPhotos" style="border: 1px solid #182619; border-radius: 999px; padding: 9px 16px; font-size: 15px; color: #8BA896">Mande fotos e vídeos, ou tire uma foto na hora com os óculos</span>
 <span data-i18n="chipNames" style="border: 1px solid #182619; border-radius: 999px; padding: 9px 16px; font-size: 15px; color: #8BA896">Nomes parecidos? Escolha o contato certo numa lista</span>
+<span data-i18n="chipSummary" style="border: 1px solid #182619; border-radius: 999px; padding: 9px 16px; font-size: 15px; color: #8BA896">Opcional: resumo com IA quando chegam muitas mensagens ou áudios</span>
+<span data-i18n="chipReact" style="border: 1px solid #182619; border-radius: 999px; padding: 9px 16px; font-size: 15px; color: #8BA896">Reaja com emoji, no seu tom de pele</span>
 <span data-i18n="chipAssistant" style="border: 1px solid #182619; border-radius: 999px; padding: 9px 16px; font-size: 15px; color: #8BA896">Pergunte ao Assistant do Nexus: "o que eu perdi no WhatsApp?"</span>
 <span style="border: 1px solid #182619; border-radius: 999px; padding: 9px 16px; font-size: 15px; color: #8BA896">WhatsApp · WhatsApp Business</span>
 </div>
@@ -176,7 +178,7 @@ html[lang="pt-BR"] [data-only="pt"],html[lang="en"] [data-only="en"]{display:rev
 <ol style="flex: 999 1 560px; min-width: 0; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 12px">
 <li style="background: #0E150F; border: 1px solid #182619; border-radius: 16px; padding: 22px 24px; display: flex; gap: 18px">
 <span style="font-family: 'Roboto Mono', monospace; font-size: 14px; font-weight: 700; color: #4DFF8C; min-width: 24px">1</span>
-<div style="display: flex; flex-direction: column; gap: 6px"><strong data-i18n="i1Title" style="font-size: 18px; font-weight: 500; color: #DCF3E4">Baixe e instale o Zap no celular</strong><span data-i18n="i1Text" style="font-size: 16px; line-height: 1.55; color: #8BA896">Se o Android perguntar, permita instalar apps baixados pelo navegador.</span></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><strong data-i18n="i1Title" style="font-size: 18px; font-weight: 500; color: #DCF3E4">Baixe e instale o Zap no celular</strong><span data-i18n="i1Text" style="font-size: 16px; line-height: 1.55; color: #8BA896">Se o Android perguntar, permita instalar apps baixados pelo navegador. Já tinha uma versão anterior à 0.15? Desinstale antes: a assinatura mudou.</span></div>
 </li>
 <li style="background: #0E150F; border: 1px solid #182619; border-radius: 16px; padding: 22px 24px; display: flex; gap: 18px">
 <span style="font-family: 'Roboto Mono', monospace; font-size: 14px; font-weight: 700; color: #4DFF8C; min-width: 24px">2</span>
@@ -203,7 +205,7 @@ html[lang="pt-BR"] [data-only="pt"],html[lang="en"] [data-only="en"]{display:rev
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 28px">
 <div style="display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #2F9D5C; padding-top: 18px"><h3 data-i18n="p1Title" style="margin: 0; font-size: 18px; font-weight: 500; color: #DCF3E4">Sem servidor</h3><p data-i18n="p1Text" style="margin: 0; font-size: 16px; line-height: 1.6; color: #8BA896">O Zap não tem acesso à internet. Ele não pede nem essa permissão ao Android.</p></div>
 <div style="display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #2F9D5C; padding-top: 18px"><h3 data-i18n="p2Title" style="margin: 0; font-size: 18px; font-weight: 500; color: #DCF3E4">Guardado com criptografia</h3><p data-i18n="p2Text" style="margin: 0; font-size: 16px; line-height: 1.6; color: #8BA896">As conversas ficam só neste celular, por 7 dias (você escolhe 1, 7 ou 30), e podem ser apagadas a qualquer momento.</p></div>
-<div style="display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #2F9D5C; padding-top: 18px"><h3 data-i18n="p3Title" style="margin: 0; font-size: 18px; font-weight: 500; color: #DCF3E4">A IA é a sua</h3><p data-i18n="p3Text" style="margin: 0; font-size: 16px; line-height: 1.6; color: #8BA896">A voz vem do que você escolheu no Nexus. Se você usa o Assistant, ele consulta o Zap com a IA e a chave que você mesmo configurou. Nada passa por servidores nossos.</p></div>
+<div style="display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #2F9D5C; padding-top: 18px"><h3 data-i18n="p3Title" style="margin: 0; font-size: 18px; font-weight: 500; color: #DCF3E4">A IA é a sua</h3><p data-i18n="p3Text" style="margin: 0; font-size: 16px; line-height: 1.6; color: #8BA896">A voz vem do que você escolheu no Nexus. O resumo com IA vem desligado; se você ligar, a conversa aberta vai direto para a IA que você escolher, com a sua chave. Nada passa por servidores nossos.</p></div>
 <div style="display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #2F9D5C; padding-top: 18px"><h3 data-i18n="p4Title" style="margin: 0; font-size: 18px; font-weight: 500; color: #DCF3E4">Nada sai sem você</h3><p data-i18n="p4Text" style="margin: 0; font-size: 16px; line-height: 1.6; color: #8BA896">Toda mensagem passa por uma revisão nos óculos e só é enviada quando você toca em Enviar. Vale também quando é o Assistant que pede.</p></div>
 </div>
 </div>
@@ -271,7 +273,7 @@ html[lang="pt-BR"] [data-only="pt"],html[lang="en"] [data-only="en"]{display:rev
 </div>
 <div style="display: flex; flex-wrap: wrap; gap: 20px; font-size: 15px; font-weight: 400">
 <a href="https://alema.io">alema.io</a>
-<a href="https://github.com/marcusalemao/VisualContext/tree/zap/v0.1/plugins/zap" data-i18n="code">Código no GitHub</a>
+<a href="https://github.com/marcusalemao/VisualContext/tree/zap/v0.15-ia/plugins/zap" data-i18n="code">Código no GitHub</a>
 </div>
 </div>
 </footer>
@@ -290,7 +292,7 @@ const KOFI_URL = "";           // ex.: https://ko-fi.com/alema
 const EN = {
   navHere: "You are in", navHow: "How it works", navInstall: "Install", navPrivacy: "Privacy", navSupport: "Support",
   download: "Get Zap", noGlasses: "I don't have the glasses",
-  heroKicker: "Rokid Glasses · Test version",
+  heroKicker: "Rokid Glasses · Public beta 0.15",
   heroTitle: "Your WhatsApp chats, in your glasses.",
   heroText: "Read, hear again and reply by voice without taking your phone out of your pocket. Your history stays on your phone, and nothing is sent until you confirm.",
   heroFacts: "Android 11+ · Rokid Nexus · Free · Open source",
@@ -313,6 +315,8 @@ const EN = {
   chipStart: "Start new chats",
   chipPhotos: "Send photos and videos, or take a photo right now with the glasses",
   chipNames: "Similar names? Pick the right contact from a list",
+  chipSummary: "Optional: an AI summary when many messages or voice notes pile up",
+  chipReact: "React with an emoji, in your skin tone",
   chipAssistant: "Ask the Nexus Assistant: “what did I miss on WhatsApp?”",
   nexusKicker: "Inside Rokid Nexus",
   nexusTitle: "The phone keeps and sends. The glasses only show.",
@@ -322,7 +326,7 @@ const EN = {
   installTitle: "A few minutes, just once.",
   installText: "You need Rokid Glasses with Rokid Nexus installed, and an Android 11 or newer phone.",
   i1Title: "Download and install Zap on your phone",
-  i1Text: "If Android asks, allow installing apps downloaded by the browser.",
+  i1Text: "If Android asks, allow installing apps downloaded by the browser. Had a version older than 0.15? Uninstall it first: the signature changed.",
   i2Title: "Allow notification access",
   i2Text: "That's how Zap sees your WhatsApp messages. If the switch is greyed out: Android Settings › Apps › Zap › three dots › “Allow restricted settings”.",
   i3Title: "Approve Zap in Rokid Nexus",
@@ -332,7 +336,7 @@ const EN = {
   privTitle: "Your messages don't leave your phone.",
   p1Title: "No server", p1Text: "Zap has no internet access. It doesn't even ask Android for that permission.",
   p2Title: "Stored encrypted", p2Text: "Chats stay only on this phone, for 7 days (choose 1, 7 or 30), and can be deleted at any time.",
-  p3Title: "The AI is yours", p3Text: "Voice comes from what you chose in Nexus. If you use the Assistant, it asks Zap with the AI and key you set up yourself. Nothing goes through servers of ours.",
+  p3Title: "The AI is yours", p3Text: "Voice comes from what you chose in Nexus. The AI summary starts off; if you turn it on, the open chat goes straight to the AI you choose, with your key. Nothing goes through servers of ours.",
   p4Title: "Nothing goes without you", p4Text: "Every message is reviewed on the glasses and sent only when you tap Send. That holds when the Assistant asks, too.",
   tryKicker: "No glasses yet?", tryTitle: "Try Zap in your browser.",
   tryText: "A Rokid Glasses simulator shows the chats, voice replies and photos just as they look on the lens.",
