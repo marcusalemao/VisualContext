@@ -27,6 +27,23 @@ a{color:#4DFF8C}a:hover{color:#B8FFD2}
 html[lang="pt-BR"] [data-only="pt"],html[lang="en"] [data-only="en"]{display:revert}
 #langAsk{display:none}
 #langAsk.open{display:flex}
+.helpLink{font:inherit;cursor:pointer;background:none;border:0;padding:0;color:#4DFF8C;text-decoration:underline;text-underline-offset:3px;text-align:left;font-size:15px;line-height:1.55}
+.helpLink:hover{color:#B8FFD2}
+#help{width:min(680px,calc(100vw - 32px));max-height:calc(100vh - 48px);padding:0;border:1px solid #2F9D5C;border-radius:20px;background:#0A100B;color:#DCF3E4;font-family:'Roboto',system-ui,sans-serif;font-weight:300}
+#help::backdrop{background:rgba(0,0,0,.72)}
+#help h3{margin:0;font-size:20px;font-weight:500;color:#DCF3E4}
+#help p,#help li{margin:0;font-size:16px;line-height:1.6;color:#8BA896}
+#help ol{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:6px}
+#help strong{color:#DCF3E4;font-weight:500}
+#help .tip{border-top:1px solid #182619;padding-top:24px;display:flex;flex-direction:column;gap:12px}
+#help .shots{display:flex;flex-wrap:wrap;gap:16px}
+#help figure{margin:0;flex:1 1 230px;display:flex;flex-direction:column;gap:8px}
+#help figcaption{font-family:'Roboto Mono',monospace;font-size:12px;color:#8BA896;letter-spacing:.04em}
+#help .shot{position:relative;border-radius:14px;overflow:hidden;border:1px solid #182619}
+#help .mark{position:absolute;left:2.5%;right:2.5%;border-radius:12px;border:3px solid #1E9E52;box-shadow:0 0 0 2px rgba(255,255,255,.6)}
+#help .mark.no{border-color:#D23C3C}
+#help .tag{position:absolute;right:4%;transform:translateY(-55%);top:0;background:#1E9E52;color:#fff;font-size:12px;font-weight:500;padding:3px 9px;border-radius:999px;white-space:nowrap}
+#help .mark.no .tag{background:#D23C3C}
 </style>
 </head>
 <body>
@@ -183,7 +200,7 @@ html[lang="pt-BR"] [data-only="pt"],html[lang="en"] [data-only="en"]{display:rev
 </div>
 
 </div>
-<p data-i18n="photoNote" style="margin: 0; font-size: 15px; line-height: 1.6; color: #8BA896">Para a foto sair sem você pegar o celular, ative o envio automático (passo 4 da instalação). Com o celular bloqueado, coloque os óculos como dispositivo confiável no Smart Lock do Android.</p>
+<p style="margin: 0; font-size: 15px; line-height: 1.6; color: #8BA896"><span data-i18n="photoNote">Para a foto sair sem você pegar o celular, ative o envio automático (passo 4 da instalação). Com o celular bloqueado, coloque os óculos como dispositivo confiável no Desbloqueio estendido do Android (antes chamado Smart Lock).</span> <button type="button" class="helpLink" data-open-help data-i18n="helpLinkShort">Veja como</button></p>
 </div>
 </section>
 
@@ -223,7 +240,7 @@ html[lang="pt-BR"] [data-only="pt"],html[lang="en"] [data-only="en"]{display:rev
 </li>
 <li style="background: #0E150F; border: 1px solid #182619; border-radius: 16px; padding: 22px 24px; display: flex; gap: 18px">
 <span style="font-family: 'Roboto Mono', monospace; font-size: 14px; font-weight: 700; color: #4DFF8C; min-width: 24px">4</span>
-<div style="display: flex; flex-direction: column; gap: 6px"><strong data-i18n="i4Title" style="font-size: 18px; font-weight: 500; color: #DCF3E4">Recomendado: enviar com o celular no bolso</strong><span data-i18n="i4Text" style="font-size: 16px; line-height: 1.55; color: #8BA896">Permita o acesso de acessibilidade ao Zap (Acessibilidade › Apps instalados › Zap, a chave do topo). Assim ele toca em Enviar por você. Sem isso, a conversa abre no celular com o texto pronto.</span></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><strong data-i18n="i4Title" style="font-size: 18px; font-weight: 500; color: #DCF3E4">Recomendado: enviar com o celular no bolso</strong><span data-i18n="i4Text" style="font-size: 16px; line-height: 1.55; color: #8BA896">Permita o acesso de acessibilidade ao Zap (Acessibilidade › Apps instalados › Zap, a chave do topo). Assim ele toca em Enviar por você. Sem isso, a conversa abre no celular com o texto pronto.</span><button type="button" class="helpLink" data-open-help data-i18n="helpLink">Atalho, aviso do Android e apps de banco: veja como fica</button></div>
 </li>
 </ol>
 </div>
@@ -313,6 +330,60 @@ html[lang="pt-BR"] [data-only="pt"],html[lang="en"] [data-only="en"]{display:rev
 
 </div>
 
+<dialog id="help" aria-labelledby="helpTitle">
+<div style="display:flex;flex-direction:column;gap:24px;padding:28px 24px 32px">
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px">
+<div style="display:flex;flex-direction:column;gap:8px">
+<p data-i18n="helpKicker" style="margin:0;font-family:'Roboto Mono',monospace;font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#4DFF8C">Envio automático</p>
+<h2 id="helpTitle" data-i18n="helpTitle" style="margin:0;font-size:26px;line-height:1.2;font-weight:300;color:#DCF3E4">O que ninguém conta sobre a Acessibilidade</h2>
+</div>
+<button type="button" data-close-help aria-label="Fechar" data-i18n-aria="close" style="flex:none;font:inherit;cursor:pointer;background:#0E150F;color:#DCF3E4;border:1px solid #2F9D5C;border-radius:999px;width:40px;height:40px;font-size:20px;line-height:1">×</button>
+</div>
+
+<div class="tip" style="border-top:0;padding-top:0">
+<h3 data-i18n="help1Title">1. Ligue só a chave principal. Não precisa de atalho.</h3>
+<p data-i18n="help1Text">Na tela do Zap em Acessibilidade aparecem duas chaves. Só a de cima importa. O "Atalho" é um recurso do Android para pessoas com deficiência abrirem um app por um botão ou gesto. O Zap não precisa dele, e ligar só cria um botão flutuante na tela.</p>
+<div class="shots">
+<figure><div class="shot"><img src="/ajuda/acessibilidade-samsung.jpg" width="540" height="560" alt="Tela de Acessibilidade do Zap num Samsung: Ativado ligado, Atalho desligado" data-i18n-alt="helpSamsungAlt" style="display:block;width:100%;height:auto"><span class="mark" style="top:16.6%;height:13.8%"><span class="tag" data-i18n="helpOn">Ligue só esta</span></span><span class="mark no" style="top:35.8%;height:17.4%"><span class="tag" data-i18n="helpOff">Não precisa</span></span></div><figcaption data-i18n="helpSamsungCap">Samsung (One UI)</figcaption></figure>
+<figure><div class="shot" role="img" data-i18n-aria="helpGenericAria" aria-label="Ilustração de um Android comum: ligar Usar Zap, deixar o atalho desligado" style="background:#F6F8FC;padding:18px 14px;display:flex;flex-direction:column;gap:10px;font-family:system-ui,sans-serif;color:#1B1C1F;font-size:14px;min-height:240px">
+<div data-i18n="helpGenTitle" style="font-size:18px;font-weight:500;padding:0 6px 6px">Zap — enviar pelo WhatsApp</div>
+<div style="position:relative;background:#D9E2FF;border-radius:20px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px"><span data-i18n="helpGenUse" style="font-weight:500">Usar Zap — enviar pelo WhatsApp</span><span aria-hidden="true" style="flex:none;width:40px;height:22px;border-radius:999px;background:#3A5BA9;position:relative"><span style="position:absolute;right:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#fff"></span></span><span class="mark" style="top:-6px;bottom:-6px;left:-6px;right:-6px"><span class="tag" data-i18n="helpOn">Ligue só esta</span></span></div>
+<div style="position:relative;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px"><span data-i18n="helpGenShortcut">Atalho do Zap — enviar pelo WhatsApp</span><span aria-hidden="true" style="flex:none;width:40px;height:22px;border-radius:999px;background:#C4C6D0;position:relative"><span style="position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#fff"></span></span><span class="mark no" style="top:-4px;bottom:-4px;left:-6px;right:-6px"><span class="tag" data-i18n="helpOff">Não precisa</span></span></div>
+<div data-i18n="helpGenDesc" style="padding:4px 16px 0;color:#44474F;font-size:13px;line-height:1.5">Aperta o botão Enviar do WhatsApp só depois que você confirma uma mensagem nos óculos.</div>
+</div><figcaption data-i18n="helpGenericCap">Outros Android (ilustração)</figcaption></figure>
+</div>
+</div>
+
+<div class="tip">
+<h3 data-i18n="help2Title">2. O aviso de "controle total" é normal</h3>
+<p data-i18n="help2Text">Ao ligar, o Android pergunta se o Zap pode ter controle total do celular. É o mesmo aviso para qualquer app de Acessibilidade, e não dá para mudar o texto. O Zap usa isso para uma coisa só: apertar Enviar no WhatsApp depois que você confirma nos óculos. Suas conversas chegam pelas notificações, e o código é aberto para quem quiser conferir.</p>
+</div>
+
+<div class="tip">
+<h3 data-i18n="help3Title">3. O app do banco reclamou? Pause o Zap em um toque.</h3>
+<p data-i18n="help3Text">Alguns bancos não abrem, ou mostram um alerta de risco, quando a Acessibilidade de outro app está ligada. É uma defesa contra golpes de acesso remoto. Para isso o Zap tem um botão no Painel rápido.</p>
+<div class="shots" style="align-items:flex-start">
+<figure style="flex:1 1 220px"><div class="shot" role="img" data-i18n-aria="helpTileAria" aria-label="Ilustração do Painel rápido com o botão Zap, Envio automático" style="background:#1B1D1E;padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:10px;font-family:system-ui,sans-serif;font-size:13px">
+<div style="background:#2C2F31;border-radius:18px;padding:12px 14px;color:#E3E3E3">Wi-Fi</div>
+<div style="background:#2C2F31;border-radius:18px;padding:12px 14px;color:#E3E3E3">Bluetooth</div>
+<div data-i18n="helpTileTorch" style="background:#2C2F31;border-radius:18px;padding:12px 14px;color:#E3E3E3">Lanterna</div>
+<div style="position:relative;background:#BFE9CC;border-radius:18px;padding:10px 14px;color:#06210F;display:flex;flex-direction:column"><strong style="color:#06210F;font-weight:600">Zap</strong><span data-i18n="helpTileSub">Envio automático</span><span class="mark" style="top:-6px;bottom:-6px;left:-6px;right:-6px"><span class="tag" data-i18n="helpTileTag">Toque para pausar</span></span></div>
+</div><figcaption data-i18n="helpTileCap">Painel rápido (ilustração)</figcaption></figure>
+<ol style="flex:1 1 260px">
+<li data-i18n="help3a"><strong>Uma vez só:</strong> deslize de cima para baixo duas vezes, toque no lápis (Editar) e arraste "Zap envio automático" para os seus botões.</li>
+<li data-i18n="help3b"><strong>Antes do banco:</strong> toque em Zap. Ele fica cinza e mostra "Envio pausado".</li>
+<li data-i18n="help3c"><strong>Depois:</strong> toque de novo. O Android abre a Acessibilidade e você liga a chave do Zap outra vez. Só você pode religar: é uma regra de segurança do Android.</li>
+</ol>
+</div>
+</div>
+
+<div class="tip">
+<h3 data-i18n="help4Title">4. Foto com o celular bloqueado</h3>
+<p data-i18n="help4Text">Com o celular bloqueado por senha, o WhatsApp não envia fotos. Coloque os óculos como dispositivo confiável no Desbloqueio estendido (antes chamado Smart Lock). O caminho muda de celular para celular: procure "Desbloqueio estendido" na busca dos Ajustes e escolha Dispositivos confiáveis. Enquanto os óculos estiverem conectados, o celular fica destravado para o Zap. O app do Zap no celular tem um botão que leva direto para lá.</p>
+</div>
+</div>
+</dialog>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <script>
 // ---- Fill these in, nothing else changes. Empty = the option shows "em breve". ----
@@ -359,7 +430,35 @@ const EN = {
   photo2Aria: "On the glasses: choose between Camera, a photo now with the glasses, and Gallery, from the glasses and the phone",
   lensCamera: "📷 Camera", lensCameraHint: "a photo now, with the glasses",
   lensGallery: "🖼 Gallery", lensGalleryHint: "from the glasses and the phone",
-  photoNote: "For the photo to go without touching your phone, turn on automatic sending (install step 4). With the phone locked, add the glasses as a trusted device in Android's Smart Lock.",
+  helpLink: "Shortcut, Android's warning and banking apps: see how it looks",
+  helpLinkShort: "See how",
+  close: "Close",
+  helpKicker: "Automatic sending",
+  helpTitle: "What nobody tells you about Accessibility",
+  help1Title: "1. Turn on the main switch only. No shortcut needed.",
+  help1Text: "Zap's Accessibility screen shows two switches. Only the top one matters. The \"Shortcut\" is an Android feature for people with disabilities to open an app with a button or gesture. Zap doesn't need it, and turning it on just adds a floating button to your screen.",
+  helpOn: "Turn on just this", helpOff: "Not needed",
+  helpSamsungAlt: "Zap's Accessibility screen on a Samsung: Ativado (On) turned on, Atalho (Shortcut) off",
+  helpSamsungCap: "Samsung (One UI), in Portuguese",
+  helpGenericAria: "Illustration of a typical Android: turn on Use Zap, leave the shortcut off",
+  helpGenTitle: "Zap — send with WhatsApp",
+  helpGenUse: "Use Zap — send with WhatsApp",
+  helpGenShortcut: "Zap — send with WhatsApp shortcut",
+  helpGenDesc: "Presses WhatsApp's Send button only after you confirm a message on the glasses.",
+  helpGenericCap: "Other Android phones (illustration)",
+  help2Title: "2. The \"full control\" warning is normal",
+  help2Text: "When you turn it on, Android asks whether Zap may have full control of the phone. Every Accessibility app gets the same warning, and its wording can't be changed. Zap uses it for one thing only: pressing Send in WhatsApp after you confirm on the glasses. Your chats arrive through notifications, and the code is open for anyone to check.",
+  help3Title: "3. Your banking app complained? Pause Zap with one tap.",
+  help3Text: "Some banks won't open, or show a risk warning, while another app's Accessibility is on. It's a defense against remote-access scams. That's why Zap has a button in Quick Settings.",
+  helpTileAria: "Illustration of Quick Settings with the Zap, Auto send button",
+  helpTileTorch: "Flashlight", helpTileSub: "Auto send", helpTileTag: "Tap to pause",
+  helpTileCap: "Quick Settings (illustration)",
+  help3a: "<strong>Just once:</strong> swipe down from the top twice, tap the pencil (Edit) and drag \"Zap auto send\" into your buttons.",
+  help3b: "<strong>Before the bank:</strong> tap Zap. It turns grey and shows \"Sending paused\".",
+  help3c: "<strong>Afterwards:</strong> tap it again. Android opens Accessibility and you turn Zap's switch back on. Only you can turn it back on: it's an Android security rule.",
+  help4Title: "4. Photos with the phone locked",
+  help4Text: "With the phone locked by a PIN, WhatsApp won't send photos. Add the glasses as a trusted device in Extend Unlock (formerly Smart Lock). The path differs from phone to phone: search Settings for \"Extend Unlock\" and pick Trusted devices. While the glasses are connected, the phone stays unlocked for Zap. Zap's app on the phone has a button that takes you straight there.",
+  photoNote: "For the photo to go without touching your phone, turn on automatic sending (install step 4). With the phone locked, add the glasses as a trusted device in Android's Extend Unlock (formerly Smart Lock).",
   chipNames: "Similar names? Pick the right contact from a list",
   chipSummary: "Optional: an AI summary when many messages or voice notes pile up",
   chipReact: "React with an emoji, in your skin tone",
@@ -402,12 +501,15 @@ const texts = [...document.querySelectorAll('[data-i18n]')];
 texts.forEach(el => { el.dataset.pt = el.innerHTML; });
 const arias = [...document.querySelectorAll('[data-i18n-aria]')];
 arias.forEach(el => { el.dataset.ptAria = el.getAttribute('aria-label'); });
+const alts = [...document.querySelectorAll('[data-i18n-alt]')];
+alts.forEach(el => { el.dataset.ptAlt = el.alt; });
 
 function setLang(lang, remember) {
   const en = lang === 'en';
   document.documentElement.lang = en ? 'en' : 'pt-BR';
   texts.forEach(el => { el.innerHTML = en && EN[el.dataset.i18n] ? EN[el.dataset.i18n] : el.dataset.pt; });
   arias.forEach(el => { el.setAttribute('aria-label', en && EN[el.dataset.i18nAria] ? EN[el.dataset.i18nAria] : el.dataset.ptAria); });
+  alts.forEach(el => { el.alt = en && EN[el.dataset.i18nAlt] ? EN[el.dataset.i18nAlt] : el.dataset.ptAlt; });
   document.title = META[en ? 'en' : 'pt'].title;
   document.querySelector('meta[name=description]').content = META[en ? 'en' : 'pt'].desc;
   document.querySelectorAll('.lang button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.setLang === lang)));
@@ -475,6 +577,14 @@ document.getElementById('pixCopy').addEventListener('click', async () => {
   try { await navigator.clipboard.writeText(pixCode(pixAmount)); note.textContent = 'Copiado. Cole no app do banco, em Pix › Copia e cola.'; }
   catch (e) { note.textContent = 'Não deu para copiar. Use o QR Code.'; }
 });
+
+// ---- Help dialog: accessibility shortcut, Android's warning, banking apps. ----
+const help = document.getElementById('help');
+function openHelp() { if (!help.open) help.showModal(); }
+document.querySelectorAll('[data-open-help]').forEach(b => b.addEventListener('click', openHelp));
+document.querySelectorAll('[data-close-help]').forEach(b => b.addEventListener('click', () => help.close()));
+help.addEventListener('click', e => { if (e.target === help) help.close(); });
+if (location.hash === '#ajuda') openHelp();
 
 if (KOFI_URL) {
   const link = document.getElementById('kofiLink');
