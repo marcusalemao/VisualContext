@@ -362,19 +362,20 @@ html[lang="pt-BR"] [data-only="pt"],html[lang="en"] [data-only="en"]{display:rev
 <div class="tip">
 <h3 data-i18n="help3Title">3. O app do banco reclamou? Pause o Zap em um toque.</h3>
 <p data-i18n="help3Text">Alguns bancos não abrem, ou mostram um alerta de risco, quando a Acessibilidade de outro app está ligada. É uma defesa contra golpes de acesso remoto. Para isso o Zap tem um botão no Painel rápido.</p>
-<div class="shots" style="align-items:flex-start">
-<figure style="flex:1 1 220px"><div class="shot" role="img" data-i18n-aria="helpTileAria" aria-label="Ilustração do Painel rápido com o botão Zap, Envio automático" style="background:#1B1D1E;padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:10px;font-family:system-ui,sans-serif;font-size:13px">
+<div class="shots">
+<figure><div class="shot"><img src="/ajuda/painel-rapido-samsung.jpg" width="540" height="510" alt="Painel rápido de um Samsung com o botão Zap, Envio automático, ligado (azul)" data-i18n-alt="helpPanelAlt" style="display:block;width:100%;height:auto"><span class="mark" style="left:5%;right:auto;width:21.5%;top:69%;height:28.5%"><span class="tag" data-i18n="helpTileTag" style="left:0;right:auto">Toque para pausar</span></span></div><figcaption data-i18n="helpPanelCap">Samsung (One UI): azul = ligado</figcaption></figure>
+<figure><div class="shot" role="img" data-i18n-aria="helpTileAria" aria-label="Ilustração do Painel rápido com o botão Zap, Envio automático" style="background:#1B1D1E;padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:10px;font-family:system-ui,sans-serif;font-size:13px">
 <div style="background:#2C2F31;border-radius:18px;padding:12px 14px;color:#E3E3E3">Wi-Fi</div>
 <div style="background:#2C2F31;border-radius:18px;padding:12px 14px;color:#E3E3E3">Bluetooth</div>
 <div data-i18n="helpTileTorch" style="background:#2C2F31;border-radius:18px;padding:12px 14px;color:#E3E3E3">Lanterna</div>
 <div style="position:relative;background:#BFE9CC;border-radius:18px;padding:10px 14px;color:#06210F;display:flex;flex-direction:column"><strong style="color:#06210F;font-weight:600">Zap</strong><span data-i18n="helpTileSub">Envio automático</span><span class="mark" style="top:-6px;bottom:-6px;left:-6px;right:-6px"><span class="tag" data-i18n="helpTileTag">Toque para pausar</span></span></div>
-</div><figcaption data-i18n="helpTileCap">Painel rápido (ilustração)</figcaption></figure>
-<ol style="flex:1 1 260px">
+</div><figcaption data-i18n="helpTileCap">Outros Android (ilustração)</figcaption></figure>
+</div>
+<ol>
 <li data-i18n="help3a"><strong>Uma vez só:</strong> deslize de cima para baixo duas vezes, toque no lápis (Editar) e arraste "Zap envio automático" para os seus botões.</li>
-<li data-i18n="help3b"><strong>Antes do banco:</strong> toque em Zap. Ele fica cinza e mostra "Envio pausado".</li>
+<li data-i18n="help3b"><strong>Antes do banco:</strong> toque em Zap. Ele sai do azul (ou verde) para o cinza e mostra "Envio pausado".</li>
 <li data-i18n="help3c"><strong>Depois:</strong> toque de novo. O Android abre a Acessibilidade e você liga a chave do Zap outra vez. Só você pode religar: é uma regra de segurança do Android.</li>
 </ol>
-</div>
 </div>
 
 <div class="tip">
@@ -452,9 +453,11 @@ const EN = {
   help3Text: "Some banks won't open, or show a risk warning, while another app's Accessibility is on. It's a defense against remote-access scams. That's why Zap has a button in Quick Settings.",
   helpTileAria: "Illustration of Quick Settings with the Zap, Auto send button",
   helpTileTorch: "Flashlight", helpTileSub: "Auto send", helpTileTag: "Tap to pause",
-  helpTileCap: "Quick Settings (illustration)",
+  helpTileCap: "Other Android phones (illustration)",
+  helpPanelAlt: "Quick Settings on a Samsung with the Zap, Auto send button turned on (blue)",
+  helpPanelCap: "Samsung (One UI): blue = on",
   help3a: "<strong>Just once:</strong> swipe down from the top twice, tap the pencil (Edit) and drag \"Zap auto send\" into your buttons.",
-  help3b: "<strong>Before the bank:</strong> tap Zap. It turns grey and shows \"Sending paused\".",
+  help3b: "<strong>Before the bank:</strong> tap Zap. It goes from blue (or green) to grey and shows \"Sending paused\".",
   help3c: "<strong>Afterwards:</strong> tap it again. Android opens Accessibility and you turn Zap's switch back on. Only you can turn it back on: it's an Android security rule.",
   help4Title: "4. Photos with the phone locked",
   help4Text: "With the phone locked by a PIN, WhatsApp won't send photos. Add the glasses as a trusted device in Extend Unlock (formerly Smart Lock). The path differs from phone to phone: search Settings for \"Extend Unlock\" and pick Trusted devices. While the glasses are connected, the phone stays unlocked for Zap. Zap's app on the phone has a button that takes you straight there.",
