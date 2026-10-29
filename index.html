@@ -314,7 +314,15 @@ html[lang="pt-BR"] [data-only="pt"],html[lang="en"] [data-only="en"]{display:rev
 <!-- Everywhere: Ko-fi. -->
 <div style="background: #0E150F; border: 1px solid #182619; border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 14px">
 <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 12px"><strong style="font-size: 20px; font-weight: 500; color: #DCF3E4">Ko-fi</strong><span data-i18n="kofiNote" style="font-size: 14px; color: #8BA896">cartão ou PayPal, de qualquer país</span></div>
-<a id="kofiLink" href="#" data-i18n="kofiButton" style="display: none; align-self: flex-start; background: #4DFF8C; color: #04180D; text-decoration: none; font-weight: 500; padding: 12px 20px; border-radius: 999px">Apoiar no Ko-fi</a>
+<div id="kofiReady" style="display: none; flex-direction: column; gap: 12px">
+<p data-i18n="kofiHint" style="margin: 0; font-size: 15px; line-height: 1.55; color: #8BA896">Conte na mensagem qual app você usa: o apoio vale para toda a linha alema para os Rokid Glasses.</p>
+<div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center">
+<button type="button" id="kofiOpen" data-i18n="kofiButton" style="font: inherit; cursor: pointer; border: 0; background: #4DFF8C; color: #04180D; font-weight: 500; padding: 12px 20px; border-radius: 999px">Apoiar com Ko-fi</button>
+<a id="kofiLink" href="#" target="_blank" rel="noopener" data-i18n="kofiNewTab" style="font-size: 15px">ou abrir no Ko-fi</a>
+</div>
+<p data-i18n="kofiPrivacy" style="margin: 0; font-size: 13px; line-height: 1.5; color: #42574A">O quadro do Ko-fi só carrega quando você toca no botão.</p>
+<div id="kofiFrame"></div>
+</div>
 <p id="kofiSoon" data-i18n="kofiSoon" style="margin: 0; font-size: 15px; color: #8BA896">Ko-fi em breve.</p>
 </div>
 </div>
@@ -500,7 +508,9 @@ const EN = {
   trySoon: "Simulator coming soon", tryRokid: "Discover Rokid Glasses", questions: "Questions?",
   supportTitle: "Zap is free. If it helps you, buy me a coffee.",
   supportText: "It's an independent project, made by one person. Every bit of support pays for testing on the glasses and keeping Zap working through every WhatsApp update.",
-  kofiNote: "card or PayPal, from any country", kofiButton: "Support on Ko-fi", kofiSoon: "Ko-fi coming soon.",
+  kofiNote: "card or PayPal, from any country", kofiButton: "Support with Ko-fi", kofiSoon: "Ko-fi coming soon.",
+  kofiHint: "Tell us in the message which app you use: support goes to the whole alema line for Rokid Glasses.",
+  kofiNewTab: "or open on Ko-fi", kofiPrivacy: "The Ko-fi panel only loads when you tap the button.",
   legal: "Independent project by Marcus de Magalhães. Not affiliated with WhatsApp, Meta or Rokid. WhatsApp is a trademark of Meta Platforms; Rokid is a trademark of Rokid Corporation.",
   code: "Code on GitHub",
 };
@@ -598,11 +608,24 @@ document.querySelectorAll('[data-close-help]').forEach(b => b.addEventListener('
 help.addEventListener('click', e => { if (e.target === help) help.close(); });
 if (location.hash === '#ajuda') openHelp();
 
+// ---- Ko-fi: the donation panel loads only when the visitor asks for it (no Ko-fi scripts before that). ----
 if (KOFI_URL) {
-  const link = document.getElementById('kofiLink');
-  link.href = KOFI_URL;
-  link.style.display = 'inline-block';
+  const id = KOFI_URL.replace(/\/+$/, '').split('/').pop();
+  document.getElementById('kofiLink').href = KOFI_URL;
+  document.getElementById('kofiReady').style.display = 'flex';
   document.getElementById('kofiSoon').style.display = 'none';
+  document.getElementById('kofiOpen').addEventListener('click', e => {
+    const box = document.getElementById('kofiFrame');
+    if (!box.firstChild) {
+      const f = document.createElement('iframe');
+      f.src = 'https://ko-fi.com/' + encodeURIComponent(id) + '/?hidefeed=true&widget=true&embed=true&preview=true';
+      f.title = 'Ko-fi';
+      f.loading = 'lazy';
+      f.style.cssText = 'border:none;width:100%;height:712px;border-radius:14px;background:#f9f9f9';
+      box.appendChild(f);
+    }
+    box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
 }
 </script>
 </body>
