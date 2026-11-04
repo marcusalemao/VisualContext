@@ -157,6 +157,12 @@ var T={
  modules:{en:'One app, four modules. Low vision speaks the card instead of showing it: "Rafael Souza. Supplier. Last time, 12 September." Deaf: live captions with the speaker\'s name. The four switches stay in every module.',
           de:'Eine App, vier Module. Sehbehinderung spricht die Karte, statt sie zu zeigen: „Rafael Souza. Lieferant. Zuletzt am 12. September.“ Gehörlos: Live-Untertitel mit dem Namen des Sprechers. Die vier Schalter bleiben in jedem Modul.',
           pt:'Um app, quatro módulos. Baixa visão fala o card em vez de mostrar: "Rafael Souza. Fornecedor. Última vez, 12 de setembro." Surdez: legenda ao vivo com o nome de quem fala. As quatro chaves ficam em todos os módulos.'},
+ keep:{en:'What is kept. The camera is not a recorder: one frame is taken, described as text on the device, and thrown away. Audio is never stored, only the transcript. Of a face, one small crop. The glasses themselves keep nothing on disk. What is not kept cannot leak.',
+       de:'Was bleibt. Die Kamera ist kein Rekorder: ein Bild wird aufgenommen, auf dem Gerät als Text beschrieben und verworfen. Audio wird nie gespeichert, nur die Mitschrift. Von einem Gesicht ein kleiner Ausschnitt. Die Brille selbst speichert nichts. Was nicht gespeichert ist, kann nicht abfließen.',
+       pt:'O que fica. A câmera não é um gravador: um quadro é capturado, descrito em texto no aparelho e jogado fora. Áudio nunca é guardado, só a transcrição. De um rosto, um recorte pequeno. Os óculos não guardam nada em disco. O que não é guardado não vaza.'},
+ sens:{en:'Sensitive moments, decided on the device, never in the cloud. Bathroom or locker room: camera and microphone pause. Nudity, a child at the pool: the moment survives only as a neutral sentence, written on the phone, no image ever saved, nothing sent anywhere. Intimacy: nothing at all. Children are never enrolled automatically. Strangers are never looked up.',
+       de:'Sensible Momente, entschieden auf dem Gerät, nie in der Cloud. Bad oder Umkleide: Kamera und Mikrofon pausieren. Nacktheit, ein Kind am Pool: der Moment bleibt nur als neutraler Satz, auf dem Telefon geschrieben, kein Bild gespeichert, nichts verschickt. Intimität: gar nichts. Kinder werden nie automatisch erfasst. Fremde werden nie nachgeschlagen.',
+       pt:'Momentos sensíveis, decididos no aparelho, nunca na nuvem. Banheiro ou vestiário: câmera e microfone pausam. Nudez, uma criança na piscina: o momento sobrevive só como uma frase neutra, escrita no celular, nenhuma imagem guardada, nada enviado. Intimidade: nada. Crianças nunca são cadastradas sozinhas. Estranhos nunca são procurados.'},
  privacy:{en:'Creepy or not creepy? Our answers: faces are recognised on the device and never uploaded. Every recording announces itself and can be cancelled. Take the glasses off and the app locks. One button forgets everything.',
           de:'Creepy oder nicht creepy? Unsere Antworten: Gesichter werden auf dem Gerät erkannt und nie hochgeladen. Jede Aufnahme kündigt sich an und kann abgebrochen werden. Brille ab, App gesperrt. Ein Knopf vergisst alles.',
           pt:'Creepy ou não creepy? Nossas respostas: rostos são reconhecidos no aparelho e nunca enviados. Toda gravação se anuncia e pode ser cancelada. Tirou os óculos, o app trava. Um botão esquece tudo.'},
@@ -172,6 +178,8 @@ var T={
         ask:'Ask anything',q:'How was my day yesterday?',ans:'Yesterday: coffee at Café da Paim with Rafael Souza (budget for the pilot, he sends numbers by Friday), then the Torra Fina office.',src:'Source: encounter 03/11 10:40 · 2 places',b1:'Add to calendar',b2:'Create task',day:'MY DAY · TODAY',dayt:'2 people · 3 places · 1 note · 1 follow-up',c1:'Summary of my last encounter',c2:'Where did I leave the motorbike?',c3:'What is still pending?',
         m1:'General',m1l:'people, key, motorbike, places',m2:'Business',m2l:'dossier, follow-ups, meeting summary',m3:'Low vision',m3l:'voice only · whispered names · reads signs',m4:'Deaf',m4l:'live captions with speaker names',
         spoken:'Rafael Souza. Supplier. Last time, 12 September.',
+        k1:'frame → text → discarded',k2:'audio: <b>never stored</b>, text only',k3:'face: <b>one small crop</b>, not video',k4:'glasses: <b>nothing on disk</b>',k5:'transcript: 30 days, then summary only',
+        s1:'bathroom → <b>paused</b>',s2:'nudity → <b>one neutral sentence</b>, on the phone, no image, no cloud',s3:'intimacy → <b>nothing</b>',s4:'children: <b>never enrolled</b> automatically',s5:'strangers: <b>never identified</b>',
         pr1:'Faces recognised <b>on the device</b>',pr2:'Recording <b>announces itself</b>, cancel any time',pr3:'Glasses off → <b>locked</b>',pr4:'Your memory, <b>never shared</b>',pr5:'<b>Forget everything</b>: one button'},
     de:{sup:'Lieferant · Torra Fina',last:'zuletzt: 12.09., das Budget',rec:'Begegnung wird aufgezeichnet',swipe:'wischen zum Abbrechen',enc:'Begegnung',newp:'Neue Person',keep:'tippen: behalten · doppelt: ignorieren',
         nn1:'Mann mit Bart',nn2:'blaue Jacke · erstes Mal, hier',nn3:'Café da Paim · gestern 10:40 · der Pilot',nnf:'hört auf den Namen',nns:'„…freut mich, ich bin Pedro Reis, von Torra Fina“',nnb:'Namensschild gelesen: PEDRO REIS · Torra Fina',nnn:'Pedro Reis',nnl:'Torra Fina · gerade kennengelernt, hier',sayKey:'„das ist mein Schlüssel“',keyReg:'Schlüssel · registriert',askKey:'„wo ist mein Schlüssel?“',keyT:'Schlüssel',keyL:'Schlafzimmer · auf dem Bett',keyW:'heute 9:10',
@@ -182,6 +190,8 @@ var T={
         ask:'Frag irgendetwas',q:'Wie war mein Tag gestern?',ans:'Gestern: Kaffee im Café da Paim mit Rafael Souza (Budget für den Piloten, er schickt Zahlen bis Freitag), dann das Büro von Torra Fina.',src:'Quelle: Begegnung 03.11. 10:40 · 2 Orte',b1:'In den Kalender',b2:'Aufgabe anlegen',day:'MEIN TAG · HEUTE',dayt:'2 Personen · 3 Orte · 1 Notiz · 1 offener Punkt',c1:'Zusammenfassung der letzten Begegnung',c2:'Wo habe ich das Motorrad abgestellt?',c3:'Was ist noch offen?',
         m1:'Allgemein',m1l:'Menschen, Schlüssel, Motorrad, Orte',m2:'Business',m2l:'Dossier, offene Punkte, Meeting-Zusammenfassung',m3:'Sehbehinderung',m3l:'nur Stimme · geflüsterte Namen · liest Schilder',m4:'Gehörlos',m4l:'Live-Untertitel mit Sprechernamen',
         spoken:'Rafael Souza. Lieferant. Zuletzt am 12. September.',
+        k1:'Bild → Text → verworfen',k2:'Audio: <b>nie gespeichert</b>, nur Text',k3:'Gesicht: <b>ein kleiner Ausschnitt</b>, kein Video',k4:'Brille: <b>nichts auf dem Speicher</b>',k5:'Mitschrift: 30 Tage, dann nur Zusammenfassung',
+        s1:'Bad → <b>Pause</b>',s2:'Nacktheit → <b>ein neutraler Satz</b>, auf dem Telefon, kein Bild, keine Cloud',s3:'Intimität → <b>nichts</b>',s4:'Kinder: <b>nie automatisch</b> erfasst',s5:'Fremde: <b>nie identifiziert</b>',
         pr1:'Gesichter <b>auf dem Gerät</b> erkannt',pr2:'Aufnahme <b>kündigt sich an</b>, jederzeit abbrechen',pr3:'Brille ab → <b>gesperrt</b>',pr4:'Dein Gedächtnis, <b>nie geteilt</b>',pr5:'<b>Alles vergessen</b>: ein Knopf'},
     pt:{sup:'fornecedor · Torra Fina',last:'última vez: 12/09, o orçamento',rec:'Gravando encontro',swipe:'deslize para cancelar',enc:'encontro',newp:'Pessoa nova',keep:'toque: guardar · toque duplo: ignorar',
         nn1:'Homem de barba',nn2:'jaqueta azul · primeira vez, aqui',nn3:'Café da Paim · ontem 10:40 · o piloto',nnf:'ouvindo o nome',nns:'"…prazer, eu sou o Pedro Reis, da Torra Fina"',nnb:'crachá lido: PEDRO REIS · Torra Fina',nnn:'Pedro Reis',nnl:'Torra Fina · conheceu agora, aqui',sayKey:'"essa é a minha chave"',keyReg:'Chave · cadastrada',askKey:'"onde está minha chave?"',keyT:'Chave',keyL:'quarto · em cima da cama',keyW:'hoje 9:10',
@@ -192,6 +202,8 @@ var T={
         ask:'Pergunte qualquer coisa',q:'Como foi meu dia ontem?',ans:'Ontem: café no Café da Paim com Rafael Souza (orçamento do piloto, ele manda os números até sexta), depois o escritório da Torra Fina.',src:'Fonte: encontro 03/11 10:40 · 2 lugares',b1:'Pôr na agenda',b2:'Criar tarefa',day:'MEU DIA · HOJE',dayt:'2 pessoas · 3 lugares · 1 nota · 1 pendência',c1:'Resumo do último encontro',c2:'Onde deixei a moto?',c3:'O que ficou pendente?',
         m1:'Geral',m1l:'pessoas, chave, moto, lugares',m2:'Business',m2l:'dossiê, pendências, resumo do encontro',m3:'Baixa visão',m3l:'só voz · nomes sussurrados · lê placas',m4:'Surdez',m4l:'legenda ao vivo com nome de quem fala',
         spoken:'Rafael Souza. Fornecedor. Última vez, 12 de setembro.',
+        k1:'quadro → texto → descartado',k2:'áudio: <b>nunca guardado</b>, só texto',k3:'rosto: <b>um recorte pequeno</b>, não vídeo',k4:'óculos: <b>nada em disco</b>',k5:'transcrição: 30 dias, depois só o resumo',
+        s1:'banheiro → <b>pausa</b>',s2:'nudez → <b>uma frase neutra</b>, no celular, sem imagem, sem nuvem',s3:'intimidade → <b>nada</b>',s4:'crianças: <b>nunca cadastradas</b> sozinhas',s5:'estranhos: <b>nunca identificados</b>',
         pr1:'Rostos reconhecidos <b>no aparelho</b>',pr2:'Gravação <b>se anuncia</b>, cancela quando quiser',pr3:'Tirou os óculos → <b>travado</b>',pr4:'Sua memória, <b>nunca compartilhada</b>',pr5:'<b>Esquecer tudo</b>: um botão'}}
 };
 function L(){ return LANGS[lang]; }
@@ -265,6 +277,14 @@ var scenes=[
  {dur:16000,key:'modules',run:function(){ world.innerHTML='';
    add('<div class="mods"><div class="mod on"><div class="t">'+X('m1')+'</div><div class="l">'+X('m1l')+'</div></div><div class="mod"><div class="t">'+X('m2')+'</div><div class="l">'+X('m2l')+'</div></div><div class="mod" id="m3"><div class="t">'+X('m3')+'</div><div class="l">'+X('m3l')+'</div></div><div class="mod"><div class="t">'+X('m4')+'</div><div class="l">'+X('m4l')+'</div></div></div>',180,90);
    at(6000,function(){ var m=document.getElementById('m3'); if(m) m.classList.add('on'); add('<div class="sp">'+X('spoken')+'</div>',180,420); });
+ }},
+ {dur:16000,key:'keep',run:function(){ world.innerHTML=room()+'<svg viewBox="0 0 1280 720">'+person(900,330,.9)+'</svg>'; dot();
+   add('<div class="list">'+['k1','k2','k3','k4','k5'].map(function(k){return '· '+X(k);}).join('<br>')+'</div>',180,110);
+   var f=add('<div class="card small" style="width:150px;height:110px"></div>',820,250,'',1500); at(4000,function(){ f.innerHTML='<div class="l" style="font-size:13px">“two people at a table, talking about the pilot”</div>'; }); at(7000,function(){ f.classList.remove('on'); });
+ }},
+ {dur:18000,key:'sens',run:function(){ world.innerHTML='';
+   add('<div class="list">'+['s1','s2','s3','s4','s5'].map(function(k){return '· '+X(k);}).join('<br>')+'</div>',180,110);
+   add('<div class="ai">on-device classifier · no cloud</div>',180,470,'',3000);
  }},
  {dur:16000,key:'privacy',run:function(){ world.innerHTML='';
    add('<div class="list">'+['pr1','pr2','pr3','pr4','pr5'].map(function(k){return '· '+X(k);}).join('<br>')+'</div>',180,110);

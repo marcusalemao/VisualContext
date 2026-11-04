@@ -20,7 +20,9 @@
 9. **Recall.** Tap or AI button, ask in plain words. Open questions ("a good place for lunch near here?") go to a live voice assistant that sees what you see (Gemini Live).
 10. **Manager (phone).** Ask anything, every answer has its source. "My day". Actions only on tap.
 11. **Modules.** General, Business, Low vision (spoken cards), Deaf (live captions). Accessibility is the launch hook.
-12. **Creepy or not creepy.** On-device faces, announced recording, lock when the glasses come off, forget everything.
+12. **What is kept.** One frame, described as text on the device, then discarded. Audio never stored. One face crop. The glasses keep nothing.
+13. **Sensitive moments.** Decided on the device: bathroom pauses; nudity becomes one neutral sentence, no image, nothing to the cloud; intimacy records nothing; children never enrolled automatically.
+14. **Creepy or not creepy.** On-device faces, announced recording, lock when the glasses come off, forget everything. Privacy brief for Q&A: `DEMO-PRIVACIDADE-NOTA.md` (EN/DE).
 
 **Status, honest.** Working today: face recognition on the phone/glasses (ArcFace), Gemini Live in the glasses, the Manager with 95 people. Still prototype: places (web prototype), key/motorbike (spec), modules (spec). Nothing in the film is faked beyond being drawn instead of filmed.
 
