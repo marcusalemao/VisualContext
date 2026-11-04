@@ -13,7 +13,7 @@
 2. **Standby.** Nothing on the lens until you need it. A dot says the memory is on.
 3. **Meeting someone.** The face is recognised on the device, nothing leaves the phone. Name, how you know each other, last time. The recording announces itself with a countdown you can cancel.
 4. **Several people.** A name beside each head; the card follows whoever you look at.
-5. **Unknown face.** A small mark only. Nothing stored unless you say so.
+5. **No name yet.** Never "Person 1". The card describes the person and the last occasion ("man with the beard, blue jacket · Café da Paim, yesterday"). When the name comes up in conversation, the card learns it.
 6. **The key.** Teach it once with the key in hand. "Where is my key?" shows the last photo where it was seen.
 7. **The motorbike.** The parking moment is detected; two photos (bike, surroundings). "Did the key come with you?" if it stayed on the bike.
 8. **Places.** Up to two cards pinned to the buildings; dashed when hidden behind another one.
