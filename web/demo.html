@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta property="og:title" content="VisualContext — demo film">
+<meta property="og:description" content="A memory layer for smart glasses. 4-minute concept film: people, things, places, recall, privacy. EN / DE / PT.">
+<title>VisualContext Demo Film</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one 16:9 "film" stage (the glasses view, green HUD over a dim world) with a caption band below; a thin control bar that hides while recording. */
+:root{
+  --bg:#050807; --ink:#e6f2ea; --mute:#8fa89a; --panel:#0b1410; --line:#1a3324;
+  --g:#00ff88; --g2:#8fdfb5; --g3:rgba(0,255,136,.6); --g4:rgba(0,255,136,.25);
+  --world:#1b1f1c; --world2:#2a2f2b;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px}
+#wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:12px;height:100%;min-height:0}
+#film{position:relative;width:100%;aspect-ratio:16/9;max-width:100%;background:#000;border:1px solid var(--line);border-radius:10px;overflow:hidden;flex:0 1 auto}
+#stage{position:absolute;left:0;top:0;width:1280px;height:720px;transform-origin:0 0}
+#world{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 70%,var(--world2),var(--world) 70%)}
+#world svg{position:absolute;inset:0;width:100%;height:100%}
+#hud{position:absolute;inset:0;font-family:var(--mono);color:var(--g);text-shadow:0 0 6px rgba(0,255,136,.35)}
+#lens{position:absolute;left:160px;top:40px;width:960px;height:540px;border:1px dashed rgba(0,255,136,.12);border-radius:6px}
+.el{position:absolute;opacity:0;transition:opacity .45s ease,transform .45s ease;transform:translateY(6px)}
+.el.on{opacity:1;transform:none}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--g)}
+.tag{font-size:22px;font-weight:600;letter-spacing:.5px;white-space:nowrap}
+.tag:before{content:"";display:inline-block;width:14px;height:2px;background:var(--g3);vertical-align:middle;margin-right:8px}
+.card{border:2px solid var(--g3);border-radius:14px;padding:14px 18px;min-width:300px;max-width:430px}
+.card .t{font-size:26px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;line-height:1.1}
+.card .r{height:2px;background:var(--g3);margin:8px 0 10px}
+.card .l{font-size:19px;color:var(--g2);line-height:1.35}
+.card .f{font-size:14px;color:var(--g);margin-top:10px;letter-spacing:.5px}
+.card .row{display:flex;gap:14px;align-items:flex-start}
+.card .thumb{width:84px;height:84px;border:2px solid var(--g3);border-radius:8px;flex:0 0 auto;display:grid;place-items:center}
+.card .thumb svg{width:70px;height:70px;stroke:var(--g2);fill:none;stroke-width:2}
+.card.dashed{border-style:dashed}
+.card.small{min-width:220px;padding:10px 14px}
+.card.small .t{font-size:20px}
+.card.small .l{font-size:15px}
+.rec{font-size:20px;font-weight:600}
+.rec b{font-size:22px}
+.pin:after{content:"";position:absolute;left:50%;bottom:-16px;width:2px;height:14px;background:var(--g3)}
+.pin.dashed:after{background:none;border-left:2px dashed var(--g3)}
+.say{font-size:20px;color:var(--g2);font-style:italic}
+.say:before{content:"🎙 ";font-style:normal;opacity:.8}
+.sp{font-size:20px;color:var(--g2)}
+.sp:before{content:"🔈 ";opacity:.8}
+.arrow{font-size:46px;font-weight:700;line-height:1}
+.ai{font-size:18px;color:var(--g2)}
+.phone{position:absolute;left:470px;top:60px;width:340px;height:620px;border:2px solid #2a4a36;border-radius:34px;background:#06100a;padding:22px 18px;font-family:var(--sans);color:#d9efe2;overflow:hidden}
+.phone .ask{border:2px solid var(--g3);border-radius:14px;padding:12px 14px;font-size:16px;color:var(--g2);display:flex;gap:8px;align-items:center}
+.phone .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.phone .chip{border:1.5px dashed var(--g3);border-radius:999px;padding:6px 10px;font-size:13px;color:var(--g2)}
+.phone .pills{display:flex;gap:6px;margin-top:14px;font-size:12px}
+.phone .pill{border:1.5px solid var(--g3);border-radius:999px;padding:4px 9px;color:var(--g2)}
+.phone .pill.on{background:var(--g4);color:var(--g)}
+.phone .ans{border:2px solid var(--g3);border-radius:14px;padding:12px 14px;margin-top:14px;font-size:14px;line-height:1.45}
+.phone .ans .src{margin-top:8px;font-size:12px;color:var(--mute)}
+.phone .ans .btn{display:inline-block;border:1.5px solid var(--g3);border-radius:8px;padding:4px 9px;font-size:12px;color:var(--g);margin-top:8px;margin-right:6px}
+.phone .day{margin-top:14px;font-size:13px;line-height:1.5;color:#b9d9c7}
+.phone .day .h{font-size:11px;letter-spacing:1.5px;color:var(--g);margin-bottom:4px}
+.mods{display:grid;grid-template-columns:1fr 1fr;gap:14px;width:560px}
+.mod{border:2px solid var(--g3);border-radius:12px;padding:12px 14px}
+.mod .t{font-size:20px;font-weight:700}
+.mod .l{font-size:14px;color:var(--g2);margin-top:4px;line-height:1.35}
+.mod.on{background:var(--g4)}
+.list{font-size:22px;line-height:1.7;color:var(--g2)}
+.list b{color:var(--g)}
+.title{font-size:64px;font-weight:700;letter-spacing:-1px;line-height:1}
+.sub{font-size:24px;color:var(--g2);margin-top:14px;line-height:1.35}
+.tiny{font-size:16px;color:var(--g2);opacity:.8;margin-top:24px}
+#cap{font-size:clamp(16px,1.9vw,22px);line-height:1.45;color:var(--ink);min-height:3.2em;padding:4px 2px;text-wrap:balance}
+#cap small{display:block;font-size:.7em;color:var(--mute);margin-top:4px;font-family:var(--mono);letter-spacing:.5px}
+#bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-family:var(--mono);font-size:13px;color:var(--mute);transition:opacity .3s}
+#bar.hide{opacity:0;pointer-events:none}
+#bar button{background:var(--panel);border:1px solid var(--line);color:var(--ink);font-family:inherit;font-size:13px;padding:7px 12px;border-radius:8px;cursor:pointer}
+#bar button:focus-visible{outline:2px solid var(--g)}
+#bar button.on{border-color:var(--g);color:var(--g)}
+#prog{display:flex;gap:4px;flex:1;min-width:120px}
+#prog i{flex:1;height:4px;background:var(--line);border-radius:2px}
+#prog i.done{background:var(--g3)}
+#prog i.now{background:var(--g)}
+.world-ground{fill:none;stroke:#3a403c;stroke-width:2}
+.person{fill:#262b28;stroke:#4a524d;stroke-width:2}
+@media (prefers-reduced-motion:reduce){.el{transition:none}}
+@media (max-width:700px){#cap{min-height:4.5em}}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="film">
+    <div id="stage">
+      <div id="world"></div>
+      <div id="hud"><div id="lens"></div><div id="els"></div></div>
+    </div>
+  </div>
+  <div id="cap"></div>
+  <div id="bar">
+    <button id="play">▶ Play</button>
+    <button id="prev">◀</button><button id="next">▶</button>
+    <div id="prog"></div>
+    <button id="lang">EN</button>
+    <button id="full">⛶</button>
+    <span>space · ← → · L language · H hide bar · F fullscreen</span>
+  </div>
+</div>
+<script>
+(function(){
+'use strict';
+var els=document.getElementById('els'), world=document.getElementById('world'), cap=document.getElementById('cap');
+var LANGS=['en','de','pt'], lang=0;
+try{ var m=location.hash.match(/^#(en|de|pt)$/); if(m) lang=LANGS.indexOf(m[1]); }catch(e){}
+
+// ---- world drawings (simple outlines; this is a concept film, not footage) ----
+function person(x,y,s,id){ s=s||1; return '<g transform="translate('+x+','+y+') scale('+s+')" class="person" data-p="'+(id||'')+'">'+
+ '<circle cx="0" cy="0" r="52"/><path d="M-120 230 C-120 120 -60 90 0 90 C60 90 120 120 120 230 Z"/></g>'; }
+function room(){ return '<svg viewBox="0 0 1280 720"><path class="world-ground" d="M0 560 L1280 560 M100 560 L100 300 L420 300 L420 560 M640 300 L640 200 L900 200 L900 300 L640 300"/></svg>'; }
+function street(){ return '<svg viewBox="0 0 1280 720"><path class="world-ground" d="M0 600 L1280 600 M0 600 L420 380 L420 120 L700 120 L700 600 M700 380 L1280 380 M760 600 L760 240 L1100 240 L1100 600 M1180 600 L1180 300 L1280 300"/></svg>'; }
+function hand(){ return '<svg viewBox="0 0 1280 720"><path class="world-ground" d="M0 560 L1280 560"/><g transform="translate(640,470)"><path class="person" d="M-150 200 C-150 60 -90 20 -20 10 L80 -10 L120 -40 L140 -20 L110 20 L200 60 L190 90 L80 70 L60 110 L130 150 L110 180 L0 140 L-20 200 Z"/><path d="M60 -30 L190 -120 M190 -120 l12 -10 M190 -120 l-6 -14" fill="none" stroke="#6a7a70" stroke-width="5" stroke-linecap="round"/><circle cx="196" cy="-128" r="16" fill="none" stroke="#6a7a70" stroke-width="5"/></g></svg>'; }
+function bike(){ return '<svg viewBox="0 0 1280 720"><path class="world-ground" d="M0 600 L1280 600 M800 600 L800 260 L1180 260 L1180 600 M860 320 L1120 320 M860 380 L1120 380"/><g transform="translate(360,540)" fill="none" stroke="#4a524d" stroke-width="6"><circle cx="-150" cy="0" r="60"/><circle cx="150" cy="0" r="60"/><path d="M-150 0 L-60 -110 L60 -110 L150 0 M-60 -110 L-10 -40 L80 -40 M60 -110 L90 -150 L140 -150"/></g></svg>'; }
+function keyIcon(){ return '<svg viewBox="0 0 70 70"><circle cx="22" cy="22" r="12"/><path d="M31 31 L60 60 M50 50 L58 42 M44 44 L52 36"/></svg>'; }
+function bedIcon(){ return '<svg viewBox="0 0 70 70"><path d="M8 50 L8 30 L62 30 L62 50 M8 50 L8 58 M62 50 L62 58 M14 30 L14 18 L30 18 L30 30"/><path d="M40 36 L52 48 M46 40 l6 0 l0 6"/></svg>'; }
+function bikeIcon(){ return '<svg viewBox="0 0 70 70"><circle cx="18" cy="48" r="11"/><circle cx="52" cy="48" r="11"/><path d="M18 48 L30 28 L44 28 L52 48 M30 28 L36 40 L48 40 M44 28 L48 20 L56 20"/></svg>'; }
+function shopIcon(){ return '<svg viewBox="0 0 70 70"><path d="M10 30 L10 60 L60 60 L60 30 M6 30 L64 30 L58 16 L12 16 Z M28 60 L28 42 L42 42 L42 60"/></svg>'; }
+
+// ---- captions: en / de / pt ----
+var T={
+ title:{en:['VisualContext','A memory layer for smart glasses. It remembers people, things and places for you, and shows nothing until you need it.','Concept film · recorded on the simulator · São Paulo, November 2026'],
+        de:['VisualContext','Eine Gedächtnisschicht für Smart Glasses. Sie merkt sich Menschen, Dinge und Orte für dich und zeigt nichts, bis du es brauchst.','Konzeptfilm · aufgenommen im Simulator · São Paulo, November 2026'],
+        pt:['VisualContext','Uma camada de memória para óculos inteligentes. Lembra pessoas, coisas e lugares por você, e não mostra nada até você precisar.','Filme-conceito · gravado no simulador · São Paulo, novembro de 2026']},
+ standby:{en:'Standby. Most of the day the lens is empty: a single dot says the memory is on. Nothing is recorded, nothing is shown.',
+          de:'Standby. Den größten Teil des Tages bleibt die Linse leer: ein einzelner Punkt zeigt, dass das Gedächtnis an ist. Nichts wird aufgenommen, nichts angezeigt.',
+          pt:'Standby. Na maior parte do dia a lente fica vazia: um único ponto diz que a memória está ligada. Nada é gravado, nada é mostrado.'},
+ meet:{en:'You meet someone. The face is recognised on the device, nothing leaves your phone. A short card: name, how you know each other, last time you met. Then the encounter is recorded, after a countdown you can cancel.',
+       de:'Du triffst jemanden. Das Gesicht wird auf dem Gerät erkannt, nichts verlässt dein Telefon. Eine kurze Karte: Name, woher ihr euch kennt, letztes Treffen. Dann wird die Begegnung aufgezeichnet, nach einem Countdown, den du abbrechen kannst.',
+       pt:'Você encontra alguém. O rosto é reconhecido no aparelho, nada sai do seu celular. Um card curto: nome, de onde se conhecem, última vez. Depois o encontro é gravado, após uma contagem que você pode cancelar.'},
+ three:{en:'Several people: a name beside each head. The full card follows the person you are looking at.',
+        de:'Mehrere Personen: ein Name neben jedem Kopf. Die ganze Karte folgt der Person, die du gerade ansiehst.',
+        pt:'Várias pessoas: um nome ao lado de cada cabeça. O card completo acompanha a pessoa para quem você está olhando.'},
+ unknown:{en:'No name yet? Never "Person 1". The card describes the person and the occasion. It corrects itself as the conversation goes: when someone says the name, or a badge is read, the description becomes a name. Later, the occasion is what you remember.',
+          de:'Noch kein Name? Nie „Person 1“. Die Karte beschreibt die Person und den Anlass. Sie korrigiert sich im Gespräch: nennt jemand den Namen oder wird ein Namensschild gelesen, wird aus der Beschreibung ein Name. Später ist der Anlass das, woran du dich erinnerst.',
+          pt:'Sem nome ainda? Nunca "Pessoa 1". O card descreve a pessoa e a ocasião. Ele se corrige ao longo da conversa: quando alguém diz o nome, ou um crachá é lido, a descrição vira nome. Depois, a ocasião é o que você lembra.'},
+ key:{en:'Things. Say "this is my key" once, with the key in your hand. Later, "where is my key?" brings back the last photo where it was seen, with the room and the time.',
+      de:'Dinge. Sag einmal „das ist mein Schlüssel“, mit dem Schlüssel in der Hand. Später holt „wo ist mein Schlüssel?“ das letzte Foto zurück, auf dem er gesehen wurde, mit Raum und Uhrzeit.',
+      pt:'Coisas. Diga uma vez "essa é a minha chave", com a chave na mão. Depois, "onde está minha chave?" traz a última foto em que ela foi vista, com o cômodo e a hora.'},
+ bike:{en:'The motorbike. When you stop riding and start walking, the glasses save the spot and two photos: the bike and the surroundings. If the key stayed on the bike, a quiet warning. Later: "where did I leave the motorbike?"',
+       de:'Das Motorrad. Wenn du anhältst und losgehst, speichert die Brille den Ort und zwei Fotos: das Motorrad und die Umgebung. Blieb der Schlüssel am Motorrad, ein leiser Hinweis. Später: „Wo habe ich das Motorrad abgestellt?“',
+       pt:'A moto. Quando você para de pilotar e começa a andar, os óculos guardam o local e duas fotos: a moto e o entorno. Se a chave ficou na moto, um aviso discreto. Depois: "onde deixei a moto?"'},
+ places:{en:'Places. The two or three important places nearest you sit on their buildings and stay there when you turn your head; dashed means hidden behind another building. Want more? Ask the live assistant about the place you are looking at: today\'s exhibition, when it was built. It searches the web; only the place name goes out, never the picture.',
+         de:'Orte. Die zwei, drei wichtigsten Orte in deiner Nähe sitzen auf ihren Gebäuden und bleiben dort, wenn du den Kopf drehst; gestrichelt heißt verdeckt. Mehr wissen? Frag den Live-Assistenten nach dem Ort, den du ansiehst: die Ausstellung heute, das Baujahr. Er sucht im Web; nur der Ortsname geht raus, nie das Bild.',
+         pt:'Lugares. Os dois ou três lugares importantes mais próximos ficam presos aos seus prédios e seguem quando você vira a cabeça; tracejado é escondido atrás de outro prédio. Quer mais? Pergunte ao assistente ao vivo sobre o lugar que está olhando: a exposição de hoje, quando foi construído. Ele busca na internet; só o nome do lugar sai, nunca a imagem.'},
+ recall:{en:'Recall. In standby, tap or press the AI button and ask in plain words. "Who was the person I just talked to?" brings the full card. Open questions go to a live voice assistant that sees what you see.',
+         de:'Erinnern. Im Standby tippen oder die KI-Taste drücken und einfach fragen. „Wer war die Person, mit der ich gerade gesprochen habe?“ bringt die ganze Karte. Offene Fragen gehen an einen Sprachassistenten, der sieht, was du siehst.',
+         pt:'Recordar. Em standby, toque ou aperte o botão de IA e pergunte com suas palavras. "Quem era a pessoa com quem falei agora?" traz o card completo. Perguntas abertas vão para um assistente de voz ao vivo que vê o que você vê.'},
+ manager:{en:'On the phone, the Manager. Ask your memory anything; every answer shows its source. "My day" tells the day from what was recorded. Actions (calendar, task, map) happen only when you tap.',
+          de:'Auf dem Telefon: der Manager. Frag dein Gedächtnis, was du willst; jede Antwort zeigt ihre Quelle. „Mein Tag“ erzählt den Tag aus dem, was aufgezeichnet wurde. Aktionen (Kalender, Aufgabe, Karte) passieren nur, wenn du tippst.',
+          pt:'No celular, o Manager. Pergunte qualquer coisa à sua memória; toda resposta mostra a fonte. "Meu dia" conta o dia a partir do que foi registrado. Ações (agenda, tarefa, mapa) só acontecem quando você toca.'},
+ modules:{en:'One app, four modules. General is already accessibility: a memory that does not depend on attention helps with ADHD, with the first years of dementia, with a busy life. Low vision speaks the card instead of showing it. Deaf: live captions with the speaker\'s name. The four switches stay in every module.',
+          de:'Eine App, vier Module. Allgemein ist schon Barrierefreiheit: ein Gedächtnis, das nicht von Aufmerksamkeit abhängt, hilft bei ADHS, in den ersten Jahren einer Demenz, in einem vollen Alltag. Sehbehinderung spricht die Karte, statt sie zu zeigen. Gehörlos: Live-Untertitel mit dem Namen des Sprechers. Die vier Schalter bleiben in jedem Modul.',
+          pt:'Um app, quatro módulos. O Geral já é acessibilidade: uma memória que não depende da atenção ajuda no TDAH, nos primeiros anos de uma demência, numa vida cheia. Baixa visão fala o card em vez de mostrar. Surdez: legenda ao vivo com o nome de quem fala. As quatro chaves ficam em todos os módulos.'},
+ keep:{en:'What is kept. The camera is not a recorder: one frame is taken, described as text on the device, and thrown away. Audio is never stored, only the transcript. Of a face, one small crop. The glasses themselves keep nothing on disk. What is not kept cannot leak.',
+       de:'Was bleibt. Die Kamera ist kein Rekorder: ein Bild wird aufgenommen, auf dem Gerät als Text beschrieben und verworfen. Audio wird nie gespeichert, nur die Mitschrift. Von einem Gesicht ein kleiner Ausschnitt. Die Brille selbst speichert nichts. Was nicht gespeichert ist, kann nicht abfließen.',
+       pt:'O que fica. A câmera não é um gravador: um quadro é capturado, descrito em texto no aparelho e jogado fora. Áudio nunca é guardado, só a transcrição. De um rosto, um recorte pequeno. Os óculos não guardam nada em disco. O que não é guardado não vaza.'},
+ sens:{en:'Sensitive moments, decided on the device, never in the cloud. Bathroom or locker room: camera and microphone pause. Nudity, a child at the pool: the moment survives only as a neutral sentence, written on the phone, no image ever saved, nothing sent anywhere. Intimacy: nothing at all. Children are never enrolled automatically. Strangers are never looked up.',
+       de:'Sensible Momente, entschieden auf dem Gerät, nie in der Cloud. Bad oder Umkleide: Kamera und Mikrofon pausieren. Nacktheit, ein Kind am Pool: der Moment bleibt nur als neutraler Satz, auf dem Telefon geschrieben, kein Bild gespeichert, nichts verschickt. Intimität: gar nichts. Kinder werden nie automatisch erfasst. Fremde werden nie nachgeschlagen.',
+       pt:'Momentos sensíveis, decididos no aparelho, nunca na nuvem. Banheiro ou vestiário: câmera e microfone pausam. Nudez, uma criança na piscina: o momento sobrevive só como uma frase neutra, escrita no celular, nenhuma imagem guardada, nada enviado. Intimidade: nada. Crianças nunca são cadastradas sozinhas. Estranhos nunca são procurados.'},
+ privacy:{en:'Creepy or not creepy? Our answers: faces are recognised on the device and never uploaded. Every recording announces itself and can be cancelled. Take the glasses off and the app locks. One button forgets everything.',
+          de:'Creepy oder nicht creepy? Unsere Antworten: Gesichter werden auf dem Gerät erkannt und nie hochgeladen. Jede Aufnahme kündigt sich an und kann abgebrochen werden. Brille ab, App gesperrt. Ein Knopf vergisst alles.',
+          pt:'Creepy ou não creepy? Nossas respostas: rostos são reconhecidos no aparelho e nunca enviados. Toda gravação se anuncia e pode ser cancelada. Tirou os óculos, o app trava. Um botão esquece tudo.'},
+ end:{en:['VisualContext','Built on Rokid Glasses · visualcontext.alema.io','Marcus de Magalhães · São Paulo · 2026'],
+      de:['VisualContext','Gebaut auf Rokid Glasses · visualcontext.alema.io','Marcus de Magalhães · São Paulo · 2026'],
+      pt:['VisualContext','Feito nos Rokid Glasses · visualcontext.alema.io','Marcus de Magalhães · São Paulo · 2026']},
+ x:{en:{sup:'supplier · Torra Fina',last:'last time: 12/09, the budget',rec:'Recording encounter',swipe:'swipe to cancel',enc:'encounter',newp:'New person',keep:'tap: keep · double tap: ignore',
+        nn1:'Man with the beard',nn2:'blue jacket · first time, here',nn3:'Café da Paim · yesterday 10:40 · the pilot',nnf:'listening for the name',nns:'"…nice to meet you, I\'m Pedro Reis, from Torra Fina"',nnb:'badge read: PEDRO REIS · Torra Fina',nnn:'Pedro Reis',nnl:'Torra Fina · met now, here',sayKey:'"this is my key"',keyReg:'Key · registered',askKey:'"where is my key?"',keyT:'Key',keyL:'bedroom · on the bed',keyW:'today 9:10',
+        park:'Parking moment',parkL:'spot saved · 2 photos',warn:'Did the key come with you?',warnL:'it seems to be on the bike',askBike:'"where did I leave the motorbike?"',bikeT:'Motorbike',bikeL:'Rua Paim, 210 · in front of Padaria Boa',bikeW:'today 8:30 · 240 m',map:'tap: see on map',
+        p1:'MASP',p1l:'art museum · 120 m',p2:'Trianon Park',p2l:'park · behind the building',
+        askPl:'"what\'s on at MASP today?"',aiPl:'Live assistant, web search: "MASP, by Lina Bo Bardi, opened in 1968. Today the collection is on the glass easels, open until 6 pm. Free on Tuesdays."',
+        askWho:'"who was the person I just talked to?"',t1:'12/09 · the budget for the pilot',t2:'02/08 · Torra Fina offsite, first met',askOpen:'"is there a good place for lunch near here?"',ai:'Live assistant: "Two blocks down there is a small Lebanese place, open now. Want the way?"',
+        ask:'Ask anything',q:'How was my day yesterday?',ans:'Yesterday: coffee at Café da Paim with Rafael Souza (budget for the pilot, he sends numbers by Friday), then the Torra Fina office.',src:'Source: encounter 03/11 10:40 · 2 places',b1:'Add to calendar',b2:'Create task',day:'MY DAY · TODAY',dayt:'2 people · 3 places · 1 note · 1 follow-up',c1:'Summary of my last encounter',c2:'Where did I leave the motorbike?',c3:'What is still pending?',
+        m1:'General',m1l:'people, key, motorbike, places · ADHD, early dementia, anyone',m2:'Business',m2l:'dossier, follow-ups, meeting summary',m3:'Low vision',m3l:'voice only · whispered names · reads signs',m4:'Deaf',m4l:'live captions with speaker names',
+        spoken:'Rafael Souza. Supplier. Last time, 12 September.',
+        k1:'frame → text → discarded',k2:'audio: <b>never stored</b>, text only',k3:'face: <b>one small crop</b>, not video',k4:'glasses: <b>nothing on disk</b>',k5:'transcript: 30 days, then summary only',
+        s1:'bathroom → <b>paused</b>',s2:'nudity → <b>one neutral sentence</b>, on the phone, no image, no cloud',s3:'intimacy → <b>nothing</b>',s4:'children: moments are kept, <b>faces never enrolled</b> automatically',s5:'strangers: <b>never identified</b>',
+        pr1:'Faces recognised <b>on the device</b>',pr2:'Recording <b>announces itself</b>, cancel any time',pr3:'Glasses off → <b>locked</b>',pr4:'Your memory, <b>never shared</b>',pr5:'<b>Forget everything</b>: one button'},
+    de:{sup:'Lieferant · Torra Fina',last:'zuletzt: 12.09., das Budget',rec:'Begegnung wird aufgezeichnet',swipe:'wischen zum Abbrechen',enc:'Begegnung',newp:'Neue Person',keep:'tippen: behalten · doppelt: ignorieren',
+        nn1:'Mann mit Bart',nn2:'blaue Jacke · erstes Mal, hier',nn3:'Café da Paim · gestern 10:40 · der Pilot',nnf:'hört auf den Namen',nns:'„…freut mich, ich bin Pedro Reis, von Torra Fina“',nnb:'Namensschild gelesen: PEDRO REIS · Torra Fina',nnn:'Pedro Reis',nnl:'Torra Fina · gerade kennengelernt, hier',sayKey:'„das ist mein Schlüssel“',keyReg:'Schlüssel · registriert',askKey:'„wo ist mein Schlüssel?“',keyT:'Schlüssel',keyL:'Schlafzimmer · auf dem Bett',keyW:'heute 9:10',
+        park:'Abstell-Moment',parkL:'Ort gespeichert · 2 Fotos',warn:'Ist der Schlüssel mitgekommen?',warnL:'er scheint am Motorrad zu sein',askBike:'„wo habe ich das Motorrad abgestellt?“',bikeT:'Motorrad',bikeL:'Rua Paim 210 · vor der Padaria Boa',bikeW:'heute 8:30 · 240 m',map:'tippen: auf der Karte',
+        p1:'MASP',p1l:'Kunstmuseum · 120 m',p2:'Trianon-Park',p2l:'Park · hinter dem Gebäude',
+        askPl:'„was läuft heute im MASP?“',aiPl:'Live-Assistent, Websuche: „MASP, von Lina Bo Bardi, eröffnet 1968. Heute die Sammlung auf den Glasstaffeleien, bis 18 Uhr. Dienstags frei.“',
+        askWho:'„wer war die Person, mit der ich gerade gesprochen habe?“',t1:'12.09. · das Budget für den Piloten',t2:'02.08. · Torra Fina Offsite, erstes Treffen',askOpen:'„gibt es hier in der Nähe was Gutes zum Mittagessen?“',ai:'Live-Assistent: „Zwei Blocks weiter ist ein kleines libanesisches Lokal, jetzt geöffnet. Soll ich den Weg zeigen?“',
+        ask:'Frag irgendetwas',q:'Wie war mein Tag gestern?',ans:'Gestern: Kaffee im Café da Paim mit Rafael Souza (Budget für den Piloten, er schickt Zahlen bis Freitag), dann das Büro von Torra Fina.',src:'Quelle: Begegnung 03.11. 10:40 · 2 Orte',b1:'In den Kalender',b2:'Aufgabe anlegen',day:'MEIN TAG · HEUTE',dayt:'2 Personen · 3 Orte · 1 Notiz · 1 offener Punkt',c1:'Zusammenfassung der letzten Begegnung',c2:'Wo habe ich das Motorrad abgestellt?',c3:'Was ist noch offen?',
+        m1:'Allgemein',m1l:'Menschen, Schlüssel, Motorrad, Orte · ADHS, frühe Demenz, alle',m2:'Business',m2l:'Dossier, offene Punkte, Meeting-Zusammenfassung',m3:'Sehbehinderung',m3l:'nur Stimme · geflüsterte Namen · liest Schilder',m4:'Gehörlos',m4l:'Live-Untertitel mit Sprechernamen',
+        spoken:'Rafael Souza. Lieferant. Zuletzt am 12. September.',
+        k1:'Bild → Text → verworfen',k2:'Audio: <b>nie gespeichert</b>, nur Text',k3:'Gesicht: <b>ein kleiner Ausschnitt</b>, kein Video',k4:'Brille: <b>nichts auf dem Speicher</b>',k5:'Mitschrift: 30 Tage, dann nur Zusammenfassung',
+        s1:'Bad → <b>Pause</b>',s2:'Nacktheit → <b>ein neutraler Satz</b>, auf dem Telefon, kein Bild, keine Cloud',s3:'Intimität → <b>nichts</b>',s4:'Kinder: Momente bleiben, <b>Gesichter nie automatisch</b> erfasst',s5:'Fremde: <b>nie identifiziert</b>',
+        pr1:'Gesichter <b>auf dem Gerät</b> erkannt',pr2:'Aufnahme <b>kündigt sich an</b>, jederzeit abbrechen',pr3:'Brille ab → <b>gesperrt</b>',pr4:'Dein Gedächtnis, <b>nie geteilt</b>',pr5:'<b>Alles vergessen</b>: ein Knopf'},
+    pt:{sup:'fornecedor · Torra Fina',last:'última vez: 12/09, o orçamento',rec:'Gravando encontro',swipe:'deslize para cancelar',enc:'encontro',newp:'Pessoa nova',keep:'toque: guardar · toque duplo: ignorar',
+        nn1:'Homem de barba',nn2:'jaqueta azul · primeira vez, aqui',nn3:'Café da Paim · ontem 10:40 · o piloto',nnf:'ouvindo o nome',nns:'"…prazer, eu sou o Pedro Reis, da Torra Fina"',nnb:'crachá lido: PEDRO REIS · Torra Fina',nnn:'Pedro Reis',nnl:'Torra Fina · conheceu agora, aqui',sayKey:'"essa é a minha chave"',keyReg:'Chave · cadastrada',askKey:'"onde está minha chave?"',keyT:'Chave',keyL:'quarto · em cima da cama',keyW:'hoje 9:10',
+        park:'Hora de estacionar',parkL:'local guardado · 2 fotos',warn:'A chave veio com você?',warnL:'parece que ficou na moto',askBike:'"onde deixei a moto?"',bikeT:'Moto',bikeL:'Rua Paim, 210 · em frente à Padaria Boa',bikeW:'hoje 8:30 · 240 m',map:'toque: ver no mapa',
+        p1:'MASP',p1l:'museu de arte · 120 m',p2:'Parque Trianon',p2l:'parque · atrás do prédio',
+        askPl:'"o que está em cartaz no MASP hoje?"',aiPl:'Assistente ao vivo, busca na web: "MASP, da Lina Bo Bardi, inaugurado em 1968. Hoje o acervo está nos cavaletes de vidro, aberto até as 18h. Terça é grátis."',
+        askWho:'"quem era a pessoa com quem falei agora?"',t1:'12/09 · o orçamento do piloto',t2:'02/08 · encontro da Torra Fina, primeira vez',askOpen:'"tem um lugar bom para almoçar aqui perto?"',ai:'Assistente ao vivo: "Duas quadras abaixo tem um libanês pequeno, aberto agora. Quer o caminho?"',
+        ask:'Pergunte qualquer coisa',q:'Como foi meu dia ontem?',ans:'Ontem: café no Café da Paim com Rafael Souza (orçamento do piloto, ele manda os números até sexta), depois o escritório da Torra Fina.',src:'Fonte: encontro 03/11 10:40 · 2 lugares',b1:'Pôr na agenda',b2:'Criar tarefa',day:'MEU DIA · HOJE',dayt:'2 pessoas · 3 lugares · 1 nota · 1 pendência',c1:'Resumo do último encontro',c2:'Onde deixei a moto?',c3:'O que ficou pendente?',
+        m1:'Geral',m1l:'pessoas, chave, moto, lugares · TDAH, demência inicial, qualquer um',m2:'Business',m2l:'dossiê, pendências, resumo do encontro',m3:'Baixa visão',m3l:'só voz · nomes sussurrados · lê placas',m4:'Surdez',m4l:'legenda ao vivo com nome de quem fala',
+        spoken:'Rafael Souza. Fornecedor. Última vez, 12 de setembro.',
+        k1:'quadro → texto → descartado',k2:'áudio: <b>nunca guardado</b>, só texto',k3:'rosto: <b>um recorte pequeno</b>, não vídeo',k4:'óculos: <b>nada em disco</b>',k5:'transcrição: 30 dias, depois só o resumo',
+        s1:'banheiro → <b>pausa</b>',s2:'nudez → <b>uma frase neutra</b>, no celular, sem imagem, sem nuvem',s3:'intimidade → <b>nada</b>',s4:'crianças: os momentos ficam, <b>o rosto nunca é cadastrado</b> sozinho',s5:'estranhos: <b>nunca identificados</b>',
+        pr1:'Rostos reconhecidos <b>no aparelho</b>',pr2:'Gravação <b>se anuncia</b>, cancela quando quiser',pr3:'Tirou os óculos → <b>travado</b>',pr4:'Sua memória, <b>nunca compartilhada</b>',pr5:'<b>Esquecer tudo</b>: um botão'}}
+};
+function L(){ return LANGS[lang]; }
+function X(k){ return T.x[L()][k]; }
+
+// ---- scene helpers ----
+var timers=[];
+function at(ms,fn){ timers.push(setTimeout(fn,ms)); }
+function clearT(){ timers.forEach(clearTimeout); timers=[]; }
+function add(html,x,y,cls,delay){ var d=document.createElement('div'); d.className='el '+(cls||''); d.style.left=x+'px'; d.style.top=y+'px'; d.innerHTML=html; els.appendChild(d); at(delay||30,function(){ d.classList.add('on'); }); return d; }
+function off(d,ms){ at(ms,function(){ d.classList.remove('on'); }); }
+function card(t,lines,foot,extra){ return '<div class="card '+(extra||'')+'"><div class="t">'+t+'</div><div class="r"></div><div class="l">'+lines.join('<br>')+'</div>'+(foot?'<div class="f">'+foot+'</div>':'')+'</div>'; }
+function cardThumb(t,icon,lines,foot){ return '<div class="card"><div class="t">'+t+'</div><div class="r"></div><div class="row"><div class="thumb">'+icon+'</div><div class="l">'+lines.join('<br>')+'</div></div>'+(foot?'<div class="f">'+foot+'</div>':'')+'</div>'; }
+function dot(){ return add('<div class="dot"></div>',1100,60); }
+function rafaelCard(x,y,delay){ return add(card('Rafael Souza',[X('sup'),X('last')]),x,y,'',delay); }
+
+// ---- scenes ----
+var scenes=[
+ {dur:7000,run:function(){ world.innerHTML=''; var t=T.title[L()]; add('<div class="title">'+t[0]+'</div><div class="sub" style="max-width:720px">'+t[1]+'</div><div class="tiny">'+t[2]+'</div>',160,220); cap.innerHTML=''; }},
+ {dur:7000,key:'standby',run:function(){ world.innerHTML=room(); dot(); }},
+ {dur:17000,key:'meet',run:function(){ world.innerHTML=room()+'<svg viewBox="0 0 1280 720">'+person(760,300,1)+'</svg>'; dot();
+   add('<div class="tag">Rafael Souza</div>',830,250,'',1200);
+   at(2400,function(){ rafaelCard(180,90); });
+   at(5200,function(){ var r=add('<div class="rec">'+X('rec')+': <b>5</b> · '+X('swipe')+'</div>',180,300); var n=5; var iv=setInterval(function(){ n--; if(n<0){ clearInterval(iv); r.classList.remove('on'); add('<div class="rec" style="font-size:16px"><span class="dot" style="display:inline-block;margin-right:8px"></span>'+X('enc')+'</div>',180,300,'',200); return; } r.querySelector('b').textContent=n; },1000); timers.push(iv); });
+ }},
+ {dur:10000,key:'three',run:function(){ world.innerHTML=room()+'<svg viewBox="0 0 1280 720">'+person(420,320,.85)+person(760,290,1)+person(1060,330,.8)+'</svg>'; dot();
+   add('<div class="tag">Ana Lima</div>',470,275,'',900); add('<div class="tag">Rafael Souza</div>',830,245,'',1200); add('<div class="tag">Pedro Reis</div>',1105,285,'',1500);
+   at(2500,function(){ rafaelCard(150,90); });
+ }},
+ {dur:22000,key:'unknown',run:function(){ world.innerHTML=room()+'<svg viewBox="0 0 1280 720">'+person(760,300,1)+'</svg>'; dot();
+   var tg=add('<div class="tag">'+X('nn1')+'</div>',830,250,'',1200);
+   var c=add(card(X('nn1'),[X('nn2')],X('nnf')),180,90,'',2500);
+   at(6500,function(){ add('<div class="say">'+X('nns')+'</div>',180,330); });
+   at(9500,function(){ tg.innerHTML=X('nnn'); c.innerHTML=card(X('nnn'),[X('nnl')],null); });
+   at(13500,function(){ els.innerHTML=''; dot(); add('<div class="tag">'+X('nn1')+'</div>',830,250); add(card(X('nn1'),[X('nn2')],X('nnf')),180,90); add('<div class="rec" style="font-size:17px">⬚ '+X('nnb')+'</div>',180,330,'',2500); });
+   at(18000,function(){ var t=els.querySelector('.tag'); if(t) t.innerHTML=X('nnn'); var k=els.querySelector('.card'); if(k) k.outerHTML=card(X('nnn'),[X('nnl')],null); });
+ }},
+ {dur:17000,key:'key',run:function(){ world.innerHTML=hand(); dot();
+   add('<div class="say">'+X('sayKey')+'</div>',180,90,'',1500);
+   at(4000,function(){ add('<div class="rec">✓ '+X('keyReg')+'</div>',180,150); });
+   at(8000,function(){ world.innerHTML=room(); els.innerHTML=''; dot(); add('<div class="say">'+X('askKey')+'</div>',180,90); });
+   at(10500,function(){ add(cardThumb(X('keyT'),bedIcon(),[X('keyL'),X('keyW')]),180,150); });
+ }},
+ {dur:22000,key:'bike',run:function(){ world.innerHTML=bike(); dot();
+   at(1500,function(){ add(card(X('park'),[X('parkL')],null,'small'),180,90); });
+   at(3000,function(){ add('<div class="card small" style="display:flex;gap:10px"><div class="thumb">'+bikeIcon()+'</div><div class="thumb">'+shopIcon()+'</div></div>',180,230); });
+   at(7000,function(){ els.innerHTML=''; dot(); add(card(X('warn'),[X('warnL')],null,'dashed'),180,90); });
+   at(12000,function(){ world.innerHTML=street(); els.innerHTML=''; dot(); add('<div class="say">'+X('askBike')+'</div>',180,90); });
+   at(14500,function(){ add(cardThumb(X('bikeT'),shopIcon(),[X('bikeL'),X('bikeW')],X('map')),180,150); add('<div class="arrow">↗</div>',700,170,'',600); });
+ }},
+ {dur:24000,key:'places',run:function(){ world.innerHTML=street(); dot();
+   var a=add(card(X('p1'),[X('p1l')],null,'small pin'),520,90,'',800); var b=add(card(X('p2'),[X('p2l')],null,'small dashed pin'),940,90,'',1400);
+   at(5000,function(){ a.style.transition='left 1.6s ease,opacity .45s'; b.style.transition='left 1.6s ease,opacity .45s'; a.style.left='300px'; b.style.left='720px'; });
+   at(9000,function(){ a.style.left='440px'; b.style.left='860px'; });
+   at(12500,function(){ add('<div class="say">'+X('askPl')+'</div>',180,330); });
+   at(15500,function(){ b.classList.remove('on'); add('<div class="ai" style="max-width:760px">'+X('aiPl')+'</div>',180,390); });
+ }},
+ {dur:20000,key:'recall',run:function(){ world.innerHTML=room(); dot();
+   add('<div class="say">'+X('askWho')+'</div>',180,90,'',1200);
+   at(3500,function(){ add(card('Rafael Souza',[X('sup'),X('last'),'',X('t1'),X('t2')]),180,150); });
+   at(11000,function(){ world.innerHTML=street(); els.innerHTML=''; dot(); add('<div class="say">'+X('askOpen')+'</div>',180,90); });
+   at(13500,function(){ add('<div class="ai" style="max-width:720px">'+X('ai')+'</div>',180,150); });
+ }},
+ {dur:18000,key:'manager',run:function(){ world.innerHTML='';
+   var ph=add('<div class="phone"><div class="ask">✦ <span id="qq"></span></div><div class="chips"><span class="chip">✦ '+X('c1')+'</span><span class="chip">✦ '+X('c2')+'</span><span class="chip">✦ '+X('c3')+'</span></div><div class="pills"><span class="pill on">All</span><span class="pill">People</span><span class="pill">Places</span><span class="pill">Things</span><span class="pill">Memories</span></div><div id="ans"></div></div>',0,0);
+   var q=X('q'), i=0; at(1500,function(){ var iv=setInterval(function(){ var e=document.getElementById('qq'); if(!e){clearInterval(iv);return;} e.textContent=q.slice(0,++i); if(i>=q.length) clearInterval(iv); },45); timers.push(iv); });
+   at(5000,function(){ var a=document.getElementById('ans'); if(a) a.innerHTML='<div class="ans">'+X('ans')+'<div class="src">'+X('src')+'</div><span class="btn">'+X('b1')+'</span><span class="btn">'+X('b2')+'</span></div>'; });
+   at(10000,function(){ var a=document.getElementById('ans'); if(a) a.innerHTML+='<div class="day"><div class="h">✦ '+X('day')+'</div>'+X('dayt')+'</div>'; });
+   add('<div class="ai" style="width:380px">'+X('ask')+'</div>',860,80,'',800);
+ }},
+ {dur:16000,key:'modules',run:function(){ world.innerHTML='';
+   add('<div class="mods"><div class="mod on"><div class="t">'+X('m1')+'</div><div class="l">'+X('m1l')+'</div></div><div class="mod"><div class="t">'+X('m2')+'</div><div class="l">'+X('m2l')+'</div></div><div class="mod" id="m3"><div class="t">'+X('m3')+'</div><div class="l">'+X('m3l')+'</div></div><div class="mod"><div class="t">'+X('m4')+'</div><div class="l">'+X('m4l')+'</div></div></div>',180,90);
+   at(6000,function(){ var m=document.getElementById('m3'); if(m) m.classList.add('on'); add('<div class="sp">'+X('spoken')+'</div>',180,420); });
+ }},
+ {dur:16000,key:'keep',run:function(){ world.innerHTML=room()+'<svg viewBox="0 0 1280 720">'+person(900,330,.9)+'</svg>'; dot();
+   add('<div class="list">'+['k1','k2','k3','k4','k5'].map(function(k){return '· '+X(k);}).join('<br>')+'</div>',180,110);
+   var f=add('<div class="card small" style="width:150px;height:110px"></div>',820,250,'',1500); at(4000,function(){ f.innerHTML='<div class="l" style="font-size:13px">“two people at a table, talking about the pilot”</div>'; }); at(7000,function(){ f.classList.remove('on'); });
+ }},
+ {dur:18000,key:'sens',run:function(){ world.innerHTML='';
+   add('<div class="list">'+['s1','s2','s3','s4','s5'].map(function(k){return '· '+X(k);}).join('<br>')+'</div>',180,110);
+   add('<div class="ai">on-device classifier · no cloud</div>',180,470,'',3000);
+ }},
+ {dur:16000,key:'privacy',run:function(){ world.innerHTML='';
+   add('<div class="list">'+['pr1','pr2','pr3','pr4','pr5'].map(function(k){return '· '+X(k);}).join('<br>')+'</div>',180,110);
+ }},
+ {dur:8000,run:function(){ world.innerHTML=''; var t=T.end[L()]; add('<div class="title">'+t[0]+'</div><div class="sub">'+t[1]+'</div><div class="tiny">'+t[2]+'</div>',160,240); cap.innerHTML=''; }}
+];
+
+var cur=0, playing=false, nextT=null;
+var prog=document.getElementById('prog'); scenes.forEach(function(){ prog.appendChild(document.createElement('i')); });
+function show(i){ clearT(); clearTimeout(nextT); cur=(i+scenes.length)%scenes.length; els.innerHTML=''; var s=scenes[cur]; s.run();
+  if(s.key){ cap.innerHTML=T[s.key][L()]+'<small>'+(cur)+' / '+(scenes.length-2)+'</small>'; }
+  Array.prototype.forEach.call(prog.children,function(p,j){ p.className=j<cur?'done':j===cur?'now':''; });
+  if(playing){ nextT=setTimeout(function(){ if(cur<scenes.length-1) show(cur+1); else { playing=false; setPlay(); } }, s.dur); } }
+function setPlay(){ document.getElementById('play').textContent=playing?'❚❚ Pause':'▶ Play'; }
+function toggle(){ playing=!playing; setPlay(); if(playing) show(cur); else clearTimeout(nextT); }
+document.getElementById('play').onclick=toggle;
+document.getElementById('prev').onclick=function(){ show(cur-1); };
+document.getElementById('next').onclick=function(){ show(cur+1); };
+document.getElementById('lang').onclick=function(){ lang=(lang+1)%LANGS.length; document.getElementById('lang').textContent=L().toUpperCase(); try{ location.hash=L(); }catch(e){} show(cur); };
+document.getElementById('full').onclick=function(){ var f=document.getElementById('wrap'); try{ (f.requestFullscreen||function(){}).call(f).catch?.(function(){}); }catch(e){} };
+var bar=document.getElementById('bar'), hideT;
+function wake(){ bar.classList.remove('hide'); clearTimeout(hideT); if(playing) hideT=setTimeout(function(){ bar.classList.add('hide'); },3000); }
+document.addEventListener('mousemove',wake); document.addEventListener('touchstart',wake,{passive:true});
+document.addEventListener('keydown',function(e){ if(e.key===' '){ e.preventDefault(); toggle(); wake(); } else if(e.key==='ArrowRight'){ show(cur+1); } else if(e.key==='ArrowLeft'){ show(cur-1); } else if(e.key==='l'||e.key==='L'){ document.getElementById('lang').click(); } else if(e.key==='h'||e.key==='H'){ bar.classList.toggle('hide'); } else if(e.key==='f'||e.key==='F'){ document.getElementById('full').click(); } });
+function fit(){ var f=document.getElementById('film'); var k=f.clientWidth/1280; document.getElementById('stage').style.transform='scale('+k+')'; }
+window.addEventListener('resize',fit); fit();
+document.getElementById('lang').textContent=L().toUpperCase();
+show(0);
+})();
+</script>
+</body>
+</html>
