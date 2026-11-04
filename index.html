@@ -412,7 +412,9 @@ html[lang="pt-BR"] [data-only="pt"],html[lang="en"] [data-only="en"]{display:rev
 
 <div class="tip">
 <h3 data-i18n="help4Title">4. Foto com o celular bloqueado</h3>
-<p data-i18n="help4Text">Com o celular bloqueado por senha, o WhatsApp não envia fotos. Coloque os óculos como dispositivo confiável no Desbloqueio estendido (antes chamado Smart Lock). O caminho muda de celular para celular: procure "Desbloqueio estendido" na busca dos Ajustes e escolha Dispositivos confiáveis. Enquanto os óculos estiverem conectados, o celular fica destravado para o Zap. O app do Zap no celular tem um botão que leva direto para lá.</p>
+<p data-i18n="help4Text">Com o celular bloqueado por senha, o WhatsApp não envia fotos. A saída é deixar os óculos Rokid como dispositivo de confiança: o celular fica destravado só enquanto estiver conectado a eles por Bluetooth, e trava assim que se afastam. O nome da tela muda por celular: no Samsung é "Desbloqueio Compartilhado" (Ajustes › Tela de bloqueio e AOD); no Pixel e em outros, "Desbloqueio estendido"; em alguns, ainda "Smart Lock". Entre em Dispositivos de confiança, toque em Adicionar e escolha os óculos. O app do Zap no celular tem um botão que tenta abrir essa tela.</p>
+<p data-i18n="help4Warn"><strong>Use só "Dispositivos de confiança".</strong> Não ligue "Detecção no bolso" nem "Lugares de confiança": com elas o celular sai do bolso já destravado, e num roubo isso é tudo que o ladrão precisa.</p>
+<figure><div class="shot"><img src="/ajuda/desbloqueio-samsung.jpg" width="540" height="702" alt="Tela Desbloqueio Compartilhado num Samsung: Detecção no bolso e Lugares de confiança desativados, Dispositivos de confiança em uso" data-i18n-alt="helpUnlockAlt" style="display:block;width:100%;height:auto"><span class="mark no" style="top:35%;height:41%"><span class="tag" data-i18n="helpUnlockOff">Não ligue</span></span><span class="mark" style="top:76.5%;height:20%"><span class="tag" data-i18n="helpUnlockOn">Só esta</span></span></div><figcaption data-i18n="helpSamsungCap">Samsung (One UI)</figcaption></figure>
 </div>
 </div>
 </dialog>
@@ -500,7 +502,10 @@ const EN = {
   help3b: "<strong>Before the bank:</strong> tap Zap. It goes from blue (or green) to grey and shows \"Paused\".",
   help3c: "<strong>Afterwards:</strong> tap it again. Android opens Accessibility and you turn Zap's switch back on. Only you can turn it back on: it's an Android security rule.",
   help4Title: "4. Photos with the phone locked",
-  help4Text: "With the phone locked by a PIN, WhatsApp won't send photos. Add the glasses as a trusted device in Extend Unlock (formerly Smart Lock). The path differs from phone to phone: search Settings for \"Extend Unlock\" and pick Trusted devices. While the glasses are connected, the phone stays unlocked for Zap. Zap's app on the phone has a button that takes you straight there.",
+  help4Warn: "<strong>Use only \"Trusted devices\".</strong> Don't turn on \"On-body detection\" or \"Trusted places\": with those the phone leaves your pocket already unlocked, and in a robbery that's all a thief needs.",
+  helpUnlockOn: "Only this one", helpUnlockOff: "Leave off",
+  helpUnlockAlt: "Shared Unlock screen on a Samsung: On-body detection and Trusted places off, Trusted devices in use",
+  help4Text: "With the phone locked by a PIN, WhatsApp won't send photos. The way out is to make the Rokid glasses a trusted device: the phone stays unlocked only while connected to them over Bluetooth, and locks as soon as they move away. The screen's name varies: on Samsung it's \"Shared Unlock\" (Settings › Lock screen and AOD); on Pixel and others, \"Extend Unlock\"; on some, still \"Smart Lock\". Go to Trusted devices, tap Add and pick the glasses. Zap's app on the phone has a button that tries to open that screen.",
   photoNote: "For the photo to go without touching your phone, turn on automatic sending (install step 4). With the phone locked, add the glasses as a trusted device in Android's Extend Unlock (formerly Smart Lock). For safety, the helper only presses Send when it sees the photo preview on screen; otherwise you finish the send on the phone.",
   chipNames: "Similar names? Pick the right contact from a list",
   chipSummary: "Optional: an AI summary when many messages or voice notes pile up",
