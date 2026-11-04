@@ -46,6 +46,13 @@ html[lang="pt-BR"] [data-only="pt"],html[lang="en"] [data-only="en"]{display:rev
 #help .mark.no{border-color:#D23C3C}
 #help .tag{position:absolute;right:4%;transform:translateY(-55%);top:0;background:#1E9E52;color:#fff;font-size:12px;font-weight:500;padding:3px 9px;border-radius:999px;white-space:nowrap}
 #help .mark.no .tag{background:#D23C3C}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.vidbox{position:relative;margin:0 auto;max-width:960px;border-radius:20px;overflow:hidden;background:#000;border:1px solid #182619;box-shadow:0 0 0 10px #0D150F}
+.vidbox video{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover}
+.vidbox.portrait{max-width:min(420px,100%)}
+.vidbox.portrait video{aspect-ratio:9/16}
+#soundBtn{position:absolute;right:14px;bottom:14px;border:1px solid #2F9D5C;background:rgba(0,0,0,.65);color:#DCF3E4;font:500 14px/1 Roboto,sans-serif;padding:10px 14px;border-radius:999px;cursor:pointer;backdrop-filter:blur(4px)}
+#soundBtn:hover{border-color:#4DFF8C}
 </style>
 </head>
 <body>
@@ -113,6 +120,15 @@ html[lang="pt-BR"] [data-only="pt"],html[lang="en"] [data-only="en"]{display:rev
 </div>
 </div>
 </div>
+</section>
+
+<section id="video" aria-labelledby="videoTitle" style="max-width: 1180px; margin: 0 auto; padding: 0 24px 72px">
+<h2 id="videoTitle" class="sr" data-i18n="videoTitle">Veja o Zap em 25 segundos</h2>
+<div class="vidbox">
+<video id="promo" muted loop playsinline autoplay preload="metadata" poster="/video/poster-16x9.jpg" aria-label="Comercial do Zap: mensagem chega na lente, resposta por voz e foto enviada dos óculos" data-i18n-aria="videoAria"></video>
+<button type="button" id="soundBtn" aria-pressed="false"><span data-i18n="soundOn">🔊 Ligar o som</span></button>
+</div>
+<p data-i18n="videoNote" style="margin: 10px 0 0; font-size: 13px; color: #5E7A66; text-align: center">Cena ilustrativa, gerada por IA. As telas da lente são as reais do app. Não afiliado ao WhatsApp, à Meta nem à Rokid.</p>
 </section>
 
 <section id="como-funciona" style="border-top: 1px solid #182619; background: #0A100B">
@@ -415,6 +431,11 @@ const EN = {
   download: "Get Zap", noGlasses: "I don't have the glasses",
   heroKicker: "Rokid Glasses · Public beta 0.15",
   heroTitle: "Your WhatsApp chats, in your glasses.",
+  videoTitle: "See Zap in 25 seconds",
+  videoAria: "Zap commercial: a message lands on the lens, a voice reply, and a photo sent from the glasses",
+  soundOn: "🔊 Sound on",
+  soundOff: "🔇 Mute",
+  videoNote: "Illustrative scene, AI-generated. The lens screens are the app's real screens. Not affiliated with WhatsApp, Meta or Rokid.",
   heroText: "Read, hear again, reply by voice and send photos without taking your phone out of your pocket. Your history stays on your phone, and nothing is sent until you confirm.",
   heroFacts: "Android 11+ · In the Rokid Nexus Store · Free · Open source",
   lensAria: "Zap on the glasses: chat list with New message at the top",
@@ -556,6 +577,29 @@ function setLang(lang, remember) {
   // Neither Portuguese nor English anywhere in the browser: show English and ask.
   setLang('en', false);
   document.getElementById('langAsk').classList.add('open');
+})();
+
+// Promo video: Portuguese or English follows the page language; 9:16 on portrait screens, 16:9 otherwise.
+(function promo() {
+  const v = document.getElementById('promo'), box = v.parentElement, btn = document.getElementById('soundBtn');
+  const portrait = matchMedia('(orientation: portrait) and (max-width: 700px)');
+  function pick() {
+    const en = document.documentElement.lang === 'en', p = portrait.matches, src = '/video/zap-' + (en ? 'en' : 'pt') + '-' + (p ? '9x16' : '16x9') + '.mp4';
+    if (v.getAttribute('src') === src) return;
+    const t = v.currentTime, wasMuted = v.muted;
+    box.classList.toggle('portrait', p);
+    v.poster = '/video/poster-' + (p ? '9x16' : '16x9') + '.jpg';
+    v.src = src; v.muted = wasMuted; v.currentTime = t; v.play().catch(() => {});
+  }
+  portrait.addEventListener('change', pick);
+  new MutationObserver(pick).observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
+  btn.addEventListener('click', () => {
+    v.muted = !v.muted; btn.setAttribute('aria-pressed', String(!v.muted));
+    const en = document.documentElement.lang === 'en', key = v.muted ? 'soundOn' : 'soundOff';
+    btn.firstElementChild.textContent = en ? EN[key] : (key === 'soundOn' ? '🔊 Ligar o som' : '🔇 Silenciar');
+    if (!v.muted && v.paused) v.play().catch(() => {});
+  });
+  pick();
 })();
 document.querySelectorAll('[data-set-lang]').forEach(b => b.addEventListener('click', () => setLang(b.dataset.setLang, true)));
 
