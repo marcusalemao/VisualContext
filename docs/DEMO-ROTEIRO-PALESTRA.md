@@ -16,8 +16,8 @@
 5. **No name yet.** Never "Person 1". The card describes the person and the occasion ("man with the beard, blue jacket"). It corrects itself during the conversation: when he says "I'm Pedro Reis", or a badge is read, the description becomes the name.
 6. **The key.** Teach it once with the key in hand. "Where is my key?" shows the last photo where it was seen.
 7. **The motorbike.** The parking moment is detected; two photos (bike, surroundings). "Did the key come with you?" if it stayed on the bike.
-8. **Places.** Up to two cards pinned to the buildings; dashed when hidden behind another one.
-9. **Recall.** Tap or AI button, ask in plain words. Open questions go to a live voice assistant that sees what you see (Gemini Live).
+8. **Places.** The two or three important places nearest you, pinned to their buildings; dashed when hidden behind another one. Ask the live assistant about the one you are looking at ("what's on at MASP today?"): it searches the web; only the place name goes out, never the picture.
+9. **Recall.** Tap or AI button, ask in plain words. Open questions ("a good place for lunch near here?") go to a live voice assistant that sees what you see (Gemini Live).
 10. **Manager (phone).** Ask anything, every answer has its source. "My day". Actions only on tap.
 11. **Modules.** General, Business, Low vision (spoken cards), Deaf (live captions). Accessibility is the launch hook.
 12. **Creepy or not creepy.** On-device faces, announced recording, lock when the glasses come off, forget everything.
