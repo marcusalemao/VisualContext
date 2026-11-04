@@ -19,7 +19,7 @@
 8. **Places.** The two or three important places nearest you, pinned to their buildings; dashed when hidden behind another one. Ask the live assistant about the one you are looking at ("what's on at MASP today?"): it searches the web; only the place name goes out, never the picture.
 9. **Recall.** Tap or AI button, ask in plain words. Open questions ("a good place for lunch near here?") go to a live voice assistant that sees what you see (Gemini Live).
 10. **Manager (phone).** Ask anything, every answer has its source. "My day". Actions only on tap.
-11. **Modules.** General, Business, Low vision (spoken cards), Deaf (live captions). Accessibility is the launch hook.
+11. **Modules.** General, Business, Low vision (spoken cards), Deaf (live captions). General is already accessibility: a memory that does not depend on attention helps with ADHD, with the first years of dementia, with a busy life. (Optional, if Marcus agrees to share it: the idea was born from his own ADHD and from thinking it could have helped his mother at the start of Alzheimer's.)
 12. **What is kept.** One frame, described as text on the device, then discarded. Audio never stored. One face crop. The glasses keep nothing.
 13. **Sensitive moments.** Decided on the device: bathroom pauses; nudity becomes one neutral sentence, no image, nothing to the cloud; intimacy records nothing; children never enrolled automatically.
 14. **Creepy or not creepy.** On-device faces, announced recording, lock when the glasses come off, forget everything. Privacy brief for Q&A: `DEMO-PRIVACIDADE-NOTA.md` (EN/DE).
