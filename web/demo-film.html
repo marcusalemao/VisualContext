@@ -136,9 +136,9 @@ var T={
  three:{en:'Several people: a name beside each head. The full card follows the person you are looking at.',
         de:'Mehrere Personen: ein Name neben jedem Kopf. Die ganze Karte folgt der Person, die du gerade ansiehst.',
         pt:'Várias pessoas: um nome ao lado de cada cabeça. O card completo acompanha a pessoa para quem você está olhando.'},
- unknown:{en:'No name yet? Never "Person 1". The card describes the person and the last occasion you met: "man with the beard, blue jacket · Café da Paim, yesterday, the pilot". When the name comes up in conversation, the card learns it.',
-          de:'Noch kein Name? Nie „Person 1“. Die Karte beschreibt die Person und die letzte Begegnung: „Mann mit Bart, blaue Jacke · Café da Paim, gestern, der Pilot“. Fällt der Name im Gespräch, lernt die Karte ihn.',
-          pt:'Sem nome ainda? Nunca "Pessoa 1". O card descreve a pessoa e a última ocasião: "homem de barba, jaqueta azul · Café da Paim, ontem, o piloto". Quando o nome aparece na conversa, o card aprende.'},
+ unknown:{en:'No name yet? Never "Person 1". The card describes the person and the occasion. It corrects itself as the conversation goes: when someone says the name, or a badge is read, the description becomes a name. Later, the occasion is what you remember.',
+          de:'Noch kein Name? Nie „Person 1“. Die Karte beschreibt die Person und den Anlass. Sie korrigiert sich im Gespräch: nennt jemand den Namen oder wird ein Namensschild gelesen, wird aus der Beschreibung ein Name. Später ist der Anlass das, woran du dich erinnerst.',
+          pt:'Sem nome ainda? Nunca "Pessoa 1". O card descreve a pessoa e a ocasião. Ele se corrige ao longo da conversa: quando alguém diz o nome, ou um crachá é lido, a descrição vira nome. Depois, a ocasião é o que você lembra.'},
  key:{en:'Things. Say "this is my key" once, with the key in your hand. Later, "where is my key?" brings back the last photo where it was seen, with the room and the time.',
       de:'Dinge. Sag einmal „das ist mein Schlüssel“, mit dem Schlüssel in der Hand. Später holt „wo ist mein Schlüssel?“ das letzte Foto zurück, auf dem er gesehen wurde, mit Raum und Uhrzeit.',
       pt:'Coisas. Diga uma vez "essa é a minha chave", com a chave na mão. Depois, "onde está minha chave?" traz a última foto em que ela foi vista, com o cômodo e a hora.'},
@@ -164,7 +164,7 @@ var T={
       de:['VisualContext','Gebaut auf Rokid Glasses · visualcontext.alema.io','Marcus de Magalhães · São Paulo · 2026'],
       pt:['VisualContext','Feito nos Rokid Glasses · visualcontext.alema.io','Marcus de Magalhães · São Paulo · 2026']},
  x:{en:{sup:'supplier · Torra Fina',last:'last time: 12/09, the budget',rec:'Recording encounter',swipe:'swipe to cancel',enc:'encounter',newp:'New person',keep:'tap: keep · double tap: ignore',
-        nn1:'Man with the beard',nn2:'blue jacket · first time, here',nn3:'Café da Paim · yesterday 10:40 · the pilot',nnf:'say the name and the card learns it',sayKey:'"this is my key"',keyReg:'Key · registered',askKey:'"where is my key?"',keyT:'Key',keyL:'bedroom · on the bed',keyW:'today 9:10',
+        nn1:'Man with the beard',nn2:'blue jacket · first time, here',nn3:'Café da Paim · yesterday 10:40 · the pilot',nnf:'listening for the name',nns:'"…nice to meet you, I\'m Pedro Reis, from Torra Fina"',nnb:'badge read: PEDRO REIS · Torra Fina',nnn:'Pedro Reis',nnl:'Torra Fina · met now, here',sayKey:'"this is my key"',keyReg:'Key · registered',askKey:'"where is my key?"',keyT:'Key',keyL:'bedroom · on the bed',keyW:'today 9:10',
         park:'Parking moment',parkL:'spot saved · 2 photos',warn:'Did the key come with you?',warnL:'it seems to be on the bike',askBike:'"where did I leave the motorbike?"',bikeT:'Motorbike',bikeL:'Rua Paim, 210 · in front of Padaria Boa',bikeW:'today 8:30 · 240 m',map:'tap: see on map',
         p1:'MASP',p1l:'art museum · 120 m',p2:'Trianon Park',p2l:'park · behind the building',
         askWho:'"who was the person I just talked to?"',t1:'12/09 · the budget for the pilot',t2:'02/08 · Torra Fina offsite, first met',askOpen:'"what is this building?"',ai:'Live assistant: "It\'s the São Paulo Museum of Art, opened in 1968, by Lina Bo Bardi…"',
@@ -173,7 +173,7 @@ var T={
         spoken:'Rafael Souza. Supplier. Last time, 12 September.',
         pr1:'Faces recognised <b>on the device</b>',pr2:'Recording <b>announces itself</b>, cancel any time',pr3:'Glasses off → <b>locked</b>',pr4:'Your memory, <b>never shared</b>',pr5:'<b>Forget everything</b>: one button'},
     de:{sup:'Lieferant · Torra Fina',last:'zuletzt: 12.09., das Budget',rec:'Begegnung wird aufgezeichnet',swipe:'wischen zum Abbrechen',enc:'Begegnung',newp:'Neue Person',keep:'tippen: behalten · doppelt: ignorieren',
-        nn1:'Mann mit Bart',nn2:'blaue Jacke · erstes Mal, hier',nn3:'Café da Paim · gestern 10:40 · der Pilot',nnf:'sag den Namen, und die Karte lernt ihn',sayKey:'„das ist mein Schlüssel“',keyReg:'Schlüssel · registriert',askKey:'„wo ist mein Schlüssel?“',keyT:'Schlüssel',keyL:'Schlafzimmer · auf dem Bett',keyW:'heute 9:10',
+        nn1:'Mann mit Bart',nn2:'blaue Jacke · erstes Mal, hier',nn3:'Café da Paim · gestern 10:40 · der Pilot',nnf:'hört auf den Namen',nns:'„…freut mich, ich bin Pedro Reis, von Torra Fina“',nnb:'Namensschild gelesen: PEDRO REIS · Torra Fina',nnn:'Pedro Reis',nnl:'Torra Fina · gerade kennengelernt, hier',sayKey:'„das ist mein Schlüssel“',keyReg:'Schlüssel · registriert',askKey:'„wo ist mein Schlüssel?“',keyT:'Schlüssel',keyL:'Schlafzimmer · auf dem Bett',keyW:'heute 9:10',
         park:'Abstell-Moment',parkL:'Ort gespeichert · 2 Fotos',warn:'Ist der Schlüssel mitgekommen?',warnL:'er scheint am Motorrad zu sein',askBike:'„wo habe ich das Motorrad abgestellt?“',bikeT:'Motorrad',bikeL:'Rua Paim 210 · vor der Padaria Boa',bikeW:'heute 8:30 · 240 m',map:'tippen: auf der Karte',
         p1:'MASP',p1l:'Kunstmuseum · 120 m',p2:'Trianon-Park',p2l:'Park · hinter dem Gebäude',
         askWho:'„wer war die Person, mit der ich gerade gesprochen habe?“',t1:'12.09. · das Budget für den Piloten',t2:'02.08. · Torra Fina Offsite, erstes Treffen',askOpen:'„was ist das für ein Gebäude?“',ai:'Live-Assistent: „Das ist das Kunstmuseum São Paulo, eröffnet 1968, von Lina Bo Bardi…“',
@@ -182,7 +182,7 @@ var T={
         spoken:'Rafael Souza. Lieferant. Zuletzt am 12. September.',
         pr1:'Gesichter <b>auf dem Gerät</b> erkannt',pr2:'Aufnahme <b>kündigt sich an</b>, jederzeit abbrechen',pr3:'Brille ab → <b>gesperrt</b>',pr4:'Dein Gedächtnis, <b>nie geteilt</b>',pr5:'<b>Alles vergessen</b>: ein Knopf'},
     pt:{sup:'fornecedor · Torra Fina',last:'última vez: 12/09, o orçamento',rec:'Gravando encontro',swipe:'deslize para cancelar',enc:'encontro',newp:'Pessoa nova',keep:'toque: guardar · toque duplo: ignorar',
-        nn1:'Homem de barba',nn2:'jaqueta azul · primeira vez, aqui',nn3:'Café da Paim · ontem 10:40 · o piloto',nnf:'diga o nome e o card aprende',sayKey:'"essa é a minha chave"',keyReg:'Chave · cadastrada',askKey:'"onde está minha chave?"',keyT:'Chave',keyL:'quarto · em cima da cama',keyW:'hoje 9:10',
+        nn1:'Homem de barba',nn2:'jaqueta azul · primeira vez, aqui',nn3:'Café da Paim · ontem 10:40 · o piloto',nnf:'ouvindo o nome',nns:'"…prazer, eu sou o Pedro Reis, da Torra Fina"',nnb:'crachá lido: PEDRO REIS · Torra Fina',nnn:'Pedro Reis',nnl:'Torra Fina · conheceu agora, aqui',sayKey:'"essa é a minha chave"',keyReg:'Chave · cadastrada',askKey:'"onde está minha chave?"',keyT:'Chave',keyL:'quarto · em cima da cama',keyW:'hoje 9:10',
         park:'Hora de estacionar',parkL:'local guardado · 2 fotos',warn:'A chave veio com você?',warnL:'parece que ficou na moto',askBike:'"onde deixei a moto?"',bikeT:'Moto',bikeL:'Rua Paim, 210 · em frente à Padaria Boa',bikeW:'hoje 8:30 · 240 m',map:'toque: ver no mapa',
         p1:'MASP',p1l:'museu de arte · 120 m',p2:'Parque Trianon',p2l:'parque · atrás do prédio',
         askWho:'"quem era a pessoa com quem falei agora?"',t1:'12/09 · o orçamento do piloto',t2:'02/08 · encontro da Torra Fina, primeira vez',askOpen:'"que prédio é esse?"',ai:'Assistente ao vivo: "É o Museu de Arte de São Paulo, de 1968, da Lina Bo Bardi…"',
@@ -218,10 +218,13 @@ var scenes=[
    add('<div class="tag">Ana Lima</div>',470,275,'',900); add('<div class="tag">Rafael Souza</div>',830,245,'',1200); add('<div class="tag">Pedro Reis</div>',1105,285,'',1500);
    at(2500,function(){ rafaelCard(150,90); });
  }},
- {dur:16000,key:'unknown',run:function(){ world.innerHTML=room()+'<svg viewBox="0 0 1280 720">'+person(760,300,1)+'</svg>'; dot();
-   add('<div class="tag">'+X('nn1')+'</div>',830,250,'',1200);
-   at(2500,function(){ add(card(X('nn1'),[X('nn2')],X('nnf')),180,90); });
-   at(8500,function(){ els.innerHTML=''; dot(); add('<div class="tag">'+X('nn1')+'</div>',830,250); add(card(X('nn1'),[X('nn3')],X('nnf')),180,90); });
+ {dur:22000,key:'unknown',run:function(){ world.innerHTML=room()+'<svg viewBox="0 0 1280 720">'+person(760,300,1)+'</svg>'; dot();
+   var tg=add('<div class="tag">'+X('nn1')+'</div>',830,250,'',1200);
+   var c=add(card(X('nn1'),[X('nn2')],X('nnf')),180,90,'',2500);
+   at(6500,function(){ add('<div class="say">'+X('nns')+'</div>',180,330); });
+   at(9500,function(){ tg.innerHTML=X('nnn'); c.innerHTML=card(X('nnn'),[X('nnl')],null); });
+   at(13500,function(){ els.innerHTML=''; dot(); add('<div class="tag">'+X('nn1')+'</div>',830,250); add(card(X('nn1'),[X('nn2')],X('nnf')),180,90); add('<div class="rec" style="font-size:17px">⬚ '+X('nnb')+'</div>',180,330,'',2500); });
+   at(18000,function(){ var t=els.querySelector('.tag'); if(t) t.innerHTML=X('nnn'); var k=els.querySelector('.card'); if(k) k.outerHTML=card(X('nnn'),[X('nnl')],null); });
  }},
  {dur:17000,key:'key',run:function(){ world.innerHTML=hand(); dot();
    add('<div class="say">'+X('sayKey')+'</div>',180,90,'',1500);
