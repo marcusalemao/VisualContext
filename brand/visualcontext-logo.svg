@@ -1,0 +1,257 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" width="1200" height="720" fill="none">
+  <defs>
+    <!-- Radial Glows for Depth -->
+    <radialGradient id="brain-glow" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+      <stop offset="0%" stop-color="#00FF66" stop-opacity="0.35"/>
+      <stop offset="65%" stop-color="#00FF66" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#00FF66" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="cortex-fill" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00FF66" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#00FF66" stop-opacity="0.06"/>
+    </linearGradient>
+    <linearGradient id="stem-fill" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#00FF66" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#00FF66" stop-opacity="0.05"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background Layer (Toggle visibility in Figma for HUD transparent export) -->
+  <g id="Background">
+    <rect width="1200" height="720" fill="#000000"/>
+  </g>
+
+  <!-- Main Symbol: Glasses + Brain + Neural Constellation -->
+  <g id="Symbol_Icon" transform="translate(0, -10)">
+    
+    <!-- Ambient HUD Glow -->
+    <circle cx="640" cy="250" r="210" fill="url(#brain-glow)"/>
+
+    <!-- Left Neural Network Mesh (Constellation) -->
+    <g id="Neural_Mesh_Left" stroke="#00FF66" stroke-linecap="round" stroke-linejoin="round">
+      <!-- Outer Polygon Links -->
+      <path d="M545 140 L455 140 L412 185 L392 260 L402 335 L435 385 L490 422 L582 375" stroke-width="2.5" stroke-opacity="0.75"/>
+      <!-- Inner Triangulation -->
+      <path d="M455 140 L488 188 L545 140" stroke-width="2" stroke-opacity="0.5"/>
+      <path d="M412 185 L488 188 L452 225 L412 185" stroke-width="2" stroke-opacity="0.55"/>
+      <path d="M392 260 L452 225 L420 285 L392 260" stroke-width="2" stroke-opacity="0.45"/>
+      <path d="M402 335 L420 285 L465 360 L435 385" stroke-width="2" stroke-opacity="0.6"/>
+      <path d="M490 422 L538 350 L582 375" stroke-width="2" stroke-opacity="0.6"/>
+      <path d="M582 375 L590 310" stroke-width="2" stroke-opacity="0.45"/>
+      <!-- Subtle Background Arcs -->
+      <path d="M555 390 Q605 425 650 375" stroke-width="2" stroke-opacity="0.3" fill="none"/>
+      <path d="M570 365 Q605 405 645 360" stroke-width="1.5" stroke-opacity="0.2" fill="none"/>
+
+      <!-- Constellation Nodes -->
+      <g id="Mesh_Nodes" fill="#00FF66">
+        <circle cx="455" cy="140" r="5.5"/>
+        <circle cx="412" cy="185" r="5.5"/>
+        <circle cx="488" cy="188" r="5" fill-opacity="0.85"/>
+        <circle cx="452" cy="225" r="4.5" fill-opacity="0.7"/>
+        <circle cx="392" cy="260" r="6"/>
+        <circle cx="420" cy="285" r="4" fill-opacity="0.6"/>
+        <circle cx="402" cy="335" r="6.5"/>
+        <circle cx="435" cy="385" r="5.5"/>
+        <circle cx="490" cy="422" r="6.5"/>
+        <circle cx="582" cy="375" r="6"/>
+      </g>
+    </g>
+
+    <!-- Digital Brain Hemisphere (Right & Upper Center) -->
+    <g id="Brain_Hemisphere">
+      <!-- Cerebellum & Stem Lower Fill -->
+      <path d="M660 345 C660 385 685 405 700 442 L720 442 C715 405 735 390 735 365 Z" fill="url(#stem-fill)"/>
+      <path d="M705 352 C705 395 778 395 782 342 C760 355 730 355 705 352 Z" fill="url(#cortex-fill)" stroke="#00FF66" stroke-width="2" stroke-opacity="0.45"/>
+
+      <!-- Main Cortex Silhouette -->
+      <path d="M522 225 
+               C518 182 548 145 585 135 
+               C602 108 648 98 682 112 
+               C722 98 768 118 785 152 
+               C822 168 838 215 825 255 
+               C842 292 825 342 785 350 
+               C745 358 695 352 652 342 
+               C628 315 628 265 655 245 
+               L522 225 Z" 
+            fill="url(#cortex-fill)" stroke="#00FF66" stroke-width="3" stroke-opacity="0.65" stroke-linejoin="round"/>
+
+      <!-- Internal PCB / Neural Circuit Traces -->
+      <g id="Brain_Circuits" stroke="#00FF66" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none">
+        <!-- Upper Parietal & Frontal Circuits -->
+        <path d="M545 205 L545 178 L568 158 L595 158" stroke-opacity="0.75"/>
+        <path d="M572 215 L572 182 L608 148 L608 128" stroke-opacity="0.85"/>
+        <path d="M598 215 L598 190 L632 158 L632 122 L652 108" stroke-opacity="0.9"/>
+        <path d="M622 212 L655 180 L655 138 L678 118" stroke-opacity="0.85"/>
+        <path d="M645 208 L682 172 L682 135 L708 118" stroke-opacity="0.95"/>
+        
+        <!-- Occipital & Temporal Circuits (Flowing into Glasses Frame) -->
+        <path d="M725 125 L705 145 L705 190 L672 222" stroke-opacity="0.8"/>
+        <path d="M755 135 L730 160 L730 205 L758 205" stroke-opacity="0.9"/>
+        <path d="M782 162 L755 188 L755 228 L792 228 L808 212" stroke-opacity="0.85"/>
+        
+        <!-- Core Temple Integration Bus (Merges with Right Eyeglass Temple) -->
+        <path d="M725 232 L768 232 L795 258 L795 292 L772 315" stroke-width="3.5" stroke-opacity="1"/>
+        <path d="M715 246 L755 246 L778 268 L778 288" stroke-width="3" stroke-opacity="0.9"/>
+        <path d="M665 282 L718 282 L742 305 L788 305 L812 282" stroke-width="3" stroke-opacity="0.95"/>
+        <path d="M658 298 L705 298 L732 325 L775 325" stroke-width="3" stroke-opacity="0.85"/>
+        <path d="M662 314 L695 314 L718 338 L752 338" stroke-width="2.5" stroke-opacity="0.75"/>
+      </g>
+
+      <!-- Circuit Pad Terminals -->
+      <g id="Brain_Nodes" fill="#000000" stroke="#00FF66" stroke-width="2.5">
+        <circle cx="545" cy="205" r="4.5"/>
+        <circle cx="595" cy="158" r="4.5"/>
+        <circle cx="572" cy="215" r="4.5"/>
+        <circle cx="608" cy="128" r="4.5"/>
+        <circle cx="632" cy="158" r="5"/>
+        <circle cx="655" cy="138" r="4.5"/>
+        <circle cx="682" cy="172" r="5"/>
+        <circle cx="708" cy="118" r="4.5"/>
+        <circle cx="705" cy="190" r="4.5"/>
+        <circle cx="758" cy="205" r="5"/>
+        <circle cx="808" cy="212" r="4.5"/>
+        <circle cx="795" cy="258" r="5"/>
+        <circle cx="778" cy="288" r="4.5"/>
+        <circle cx="812" cy="282" r="5"/>
+        <circle cx="665" cy="282" r="4.5"/>
+        <circle cx="658" cy="298" r="4.5"/>
+        <circle cx="662" cy="314" r="4.5"/>
+        <circle cx="752" cy="338" r="4.5"/>
+      </g>
+    </g>
+
+    <!-- Smart Glasses Frame (Foreground Anchor) -->
+    <g id="Smart_Glasses">
+      <!-- Outer Frame + Open Right Temple Merging into Brain -->
+      <path d="M408 232 
+               C408 224 415 220 426 220 
+               L535 220 
+               C558 220 572 228 592 228 
+               C612 228 626 220 648 220 
+               L732 220 
+               L720 234 
+               L658 234 
+               C632 234 622 260 622 292 
+               C622 332 642 356 672 365 
+               L655 375 
+               C618 362 604 328 600 282 
+               C597 265 587 265 584 282 
+               C580 328 562 366 518 366 
+               L472 366 
+               C432 366 416 332 414 282 
+               L408 258 Z
+               
+               M440 240 
+               C432 240 430 248 431 268 
+               C433 316 446 346 478 346 
+               L514 346 
+               C548 346 562 316 564 272 
+               C565 248 554 240 532 240 
+               Z" 
+            fill="#00FF66" fill-rule="evenodd"/>
+
+      <!-- Left Temple Cutout Detail (Rokid Camera / Sensor Pill) -->
+      <rect x="415" y="242" width="16" height="8" rx="4" fill="#000000"/>
+    </g>
+  </g>
+
+  <!-- Wordmark: VisualContext + Organic Neural Dendrites -->
+  <g id="Typography_VisualContext" transform="translate(0, 15)">
+    
+    <!-- Base Clean Line-Art Geometric Letters -->
+    <g id="Wordmark_Letters" stroke="#00FF66" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none">
+      <!-- V -->
+      <path d="M296 476 L332 562 L368 476"/>
+      <!-- i -->
+      <path d="M386 502 L386 562"/>
+      <circle cx="386" cy="480" r="5" fill="#00FF66" stroke="none"/>
+      <!-- s -->
+      <path d="M452 512 C452 498 408 498 408 515 C408 532 454 528 454 547 C454 565 406 565 406 549"/>
+      <!-- u -->
+      <path d="M474 502 L474 540 C474 556 486 562 500 562 C514 562 526 554 526 540 L526 502 L526 562"/>
+      <!-- a -->
+      <path d="M594 514 C584 498 546 498 546 532 C546 566 584 566 594 548"/>
+      <path d="M594 502 L594 562"/>
+      <!-- l (Central Neural Axon Column) -->
+      <path d="M618 462 L618 566"/>
+      <!-- C -->
+      <path d="M706 492 C692 472 642 474 642 520 C642 566 692 568 706 548"/>
+      <!-- o -->
+      <ellipse cx="752" cy="532" rx="28" ry="30"/>
+      <!-- n -->
+      <path d="M800 562 L800 502"/>
+      <path d="M800 522 C800 505 814 502 828 502 C842 502 852 510 852 526 L852 562"/>
+      <!-- t -->
+      <path d="M882 478 L882 548 C882 558 890 562 900 562"/>
+      <path d="M866 502 L898 502"/>
+      <!-- e -->
+      <path d="M914 532 L968 532 C968 508 954 502 941 502 C924 502 914 514 914 532 C914 552 926 562 944 562 C956 562 964 556 968 550"/>
+      <!-- x -->
+      <path d="M984 502 L1036 562"/>
+      <path d="M1036 502 L984 562"/>
+      <!-- t -->
+      <path d="M1062 478 L1062 548 C1062 558 1070 562 1080 562"/>
+      <path d="M1046 502 L1078 502"/>
+    </g>
+
+    <!-- Synaptic Dendrites & Neural Extensions on Typography -->
+    <g id="Typography_Dendrites" stroke="#00FF66" stroke-linecap="round" stroke-linejoin="round" fill="none">
+      
+      <!-- 'V' Left & Bottom Dendrites -->
+      <path d="M296 476 L278 448 M285 459 L268 463" stroke-width="3.5"/>
+      <path d="M312 514 L282 504 L265 490 M282 504 L264 514" stroke-width="3.5"/>
+      <path d="M332 562 L310 582 L292 582 M310 582 L304 600" stroke-width="3.5"/>
+      <circle cx="265" cy="490" r="4" fill="#00FF66"/>
+      <circle cx="264" cy="514" r="3.5" fill="#00FF66"/>
+      <circle cx="292" cy="582" r="4" fill="#00FF66"/>
+      <circle cx="304" cy="600" r="3.5" fill="#00FF66"/>
+
+      <!-- 'i' Crown Synapse -->
+      <path d="M386 476 L396 452 L412 442 M396 452 L386 438 M396 452 L414 460" stroke-width="3.5"/>
+      <circle cx="412" cy="442" r="4.5" fill="#00FF66"/>
+      <circle cx="386" cy="438" r="3.5" fill="#00FF66"/>
+      <circle cx="414" cy="460" r="4" fill="#00FF66"/>
+
+      <!-- 'l' Upper & Soma Root Network -->
+      <path d="M618 462 L602 436 L588 430 M602 436 L606 418" stroke-width="3.5"/>
+      <!-- Soma Bulge at Base of 'l' -->
+      <path d="M612 560 Q618 574 624 560 L618 576 Z" fill="#00FF66"/>
+      <circle cx="618" cy="566" r="8" fill="#00FF66"/>
+      <path d="M618 568 L594 584 L578 584 M594 584 L590 598" stroke-width="3.5"/>
+      <path d="M618 570 L612 598 L602 610" stroke-width="3.5"/>
+      <path d="M618 570 L632 596 L644 606 M632 596 L648 588" stroke-width="3.5"/>
+      <circle cx="578" cy="584" r="4" fill="#00FF66"/>
+      <circle cx="602" cy="610" r="4.5" fill="#00FF66"/>
+      <circle cx="644" cy="606" r="4.5" fill="#00FF66"/>
+      <circle cx="648" cy="588" r="3.5" fill="#00FF66"/>
+
+      <!-- 'C' Upper Crest Synapse -->
+      <path d="M682 478 L704 452 L724 446 M704 452 L702 434 M704 452 L722 464" stroke-width="3.5"/>
+      <circle cx="724" cy="446" r="5" fill="#00FF66"/>
+      <circle cx="702" cy="434" r="4" fill="#00FF66"/>
+      <circle cx="722" cy="464" r="4" fill="#00FF66"/>
+
+      <!-- 'x' & 't' Right Terminal Neural Branches -->
+      <path d="M984 502 L958 480 L936 472 M958 480 L972 464" stroke-width="3.5"/>
+      <path d="M1036 562 L1056 588 L1076 594 M1056 588 L1052 608" stroke-width="4"/>
+      <path d="M984 562 L968 586 L952 594 M968 586 L982 602 M984 562 L964 562" stroke-width="3.5"/>
+      <path d="M1062 478 L1078 456 L1098 464 M1078 456 L1086 436 M1062 468 L1054 442" stroke-width="3.5"/>
+      
+      <circle cx="936" cy="472" r="4.5" fill="#00FF66"/>
+      <circle cx="972" cy="464" r="5" fill="#00FF66"/>
+      <circle cx="952" cy="594" r="5.5" fill="#00FF66"/>
+      <circle cx="982" cy="602" r="4.5" fill="#00FF66"/>
+      <circle cx="964" cy="562" r="4" fill="#00FF66"/>
+      <circle cx="1076" cy="594" r="5.5" fill="#00FF66"/>
+      <circle cx="1052" cy="608" r="5" fill="#00FF66"/>
+      <circle cx="1098" cy="464" r="4.5" fill="#00FF66"/>
+      <circle cx="1086" cy="436" r="4" fill="#00FF66"/>
+      <circle cx="1054" cy="442" r="4" fill="#00FF66"/>
+    </g>
+  </g>
+
+  <!-- Optional Subtitle Group (Toggle visibility in Figma Layers) -->
+  <g id="Subtitle_Optional" opacity="0.65">
+    <text x="600" y="662" text-anchor="middle" fill="#00FF66" font-family="'Inter', 'SF Pro Display', 'Roboto', sans-serif" font-size="26" font-weight="300" letter-spacing="6">cognitive prosthesis</text>
+  </g>
+</svg>

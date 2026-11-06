@@ -59,6 +59,10 @@ class SettingsActivity : Activity() {
 
     private fun render() {
         col.removeAllViews()
+        col.addView(android.widget.ImageView(this).apply {
+            setImageResource(R.mipmap.ic_launcher_foreground)
+            layoutParams = LinearLayout.LayoutParams(220, 220)
+        })
         col.addView(label("VisualContext", 26f, green).apply {
             setOnLongClickListener { dev = !dev; render(); true }
         })
