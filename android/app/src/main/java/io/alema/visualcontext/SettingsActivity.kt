@@ -18,6 +18,7 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.Toast
 import android.widget.TextView
 import java.util.concurrent.Executors
 
@@ -73,6 +74,24 @@ class SettingsActivity : Activity() {
                 setOnClickListener { Backend.save(this@SettingsActivity, Backend.url(context), ""); render() }
             })
         }
+        col.addView(label("Emulador no celular", 16f, green))
+        col.addView(label("A tela do celular vira a lente: câmera, microfone, GPS. Pessoas, Gemini Live e Lugares juntos. Vire o celular na horizontal."))
+        col.addView(Button(this).apply {
+            text = "Abrir o emulador"
+            setOnClickListener { startActivity(Intent(this@SettingsActivity, EmulatorActivity::class.java)) }
+        })
+        col.addView(label("Gemini (Google AI Studio)", 14f, green))
+        val gk = field(Backend.geminiKey(this), true).apply { hint = "AIza…" }
+        col.addView(gk)
+        val voices = listOf("Kore", "Aoede", "Puck", "Charon", "Fenrir", "Leda", "Orus", "Zephyr")
+        val vg = android.widget.RadioGroup(this).apply { orientation = LinearLayout.HORIZONTAL
+            voices.take(4).forEachIndexed { i, v -> addView(android.widget.RadioButton(context).apply { id = 300 + i; text = v; setTextColor(soft); isChecked = v == Backend.voiceName(context) }) } }
+        col.addView(vg)
+        col.addView(Button(this).apply {
+            text = "Salvar chave e voz"
+            setOnClickListener { Backend.saveGemini(context, gk.text.toString(), voices.getOrElse(vg.checkedRadioButtonId - 300) { "Kore" }); Toast.makeText(context, "Salvo", Toast.LENGTH_SHORT).show() }
+        })
+        col.addView(label("A chave fica só neste celular. Não cole em nenhum chat.", 12f))
         col.addView(Button(this).apply {
             text = "Abrir o VisualContext"
             setOnClickListener { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(DeepLink.MANAGER))) }

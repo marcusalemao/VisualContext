@@ -10,8 +10,8 @@ android {
         applicationId = "io.alema.visualcontext"
         minSdk = 30
         targetSdk = 36
-        versionCode = 6
-        versionName = "0.3.0"
+        versionCode = 7
+        versionName = "0.4.0"
         // Rokid users' phones are 64-bit ARM; keeps the APK small (ONNX Runtime ships many ABIs).
         ndk { abiFilters += listOf("arm64-v8a") }
     }
@@ -19,6 +19,8 @@ android {
     // Face engines shared with the Solo app (runs on the glasses).
     sourceSets["main"].kotlin.srcDir("../../libs/face-core/src/main/kotlin")
     sourceSets["main"].assets.srcDir("../../libs/face-core/assets")
+    // Gemini Live protocol, shared with the Solo app.
+    sourceSets["main"].kotlin.srcDir("../../libs/live-core/src/main/kotlin")
 
     androidResources { noCompress += listOf("bin", "onnx") }
 
@@ -36,5 +38,12 @@ dependencies {
     // Face engine 2: Google ML Kit face detection (bundled, on-device) + ONNX Runtime for ArcFace.
     implementation("com.google.mlkit:face-detection:16.1.7")
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.20.0")
+    // Emulator on the phone: camera, Gemini Live over WebSocket.
+    implementation("androidx.camera:camera-core:1.3.4")
+    implementation("androidx.camera:camera-camera2:1.3.4")
+    implementation("androidx.camera:camera-lifecycle:1.3.4")
+    implementation("androidx.camera:camera-view:1.3.4")
+    implementation("androidx.activity:activity:1.9.3")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
     testImplementation("junit:junit:4.13.2")
 }

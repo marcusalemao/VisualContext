@@ -16,6 +16,14 @@ object LiveProtocol {
     const val TOOL_SAVE = "guardar_nota"
     const val TOOL_WHO = "quem_e"
     const val TOOL_ENROLL = "guardar_pessoa"
+    const val TOOL_WHERE = "onde_estou"
+
+    /** Extra instructions when the app knows where the user is (phone GPS). */
+    val PLACES = """
+        Se o usuário perguntar onde está, o que tem em volta, ou sobre um lugar que está vendo, chame onde_estou para saber o endereço e os lugares próximos antes de responder.
+        Depois de responder onde algo está (a moto, um lugar), faça uma única pergunta curta, já com o modo sugerido pela distância: perto, "Quer ir até lá? A pé são uns X minutos."; longe, "Quer ir até lá? São X km: transporte público, moto ou carro?". Se o usuário não responder ou disser não, não insista e não pergunte de novo.
+        Quando o usuário vir uma pessoa sem nome conhecido, nunca chame de "pessoa 1" ou "desconhecido": descreva em poucas palavras neutras (ex.: "homem de barba, jaqueta azul") e a ocasião.
+    """.trimIndent()
 
     /** Extra instructions when the app can recognise faces (the Solo app on the glasses). */
     val FACES = """
@@ -35,7 +43,7 @@ object LiveProtocol {
         Para horários, preços e fatos atuais, use a busca do Google. Não invente.
     """.trimIndent()
 
-    fun setup(voice: String, resumeHandle: String?, model: String = MODEL, faces: Boolean = false): String {
+    fun setup(voice: String, resumeHandle: String?, model: String = MODEL, faces: Boolean = false, location: Boolean = false): String {
         val gen = JSONObject()
             .put("responseModalities", JSONArray().put("AUDIO"))
             // No languageCode: native-audio models pick the language from the conversation; the system text asks for pt-BR.
@@ -47,6 +55,7 @@ object LiveProtocol {
                 JSONObject().put("type", "OBJECT").put("properties", JSONObject().put("nome", JSONObject().put("type", "STRING"))).put("required", JSONArray().put("nome"))))
             .put(fn(TOOL_SAVE, "Guarda uma nota curta na memória do usuário, quando ele pedir.",
                 JSONObject().put("type", "OBJECT").put("properties", JSONObject().put("texto", JSONObject().put("type", "STRING"))).put("required", JSONArray().put("texto"))))
+        if (location) functions.put(fn(TOOL_WHERE, "Diz onde o usuário está agora (endereço aproximado pelo GPS do celular) e os lugares importantes por perto, com distância.", null))
         if (faces) {
             functions.put(fn(TOOL_WHO, "Reconhece o rosto da pessoa na frente do usuário, com a câmera dos óculos e a memória de rostos dele.", null))
             functions.put(fn(TOOL_ENROLL, "Guarda o rosto da pessoa na frente do usuário com o nome que ele disse. Só quando o usuário pedir.",
@@ -55,7 +64,7 @@ object LiveProtocol {
         val setup = JSONObject()
             .put("model", model)
             .put("generationConfig", gen)
-            .put("systemInstruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", if (faces) SYSTEM + "\n" + FACES else SYSTEM))))
+            .put("systemInstruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", SYSTEM + (if (faces) "\n" + FACES else "") + (if (location) "\n" + PLACES else "")))))
             .put("tools", JSONArray().put(JSONObject().put("functionDeclarations", functions)).put(JSONObject().put("googleSearch", JSONObject())))
             .put("inputAudioTranscription", JSONObject())
             .put("outputAudioTranscription", JSONObject())

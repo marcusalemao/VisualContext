@@ -20,6 +20,13 @@ object Backend {
     /** Face engine: "arc" (ArcFace, default from 0.3) or "faceapi" (old, compatible with the 7 stored faces). */
     fun engine(ctx: Context): String = prefs(ctx).getString("face_engine", "arc") ?: "arc"
     fun setEngine(ctx: Context, e: String) { prefs(ctx).edit().putString("face_engine", e).apply() }
+    fun geminiKey(ctx: Context): String = prefs(ctx).getString("gemini_key", "") ?: ""
+    fun voiceName(ctx: Context): String = prefs(ctx).getString("voice", "Kore") ?: "Kore"
+    fun saveGemini(ctx: Context, key: String, voice: String) { prefs(ctx).edit().putString("gemini_key", key.trim()).putString("voice", voice).remove("live_model").remove("text_model").apply() }
+    fun prefsText(ctx: Context): String? = prefs(ctx).getString("text_model", null)
+    fun saveTextModel(ctx: Context, m: String?) { prefs(ctx).edit().putString("text_model", m).apply() }
+    fun liveModel(ctx: Context): String? = prefs(ctx).getString("live_model", null)
+    fun saveLiveModel(ctx: Context, m: String?) { prefs(ctx).edit().putString("live_model", m).apply() }
     fun token(ctx: Context): String = prefs(ctx).getString("device_token", "") ?: ""
     fun save(ctx: Context, url: String, token: String) {
         prefs(ctx).edit().putString("backend_url", url.trim().ifEmpty { DEFAULT_URL }).putString("device_token", token.trim()).apply()

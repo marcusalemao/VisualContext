@@ -26,6 +26,8 @@ class LiveSession(private val listener: Listener) {
 
     /** True in apps that recognise faces: adds quem_e and guardar_pessoa. */
     var faceTools = false
+    /** True when the app has the phone's GPS: adds onde_estou. */
+    var locationTools = false
 
     fun connect(apiKey: String, voice: String, resumeHandle: String?, model: String = LiveProtocol.MODEL) {
         closingByUs = false
@@ -36,7 +38,7 @@ class LiveSession(private val listener: Listener) {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 if (!current(webSocket)) return
                 open = true
-                webSocket.send(LiveProtocol.setup(voice, resumeHandle, model, faceTools))
+                webSocket.send(LiveProtocol.setup(voice, resumeHandle, model, faceTools, locationTools))
             }
             override fun onMessage(webSocket: WebSocket, text: String) { if (current(webSocket)) listener.onEvents(LiveProtocol.parse(text)) }
             // The Live API sends its JSON in binary frames.
