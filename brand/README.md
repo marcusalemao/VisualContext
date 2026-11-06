@@ -14,6 +14,8 @@ Logo by Marcus (made with Gemini, 06/11/2026). Green only (#00FF66) on black, wh
 
 At small sizes (≤ 48 px) the circuit lines fade; the glasses carry the icon.
 
+The subtitle "cognitive prosthesis" stays off in public material for now (Marcus, 06/11): it can sound too medical.
+
 ## PT — Português
 
 Logo do Marcus (feito com o Gemini, 06/11/2026). Só verde (#00FF66) sobre preto, o que já combina com a regra do HUD (monocromático verde).
@@ -25,3 +27,5 @@ Logo do Marcus (feito com o Gemini, 06/11/2026). Só verde (#00FF66) sobre preto
 - Os ícones do Android (adaptativos, todas as densidades) estão em `android/app/src/main/res/mipmap-*` e `android/solo/…`.
 
 Em tamanho pequeno (≤ 48 px) as linhas de circuito somem; os óculos carregam o ícone.
+
+O subtítulo "cognitive prosthesis" fica fora do material público por enquanto (Marcus, 06/11): pode soar médico demais.
