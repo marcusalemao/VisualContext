@@ -46,7 +46,6 @@
         <activity
             android:name=".EmulatorActivity"
             android:exported="false"
-            android:screenOrientation="landscape"
             android:configChanges="orientation|screenSize|keyboardHidden" />
 
         <service

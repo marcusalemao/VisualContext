@@ -16,6 +16,16 @@ import android.view.View
  */
 class HudOverlay(ctx: Context) : View(ctx) {
     data class Label(val text: String, val cx: Float, val cy: Float, val w: Float, val h: Float, val dashed: Boolean = false)
+    /**
+     * A person in view. The primary one (biggest face) gets the short card, anchored beside the head;
+     * the others only their name. [countdown] > 0 shows "guardando pessoa nova: N".
+     */
+    data class FaceTag(val key: String, val title: String, val lines: List<String>, val cx: Float, val cy: Float, val w: Float, val h: Float,
+                       val primary: Boolean, val known: Boolean, val countdown: Int = 0, val recording: Boolean = false)
+
+    var faces: List<FaceTag> = emptyList()
+    /** Smoothed positions, so the card glides with the head instead of jumping every scan. */
+    private val pos = HashMap<String, FloatArray>()
     data class Pin(val title: String, val sub: String, val bearingDeg: Float, val hidden: Boolean)
 
     var labels: List<Label> = emptyList()
@@ -63,7 +73,9 @@ class HudOverlay(ctx: Context) : View(ctx) {
             c.drawText(p.sub, r.left + dp(10f), r.top + dp(36f), pText)
             c.drawLine(cx, r.bottom, cx, r.bottom + dp(14f), if (p.hidden) pDash else pStroke)
         }
-        // labels beside heads
+        // people: card beside the primary head, names beside the others
+        drawFaces(c, w, useful)
+        // labels beside heads (legacy, used by the Nexus plugin path)
         pTitle.textSize = sp(14f)
         labels.forEach { l ->
             val x = l.cx + l.w / 2 + dp(10f); val y = l.cy - l.h / 4
@@ -110,6 +122,56 @@ class HudOverlay(ctx: Context) : View(ctx) {
         pDash.alpha = 60; c.drawLine(0f, useful, w, useful, pDash); pDash.alpha = 255
     }
 
+    private fun drawFaces(c: Canvas, w: Float, useful: Float) {
+        var moving = false
+        val keys = faces.map { it.key }.toSet()
+        pos.keys.retainAll(keys)
+        for (f in faces) {
+            val cur = pos.getOrPut(f.key) { floatArrayOf(f.cx, f.cy, f.w, f.h) }
+            val tgt = floatArrayOf(f.cx, f.cy, f.w, f.h)
+            for (i in 0..3) { val d = tgt[i] - cur[i]; if (kotlin.math.abs(d) > 1f) { cur[i] += d * 0.25f; moving = true } else cur[i] = tgt[i] }
+            val (cx, cy, fw, fh) = cur.toList()
+            val stroke = if (f.known) pStroke else pDash
+            if (!f.primary) {
+                if (f.title.isEmpty()) continue
+                pTitle.textSize = sp(14f)
+                val x = cx + fw / 2 + dp(10f); val y = cy - fh / 4
+                val tw = pTitle.measureText(f.title)
+                c.drawRoundRect(RectF(x - dp(4f), y - sp(14f), x + tw + dp(4f), y + dp(6f)), dp(4f), dp(4f), pShadow)
+                c.drawText(f.title, x, y, pTitle)
+                continue
+            }
+            // The card: right of the head, or left when there is no room; top aligned with the forehead, inside the useful area.
+            pTitle.textSize = sp(16f); pText.textSize = sp(12f)
+            val cw = minOf(w * 0.55f, dp(260f)); val pad = dp(10f)
+            val lines = f.lines.map { fit(it, pText, cw - 2 * pad) }
+            val ch = pad + sp(18f) + dp(6f) + lines.size * sp(16f) + pad
+            var left = cx + fw / 2 + dp(14f)
+            if (left + cw > w - dp(8f)) left = cx - fw / 2 - dp(14f) - cw
+            left = left.coerceIn(dp(8f), w - cw - dp(8f))
+            val top = (cy - fh / 2).coerceIn(dp(30f), maxOf(dp(30f), useful - ch - dp(8f)))
+            val r = RectF(left, top, left + cw, top + ch)
+            // leader line from the card to the head
+            val hx = if (left > cx) cx + fw / 2 else cx - fw / 2
+            c.drawLine(hx, cy - fh / 4, if (left > cx) r.left else r.right, r.top + ch / 2, stroke)
+            // Spec 10/10: the recording line sits outside the card, on its own line above it, as plain text.
+            if (f.countdown > 0 || f.recording) {
+                pTitle.textSize = sp(14f)
+                val t = if (f.countdown > 0) "Gravando encontro: ${f.countdown}" else "● gravando encontro"
+                val ty = r.top - dp(8f)
+                c.drawRect(r.left, ty - sp(14f), r.left + pTitle.measureText(t) + dp(6f), ty + dp(4f), pShadow)
+                c.drawText(t, r.left + dp(2f), ty, pTitle)
+                pTitle.textSize = sp(16f)
+            }
+            c.drawRoundRect(r, dp(10f), dp(10f), pShadow)
+            c.drawRoundRect(r, dp(10f), dp(10f), stroke)
+            c.drawText(fit(f.title.uppercase(), pTitle, cw - 2 * pad), r.left + pad, r.top + pad + sp(14f), pTitle)
+            c.drawLine(r.left + pad, r.top + pad + sp(20f), r.right - pad, r.top + pad + sp(20f), stroke)
+            lines.forEachIndexed { i, s -> c.drawText(s, r.left + pad, r.top + pad + sp(20f) + dp(4f) + (i + 1) * sp(16f) - dp(3f), pText) }
+        }
+        if (moving) postInvalidateOnAnimation()
+    }
+
     private fun fit(t: String, p: Paint, max: Float): String {
         if (p.measureText(t) <= max) return t
         var s = t
@@ -117,5 +179,5 @@ class HudOverlay(ctx: Context) : View(ctx) {
         return "$s…"
     }
 
-    fun clearCard() { cardTitle = null; cardLines = emptyList(); labels = emptyList(); arrow = null; invalidate() }
+    fun clearCard() { cardTitle = null; cardLines = emptyList(); labels = emptyList(); faces = emptyList(); arrow = null; invalidate() }
 }

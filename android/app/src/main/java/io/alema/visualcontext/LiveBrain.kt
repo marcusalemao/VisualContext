@@ -8,6 +8,7 @@ import android.util.Base64
 import io.alema.livecore.LiveProtocol
 import io.alema.livecore.LiveSession
 import io.alema.livecore.Transcript
+import io.alema.facecore.NameSpotter
 import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.Executors
@@ -23,6 +24,7 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
         fun onState(state: String)                       // "idle" | "connecting" | "listening" | "speaking" | "error: …"
         fun onTranscript(lines: List<String>, userLine: String?)
         fun onFaces(seen: List<FaceBrain.Seen>, bw: Int, bh: Int)
+        fun onNamed(name: String)
     }
 
     private val main = Handler(Looper.getMainLooper())
@@ -32,6 +34,11 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
     private val speaker = SpeakerOut()
     private val transcript = Transcript(3, 34)
     private var turnDone = true
+    /** What the user has said in this turn, to catch a name ("essa é a Ana", "meu nome é Pedro"). */
+    private val heard = StringBuilder()
+    private var heardAt = 0L
+    private var lastNamed = ""
+    private var lastNamedAt = 0L
     private var resumeHandle: String? = null
     @Volatile var open = false; private set
     var lastActivity = 0L; private set
@@ -70,19 +77,40 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
                 if (!mic.start()) { host.onState("error: microfone não liberado"); return }
                 host.onState("listening")
             }
-            is LiveProtocol.Event.UserText -> { lastActivity = SystemClock.elapsedRealtime(); host.onTranscript(transcript.lines(), e.text) }
+            is LiveProtocol.Event.UserText -> {
+                lastActivity = SystemClock.elapsedRealtime()
+                if (lastActivity - heardAt > 8000) heard.setLength(0)
+                heardAt = lastActivity
+                heard.append(e.text)
+                host.onTranscript(transcript.lines(), heard.toString().trim().takeLast(40))
+                spotName()
+            }
             is LiveProtocol.Event.ModelText -> {
                 lastActivity = SystemClock.elapsedRealtime()
                 if (turnDone) { transcript.clear(); turnDone = false }
                 transcript.add(e.text); host.onTranscript(transcript.lines(), null); host.onState("speaking")
             }
             is LiveProtocol.Event.Interrupted -> speaker.flush()
-            is LiveProtocol.Event.TurnComplete -> { turnDone = true; lastActivity = SystemClock.elapsedRealtime(); host.onState("listening") }
+            is LiveProtocol.Event.TurnComplete -> { heard.setLength(0); turnDone = true; lastActivity = SystemClock.elapsedRealtime(); host.onState("listening") }
             is LiveProtocol.Event.ToolCall -> tool(e)
             is LiveProtocol.Event.Resumption -> resumeHandle = e.handle
             is LiveProtocol.Event.GoAway -> Unit
             is LiveProtocol.Event.Error -> host.onState("error: " + e.message.take(60))
             is LiveProtocol.Event.Audio -> Unit
+        }
+    }
+
+    /** Names are caught here, not left to Gemini: saying the name is enough, no button, no tool call needed. */
+    private fun spotName() {
+        val n = NameSpotter.find(heard.toString()) ?: return
+        val now = SystemClock.elapsedRealtime()
+        if (n.equals(lastNamed, ignoreCase = true) && now - lastNamedAt < 20_000) return
+        lastNamed = n; lastNamedAt = now
+        io.execute {
+            val r = host.faces().name(n)
+            if (!r.optBoolean("guardado")) return@execute
+            host.frame()?.let { Frames.bitmap(it, 960) }?.let { b -> val seen = host.faces().look(b, describeUnknown = false); main.post { host.onFaces(seen, b.width, b.height) } }
+            main.post { host.onNamed(r.optString("nome", n)) }
         }
     }
 

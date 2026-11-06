@@ -2,7 +2,6 @@ package io.alema.visualcontext
 
 import android.Manifest
 import android.content.Context
-import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.hardware.Sensor
@@ -14,6 +13,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.Button
@@ -30,59 +30,82 @@ import androidx.core.content.ContextCompat
 import java.util.concurrent.Executors
 
 /**
- * The glasses on your phone. The phone camera is the glasses camera, its mic and speaker the
- * glasses audio, its GPS and compass the phone's. The same brains (faces, Live, places) will draw
- * on the real glasses later through the Nexus plugin or the on-glasses app.
+ * The glasses on your phone, in any orientation. The phone camera (back or front) is the glasses camera,
+ * its mic and speaker the glasses audio, its GPS and compass the phone's.
  *
- * Buttons stand in for the touchpad: Quem é? (tap) · Falar (long press / AI button) · Lugares · Fechar.
+ * People are always on: a known face gets its card beside the head by itself; a new face is described
+ * neutrally (never "pessoa 1") and, if it stays in front of you, a 5-second countdown keeps it — tap to cancel.
+ * Saying the name ("essa é a Ana", "meu nome é Pedro") names it, with Falar on.
  */
 class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListener {
     private lateinit var preview: PreviewView
     private lateinit var hud: HudOverlay
     private lateinit var talk: Button
+    private lateinit var placesBtn: Button
+    private lateinit var facesBtn: Button
     private val main = Handler(Looper.getMainLooper())
     private val work = Executors.newSingleThreadExecutor()
     private val faces by lazy { FaceBrain(this) }
     private val live by lazy { LiveBrain(this, this) }
     @Volatile private var lastJpeg: ByteArray? = null
-    @Volatile private var frameW = 1; @Volatile private var frameH = 1
-    private var autoFaces = true
-    private var lastFaceScan = 0L
+    @Volatile private var facesOn = true
     @Volatile private var scanning = false
+    private var lastFaceScan = 0L
     private var placesOn = false
     private var placesAt = 0L
     private var heading = 0f
     private var liveOn = false
-    private var lastAutoCard = ""
-    private var lastAutoCardAt = 0L
     private var lastDescribeAt = 0L
+    private var front = false
+    /** Countdown for the new face in front: pending id → when it started. */
+    private var countdownId: String? = null
+    private var countdownAt = 0L
+    private var lastSeen: List<FaceBrain.Seen> = emptyList()
+    private var lastBw = 1; private var lastBh = 1
+
+    private val green = Color.rgb(0, 255, 136)
+    private val dim = Color.rgb(90, 120, 104)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
         preview = PreviewView(this).apply { implementationMode = PreviewView.ImplementationMode.COMPATIBLE; scaleType = PreviewView.ScaleType.FILL_CENTER }
-        hud = HudOverlay(this)
+        hud = HudOverlay(this).apply {
+            // Tap anywhere on the lens during the countdown = cancel (the swipe on the glasses).
+            setOnTouchListener { _, e -> if (e.action == MotionEvent.ACTION_UP && countdownId != null) { cancelCountdown(); true } else false }
+        }
         val root = FrameLayout(this).apply { setBackgroundColor(Color.BLACK); addView(preview); addView(hud) }
         val bar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
-            setBackgroundColor(Color.argb(150, 0, 0, 0)); setPadding(8, 6, 8, 6)
+            setBackgroundColor(Color.argb(170, 0, 0, 0)); setPadding(4, 4, 4, 4)
         }
-        fun btn(t: String, cb: () -> Unit) = Button(this).apply { text = t; setTextColor(Color.rgb(0, 255, 136)); setBackgroundColor(Color.TRANSPARENT); setOnClickListener { cb() } }
-        bar.addView(btn("Quem é?") { who() })
-        talk = btn("Falar") { toggleLive() }; bar.addView(talk)
-        bar.addView(btn("Lugares") { placesOn = !placesOn; if (!placesOn) { hud.pins = emptyList(); hud.invalidate() } else refreshPlaces(true); toast(if (placesOn) "Lugares ligados" else "Lugares desligados") })
-        bar.addView(btn("Limpar") { hud.clearCard(); hud.transcript = emptyList(); hud.footer = ""; hud.invalidate() })
-        bar.addView(btn("Fechar") { finish() })
+        fun btn(t: String, cb: () -> Unit) = Button(this).apply {
+            text = t; textSize = 12f; isAllCaps = false; setTextColor(green); setBackgroundColor(Color.TRANSPARENT); setOnClickListener { cb() }
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        talk = btn("🎙 Falar") { toggleLive() }; bar.addView(talk)
+        facesBtn = btn("") { facesOn = !facesOn; if (!facesOn) { hud.faces = emptyList(); cancelCountdown() }; paintToggles() }; bar.addView(facesBtn)
+        placesBtn = btn("") { placesOn = !placesOn; if (!placesOn) hud.pins = emptyList() else refreshPlaces(true); paintToggles() }; bar.addView(placesBtn)
+        bar.addView(btn("⟲ Câmera") { front = !front; startCamera() })
+        bar.addView(btn("✕ Fechar") { finish() })
         root.addView(bar, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM))
         setContentView(root)
-        hud.footer = "conhecidos aparecem sozinhos · quem é?: card de quem está na frente · falar: Gemini Live"
+        paintToggles()
         val need = listOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO, Manifest.permission.ACCESS_FINE_LOCATION)
             .filter { ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED }
         if (need.isEmpty()) startCamera() else requestPermissions(need.toTypedArray(), 1)
         work.execute { faces.refreshPeople(true); faces.engine() }
-        main.postDelayed(ticker, 1000)
+        main.postDelayed(ticker, 250)
+    }
+
+    /** Toggles say their state in words and colour: "● Pessoas: ligado" / "○ Lugares: desligado". */
+    private fun paintToggles() {
+        facesBtn.text = if (facesOn) "● Pessoas" else "○ Pessoas"
+        facesBtn.setTextColor(if (facesOn) green else dim)
+        placesBtn.text = if (placesOn) "● Lugares" else "○ Lugares"
+        placesBtn.setTextColor(if (placesOn) green else dim)
+        hud.footer = listOf(if (facesOn) "pessoas: ligado" else "pessoas: desligado", if (placesOn) "lugares: ligado" else "lugares: desligado").joinToString(" · ")
+        hud.invalidate()
     }
 
     @Deprecated("Deprecated in Java")
@@ -101,70 +124,79 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
             an.setAnalyzer(work) { img ->
                 try {
                     val now = SystemClock.elapsedRealtime()
-                    // Keep the latest frame (for olhar / quem é); scan for faces every 1.5 s when idle.
-                    if (now - lastFaceScan > 1500 || lastJpeg == null) {
-                        val j = Frames.jpeg(img, 80)
-                        if (j != null) { lastJpeg = j; val rot = img.imageInfo.rotationDegrees; frameW = if (rot % 180 == 0) img.width else img.height; frameH = if (rot % 180 == 0) img.height else img.width }
-                        if (autoFaces && !scanning && now - lastFaceScan > 1500) { lastFaceScan = now; scan() }
+                    // Faces as often as the phone can (≈ 2–4 per second), so the card follows the head.
+                    if (now - lastFaceScan > 350) {
+                        lastJpeg = Frames.jpeg(img, 80) ?: lastJpeg
+                        if (facesOn && !scanning) { lastFaceScan = now; scan() }
                     }
                 } finally { img.close() }
             }
-            p.unbindAll(); p.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA, prev, an)
+            p.unbindAll()
+            p.bindToLifecycle(this, if (front) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA, prev, an)
         }, ContextCompat.getMainExecutor(this))
     }
 
-    /** Quiet scan: labels beside heads, no card, no Gemini call (unknown faces are only described on "Quem é?"). */
     private fun scan() {
         val j = lastJpeg ?: return
         scanning = true
-        work.execute {
-            try {
-                val b = Frames.bitmap(j, 640) ?: return@execute
-                var seen = faces.look(b, describeUnknown = false)
-                // A face with no name yet gets its neutral description once (one Gemini call, at most every 5 s).
-                val nameless = seen.firstOrNull { !it.known && it.label == "…" }
-                if (nameless != null && SystemClock.elapsedRealtime() - lastDescribeAt > 5000) {
-                    lastDescribeAt = SystemClock.elapsedRealtime()
-                    if (faces.describe(nameless, b) != null) seen = faces.look(b, describeUnknown = false)
-                }
-                val s = seen.firstOrNull()
-                main.post {
-                    hud.labels = seen.map { toLabel(it, b.width, b.height) }
-                    // Known person in front: the short card appears by itself (once per person per 30 s).
-                    if (s != null && s.known && s.sure && (s.label != lastAutoCard || SystemClock.elapsedRealtime() - lastAutoCardAt > 30_000)) {
-                        lastAutoCard = s.label; lastAutoCardAt = SystemClock.elapsedRealtime(); onFaces(seen, b.width, b.height)
-                    }
-                    hud.invalidate()
-                }
-            } finally { scanning = false }
-        }
+        try {
+            val b = Frames.bitmap(j, 640) ?: return
+            var seen = faces.look(b, describeUnknown = false)
+            // A new face gets its neutral description once (one Gemini call, at most every 5 s).
+            val nameless = seen.firstOrNull { !it.known && it.label == "…" }
+            if (nameless != null && SystemClock.elapsedRealtime() - lastDescribeAt > 5000) {
+                lastDescribeAt = SystemClock.elapsedRealtime()
+                if (faces.describe(nameless, b) != null) seen = faces.look(b, describeUnknown = false)
+            }
+            val bw = b.width; val bh = b.height
+            main.post { if (facesOn) onFaces(seen, bw, bh) }
+        } finally { scanning = false }
     }
 
-    private fun toLabel(s: FaceBrain.Seen, bw: Int, bh: Int): HudOverlay.Label {
+    /** Analysis bitmap → screen, as the preview shows it (FILL_CENTER, mirrored for the front camera). */
+    private fun toTag(s: FaceBrain.Seen, bw: Int, bh: Int, primary: Boolean, countdown: Int): HudOverlay.FaceTag {
         val k = maxOf(hud.width.toFloat() / bw, hud.height.toFloat() / bh)
         val ox = (hud.width - bw * k) / 2; val oy = (hud.height - bh * k) / 2
-        return HudOverlay.Label(if (s.sure) s.label else s.label + "?", ox + (s.x + s.w / 2) * k, oy + (s.y + s.h / 2) * k, s.w * k, s.h * k, dashed = !s.known)
-    }
-
-    /** Tap: the full short card for the biggest face, with the neutral description for a face without a name. */
-    private fun who() {
-        val j = lastJpeg ?: return toast("sem imagem ainda")
-        hud.footer = "olhando…"; hud.invalidate()
-        work.execute {
-            val b = Frames.bitmap(j, 960) ?: return@execute
-            val seen = faces.look(b, describeUnknown = true)
-            main.post { onFaces(seen, b.width, b.height); hud.footer = ""; hud.invalidate() }
-        }
+        val cxImg = if (front) bw - (s.x + s.w / 2) else s.x + s.w / 2
+        val key = s.localId ?: s.pendingId ?: s.label
+        val title = when { s.label.isEmpty() -> ""; s.sure -> s.label; else -> s.label + "?" }
+        val lines = if (!s.known) s.lines + listOf("diga o nome: \"essa é a Ana\"") else s.lines
+        return HudOverlay.FaceTag(key, title, lines, ox + cxImg * k, oy + (s.y + s.h / 2) * k, s.w * k, s.h * k, primary, s.known, countdown)
     }
 
     override fun onFaces(seen: List<FaceBrain.Seen>, bw: Int, bh: Int) {
-        hud.labels = seen.map { toLabel(it, bw, bh) }
-        val s = seen.firstOrNull()
-        if (s == null) { hud.cardTitle = "ninguém"; hud.cardLines = listOf("não vi rosto"); hud.invalidate(); return }
-        hud.cardTitle = if (s.sure) s.label else s.label + "?"
-        hud.cardLines = s.lines + (if (!s.known) listOf("diga o nome: \"essa é a Ana\"") else emptyList())
+        lastSeen = seen; lastBw = bw; lastBh = bh
+        val primary = seen.firstOrNull { it.label.isNotEmpty() }
+        // Countdown: a new face that stays in front of you for 7 s; then 5…0 and it is kept.
+        val pid = primary?.pendingId
+        // The buffer runs from the first second (in memory); at 7 s the countdown starts; cancelling discards it all.
+        if (pid != null && countdownId == null && System.currentTimeMillis() - primary.pendingSince > 7000) { countdownId = pid; countdownAt = SystemClock.elapsedRealtime() }
+        if (countdownId != null && seen.none { it.pendingId == countdownId }) countdownId = null
+        val left = countdownId?.let { 5 - ((SystemClock.elapsedRealtime() - countdownAt) / 1000).toInt() } ?: 0
+        // Known person: records at once, no countdown (spec 10/10). New person: countdown, then recording.
+        hud.faces = seen.filter { it.label.isNotEmpty() }.map {
+            val cd = if (it.pendingId != null && it.pendingId == countdownId) maxOf(left, 1) else 0
+            toTag(it, bw, bh, it === primary, cd).copy(recording = it === primary && it.known && cd == 0)
+        }
         hud.invalidate()
     }
+
+    private fun countdownTick() {
+        val id = countdownId ?: return
+        if (SystemClock.elapsedRealtime() - countdownAt >= 5000) {
+            countdownId = null
+            work.execute { faces.keep(id); main.post { toast("encontro guardado — diga o nome da pessoa") } }
+        } else onFaces(lastSeen, lastBw, lastBh)
+    }
+
+    private fun cancelCountdown() {
+        val id = countdownId ?: return
+        countdownId = null
+        work.execute { faces.ignore(id) }
+        toast("descartado: nada foi guardado")
+    }
+
+    override fun onNamed(name: String) { toast("guardado: $name") }
 
     private fun toggleLive() {
         if (liveOn) { if (live.speaking) live.interrupt() else { live.stop(); liveOn = false } }
@@ -175,12 +207,8 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     override fun faces(): FaceBrain = faces
     override fun onState(state: String) {
         hud.listening = state == "listening"; hud.speaking = state == "speaking"
-        talk.text = when { state == "connecting" -> "…"; state == "speaking" -> "Interromper"; state == "listening" -> "Encerrar"; else -> "Falar" }
-        when {
-            state.startsWith("error") -> { hud.footer = state.removePrefix("error: "); liveOn = false; talk.text = "Falar" }
-            state == "listening" -> hud.footer = "pode falar"
-            state == "idle" -> hud.footer = ""
-        }
+        talk.text = when { state == "connecting" -> "… conectando"; state == "speaking" -> "■ Interromper"; state == "listening" -> "■ Encerrar"; else -> "🎙 Falar" }
+        if (state.startsWith("error")) { toast(state.removePrefix("error: ")); liveOn = false; talk.text = "🎙 Falar" }
         hud.invalidate()
     }
     override fun onTranscript(lines: List<String>, userLine: String?) {
@@ -198,7 +226,8 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
             if (loc == null) { main.post { toast("sem GPS ainda") }; return@execute }
             val near = Where.nearby(loc, 300, 6)
             main.post {
-                // Two nearest, the rest only as they come into view; "hidden" = farther than 150 m (approximation of "behind a building").
+                if (near.isEmpty()) toast("nenhum lugar conhecido num raio de 300 m")
+                // "hidden" = farther than 150 m (approximation of "behind a building" until we have building outlines).
                 hud.pins = near.map { HudOverlay.Pin(it.name, "${it.kind} · ${it.dist} m", it.bearing.toFloat(), hidden = it.dist > 150) }
                 hud.invalidate()
             }
@@ -207,9 +236,10 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
 
     private val ticker = object : Runnable {
         override fun run() {
-            if (liveOn && live.open && !live.speaking && SystemClock.elapsedRealtime() - live.lastActivity > 40_000) { live.stop(); liveOn = false; hud.footer = "até já"; hud.invalidate() }
+            countdownTick()
+            if (liveOn && live.open && !live.speaking && SystemClock.elapsedRealtime() - live.lastActivity > 40_000) { live.stop(); liveOn = false; toast("Gemini Live encerrado: 40 s em silêncio") }
             refreshPlaces(false)
-            main.postDelayed(this, 1000)
+            main.postDelayed(this, 250)
         }
     }
 
@@ -219,12 +249,12 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         sm.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)?.let { sm.registerListener(this, it, SensorManager.SENSOR_DELAY_UI) }
     }
     override fun onPause() { super.onPause(); (getSystemService(Context.SENSOR_SERVICE) as SensorManager).unregisterListener(this) }
+    /** Heading of where the back camera points, whatever the phone's orientation (the device's −Z axis on the map). */
     override fun onSensorChanged(e: SensorEvent) {
         val r = FloatArray(9); SensorManager.getRotationMatrixFromVector(r, e.values)
-        // Landscape: remap so "forward" is the camera's direction.
-        val m = FloatArray(9); SensorManager.remapCoordinateSystem(r, SensorManager.AXIS_Y, SensorManager.AXIS_MINUS_X, m)
-        val o = FloatArray(3); SensorManager.getOrientation(m, o)
-        val h = (Math.toDegrees(o[0].toDouble()).toFloat() + 360) % 360
+        val east = -r[2]; val north = -r[5]
+        if (east * east + north * north < 0.05f) return // phone lying flat: no direction
+        val h = ((Math.toDegrees(kotlin.math.atan2(east.toDouble(), north.toDouble())).toFloat()) + 360) % 360
         if (kotlin.math.abs(h - heading) > 1f) { heading = h; hud.heading = h; if (placesOn) hud.invalidate() }
     }
     override fun onAccuracyChanged(s: Sensor?, a: Int) = Unit
