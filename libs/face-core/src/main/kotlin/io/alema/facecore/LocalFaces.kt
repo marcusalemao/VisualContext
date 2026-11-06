@@ -16,6 +16,8 @@ object LocalFaces {
     data class Entry(
         val id: String, var name: String?, var personId: String?, val descriptor: FloatArray,
         val thumb: String, val created: Long, var lastSeen: Long,
+        /** Neutral description while there is no name ("homem de barba, jaqueta azul"). Never shown as a name. */
+        var desc: String? = null,
     )
 
     private const val FILE = "rostos.json"
@@ -30,7 +32,7 @@ object LocalFaces {
                 val o = a.optJSONObject(i) ?: return@mapNotNull null
                 val d = FaceMatch.parse(o.optString("d")) ?: return@mapNotNull null
                 Entry(o.optString("id"), o.optString("name").ifEmpty { null }, o.optString("pid").ifEmpty { null },
-                    d, o.optString("thumb"), o.optLong("created"), o.optLong("seen"))
+                    d, o.optString("thumb"), o.optLong("created"), o.optLong("seen"), o.optString("desc").ifEmpty { null })
             }.toMutableList()
         } catch (_: Exception) { mutableListOf() }
     }
@@ -39,7 +41,7 @@ object LocalFaces {
         val a = JSONArray()
         list.forEach {
             a.put(JSONObject().put("id", it.id).put("name", it.name ?: "").put("pid", it.personId ?: "")
-                .put("d", FaceMatch.format(it.descriptor)).put("thumb", it.thumb).put("created", it.created).put("seen", it.lastSeen))
+                .put("d", FaceMatch.format(it.descriptor)).put("thumb", it.thumb).put("created", it.created).put("seen", it.lastSeen).put("desc", it.desc ?: ""))
         }
         val tmp = File(ctx.filesDir, "$FILE.tmp")
         tmp.writeText(a.toString())

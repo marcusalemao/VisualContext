@@ -53,6 +53,9 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     private var placesAt = 0L
     private var heading = 0f
     private var liveOn = false
+    private var lastAutoCard = ""
+    private var lastAutoCardAt = 0L
+    private var lastDescribeAt = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -74,7 +77,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         bar.addView(btn("Fechar") { finish() })
         root.addView(bar, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM))
         setContentView(root)
-        hud.footer = "toque: quem é? · falar: Gemini Live · lugares: cards"
+        hud.footer = "conhecidos aparecem sozinhos · quem é?: card de quem está na frente · falar: Gemini Live"
         val need = listOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO, Manifest.permission.ACCESS_FINE_LOCATION)
             .filter { ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED }
         if (need.isEmpty()) startCamera() else requestPermissions(need.toTypedArray(), 1)
@@ -117,8 +120,22 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         work.execute {
             try {
                 val b = Frames.bitmap(j, 640) ?: return@execute
-                val seen = faces.look(b, describeUnknown = false)
-                main.post { hud.labels = seen.map { toLabel(it, b.width, b.height) }; hud.invalidate() }
+                var seen = faces.look(b, describeUnknown = false)
+                // A face with no name yet gets its neutral description once (one Gemini call, at most every 5 s).
+                val nameless = seen.firstOrNull { !it.known && it.label == "…" }
+                if (nameless != null && SystemClock.elapsedRealtime() - lastDescribeAt > 5000) {
+                    lastDescribeAt = SystemClock.elapsedRealtime()
+                    if (faces.describe(nameless, b) != null) seen = faces.look(b, describeUnknown = false)
+                }
+                val s = seen.firstOrNull()
+                main.post {
+                    hud.labels = seen.map { toLabel(it, b.width, b.height) }
+                    // Known person in front: the short card appears by itself (once per person per 30 s).
+                    if (s != null && s.known && s.sure && (s.label != lastAutoCard || SystemClock.elapsedRealtime() - lastAutoCardAt > 30_000)) {
+                        lastAutoCard = s.label; lastAutoCardAt = SystemClock.elapsedRealtime(); onFaces(seen, b.width, b.height)
+                    }
+                    hud.invalidate()
+                }
             } finally { scanning = false }
         }
     }
@@ -136,15 +153,16 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         work.execute {
             val b = Frames.bitmap(j, 960) ?: return@execute
             val seen = faces.look(b, describeUnknown = true)
-            main.post { onFaces(seen); hud.labels = seen.map { toLabel(it, b.width, b.height) }; hud.footer = ""; hud.invalidate() }
+            main.post { onFaces(seen, b.width, b.height); hud.footer = ""; hud.invalidate() }
         }
     }
 
-    override fun onFaces(seen: List<FaceBrain.Seen>) {
+    override fun onFaces(seen: List<FaceBrain.Seen>, bw: Int, bh: Int) {
+        hud.labels = seen.map { toLabel(it, bw, bh) }
         val s = seen.firstOrNull()
         if (s == null) { hud.cardTitle = "ninguém"; hud.cardLines = listOf("não vi rosto"); hud.invalidate(); return }
         hud.cardTitle = if (s.sure) s.label else s.label + "?"
-        hud.cardLines = s.lines + (if (!s.known) listOf("diga o nome e o card aprende") else emptyList())
+        hud.cardLines = s.lines + (if (!s.known) listOf("diga o nome: \"essa é a Ana\"") else emptyList())
         hud.invalidate()
     }
 

@@ -22,7 +22,7 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
         fun faces(): FaceBrain
         fun onState(state: String)                       // "idle" | "connecting" | "listening" | "speaking" | "error: …"
         fun onTranscript(lines: List<String>, userLine: String?)
-        fun onFaces(seen: List<FaceBrain.Seen>)
+        fun onFaces(seen: List<FaceBrain.Seen>, bw: Int, bh: Int)
     }
 
     private val main = Handler(Looper.getMainLooper())
@@ -103,11 +103,16 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
                     val f = host.frame()?.let { Frames.bitmap(it, 960) }
                     if (f == null) JSONObject().put("erro", "a câmera não respondeu") else {
                         val seen = host.faces().look(f, describeUnknown = true)
-                        main.post { host.onFaces(seen) }
+                        main.post { host.onFaces(seen, f.width, f.height) }
                         if (seen.isEmpty()) JSONObject().put("rostos", 0).put("dica", "não vi rosto; peça para olhar de frente ou chegar mais perto") else host.faces().asJson(seen)
                     }
                 }
-                LiveProtocol.TOOL_ENROLL -> host.faces().name(call.args.optString("nome"))
+                LiveProtocol.TOOL_ENROLL -> {
+                    val r = host.faces().name(call.args.optString("nome"))
+                    // The card must change right away: look again at the current frame with the new name.
+                    host.frame()?.let { Frames.bitmap(it, 960) }?.let { b -> val seen = host.faces().look(b, describeUnknown = false); main.post { host.onFaces(seen, b.width, b.height) } }
+                    r
+                }
                 LiveProtocol.TOOL_PERSON -> {
                     val q = call.args.optString("nome").lowercase()
                     host.faces().refreshPeople()

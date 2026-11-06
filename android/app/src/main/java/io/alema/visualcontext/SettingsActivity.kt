@@ -80,13 +80,13 @@ class SettingsActivity : Activity() {
             text = "Abrir o emulador"
             setOnClickListener { startActivity(Intent(this@SettingsActivity, EmulatorActivity::class.java)) }
         })
-        col.addView(label("Gemini (Google AI Studio)", 14f, green))
+        col.addView(label("Chave do Gemini (Google AI Studio)", 14f, green))
         val gk = field(Backend.geminiKey(this), true).apply { hint = "AIza…" }
         col.addView(gk)
         val voices = listOf("Kore", "Aoede", "Puck", "Charon", "Fenrir", "Leda", "Orus", "Zephyr")
         val vg = android.widget.RadioGroup(this).apply { orientation = LinearLayout.HORIZONTAL
             voices.take(4).forEachIndexed { i, v -> addView(android.widget.RadioButton(context).apply { id = 300 + i; text = v; setTextColor(soft); isChecked = v == Backend.voiceName(context) }) } }
-        col.addView(vg)
+        col.addView(label("Voz do assistente (quem fala com você no Gemini Live)", 12f)); col.addView(vg)
         col.addView(Button(this).apply {
             text = "Salvar chave e voz"
             setOnClickListener { Backend.saveGemini(context, gk.text.toString(), voices.getOrElse(vg.checkedRadioButtonId - 300) { "Kore" }); Toast.makeText(context, "Salvo", Toast.LENGTH_SHORT).show() }

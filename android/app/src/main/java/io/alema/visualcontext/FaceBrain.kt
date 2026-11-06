@@ -66,8 +66,8 @@ class FaceBrain(private val ctx: Context) {
                 // New face: keep it (no name yet) with a neutral description, never "pessoa 1".
                 val desc = if (describeUnknown) Describe.person(ctx, faceJpeg(bmp, f)) else null
                 val entry = LocalFaces.add(ctx, f.descriptor, thumb)
-                LocalFaces.update(ctx, entry.id) { it.name = desc }
-                Seen(desc ?: "alguém novo", listOf("primeira vez · aqui, agora"), true, false, f.x, f.y, f.w, f.h, f.descriptor, thumb, entry.id)
+                if (desc != null) LocalFaces.update(ctx, entry.id) { it.desc = desc }
+                Seen(desc ?: "…", listOf("primeira vez · aqui, agora"), true, false, f.x, f.y, f.w, f.h, f.descriptor, thumb, entry.id)
             }
         }
     }
@@ -75,7 +75,8 @@ class FaceBrain(private val ctx: Context) {
     private fun card(key: String, f: Face, local: List<LocalFaces.Entry>, thumb: String, sure: Boolean): Seen {
         val p = if (key.startsWith("p:")) people.find { it.id == key.removePrefix("p:") } else null
         val l = local.filter { "p:${it.personId}" == key || "l:${it.id}" == key }
-        val name = p?.name ?: l.firstOrNull { it.name != null }?.name ?: "alguém"
+        val named = p != null || l.any { it.name != null }
+        val name = p?.name ?: l.firstOrNull { it.name != null }?.name ?: l.firstOrNull { it.desc != null }?.desc ?: "…"
         val how = p?.let { listOf(it.relation, it.company).filter { s -> s.isNotBlank() }.joinToString(" · ") }.orEmpty()
         val seen = l.maxOfOrNull { it.lastSeen }?.takeIf { it > 0 }
         val lastLine = when {
@@ -85,8 +86,18 @@ class FaceBrain(private val ctx: Context) {
         }
         val now = System.currentTimeMillis()
         l.forEach { x -> LocalFaces.update(ctx, x.id) { it.lastSeen = now } }
-        val lines = listOfNotNull(how.takeIf { it.isNotBlank() }, lastLine.takeIf { it.isNotBlank() }).ifEmpty { listOf("na sua memória") }
-        return Seen(name, lines, sure, p != null || l.any { it.personId != null } || l.any { it.name != null }, f.x, f.y, f.w, f.h, f.descriptor, thumb, l.firstOrNull()?.id)
+        val lines = listOfNotNull(how.takeIf { it.isNotBlank() }, lastLine.takeIf { it.isNotBlank() }).ifEmpty { listOf(if (named) "na sua memória" else "ainda sem nome") }
+        return Seen(name, lines, sure, named, f.x, f.y, f.w, f.h, f.descriptor, thumb, l.firstOrNull()?.id)
+    }
+
+    /** Writes the neutral description for a face that has none yet (one Gemini call). Returns the new label. */
+    fun describe(s: Seen, bmp: Bitmap): String? {
+        val id = s.localId ?: return null
+        if (LocalFaces.all(ctx).any { it.id == id && (it.name != null || it.desc != null) }) return null
+        val f = Face(s.descriptor, s.x, s.y, s.w, s.h, 1f)
+        val desc = Describe.person(ctx, faceJpeg(bmp, f)) ?: return null
+        LocalFaces.update(ctx, id) { it.desc = desc }
+        return desc
     }
 
     /** "Essa é a Ana": names the biggest face seen in the last minute (or links it to a person in the memory). */
