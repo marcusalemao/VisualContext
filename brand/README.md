@@ -4,7 +4,13 @@
 
 ## EN — English
 
-Logo by Marcus (made with Gemini, 06/11/2026). Green only (#00FF66) on black, which already fits the HUD rule (monochrome green).
+Logo by Marcus (made with Gemini, 06/11/2026). Green only on black, which already fits the HUD rule (monochrome green).
+
+**The original is the raster image** (`visualcontext-logo-original.jpg`); the SVGs are an approximate vector redraw, kept for when a vector is needed. **Symbol and name stay together** (Marcus, 06/11) everywhere there is room: film, site, app screens. Only the launcher icon uses the symbol alone, because at 48 px the name can't be read and the phone already prints the app name under the icon.
+
+- `visualcontext-logo-original.jpg` — the original, on black.
+- `visualcontext-logo-transparent.png` — the original cut out (no background), symbol + name: use this one.
+- `visualcontext-symbol.png` — symbol only, from the original: icons.
 
 - `visualcontext-logo.svg` — full logo on black (symbol + wordmark + "cognitive prosthesis").
 - `visualcontext-logo-transparent.svg` — same, no background, for dark pages and the film.
@@ -18,7 +24,13 @@ The subtitle "cognitive prosthesis" stays off in public material for now (Marcus
 
 ## PT — Português
 
-Logo do Marcus (feito com o Gemini, 06/11/2026). Só verde (#00FF66) sobre preto, o que já combina com a regra do HUD (monocromático verde).
+Logo do Marcus (feito com o Gemini, 06/11/2026). Só verde sobre preto, o que já combina com a regra do HUD (monocromático verde).
+
+**O original é a imagem** (`visualcontext-logo-original.jpg`); os SVGs são um redesenho vetorial aproximado, guardados para quando precisar de vetor. **Símbolo e nome ficam juntos** (Marcus, 06/11) onde houver espaço: filme, site, telas do app. Só o ícone do celular usa o símbolo sozinho, porque a 48 px o nome não se lê e o celular já escreve o nome do app embaixo do ícone.
+
+- `visualcontext-logo-original.jpg` — o original, sobre preto.
+- `visualcontext-logo-transparent.png` — o original recortado (sem fundo), símbolo + nome: use este.
+- `visualcontext-symbol.png` — só o símbolo, tirado do original: ícones.
 
 - `visualcontext-logo.svg` — logo completo sobre preto (símbolo + nome + "cognitive prosthesis").
 - `visualcontext-logo-transparent.svg` — o mesmo, sem fundo, para páginas escuras e o filme.

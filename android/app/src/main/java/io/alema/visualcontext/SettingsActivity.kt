@@ -59,11 +59,12 @@ class SettingsActivity : Activity() {
 
     private fun render() {
         col.removeAllViews()
+        // The full logo (symbol + wordmark); long-press = developer mode.
         col.addView(android.widget.ImageView(this).apply {
-            setImageResource(R.mipmap.ic_launcher_foreground)
-            layoutParams = LinearLayout.LayoutParams(220, 220)
-        })
-        col.addView(label("VisualContext", 26f, green).apply {
+            setImageResource(R.drawable.logo_full)
+            adjustViewBounds = true
+            contentDescription = "VisualContext"
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
             setOnLongClickListener { dev = !dev; render(); true }
         })
         val status = label("verificando…", 16f, green)
