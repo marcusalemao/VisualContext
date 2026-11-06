@@ -43,14 +43,18 @@ Approved by Marcus on 11/10. Visual reference: the canvas "VisualContext Manager
 - **Glasses, Recall mode:** for any question, only in standby (no encounter being recorded): "What was the name of the person I just talked to?", "What was the address of the building I visited?", "Where did I leave my motorbike?". A fuller card appears, shaped by the answer: a person → the face card; a place → photo + address; a thing → last photos + where. The map button appears only when the answer is a location. Each memory keeps the location of the moment it was recorded, so a place answer works even with the day timeline off. Example, the motorbike:
   - the last frame where the motorbike was seen **parked** (not a frame from riding, with hands on the handlebar);
   - address and time ("Rua Paim, 210 · today 8:30");
-  - one action: "See on map".
+  - then the one question: "Want to go there?" (below).
 - If an encounter starts, the card steps aside and comes back after.
 - **The right photo comes from the parking moment, not from a search later.** When the phone's speed drops from riding to zero and then walking, save the location and take a short burst. A voice command ("save: parked here") does the same by hand.
 - **At the parking moment, keep two photos:** one with the motorbike (if the signature finds it) and one of the surroundings, even without the bike: a shop front, a sign, the corner. The address alone is often not enough; the picture says "it was there". Signs and shop names in that photo are read (OCR) and added to the card: "Rua Paim, 210 · in front of Padaria Boa".
-- **What "See on map" does, in order of preference:**
-  1. our own arrow + distance on the HUD (head heading from the Places app + phone GPS); for a few hundred metres this beats turn-by-turn;
-  2. hand the coordinates to a glasses navigation app (`geo:` intent), if one accepts it — to be tested: rokid-ar-navigation (voice, walking HUD), Rokid-GMaps;
-  3. open Google Maps on the phone.
+- **One question after the answer (decided 06/11, replaces "one button: See on map").** The glasses never act on their own, but they may ask. After a location answer, the AI asks **one** short question, with the most likely mode already suggested by distance, by voice and on the HUD:
+  - near (up to ~800 m): "Want to go there? On foot it's about 4 minutes.";
+  - farther: "Want to go there? It's 6 km: public transport, motorbike or car?" (public transport is always offered when the phone has it, e.g. "metro, 15 minutes");
+  - silence or "no" = nothing happens. Never a second question.
+- **If you say yes:**
+  - **on foot:** we guide. The arrow + distance on the HUD (head heading from the Places app + phone GPS) gets a spoken version: "turn right in 50 metres", "it's ahead, next to the bakery". Low-vision module: voice only. No obstacle avoidance: that stays with Rokid's own Vision assistant;
+  - **public transport, motorbike, car:** hand the destination to Google Maps on the phone (or to a glasses navigation app via `geo:` intent, if one accepts it — to be tested: rokid-ar-navigation, Rokid-GMaps), with the chosen mode preselected. Nobody rides by our HUD.
+- **The same rule for other answers:** "Rafael said 3 pm" → "Put it in the calendar?"; "the key is in the bedroom" → nothing to ask. Only when there is one obvious action, and only one question.
 - Without the phone: address only, no distance (the glasses have no GPS).
 
 ### 1e. Things: register once, find always (11/10)
@@ -226,14 +230,18 @@ Aprovado pelo Marcus em 11/10. Referência visual: o canvas "VisualContext Manag
 - **Óculos, modo Recordar:** para qualquer pergunta, só em standby (sem encontro sendo gravado): "Qual o nome da pessoa com quem falei agora há pouco?", "Qual o endereço do prédio que visitei?", "Onde deixei minha moto?". Aparece um card mais completo, no formato da resposta: pessoa → o card do rosto; lugar → foto + endereço; coisa → últimas fotos + onde. O botão de mapa só aparece quando a resposta é um local. Cada memória guarda o local do momento em que foi registrada, então a resposta de lugar funciona mesmo com a linha do tempo do dia desligada. Exemplo, a moto:
   - o último quadro em que a moto foi vista **estacionada** (não um quadro pilotando, com as mãos no guidão);
   - endereço e hora ("Rua Paim, 210 · hoje 8:30");
-  - uma ação: "Ver no mapa".
+  - e a pergunta única: "Quer ir até lá?" (abaixo).
 - Se um encontro começa, o card sai da frente e volta depois.
 - **A foto certa vem da hora de estacionar, não de uma busca depois.** Quando a velocidade do celular cai de pilotando para zero e depois para caminhada, guarda o local e faz uma rajada curta. Um comando de voz ("guarda: parei aqui") faz o mesmo na mão.
 - **Na hora de estacionar, guardar duas fotos:** uma com a moto (se a assinatura achar) e uma do entorno, mesmo sem a moto: a fachada de uma loja, uma placa, a esquina. Só o endereço muitas vezes não basta; a imagem diz "foi aí". Placas e nomes de loja nessa foto são lidos (OCR) e entram no card: "Rua Paim, 210 · em frente à Padaria Boa".
-- **O que "Ver no mapa" faz, em ordem de preferência:**
-  1. nossa própria seta + distância no HUD (direção da cabeça do app de Lugares + GPS do celular); para algumas centenas de metros é melhor que navegação curva a curva;
-  2. passar as coordenadas para um app de navegação nos óculos (intent `geo:`), se algum aceitar — a testar: rokid-ar-navigation (voz, HUD a pé), Rokid-GMaps;
-  3. abrir o Google Maps no celular.
+- **Uma pergunta depois da resposta (decidido em 06/11, substitui "uma ação: Ver no mapa").** Os óculos nunca agem sozinhos, mas podem perguntar. Depois de uma resposta de lugar, a IA faz **uma** pergunta curta, já com o modo mais provável sugerido pela distância, por voz e no HUD:
+  - perto (até ~800 m): "Quer ir até lá? A pé são uns 4 minutos.";
+  - longe: "Quer ir até lá? São 6 km: transporte público, moto ou carro?" (transporte público é sempre oferecido quando o celular tem a informação, ex.: "metrô, 15 minutos");
+  - silêncio ou "não" = nada acontece. Nunca uma segunda pergunta.
+- **Se você disser sim:**
+  - **a pé:** a gente guia. A seta + distância no HUD (direção da cabeça do app de Lugares + GPS do celular) ganha a versão falada: "vire à direita em 50 metros", "é ali na frente, do lado da padaria". Módulo baixa visão: só a voz. Sem desvio de obstáculo: isso continua com o assistente Vision da própria Rokid;
+  - **transporte público, moto, carro:** passar o destino para o Google Maps no celular (ou para um app de navegação nos óculos pelo intent `geo:`, se algum aceitar — a testar: rokid-ar-navigation, Rokid-GMaps), com o modo escolhido já marcado. Ninguém pilota pelo nosso visor.
+- **A mesma regra para outras respostas:** "o Rafael marcou às 15h" → "Ponho na agenda?"; "a chave está no quarto" → nada a perguntar. Só quando existe uma ação óbvia, e só uma pergunta.
 - Sem o celular: só o endereço, sem distância (os óculos não têm GPS).
 
 ### 1e. Coisas: cadastrar uma vez, achar sempre (11/10)
