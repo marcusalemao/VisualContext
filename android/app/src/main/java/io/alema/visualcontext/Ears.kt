@@ -88,7 +88,7 @@ class Ears(private val ctx: Context, private val onName: (String) -> Unit, priva
     }
 
     private fun heard(s: String, final: Boolean) {
-        NameSpotter.find(s)?.let { n ->
+        NameSpotter.find(s, Backend.meName(ctx))?.let { n ->
             val now = System.currentTimeMillis()
             if (!(n.equals(lastName, true) && now - lastNameAt < 20_000)) { lastName = n; lastNameAt = now; onName(n) }
         }

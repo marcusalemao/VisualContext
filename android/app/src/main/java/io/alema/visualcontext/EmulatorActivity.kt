@@ -360,8 +360,8 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     override fun onFaces(seen: List<FaceBrain.Seen>, bw: Int, bh: Int) {
         lastSeen = seen; lastBw = bw; lastBh = bh
         val primary = seen.firstOrNull { it.label.isNotEmpty() }
-        if (primary != null && ::ears.isInitialized && !liveOn) ears.faceSeen(if (primary.known) primary.label else null)
-        if (primary != null && speaks) announce(primary)
+        if (primary != null && !primary.isMe && ::ears.isInitialized && !liveOn) ears.faceSeen(if (primary.known) primary.label else null)
+        if (primary != null && !primary.isMe && speaks) announce(primary)
         // Countdown: a new face that stays in front of you for 7 s; then 5…0 and it is kept.
         val pid = primary?.pendingId
         // The buffer runs from the first second (in memory); at 7 s the countdown starts; cancelling discards it all.
@@ -400,7 +400,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     override fun onBrief(name: String, lines: List<String>) { hud.cardTitle = "✦ $name"; hud.cardLines = lines; hud.invalidate() }
 
     private fun toggleLive() {
-        if (!liveOn && Backend.offlineOnly(this)) { toast("Só offline (Ajustes): ouço e anoto, não respondo. Desligue lá para usar o Live."); return }
+        if (!liveOn && Backend.offlineOnly(this)) { toast("O Live está desligado em Ajustes → Assistente (\"Desligar o Live\"). Ligue lá para falar com o assistente."); return }
         if (liveOn) { if (live.speaking) live.interrupt() else { live.stop(); liveOn = false; ears.resume() } }
         else { liveOn = true; ears.pause(); live.start() }
     }
@@ -436,9 +436,11 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         work.execute {
             val loc = Where.location(this)
             if (loc == null) { main.post { toast("sem GPS ainda") }; return@execute }
-            val near = Where.nearby(loc, 300, 6)
+            val near = Where.nearby(loc, 400, 12)
+            // Nothing named around (or Overpass down): at least say where we are (Marcus, 07/11).
+            val addr = if (near.isEmpty()) Where.address(this, loc) else null
             main.post {
-                if (near.isEmpty()) toast("nenhum lugar conhecido num raio de 300 m")
+                if (near.isEmpty() && !addr.isNullOrBlank()) toast("📍 $addr")
                 // "hidden" = farther than 150 m (approximation of "behind a building" until we have building outlines).
                 hud.pins = near.map { HudOverlay.Pin(it.name, "${it.kind} · ${it.dist} m", it.bearing.toFloat(), hidden = it.dist > 150) }
                 hud.invalidate()

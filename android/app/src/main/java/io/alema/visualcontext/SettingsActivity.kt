@@ -273,7 +273,7 @@ class SettingsActivity : Activity() {
             if (Voice.phoneVoice(this).isEmpty() && cur.isNotEmpty()) Voice.setPhoneVoice(this, cur)
         }, 900)
         c7.addView(android.widget.CheckBox(this).apply {
-            text = "Só offline: não usar o Live. Os óculos reconhecem, transcrevem e avisam pelo celular; não respondem perguntas."
+            text = "Desligar o Live (modo só celular): os óculos reconhecem, transcrevem e avisam pela voz do celular, mas o assistente não responde perguntas. Não tem a ver com a voz escolhida acima."
             textSize = 14f; setTextColor(soft); buttonTintList = android.content.res.ColorStateList.valueOf(green); isChecked = Backend.offlineOnly(this@SettingsActivity)
             setOnCheckedChangeListener { _, on -> Backend.setOfflineOnly(this@SettingsActivity, on) }
         })

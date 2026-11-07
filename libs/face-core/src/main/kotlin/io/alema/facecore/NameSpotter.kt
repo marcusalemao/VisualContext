@@ -14,6 +14,7 @@ object NameSpotter {
         "meu nome e", "o meu nome e", "eu sou a", "eu sou o", "me chamo", "pode me chamar de", "prazer eu sou o", "prazer eu sou a",
         "prazer sou o", "prazer sou a", "prazer", "o nome dele e", "o nome dela e", "ele se chama", "ela se chama",
         "esse aqui e o", "essa aqui e a", "this is", "my name is", "i am", "i'm", "im", "call me",
+        "sou eu o", "sou eu a", "sou eu", "esse sou eu", "essa sou eu", "it's me", "its me",
     ).sortedByDescending { it.length }
 
     /** Words that end a name ("Ana, tudo bem"), and words that are never names ("eu sou de São Paulo"). */
@@ -31,8 +32,20 @@ object NameSpotter {
 
     private fun norm(s: String) = Normalizer.normalize(s.lowercase(), Normalizer.Form.NFD).replace(Regex("\\p{M}"), "")
 
-    /** The last name introduced in [text], or null. */
-    fun find(text: String): String? {
+    /** "sou eu", "esse sou eu", "é eu mesmo": the wearer talking about their own face. */
+    private val ME = Regex("""\b(sou eu|esse sou eu|essa sou eu|este sou eu|eu mesmo|eu mesma|it's me|its me|that's me|thats me)\b""")
+
+    /**
+     * The last name introduced in [text], or null. With [me] (the wearer's own name), "sou eu" with no name after it
+     * returns [me], and "sou eu, Marcus" still returns the name said.
+     */
+    fun find(text: String, me: String? = null): String? {
+        val n = findName(text)
+        if (n != null) return n
+        return if (!me.isNullOrBlank() && ME.containsMatchIn(norm(text))) me else null
+    }
+
+    private fun findName(text: String): String? {
         // Keep the original words (with accents) aligned with a normalised copy for matching.
         // Words and punctuation as separate tokens: a name never crosses a comma or a full stop.
         val words = Regex("[\\p{L}\\p{N}'’-]+|[,.;:!?]").findAll(text).map { it.value }.toList()

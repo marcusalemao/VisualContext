@@ -183,7 +183,7 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
 
     /** Names are caught here, not left to Gemini: saying the name is enough, no button, no tool call needed. */
     private fun spotName() {
-        val n = NameSpotter.find(heard.toString()) ?: return
+        val n = NameSpotter.find(heard.toString(), Backend.meName(ctx)) ?: return
         val now = SystemClock.elapsedRealtime()
         if (n.equals(lastNamed, ignoreCase = true) && now - lastNamedAt < 20_000) return
         lastNamed = n; lastNamedAt = now
