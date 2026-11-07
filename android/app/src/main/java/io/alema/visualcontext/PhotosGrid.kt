@@ -60,22 +60,46 @@ class PhotosGrid(ctx: Context) {
                 val wx = w.box.exactCenterX()
                 wx in left..right && w.box.left >= left - f.w * 0.1f && w.box.right <= right + f.w * 0.1f && w.box.top >= f.y + f.h * 0.85f && w.box.top <= f.y + f.h * 1.9f
             }.sortedWith(compareBy<Word> { it.box.top / maxOf(1, it.box.height()) }.thenBy { it.box.left })
-            if (mine.isEmpty()) { keepNameless(bmp, f); continue }
+            if (mine.isEmpty()) {
+                // Lists (LinkedIn, Facebook, Instagram, contacts): small photo on the left, name on its right.
+                val side = words.filter { w ->
+                    w.box.left >= f.x + f.w * 0.9f && w.box.left <= f.x + f.w * 9f &&
+                        w.box.exactCenterY() >= f.y - f.h * 0.35f && w.box.exactCenterY() <= f.y + f.h * 1.35f
+                }
+                if (side.isNotEmpty()) {
+                    // The first line to the right is the name; the line under it (headline, job) is left out.
+                    val top = side.minOf { it.box.top }; val rh = side.minByOrNull { it.box.top }!!.box.height().coerceAtLeast(1)
+                    val nameWords = side.filter { it.box.top < top + rh * 0.8f }.sortedBy { it.box.left }
+                    val n = nameWords.joinToString(" ") { it.text }.replace(Regex("\\s*[·•|].*$"), "").trim().trimEnd('.', ',', ' ')
+                    if (n.length >= 2 && !n.any { it.isDigit() } && !ui.matches(n)) { addFound(bmp, f, n); continue }
+                }
+                keepNameless(bmp, f); continue
+            }
             // At most the two rows right under the face.
             val firstTop = mine.minOf { it.box.top }; val rowH = mine.first().box.height().coerceAtLeast(1)
             val name = mine.filter { it.box.top < firstTop + rowH * 2.6f }.joinToString(" ") { it.text }.replace(Regex("\\s+"), " ").trim().trimEnd('.', ',', ' ')
             if (name.length < 2 || name.any { it.isDigit() } || ui.matches(name)) continue
-            // Same face as one already found (the grid repeats while scrolling): add a vote for this name.
-            val same = people.maxByOrNull { dot(it.descriptor, f.descriptor) }?.takeIf { dot(it.descriptor, f.descriptor) > SAME }
-            if (same != null) {
-                same.vote(name)
-                if (f.w > same.size) { same.thumb = crop(bmp, f.x, f.y, f.w, f.h); same.size = f.w }
-                continue
-            }
-            people += Found(name, f.descriptor, crop(bmp, f.x, f.y, f.w, f.h), f.w, false).also { it.vote(name) }
-            added++
+            if (addFound(bmp, f, name)) added++
         }
         return added
+    }
+
+    /** Same face as one already found (the list repeats while scrolling): add a vote for this name. True if new. */
+    private fun addFound(bmp: Bitmap, f: io.alema.facecore.Face, name: String): Boolean {
+        val same = people.maxByOrNull { dot(it.descriptor, f.descriptor) }?.takeIf { dot(it.descriptor, f.descriptor) > SAME }
+        if (same != null) {
+            same.vote(name)
+            if (f.w > same.size) { same.thumb = crop(bmp, f.x, f.y, f.w, f.h); same.size = f.w }
+            return false
+        }
+        people += Found(name, f.descriptor, crop(bmp, f.x, f.y, f.w, f.h), f.w, false).also { it.vote(name) }
+        return true
+    }
+
+    /** One picture of one person with a known name (a phone contact's photo). */
+    fun readOne(bmp: Bitmap, name: String): Boolean {
+        val f = engine.describe(bmp).firstOrNull() ?: return false
+        addFound(bmp, f, name); return true
     }
 
     /** Faces with no name in Google Photos: shown apart, so the user can name the ones he knows. */

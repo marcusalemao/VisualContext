@@ -126,12 +126,12 @@ class PhotosCaptureService : Service() {
 
     private fun note(n: Int): Notification {
         val nm = getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(NotificationChannel(CH, "Importar do Google Fotos", NotificationManager.IMPORTANCE_LOW))
+        nm.createNotificationChannel(NotificationChannel(CH, "Importar rostos", NotificationManager.IMPORTANCE_LOW))
         val done = PendingIntent.getActivity(this, 1, Intent(this, PhotosPickActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         return Notification.Builder(this, CH)
             .setSmallIcon(android.R.drawable.ic_menu_camera)
-            .setContentTitle(if (n == 0) "Lendo a tela: abra Pessoas e animais" else "$n ${if (n == 1) "pessoa encontrada" else "pessoas encontradas"}")
+            .setContentTitle(if (n == 0) "Lendo a tela: role a lista devagar" else "$n ${if (n == 1) "pessoa encontrada" else "pessoas encontradas"}")
             .setContentText("Role devagar até o fim. Depois toque em Terminei.")
             .setOngoing(true).setOnlyAlertOnce(true)
             .setContentIntent(done)

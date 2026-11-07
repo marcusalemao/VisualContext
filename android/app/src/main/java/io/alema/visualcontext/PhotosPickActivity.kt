@@ -44,6 +44,31 @@ class PhotosPickActivity : Activity() {
         sharedImages(intent)?.let { readImages(it) }
     }
 
+    /** Phone contacts with a photo: one face each, the name is the contact's. */
+    private fun readContacts() {
+        col.removeAllViews(); col.addView(label("Lendo os contatos com foto…", 18f, green))
+        io.execute {
+            val g = PhotosGrid(this)
+            try {
+                contentResolver.query(android.provider.ContactsContract.Contacts.CONTENT_URI,
+                    arrayOf(android.provider.ContactsContract.Contacts.DISPLAY_NAME_PRIMARY, android.provider.ContactsContract.Contacts.PHOTO_URI),
+                    "${android.provider.ContactsContract.Contacts.PHOTO_URI} IS NOT NULL", null, null)?.use { c ->
+                    var n = 0
+                    while (c.moveToNext()) {
+                        val name = c.getString(0)?.trim() ?: continue
+                        val uri = c.getString(1) ?: continue
+                        if (name.length < 2 || name.any { it.isDigit() }) continue
+                        val bmp = try { contentResolver.openInputStream(android.net.Uri.parse(uri))?.use { BitmapFactory.decodeStream(it) } } catch (_: Exception) { null } ?: continue
+                        g.readOne(bmp, name); bmp.recycle()
+                        if (++n % 10 == 0) runOnUiThread { col.removeAllViews(); col.addView(label("Lendo os contatos com foto… $n", 18f, green)) }
+                    }
+                }
+                PhotosGrid.last = g.found.toList(); PhotosGrid.lastNameless = emptyList()
+            } catch (_: Throwable) { } finally { g.close() }
+            runOnUiThread { if (PhotosGrid.last.isEmpty()) { render(); col.addView(label("Nenhum contato com foto de rosto.", 14f, green)) } else render() }
+        }
+    }
+
     /** A long screenshot shared from the gallery ("Compartilhar → VisualContext"). */
     private fun sharedImages(i: Intent?): List<android.net.Uri>? = when (i?.action) {
         Intent.ACTION_SEND -> (if (Build.VERSION.SDK_INT >= 33) i.getParcelableExtra(Intent.EXTRA_STREAM, android.net.Uri::class.java) else @Suppress("DEPRECATION") i.getParcelableExtra(Intent.EXTRA_STREAM))?.let { listOf(it) }
@@ -91,15 +116,35 @@ class PhotosPickActivity : Activity() {
     }
 
     private fun intro() {
-        col.addView(label("Importar do Google Fotos", 20f, green))
-        col.addView(label("O Google Fotos já sabe o nome das pessoas que aparecem nas suas fotos. O VisualContext lê essa tela, com a sua permissão, e aprende os rostos. Nada sai do celular até você escolher quem entra."))
+        col.addView(label("Importar rostos", 20f, green))
+        col.addView(label("De qualquer lista com foto e nome: Google Fotos, contatos do celular, LinkedIn, Facebook, Instagram. O VisualContext lê a tela, com a sua permissão, e aprende os rostos. Nada sai do celular até você escolher quem entra."))
+        // Phone contacts: the photo is already there, no screenshot needed.
+        col.addView(label("Contatos do celular", 15f, green))
+        col.addView(label("Os contatos que têm foto (muitos vêm do Google Contatos).", 13f))
+        col.addView(Button(this).apply { text = "Importar contatos com foto"; setOnClickListener {
+            source = "contatos"
+            if (checkSelfPermission(android.Manifest.permission.READ_CONTACTS) != android.content.pm.PackageManager.PERMISSION_GRANTED) requestPermissions(arrayOf(android.Manifest.permission.READ_CONTACTS), REQ_CONTACTS)
+            else readContacts()
+        } })
+        // LinkedIn, Facebook, Instagram: the user scrolls (their terms forbid robots), the capture reads.
+        col.addView(label("LinkedIn, Facebook, Instagram ou outro app", 15f, green))
+        col.addView(label("Abra a lista de conexões, amigos ou seguidores e role devagar; a captura lê foto e nome ao lado. Quem rola é você: esses sites proíbem robôs.", 13f))
+        listOf("LinkedIn" to "com.linkedin.android", "Facebook" to "com.facebook.katana", "Instagram" to "com.instagram.android", "Outro app" to "").forEach { (l, pkg) ->
+            col.addView(Button(this).apply { text = if (pkg.isEmpty()) "Outro app (eu abro)" else "Capturar enquanto rolo no $l"; setOnClickListener {
+                source = l; openPkg = pkg; useApp = false; auto = false
+                if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED)
+                    requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), REQ_NOTE)
+                else askCapture()
+            } })
+        }
+        col.addView(label("Google Fotos", 15f, green))
         col.addView(label("Como funciona (recomendado: pelo navegador)", 15f, green))
         col.addView(label("1. Toque em Começar e permita a captura de tela.\n2. O Google Fotos abre no Chrome, já em Pessoas.\n3. Vire o celular deitado e diminua o zoom para uns 80% (pinça com dois dedos): os nomes não cortam e os rostos continuam grandes.\n4. Role devagar até o fim.\n5. Toque em Terminei, na notificação, e escolha quem entra."))
         col.addView(label("Outro jeito, sem compartilhar a tela: abra photos.google.com/people no Chrome, deitado e com zoom em 80%, e tire prints (ou um print com rolagem). Depois toque abaixo e escolha o print, ou compartilhe o print com o VisualContext.", 13f))
         col.addView(Button(this).apply { text = "Usar um print longo"; setOnClickListener {
             startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("image/*").putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true), REQ_IMAGE)
         } })
-        col.addView(label("Quem não tem nome no Google Fotos fica de fora. Você mesmo também: desmarque o seu rosto na hora de escolher.", 13f))
+        col.addView(label("Rostos sem nome aparecem à parte, para você dar nome se conhecer. Desmarque o seu próprio rosto na hora de escolher.", 13f))
         if (PhotosCaptureService.running) {
             col.addView(label("Lendo a tela agora: ${PhotosCaptureService.count} pessoas até aqui.", 15f, green))
             col.addView(Button(this).apply { text = "Terminei"; setOnClickListener { PhotosCaptureService.stop(this@PhotosPickActivity); col.postDelayed({ render() }, 800) } })
@@ -117,7 +162,7 @@ class PhotosPickActivity : Activity() {
                         .setNegativeButton("Agora não", null).show()
                     return@setOnClickListener
                 }
-                auto = true; useApp = false
+                auto = true; useApp = false; source = "Google Fotos"; openPkg = null
                 if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED)
                     requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), REQ_NOTE)
                 else askCapture()
@@ -127,7 +172,7 @@ class PhotosPickActivity : Activity() {
         col.addView(Button(this).apply {
             text = "Começar pelo navegador (recomendado)"
             setOnClickListener {
-                useApp = false; auto = false
+                useApp = false; auto = false; source = "Google Fotos"; openPkg = null
                 if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED)
                     requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), REQ_NOTE)
                 else askCapture()
@@ -135,15 +180,20 @@ class PhotosPickActivity : Activity() {
         })
         col.addView(Button(this).apply {
             text = "Começar pelo app Google Fotos"
-            setOnClickListener { useApp = true; auto = false; askCapture() }
+            setOnClickListener { useApp = true; auto = false; source = "Google Fotos"; openPkg = null; askCapture() }
         })
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        if (requestCode == REQ_CONTACTS) { if (grantResults.firstOrNull() == android.content.pm.PackageManager.PERMISSION_GRANTED) readContacts(); return }
         if (requestCode == REQ_NOTE) askCapture()
     }
 
     private var useApp = false
+    /** Where the faces come from, said on each face ("rosto do LinkedIn"). */
+    private var source = "Google Fotos"
+    /** For LinkedIn/Facebook/Instagram: the app to open once the capture starts ("" = the user opens it). */
+    private var openPkg: String? = null
     private var auto = false
 
     private fun askCapture() {
@@ -168,6 +218,13 @@ class PhotosPickActivity : Activity() {
         val app = packageManager.getLaunchIntentForPackage("com.google.android.apps.photos")
         col.postDelayed({
             try {
+                val other = openPkg
+                if (other != null) {
+                    if (other.isNotEmpty()) packageManager.getLaunchIntentForPackage(other)?.let { startActivity(it) }
+                        ?: android.widget.Toast.makeText(this, "$source não está instalado: abra pelo navegador", android.widget.Toast.LENGTH_LONG).show()
+                    else moveTaskToBack(true)
+                    return@postDelayed
+                }
                 startActivity(if (useApp && app != null) app else if (chrome.resolveActivity(packageManager) != null) chrome else web)
                 if (auto && !PhotosAuto.start()) android.widget.Toast.makeText(this, "Ligue a rolagem automática em Acessibilidade e tente de novo", android.widget.Toast.LENGTH_LONG).show()
             }
@@ -247,11 +304,11 @@ class PhotosPickActivity : Activity() {
             for ((i, f) in list.withIndex()) {
                 runOnUiThread { status.text = "Guardando ${i + 1} de ${list.size}…" }
                 val r = Backend.post(this, JSONObject().put("action", "enroll_face").put("name", f.name).put("arc", org.json.JSONArray(f.descriptor.map { it.toDouble() }))
-                    .put("thumb", f.thumb).put("source", "google_photos").put("description", "rosto do Google Fotos"))
+                    .put("thumb", f.thumb).put("source", "import_" + source.lowercase().replace(' ', '_')).put("description", "rosto do $source"))
                 val pid = r?.let { try { JSONObject(it).optString("person_id").ifEmpty { null } } catch (_: Exception) { null } }
                 if (r == null) offline++
                 val now = System.currentTimeMillis()
-                all += LocalFaces.Entry(java.util.UUID.randomUUID().toString(), f.name, pid, f.descriptor, f.thumb, now, 0, "rosto do Google Fotos")
+                all += LocalFaces.Entry(java.util.UUID.randomUUID().toString(), f.name, pid, f.descriptor, f.thumb, now, 0, "rosto do $source")
                 ok++
             }
             LocalFaces.save(this, all)
@@ -267,5 +324,5 @@ class PhotosPickActivity : Activity() {
 
     override fun onDestroy() { io.shutdown(); super.onDestroy() }
 
-    companion object { private const val REQ_CAPTURE = 71; private const val REQ_NOTE = 72; private const val REQ_IMAGE = 73 }
+    companion object { private const val REQ_CAPTURE = 71; private const val REQ_NOTE = 72; private const val REQ_IMAGE = 73; private const val REQ_CONTACTS = 74 }
 }

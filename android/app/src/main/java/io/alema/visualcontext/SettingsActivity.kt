@@ -126,8 +126,8 @@ class SettingsActivity : Activity() {
         // 4. Import
         val c4 = card()
         c4.h("Importar rostos")
-        c4.p("Do Google Fotos: as pessoas com nome lá passam a ser reconhecidas pelos óculos.")
-        c4.btn("Importar do Google Fotos", false) { startActivity(Intent(this, PhotosPickActivity::class.java)) }
+        c4.p("Do Google Fotos, dos contatos do celular, do LinkedIn, Facebook ou Instagram: quem tem foto e nome passa a ser reconhecido pelos óculos.")
+        c4.btn("Importar rostos", false) { startActivity(Intent(this, PhotosPickActivity::class.java)) }
 
         // 5. Prep
         val c5 = card()
