@@ -174,6 +174,12 @@ class SettingsActivity : Activity() {
         val vg = android.widget.RadioGroup(this).apply { orientation = LinearLayout.HORIZONTAL
             voices.forEachIndexed { i, v -> addView(android.widget.RadioButton(context).apply { id = 300 + i; text = v; setTextColor(soft); buttonTintList = android.content.res.ColorStateList.valueOf(green); isChecked = v == Backend.voiceName(context) }) } }
         c7.addView(vg)
+        c7.p("Saída: como os óculos falam com você", 13f)
+        val outs = listOf("tela" to "Só tela", "tela_voz" to "Tela + voz", "voz" to "Só voz (óculos sem tela)")
+        c7.addView(android.widget.RadioGroup(this).apply {
+            outs.forEachIndexed { i, (k, l) -> addView(android.widget.RadioButton(context).apply { id = 500 + i; text = l; setTextColor(soft); textSize = 14f; buttonTintList = android.content.res.ColorStateList.valueOf(green); isChecked = Voice.output(context) == k }) }
+            setOnCheckedChangeListener { _, id -> Voice.setOutput(context, outs[id - 500].first) }
+        })
         c7.btn("Salvar chave e voz", false) { Backend.saveGemini(this, gk.text.toString(), voices.getOrElse(vg.checkedRadioButtonId - 300) { "Kore" }); Toast.makeText(this, "✓ Salvo", Toast.LENGTH_SHORT).show() }
 
         if (Backend.token(this).isNotEmpty()) {

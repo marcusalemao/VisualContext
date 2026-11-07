@@ -78,6 +78,12 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     /** Spec 1h: the conversation in front of you is transcribed by the phone while the assistant is off. */
     private lateinit var ears: Ears
     private var hearing = false
+    /** Spec 1i: output = screen, screen + voice, or voice only (the glasses without a display). */
+    private lateinit var voice: Voice
+    private var output = "tela"
+    private val spoken = HashMap<String, Long>()
+    private val speaks get() = output != "tela"
+    private lateinit var outBtn: Button
     /** QR mode (07/11): only while the ▣ QR button is on, with a window to aim; closes by itself after 25 s. */
     private var qrOn = false
     private var qrAt = 0L
@@ -90,10 +96,14 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         preview = PreviewView(this).apply { implementationMode = PreviewView.ImplementationMode.COMPATIBLE; scaleType = PreviewView.ScaleType.FILL_CENTER }
+        val taps = android.view.GestureDetector(this, object : android.view.GestureDetector.SimpleOnGestureListener() {
+            override fun onDoubleTap(e: MotionEvent): Boolean { if (countdownId != null) { cancelCountdown(); return true }; return false }
+        })
         hud = HudOverlay(this).apply {
             // Tap anywhere on the lens during the countdown = cancel (the swipe on the glasses).
             setOnTouchListener { _, e ->
-                if (e.action != MotionEvent.ACTION_UP) false
+                if (taps.onTouchEvent(e)) true
+                else if (e.action != MotionEvent.ACTION_UP) false
                 else if (countdownId != null) { cancelCountdown(); true }
                 else if (qr.offer != null) { acceptQr(); true }
                 else if (hud.cardTitle != null && hud.cardTitle != "Câmera") { hud.cardTitle = null; hud.cardLines = emptyList(); hud.invalidate(); true } else false
@@ -115,6 +125,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         facesBtn = btn("") { facesOn = !facesOn; if (!facesOn) { hud.faces = emptyList(); cancelCountdown() }; paintToggles() }; bar.addView(facesBtn)
         placesBtn = btn("") { placesOn = !placesOn; if (!placesOn) hud.pins = emptyList() else refreshPlaces(true); paintToggles() }; bar.addView(placesBtn)
         qrBtn = btn("▣ QR") { setQr(!qrOn) }; bar.addView(qrBtn)
+        outBtn = btn("") { setOutput(when (output) { "tela" -> "tela_voz"; "tela_voz" -> "voz"; else -> "tela" }) }; bar.addView(outBtn)
         bar.addView(btn("⟲ Câmera") { front = !front; startCamera() })
         bar.addView(btn("✕ Fechar") { finish() })
         root.addView(bar, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
@@ -129,10 +140,13 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
             androidx.core.view.WindowInsetsCompat.CONSUMED
         }
         setContentView(root)
+        voice = Voice(this)
+        output = Voice.output(this)
         ears = Ears(this, onName = { n -> work.execute {
                 val r = faces.name(n)
                 if (r.optBoolean("guardado")) main.post { onNamed(r.optString("nome", n)) }
-            } }, onState = { h -> hearing = h; main.post { paintToggles() } })
+            } }, onState = { h -> val was = hearing; hearing = h; main.post { paintToggles(); if (speaks && h != was) { if (h) voice.recStart() else voice.recEnd() } } })
+        applyOutput()
         paintToggles()
         val need = listOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO, Manifest.permission.ACCESS_FINE_LOCATION)
             .filter { ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED }
@@ -226,7 +240,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     private fun paintQr() {
         val o = qr.offer
         if (o == null) { if (hud.cardTitle != null && hud.cardTitle != "Câmera") { hud.cardTitle = null; hud.cardLines = emptyList() } }
-        else { val (t, l) = QrLook.card(o); hud.cardTitle = t; hud.cardLines = l; hud.qrHint = "achei: $t" }
+        else { val (t, l) = QrLook.card(o); hud.cardTitle = t; hud.cardLines = l; hud.qrHint = "achei: $t"; if (speaks) voice.say("$t. " + l.joinToString(". "), interrupt = true) }
         hud.invalidate()
     }
 
@@ -289,6 +303,28 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         }
     }
 
+    /**
+     * Spec 1i: a person's card said once, softly, before the conversation gets going; never repeated by itself
+     * (again only after 15 min apart). Unknown faces stay silent until the countdown asks "Guardar?".
+     */
+    private fun announce(s: FaceBrain.Seen) {
+        if (!s.known || !s.sure || s.label.isEmpty()) return
+        val now = SystemClock.elapsedRealtime()
+        if (now - (spoken[s.label] ?: -1_000_000L) < 15 * 60_000) return
+        spoken[s.label] = now
+        voice.soft()
+        voice.say((listOf(s.label) + s.lines.filter { !it.startsWith("diga o nome") }).joinToString(". ").replace("última vez:", "Última vez,"))
+    }
+
+    private fun setOutput(v: String) { output = v; Voice.setOutput(this, v); applyOutput(); toast(when (v) { "tela" -> "saída: só tela"; "tela_voz" -> "saída: tela + voz"; else -> "saída: só voz (óculos sem tela)" }) }
+
+    /** Voice only = the lens shows nothing (as glasses without a display); the camera keeps working. */
+    private fun applyOutput() {
+        outBtn.text = when (output) { "tela" -> "▭ Tela"; "tela_voz" -> "▭+🔊"; else -> "🔊 Voz" }
+        outBtn.setTextColor(if (output == "tela") dim else green)
+        hud.alpha = if (output == "voz") 0f else 1f
+    }
+
     override fun onYes(): Boolean = if (qr.offer != null) { main.post { acceptQr() }; true } else false
 
     private fun legacyCheck(p: FaceBrain.Seen, jpeg: ByteArray) {
@@ -324,10 +360,14 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         lastSeen = seen; lastBw = bw; lastBh = bh
         val primary = seen.firstOrNull { it.label.isNotEmpty() }
         if (primary != null && ::ears.isInitialized && !liveOn) ears.faceSeen(if (primary.known) primary.label else null)
+        if (primary != null && speaks) announce(primary)
         // Countdown: a new face that stays in front of you for 7 s; then 5…0 and it is kept.
         val pid = primary?.pendingId
         // The buffer runs from the first second (in memory); at 7 s the countdown starts; cancelling discards it all.
-        if (pid != null && countdownId == null && System.currentTimeMillis() - primary.pendingSince > 7000) { countdownId = pid; countdownAt = SystemClock.elapsedRealtime() }
+        if (pid != null && countdownId == null && System.currentTimeMillis() - primary.pendingSince > 7000) {
+            countdownId = pid; countdownAt = SystemClock.elapsedRealtime()
+            if (speaks) voice.say("Pessoa nova. Guardar? Dois toques cancelam.")
+        }
         if (countdownId != null && seen.none { it.pendingId == countdownId }) countdownId = null
         val left = countdownId?.let { 5 - ((SystemClock.elapsedRealtime() - countdownAt) / 1000).toInt() } ?: 0
         // Known person: records at once, no countdown (spec 10/10). New person: countdown, then recording.
@@ -342,7 +382,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         val id = countdownId ?: return
         if (SystemClock.elapsedRealtime() - countdownAt >= 5000) {
             countdownId = null
-            work.execute { faces.keep(id); main.post { toast("encontro guardado — diga o nome da pessoa") } }
+            work.execute { faces.keep(id); main.post { toast("encontro guardado — diga o nome da pessoa"); if (speaks) voice.tick() } }
         } else onFaces(lastSeen, lastBw, lastBh)
     }
 
@@ -354,8 +394,8 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         toast("descartado: nada foi guardado")
     }
 
-    override fun onNamed(name: String) { toast("guardado: $name") }
-    override fun onSaved(title: String) { toast("guardado: $title") }
+    override fun onNamed(name: String) { toast("guardado: $name"); if (speaks) { voice.tick(); voice.say(name) } }
+    override fun onSaved(title: String) { toast("guardado: $title"); if (speaks) { voice.tick(); voice.say("Guardado: $title") } }
     override fun onBrief(name: String, lines: List<String>) { hud.cardTitle = "✦ $name"; hud.cardLines = lines; hud.invalidate() }
 
     private fun toggleLive() {
@@ -423,6 +463,6 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     }
     override fun onAccuracyChanged(s: Sensor?, a: Int) = Unit
 
-    override fun onDestroy() { ears.finish(); main.removeCallbacksAndMessages(null); live.destroy(); faces.close(); legacy?.destroy(); work.shutdownNow(); super.onDestroy() }
+    override fun onDestroy() { ears.finish(); voice.close(); main.removeCallbacksAndMessages(null); live.destroy(); faces.close(); legacy?.destroy(); work.shutdownNow(); super.onDestroy() }
     private fun toast(t: String) = Toast.makeText(this, t, Toast.LENGTH_SHORT).show()
 }
