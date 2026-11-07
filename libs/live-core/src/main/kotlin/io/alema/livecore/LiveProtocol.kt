@@ -17,6 +17,7 @@ object LiveProtocol {
     const val TOOL_WHO = "quem_e"
     const val TOOL_ENROLL = "guardar_pessoa"
     const val TOOL_WHERE = "onde_estou"
+    const val TOOL_PAPER = "guardar_papel"
 
     /** Extra instructions when the app knows where the user is (phone GPS). */
     val PLACES = """
@@ -40,6 +41,8 @@ object LiveProtocol {
         Se a foto vier cortada, torta, escura ou longe, diga em poucas palavras como mirar ("vire um pouco para a direita", "chegue mais perto", "incline para baixo") e chame olhar de novo.
         Se a pergunta for sobre uma pessoa que o usuário conhece, chame buscar_pessoa com o nome.
         Se o usuário pedir para guardar, anotar ou lembrar algo, chame guardar_nota com um resumo curto.
+        Se ele pedir para lembrar ou guardar um papel, cartão de visita, crachá, receita, formulário ou documento que está olhando, chame guardar_papel (ele lê o papel pela câmera).
+        Ler algo para o usuário (cardápio, placa, bula) é ajuda: não guarde a leitura, a menos que ele peça "lembra disso".
         Para horários, preços e fatos atuais, use a busca do Google. Não invente.
     """.trimIndent()
 
@@ -53,6 +56,7 @@ object LiveProtocol {
             .put(fn(TOOL_LOOK, "Tira uma foto do que o usuário está olhando agora, com a câmera dos óculos.", null))
             .put(fn(TOOL_PERSON, "Procura na memória do usuário uma pessoa pelo nome ou apelido: de onde se conhecem, notas, último encontro.",
                 JSONObject().put("type", "OBJECT").put("properties", JSONObject().put("nome", JSONObject().put("type", "STRING"))).put("required", JSONArray().put("nome"))))
+            .put(fn(TOOL_PAPER, "Lê pela câmera o papel, cartão de visita, crachá, receita ou formulário que o usuário está olhando e guarda na memória dele como nota. Só quando ele pedir para lembrar ou guardar.", null))
             .put(fn(TOOL_SAVE, "Guarda uma nota curta na memória do usuário, quando ele pedir.",
                 JSONObject().put("type", "OBJECT").put("properties", JSONObject().put("texto", JSONObject().put("type", "STRING"))).put("required", JSONArray().put("texto"))))
         if (location) functions.put(fn(TOOL_WHERE, "Diz onde o usuário está agora (endereço aproximado pelo GPS do celular) e os lugares importantes por perto, com distância.", null))
