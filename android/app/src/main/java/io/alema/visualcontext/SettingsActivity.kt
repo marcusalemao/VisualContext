@@ -215,59 +215,93 @@ class SettingsActivity : Activity() {
         c.p("${groups.size - fresh} pessoas com nome" + (if (fresh > 0) " · $fresh sem nome" else "") + " · ${all.size} fotos")
         c.btn(if (facesOpen) "Fechar a lista" else if (fresh > 0) "Dar nome a quem falta" else "Ver e editar", fresh > 0 && !facesOpen) { facesOpen = !facesOpen; render() }
         if (!facesOpen) return
-        for (g in groups) {
-            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL; setPadding(0, dp(12), 0, dp(4)) }
-            val thumbs = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            g.take(3).forEachIndexed { i, e ->
-                thumbs.addView(ImageView(this).apply {
-                    layoutParams = LinearLayout.LayoutParams(dp(48), dp(48)).apply { leftMargin = if (i == 0) 0 else -dp(16) }
-                    scaleType = ImageView.ScaleType.CENTER_CROP
-                    try { val b = Base64.decode(e.thumb, Base64.DEFAULT); setImageBitmap(BitmapFactory.decodeByteArray(b, 0, b.size)) } catch (_: Exception) {}
-                    clipToOutline = true; outlineProvider = object : android.view.ViewOutlineProvider() { override fun getOutline(v: android.view.View, o: android.graphics.Outline) { o.setOval(0, 0, v.width, v.height) } }
-                })
-            }
-            thumbs.setOnClickListener { showLooks(g) }
-            row.addView(thumbs, LinearLayout.LayoutParams(dp(84), LinearLayout.LayoutParams.WRAP_CONTENT))
-            val side = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) }
-            val saved = TextView(this).apply { textSize = 12f; setTextColor(green) }
-            val name = AutoCompleteTextView(this).apply {
-                setText(g[0].name ?: ""); hint = "quem é?"; setTextColor(green); setHintTextColor(Color.rgb(90, 130, 108)); isSingleLine = true; threshold = 1; textSize = 16f
-                imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_DONE
-                setAdapter(ArrayAdapter(context, android.R.layout.simple_dropdown_item_1line, people.map { it.name }.distinct()))
-            }
-            fun commit() {
-                val n = name.text.toString().trim().ifEmpty { null }
-                if (n == g[0].name) return
-                val match = people.firstOrNull { it.name.equals(n, ignoreCase = true) }
-                g.forEach { e -> LocalFaces.update(this, e.id) { it.name = match?.name ?: n; it.personId = match?.id } }
-                g.forEach { it.name = match?.name ?: n }
-                saved.text = if (n == null) "✓ sem nome" else if (match != null) "✓ salvo · ligado à memória" else "✓ salvo"
-            }
-            name.setOnEditorActionListener { v, _, _ -> commit(); v.clearFocus(); (getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager).hideSoftInputFromWindow(v.windowToken, 0); true }
-            name.setOnFocusChangeListener { _, has -> if (!has) commit() }
-            name.setOnItemClickListener { _, _, _, _ -> commit() }
-            side.addView(name)
-            side.addView(TextView(this).apply {
-                textSize = 12f; setTextColor(soft)
-                text = (if (g.size > 1) "${g.size} fotos" else "1 foto") + (if (g.any { it.personId != null }) " · ligado à memória" else "") + (g[0].desc?.let { " · $it" } ?: "")
-            })
-            side.addView(saved)
-            if (g[0].name != null) side.addView(TextView(this).apply {
-                text = "＋ adicionar fotos · ver todas"; textSize = 13f; setTextColor(green); setPadding(0, dp(4), 0, 0)
-                setOnClickListener { addTo = g[0].name; startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("image/*").putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true), REQ_ADD) }
-                setOnLongClickListener { showLooks(g); true }
-            })
-            row.addView(side)
-            row.addView(Button(this).apply {
-                text = "Apagar"; isAllCaps = false; setTextColor(Color.rgb(255, 120, 120)); setBackgroundColor(Color.TRANSPARENT)
-                setOnClickListener {
-                    AlertDialog.Builder(this@SettingsActivity).setMessage("Apagar ${g[0].name ?: "este rosto"} deste celular?")
-                        .setPositiveButton("Apagar") { _, _ -> g.forEach { LocalFaces.remove(this@SettingsActivity, it.id) }; render() }
-                        .setNegativeButton("Cancelar", null).show()
-                }
-            })
-            c.addView(row)
+        // Search: with hundreds of people the list needs it.
+        val search = field(facesQuery, false).apply { hint = "buscar nome"; setHintTextColor(Color.rgb(90, 130, 108)) }
+        c.addView(search)
+        val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        c.addView(list)
+        fun fill() {
+            list.removeAllViews()
+            val q = facesQuery.trim().lowercase()
+            val shown = groups.filter { q.isEmpty() || (it[0].name ?: "").lowercase().contains(q) }
+            for (g in shown.take(60)) list.addView(faceRow(g))
+            if (shown.size > 60) list.addView(TextView(this).apply { text = "+ ${shown.size - 60} pessoas: busque pelo nome"; textSize = 13f; setTextColor(soft); setPadding(0, dp(12), 0, 0) })
         }
+        search.addTextChangedListener(object : android.text.TextWatcher {
+            override fun afterTextChanged(e: android.text.Editable?) { facesQuery = e?.toString() ?: ""; fill() }
+            override fun beforeTextChanged(a: CharSequence?, b: Int, c2: Int, d: Int) {}
+            override fun onTextChanged(a: CharSequence?, b: Int, c2: Int, d: Int) {}
+        })
+        fill()
+    }
+
+    private var facesQuery = ""
+
+    /**
+     * One person: the name on top, full width (long names fit); under it the photos, where they came from,
+     * "＋ fotos" and Apagar. Names save by themselves with a visible ✓.
+     */
+    private fun faceRow(g: List<LocalFaces.Entry>): LinearLayout {
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(14), 0, dp(10)) }
+        val saved = TextView(this).apply { textSize = 12f; setTextColor(green) }
+        val name = AutoCompleteTextView(this).apply {
+            setText(g[0].name ?: ""); hint = "quem é?"; setTextColor(green); setHintTextColor(Color.rgb(90, 130, 108)); isSingleLine = true; threshold = 1; textSize = 17f
+            imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_DONE
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            setAdapter(ArrayAdapter(context, android.R.layout.simple_dropdown_item_1line, people.map { it.name }.distinct()))
+        }
+        fun commit() {
+            val n = name.text.toString().trim().ifEmpty { null }
+            if (n == g[0].name) return
+            val match = people.firstOrNull { it.name.equals(n, ignoreCase = true) }
+            g.forEach { e -> LocalFaces.update(this, e.id) { it.name = match?.name ?: n; it.personId = match?.id } }
+            g.forEach { it.name = match?.name ?: n }
+            saved.text = if (n == null) "✓ sem nome" else if (match != null) "✓ salvo · ligado à memória" else "✓ salvo"
+        }
+        name.setOnEditorActionListener { v, _, _ -> commit(); v.clearFocus(); (getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager).hideSoftInputFromWindow(v.windowToken, 0); true }
+        name.setOnFocusChangeListener { _, has -> if (!has) commit() }
+        name.setOnItemClickListener { _, _, _, _ -> commit() }
+        box.addView(name); box.addView(saved)
+
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL; setPadding(0, dp(6), 0, 0) }
+        val thumbs = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setOnClickListener { showLooks(g) } }
+        g.take(3).forEachIndexed { i, e ->
+            thumbs.addView(ImageView(this).apply {
+                layoutParams = LinearLayout.LayoutParams(dp(44), dp(44)).apply { leftMargin = if (i == 0) 0 else -dp(14) }
+                scaleType = ImageView.ScaleType.CENTER_CROP
+                try { val b = Base64.decode(e.thumb, Base64.DEFAULT); setImageBitmap(BitmapFactory.decodeByteArray(b, 0, b.size)) } catch (_: Exception) {}
+                clipToOutline = true; outlineProvider = object : android.view.ViewOutlineProvider() { override fun getOutline(v: android.view.View, o: android.graphics.Outline) { o.setOval(0, 0, v.width, v.height) } }
+            })
+        }
+        row.addView(thumbs, LinearLayout.LayoutParams(dp(80), LinearLayout.LayoutParams.WRAP_CONTENT))
+        val origin = g.mapNotNull { it.desc }.firstOrNull()?.let { d -> d.replace("rosto do contatos", "dos contatos").replace("rosto do ", "do ") } ?: ""
+        row.addView(TextView(this).apply {
+            textSize = 13f; setTextColor(soft); setOnClickListener { showLooks(g) }
+            text = (if (g.size > 1) "${g.size} fotos" else "1 foto") + (if (origin.isNotEmpty()) " · $origin" else "") + (if (g.any { it.personId != null }) " · na memória" else "")
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        })
+        box.addView(row)
+
+        val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(4), 0, 0) }
+        if (g[0].name != null) actions.addView(TextView(this).apply {
+            text = "＋ fotos"; textSize = 14f; setTextColor(green); setPadding(0, dp(8), dp(24), dp(8))
+            setOnClickListener { addTo = g[0].name; startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("image/*").putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true), REQ_ADD) }
+        })
+        actions.addView(TextView(this).apply {
+            text = "ver todas"; textSize = 14f; setTextColor(green); setPadding(0, dp(8), dp(24), dp(8)); setOnClickListener { showLooks(g) }
+        })
+        actions.addView(android.view.View(this), LinearLayout.LayoutParams(0, 1, 1f))
+        actions.addView(TextView(this).apply {
+            text = "Apagar"; textSize = 14f; setTextColor(Color.rgb(255, 120, 120)); setPadding(dp(16), dp(8), 0, dp(8))
+            setOnClickListener {
+                AlertDialog.Builder(this@SettingsActivity).setMessage("Apagar ${g[0].name ?: "este rosto"} deste celular?")
+                    .setPositiveButton("Apagar") { _, _ -> g.forEach { LocalFaces.remove(this@SettingsActivity, it.id) }; render() }
+                    .setNegativeButton("Cancelar", null).show()
+            }
+        })
+        box.addView(actions)
+        box.addView(android.view.View(this).apply { setBackgroundColor(Color.rgb(28, 64, 44)) }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(1)).apply { topMargin = dp(8) })
+        return box
     }
 
     // ---------- several looks per person (beard, no beard, glasses…) ----------

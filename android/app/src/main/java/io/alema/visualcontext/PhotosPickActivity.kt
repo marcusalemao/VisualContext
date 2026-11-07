@@ -195,6 +195,7 @@ class PhotosPickActivity : Activity() {
     private var source = "Google Fotos"
     /** For LinkedIn/Facebook/Instagram: the app to open once the capture starts ("" = the user opens it). */
     private var openPkg: String? = null
+    private fun originLabel() = if (source == "contatos") "rosto dos contatos" else "rosto do $source"
     private var auto = false
 
     private fun askCapture() {
@@ -323,11 +324,11 @@ class PhotosPickActivity : Activity() {
             for ((i, f) in list.withIndex()) {
                 runOnUiThread { status.text = "Guardando ${i + 1} de ${list.size}…" }
                 val r = Backend.post(this, JSONObject().put("action", "enroll_face").put("name", f.name).put("arc", org.json.JSONArray(f.descriptor.map { it.toDouble() }))
-                    .put("thumb", f.thumb).put("source", "import_" + source.lowercase().replace(' ', '_')).put("description", "rosto do $source"))
+                    .put("thumb", f.thumb).put("source", "import_" + source.lowercase().replace(' ', '_')).put("description", originLabel()))
                 val pid = r?.let { try { JSONObject(it).optString("person_id").ifEmpty { null } } catch (_: Exception) { null } }
                 if (r == null) offline++
                 val now = System.currentTimeMillis()
-                all += LocalFaces.Entry(java.util.UUID.randomUUID().toString(), f.name, pid, f.descriptor, f.thumb, now, 0, "rosto do $source")
+                all += LocalFaces.Entry(java.util.UUID.randomUUID().toString(), f.name, pid, f.descriptor, f.thumb, now, 0, originLabel())
                 ok++
             }
             LocalFaces.save(this, all)
