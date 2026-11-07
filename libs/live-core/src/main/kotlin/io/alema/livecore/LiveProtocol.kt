@@ -18,6 +18,7 @@ object LiveProtocol {
     const val TOOL_ENROLL = "guardar_pessoa"
     const val TOOL_WHERE = "onde_estou"
     const val TOOL_PAPER = "guardar_papel"
+    const val TOOL_PREP = "preparar_conversa"
 
     /** Extra instructions when the app knows where the user is (phone GPS). */
     val PLACES = """
@@ -55,6 +56,8 @@ object LiveProtocol {
         val functions = JSONArray()
             .put(fn(TOOL_LOOK, "Tira uma foto do que o usuário está olhando agora, com a câmera dos óculos.", null))
             .put(fn(TOOL_PERSON, "Procura na memória do usuário uma pessoa pelo nome ou apelido: de onde se conhecem, notas, último encontro.",
+                JSONObject().put("type", "OBJECT").put("properties", JSONObject().put("nome", JSONObject().put("type", "STRING"))).put("required", JSONArray().put("nome"))))
+            .put(fn(TOOL_PREP, "Prepara o usuário para uma conversa com uma pessoa: quem é para ele, último encontro, pendências, o que não errar e o que há de público na web. Use quando ele pedir para se preparar ou perguntar 'o que eu preciso saber sobre fulano'.",
                 JSONObject().put("type", "OBJECT").put("properties", JSONObject().put("nome", JSONObject().put("type", "STRING"))).put("required", JSONArray().put("nome"))))
             .put(fn(TOOL_PAPER, "Lê pela câmera o papel, cartão de visita, crachá, receita ou formulário que o usuário está olhando e guarda na memória dele como nota. Só quando ele pedir para lembrar ou guardar.", null))
             .put(fn(TOOL_SAVE, "Guarda uma nota curta na memória do usuário, quando ele pedir.",

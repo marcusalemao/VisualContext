@@ -347,6 +347,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
 
     override fun onNamed(name: String) { toast("guardado: $name") }
     override fun onSaved(title: String) { toast("guardado: $title") }
+    override fun onBrief(name: String, lines: List<String>) { hud.cardTitle = "✦ $name"; hud.cardLines = lines; hud.invalidate() }
 
     private fun toggleLive() {
         if (liveOn) { if (live.speaking) live.interrupt() else { live.stop(); liveOn = false } }

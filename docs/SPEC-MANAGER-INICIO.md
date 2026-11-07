@@ -80,15 +80,19 @@ Approved by Marcus on 11/10. Visual reference: the canvas "VisualContext Manager
 - **During an encounter, places are hidden.** The glasses show only the person card, kept short: name, how you know each other ("supplier · met at the Torra Fina offsite"), and when you last saw each other ("last time: 12/09, the budget"). Places come back when the encounter ends.
 - **Later version:** if you keep looking at a place for a few seconds, the card expands with a web search: current exhibitions or, if there is nothing current, a short note about the building. Only the place name goes to the search, never the photo.
 
-### 1g. Hint during a conversation (idea for testing, 11/10)
-- When the other person asks you something and your memory has a fact that answers it, a small chip can appear: "✦ pilot starts in March (you said on 12/09)".
-- Rules to keep distraction low:
-  - **Pull, not push:** a small ✦ dot appears; one tap opens the chip. Nothing flies across the screen on its own.
-  - **Only from memory**, with its source. No generic AI answers ("say you are proactive").
-  - **Max one chip, a few words,** and it fades by itself.
-  - **Off by default;** turned on per encounter or in Settings.
-- Risks to test: eyes going to the HUD are noticed by the other person; the glasses mic favours the wearer, so the other person's question may be missed (phone mic helps).
-- Job interviews: many companies treat live hidden assistance as cheating. Not a use case we promote.
+### 1g. AI cues during a conversation (revised 07/11; was "idea for testing", 11/10)
+Marcus, 07/11: very important; loose hints during the conversation, including **suggesting what to answer** and **correcting the wearer**. Inspired by Even Conversate's AI Cues, with our memory behind it.
+- **Five kinds of cue:**
+  - **From memory:** "✦ pilot starts in March (you said on 12/09)".
+  - **What to answer:** a short suggested reply to the question just asked.
+  - **Correction:** "✦ it was 3 pm, not 4 pm (Rafael, 02/11)"; "✦ her name is Carla, not Clara".
+  - **Concept:** a one-line explanation of a term that was just said.
+  - **Bio:** who a person mentioned in the conversation is, from memory first, then the web (labelled).
+- **How it reaches you (Marcus, 07/11):** only shown on the lens, or **spoken softly** in the ear (voice-only mode). Nothing to pick or scroll during a live conversation; the scroll-and-pick quick replies are a Zap thing.
+- **Low distraction:** max one cue on the lens, a few words, fades after a few seconds; always with its source; no generic coaching ("say you are proactive").
+- **On per conversation or in Settings** (Marcus to decide: cues appear on their own, like Even, or a small ✦ dot you tap to open, as in the 11/10 draft).
+- Risks to test: eyes going to the HUD are noticed; the glasses mic favours the wearer, so the other person's words may be missed (phone mic helps).
+- Job interviews as a candidate: not blocked, not promoted (see 1o).
 
 ### 1h. Every conversation is transcribed (decided 11/10, replaces the 30/09 rule)
 - Any conversation is transcribed, known person or not. Someone unknown to the system may be someone you know who is not registered yet, or someone you are meeting now: that is how the people database grows.
@@ -217,6 +221,26 @@ The current Manager is **visualcontext.base44.app/dashboard** (code in the priva
   - **iPhone:** the Manager in Safari has "Send to Notes", which opens the iPhone share sheet (Notes, Keep…). Later, with the iPhone helper app, an Apple Shortcut can do it on its own.
 - Everything is also searchable in the Manager ("which medicine did the doctor prescribe in October?").
 
+### 1o. Prep before a conversation (decided 07/11, top priority)
+Feedback from a CEO to Marcus: business conversations need prep, "so you don't get it wrong". Inspired by Even's Prep Notes, but ours knows the real history.
+- **The brief** (one screen in the Manager, one short card on the lens, expandable): who the person is to you (relation, company, role), how you met, the last encounter and its open follow-ups, **"don't get it wrong"** (how they like to be called, names of people close to them, topics to avoid, promises you made), 3 talking points, and **from the web** (company news, public profile), always labelled as web and kept apart from memory.
+- **When:** (1) **10 minutes before** a calendar event with that person (phone calendar, read only; attendees matched by e-mail or name) → notification + card on the lens; (2) **on request:** "me prepara para a conversa com o Rafael" (Live) or the "Preparar conversa" button on the person in the Manager; (3) **at the meeting:** when the face is recognised, the card shows the brief's hook first.
+- **Your own material:** notes or files attached to the person or the event in the Manager (later: a deck, a CV, a proposal) enter the brief.
+- **Interviews:** prep before is a first-class use (the company, the interviewer from the web). Live hints during a job interview as a candidate: not blocked, not promoted (many companies treat it as cheating).
+
+### 1p. Live captions on the lens (07/11)
+The transcript already exists; show it as captions, toggled per conversation. For people who hear little, noisy places, and the General module (ADHD, early dementia). Inspired by Even Conversate.
+
+### 1q. Live translation (07/11)
+Captions translated on the lens; the reply read aloud to the wearer. Gemini Live already does it; what's missing is the mode (language pair, captions, voice). For Marcus in German, talks abroad, tourists.
+
+### 1r. Skills of our own, learned (decided 07/11)
+VisualContext is born independent of Nexus, so it needs its own skills runner.
+- **A skill** is a named recipe: when to use it (trigger phrases), what to fetch (steps), how to show it (lens card + one spoken sentence). Examples asked by Marcus: **my portfolio** (B3 quotes), **recent e-mails** (Gmail, read only), **talk to Claude** (Claude API with his key, or OpenRouter), and skills he takes to the glasses.
+- **Learned, not programmed:** the second similar request, or "aprende isso", → "Quer que eu crie a habilidade 'Minha carteira'?" → yes → the AI writes the recipe and asks only what's missing (tickers, which account). Next time Gemini Live calls it directly (each skill is a Live tool).
+- **Safety:** a recipe is not code, only steps from a closed menu (web search, read a URL, read Gmail/Calendar, query the memory, call an AI, build the card). Anything that sends, buys or deletes needs a two-step confirmation (as Zap's send). Keys and logins stay on the phone; the recipe stores only the connection's name.
+- Stored in our database; the same on glasses (Solo), phone and emulator. With Nexus present, the same skill is also published to the Nexus Assistant. Later: share skills between users.
+
 ---
 
 ## PT — Português
@@ -297,15 +321,19 @@ Aprovado pelo Marcus em 11/10. Referência visual: o canvas "VisualContext Manag
 - **Durante um encontro, os lugares somem.** Os óculos mostram só o card da pessoa, curto: nome, de onde vocês se conhecem ("fornecedor · conheceram no encontro da Torra Fina") e quando se viram pela última vez ("última vez: 12/09, o orçamento"). Os lugares voltam quando o encontro termina.
 - **Versão futura:** se você fica olhando para um lugar por alguns segundos, o card se expande com uma busca na web: as exposições em cartaz ou, se não houver nada atual, uma nota curta sobre o prédio. Só o nome do lugar vai para a busca, nunca a foto.
 
-### 1g. Cola durante a conversa (ideia para testar, 11/10)
-- Quando a outra pessoa te pergunta algo e a sua memória tem um fato que responde, pode aparecer um chip pequeno: "✦ piloto começa em março (você disse em 12/09)".
-- Regras para distrair pouco:
-  - **Puxar, não empurrar:** aparece um pontinho ✦; um toque abre o chip. Nada voa pela tela sozinho.
-  - **Só da memória,** com a fonte. Nada de resposta genérica de IA ("diga que você é proativo").
-  - **No máximo um chip, poucas palavras,** e ele some sozinho.
-  - **Desligado por padrão;** liga por encontro ou nos Ajustes.
-- Riscos a testar: o olhar indo para o HUD é percebido pela outra pessoa; o microfone dos óculos favorece quem usa, então a pergunta da outra pessoa pode se perder (o microfone do celular ajuda).
-- Entrevista de emprego: muitas empresas tratam ajuda escondida ao vivo como trapaça. Não é um uso que vamos promover.
+### 1g. Dicas da IA durante a conversa (revisado em 07/11; era "ideia para testar", 11/10)
+Marcus, 07/11: muito importante; dicas soltas durante a conversa, inclusive **sugerir o que responder** e **corrigir quem usa**. Inspirado nos AI Cues do Even Conversate, com a nossa memória por trás.
+- **Cinco tipos de dica:**
+  - **Da memória:** "✦ piloto começa em março (você disse em 12/09)".
+  - **O que responder:** uma resposta curta sugerida para a pergunta que acabou de ser feita.
+  - **Correção:** "✦ foi às 15h, não às 16h (Rafael, 02/11)"; "✦ o nome dela é Carla, não Clara".
+  - **Conceito:** uma linha explicando um termo que acabou de ser dito.
+  - **Bio:** quem é uma pessoa citada na conversa, primeiro da memória, depois da web (marcado).
+- **Como chega (Marcus, 07/11):** só mostrada na lente, ou **falada baixinho** no ouvido (modo só voz). Nada para escolher ou rolar durante uma conversa ao vivo; respostas rápidas para rolar e escolher são coisa do Zap.
+- **Pouca distração:** no máximo uma dica na lente, poucas palavras, some em alguns segundos; sempre com a fonte; nada de conselho genérico ("diga que você é proativo").
+- **Liga por conversa ou nos Ajustes** (Marcus decide: as dicas aparecem sozinhas, como na Even, ou um pontinho ✦ que você toca para abrir, como no rascunho de 11/10).
+- Riscos a testar: o olhar indo para o HUD é percebido; o microfone dos óculos favorece quem usa, então a fala da outra pessoa pode se perder (o microfone do celular ajuda).
+- Entrevista de emprego como candidato: não bloqueado, não anunciado (ver 1o).
 
 ### 1h. Toda conversa é transcrita (decidido em 11/10, substitui a regra de 30/09)
 - Qualquer conversa é transcrita, com pessoa conhecida ou não. Alguém desconhecido para o sistema pode ser alguém que você conhece e ainda não cadastrou, ou alguém que você está conhecendo agora: é assim que o banco de pessoas cresce.
@@ -433,3 +461,23 @@ O Manager atual é o **visualcontext.base44.app/dashboard** (código no reposit�
   - **Android:** o app manda a nota direto para o app escolhido uma vez nos Ajustes (Keep, Samsung Notes ou "perguntar sempre"); sem login, sem permissão extra.
   - **iPhone:** o Manager no Safari tem "Enviar para Notas", que abre o menu de compartilhar do iPhone (Notas, Keep…). Depois, com o app de apoio do iPhone, um Atalho da Apple faz isso sozinho.
 - Tudo fica pesquisável no Manager também ("qual remédio o médico passou em outubro?").
+
+### 1o. Preparação antes da conversa (decidido em 07/11, prioridade)
+Feedback de um CEO ao Marcus: conversa de negócios pede preparação, "para você não errar". Inspirado no Prep Notes da Even, mas o nosso conhece a história de verdade.
+- **O briefing** (uma tela no Manager, um card curto na lente, que expande): quem a pessoa é para você (relação, empresa, cargo), como se conheceram, o último encontro e as pendências, **"para não errar"** (como gosta de ser chamada, nomes de pessoas próximas, assuntos a evitar, promessas que você fez), 3 pontos de conversa e **da web** (notícias da empresa, perfil público), sempre marcado como web e separado da memória.
+- **Quando:** (1) **10 minutos antes** de um compromisso da agenda com essa pessoa (agenda do celular, só leitura; participantes pelo e-mail ou nome) → notificação + card na lente; (2) **quando pedir:** "me prepara para a conversa com o Rafael" (Live) ou o botão "Preparar conversa" na pessoa, no Manager; (3) **na reunião:** quando o rosto é reconhecido, o card mostra primeiro o gancho do briefing.
+- **Seu material:** notas ou arquivos anexados à pessoa ou ao evento no Manager (depois: apresentação, currículo, proposta) entram no briefing.
+- **Entrevistas:** preparar antes é uso de primeira classe (a empresa, o entrevistador pela web). Dica ao vivo numa entrevista de emprego como candidato: não bloqueado, não anunciado (muitas empresas consideram trapaça).
+
+### 1p. Legenda ao vivo na lente (07/11)
+A transcrição já existe; mostrar como legenda, ligada por conversa. Para quem ouve pouco, lugar barulhento e o módulo Geral (TDAH, demência inicial). Inspirado no Even Conversate.
+
+### 1q. Tradução ao vivo (07/11)
+Legenda traduzida na lente; a resposta lida em voz alta para quem usa. O Gemini Live já faz; falta o modo (par de idiomas, legenda, voz). Para o Marcus em alemão, palestras fora, turistas.
+
+### 1r. Habilidades próprias, que aprendem (decidido em 07/11)
+O VisualContext nasce independente do Nexus, então precisa do próprio executor de habilidades.
+- **Uma habilidade** é uma receita com nome: quando usar (frases que disparam), o que buscar (passos), como mostrar (card na lente + uma frase falada). Exemplos do Marcus: **minha carteira** (cotações da B3), **e-mails recentes** (Gmail, só leitura), **falar com o Claude** (API do Claude com a chave dele, ou OpenRouter), e habilidades que ele leva para os óculos.
+- **Aprende, não se programa:** no segundo pedido parecido, ou com "aprende isso", → "Quer que eu crie a habilidade 'Minha carteira'?" → sim → a IA escreve a receita e pergunta só o que falta (quais ações, qual conta). Da próxima vez o Gemini Live chama direto (cada habilidade é uma ferramenta do Live).
+- **Segurança:** a receita não é código, só passos de um cardápio fechado (buscar na web, ler um endereço, ler Gmail/agenda, consultar a memória, chamar uma IA, montar o card). O que envia, compra ou apaga pede confirmação em duas etapas (como o envio do Zap). Chaves e logins ficam no celular; a receita guarda só o nome da conexão.
+- Fica no nosso banco; igual nos óculos (Solo), no celular e no emulador. Com o Nexus presente, a mesma habilidade também é publicada para o Assistant dele. Depois: compartilhar habilidades entre usuários.

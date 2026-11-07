@@ -9,6 +9,7 @@ import io.alema.livecore.LiveProtocol
 import io.alema.livecore.LiveSession
 import io.alema.livecore.Transcript
 import io.alema.facecore.NameSpotter
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.Executors
@@ -27,6 +28,8 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
         fun onNamed(name: String)
         /** A paper or note was kept ("guardado: Receita do Dr. Paulo"). */
         fun onSaved(title: String) {}
+        /** Spec 1o: the prep brief for a person, as a lens card. */
+        fun onBrief(name: String, lines: List<String>) {}
         /** The user said "sim" / "copia": true when the lens had a question waiting (a QR code, for now). */
         fun onYes(): Boolean = false
     }
@@ -235,6 +238,11 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
                     }
                 }
                 LiveProtocol.TOOL_PAPER -> paperNow()
+                LiveProtocol.TOOL_PREP -> {
+                    val b = Prep.forPerson(ctx, call.args.optString("nome"))
+                    if (b == null) JSONObject().put("erro", "não consegui preparar agora")
+                    else { main.post { host.onBrief(b.name, b.lines) }; JSONObject().put("pessoa", b.name).put("na_lente", JSONArray(b.lines)).put("diga", b.spoken) }
+                }
                 LiveProtocol.TOOL_WHERE -> Where.asJson(ctx)
                 else -> JSONObject().put("erro", "ferramenta desconhecida")
             }

@@ -45,6 +45,12 @@ class SettingsActivity : Activity() {
 
     override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); handle(intent) }
 
+    override fun onResume() { super.onResume(); if (getSharedPreferences("visualcontext", MODE_PRIVATE).getBoolean("prep_on", false)) Prep.schedule(this) }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        if (requestCode == 11) Prep.schedule(this)
+    }
+
     private fun handle(intent: Intent?) {
         val token = DeepLink.token(intent?.data)
         if (token == null) { render(); return }
@@ -84,6 +90,16 @@ class SettingsActivity : Activity() {
         col.addView(Button(this).apply {
             text = "Abrir o emulador"
             setOnClickListener { startActivity(Intent(this@SettingsActivity, EmulatorActivity::class.java)) }
+        })
+        col.addView(label("Preparação", 16f, green))
+        col.addView(label("10 minutos antes de um compromisso com alguém da sua memória, um aviso abre o que você precisa saber: quem é, último encontro, pendências, o que não errar e o que há na web."))
+        col.addView(android.widget.CheckBox(this).apply {
+            text = "Avisar antes dos compromissos (lê a agenda do celular)"; setTextColor(soft)
+            isChecked = checkSelfPermission(android.Manifest.permission.READ_CALENDAR) == android.content.pm.PackageManager.PERMISSION_GRANTED && getSharedPreferences("visualcontext", MODE_PRIVATE).getBoolean("prep_on", false)
+            setOnCheckedChangeListener { _, on ->
+                getSharedPreferences("visualcontext", MODE_PRIVATE).edit().putBoolean("prep_on", on).apply()
+                if (on) requestPermissions(arrayOf(android.Manifest.permission.READ_CALENDAR, android.Manifest.permission.POST_NOTIFICATIONS), 11)
+            }
         })
         col.addView(label("Notas", 16f, green))
         col.addView(label("\"Lembra disso\" olhando um papel, cartão de visita, crachá ou receita: vai para a memória e, com um toque na notificação, para o seu app de notas."))

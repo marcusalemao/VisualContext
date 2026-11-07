@@ -11,6 +11,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
 
     <queries>
         <package android:name="com.google.android.apps.photos" />
@@ -52,6 +53,9 @@
             android:name=".EmulatorActivity"
             android:exported="false"
             android:configChanges="orientation|screenSize|keyboardHidden" />
+
+        <!-- Spec 1o: check the calendar for meetings with people from the memory. -->
+        <receiver android:name=".Prep$Check" android:exported="false" />
 
         <!-- Spec 5b: import named faces from Google Photos by reading the screen. -->
         <activity
