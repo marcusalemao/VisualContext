@@ -417,44 +417,40 @@ class SettingsActivity : Activity() {
         name.setOnItemClickListener { _, _, _, _ -> commit() }
         box.addView(name); box.addView(saved)
 
-        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL; setPadding(0, dp(6), 0, 0) }
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL; setPadding(0, dp(10), 0, 0) }
         val thumbs = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setOnClickListener { showLooks(g) } }
-        g.take(3).forEachIndexed { i, e ->
+        val shown = g.sortedByDescending { it.created }.take(3)
+        shown.forEachIndexed { i, e ->
             thumbs.addView(ImageView(this).apply {
-                layoutParams = LinearLayout.LayoutParams(dp(44), dp(44)).apply { leftMargin = if (i == 0) 0 else -dp(14) }
+                layoutParams = LinearLayout.LayoutParams(dp(56), dp(56)).apply { leftMargin = if (i == 0) 0 else -dp(16) }
                 scaleType = ImageView.ScaleType.CENTER_CROP
                 try { val b = Base64.decode(e.thumb, Base64.DEFAULT); setImageBitmap(BitmapFactory.decodeByteArray(b, 0, b.size)) } catch (_: Exception) {}
                 clipToOutline = true; outlineProvider = object : android.view.ViewOutlineProvider() { override fun getOutline(v: android.view.View, o: android.graphics.Outline) { o.setOval(0, 0, v.width, v.height) } }
+                // A thin dark ring so overlapping faces read as separate circles.
+                foreground = android.graphics.drawable.GradientDrawable().apply { shape = android.graphics.drawable.GradientDrawable.OVAL; setColor(Color.TRANSPARENT); setStroke(dp(2), Color.rgb(3, 12, 6)) }
             })
         }
-        row.addView(thumbs, LinearLayout.LayoutParams(dp(80), LinearLayout.LayoutParams.WRAP_CONTENT))
-        val origin = g.mapNotNull { it.desc }.firstOrNull()?.let { d -> d.replace("rosto do contatos", "dos contatos").replace("rosto do ", "do ") } ?: ""
+        row.addView(thumbs, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { rightMargin = dp(14) })
+        val origins = g.mapNotNull { it.desc }.map { d -> d.replace("rosto do contatos", "dos contatos").replace("rosto do ", "do ").replace("variação vista pelos óculos", "dos óculos") }.distinct()
         row.addView(TextView(this).apply {
             textSize = 13f; setTextColor(soft); setOnClickListener { showLooks(g) }
-            text = (if (g.size > 1) "${g.size} fotos" else "1 foto") + (if (origin.isNotEmpty()) " · $origin" else "") + (if (g.any { it.personId != null }) " · na memória" else "")
+            text = (if (g.size > 1) "${g.size} fotos" else "1 foto") + (when (origins.size) { 0 -> ""; 1 -> " · " + origins[0]; else -> " · ${origins.size} origens" }) + (if (g.any { it.personId != null }) " · na memória" else " · só neste celular")
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         })
         box.addView(row)
 
-        val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(4), 0, 0) }
-        if (g[0].name != null) actions.addView(TextView(this).apply {
-            text = "＋ fotos"; textSize = 14f; setTextColor(green); setPadding(0, dp(8), dp(24), dp(8))
-            setOnClickListener { addTo = g[0].name; startActivityForResult(Look.pickPhotos(if (android.os.Build.VERSION.SDK_INT >= 33) 30 else 12), REQ_ADD) }
-        })
-        actions.addView(TextView(this).apply {
-            text = "ver todas"; textSize = 14f; setTextColor(green); setPadding(0, dp(8), dp(24), dp(8)); setOnClickListener { showLooks(g) }
-        })
+        val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL; setPadding(0, dp(12), 0, dp(2)) }
+        val lp = { LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { rightMargin = dp(10) } }
+        if (g[0].name != null) actions.addView(Look.chip(this, "＋ Fotos") { addTo = g[0].name; startActivityForResult(Look.pickPhotos(if (android.os.Build.VERSION.SDK_INT >= 33) 30 else 12), REQ_ADD) }, lp())
+        actions.addView(Look.chip(this, "Ver todas") { showLooks(g) }, lp())
         actions.addView(android.view.View(this), LinearLayout.LayoutParams(0, 1, 1f))
-        actions.addView(TextView(this).apply {
-            text = "Apagar"; textSize = 14f; setTextColor(Color.rgb(255, 120, 120)); setPadding(dp(16), dp(8), 0, dp(8))
-            setOnClickListener {
-                AlertDialog.Builder(this@SettingsActivity).setMessage("Apagar ${g[0].name ?: "este rosto"} deste celular?")
-                    .setPositiveButton("Apagar") { _, _ -> g.forEach { LocalFaces.remove(this@SettingsActivity, it.id) }; render() }
-                    .setNegativeButton("Cancelar", null).show()
-            }
+        actions.addView(Look.chip(this, "Apagar", Color.rgb(255, 120, 120)) {
+            AlertDialog.Builder(this@SettingsActivity).setMessage("Apagar ${g[0].name ?: "este rosto"} deste celular?")
+                .setPositiveButton("Apagar") { _, _ -> g.forEach { LocalFaces.remove(this@SettingsActivity, it.id) }; render() }
+                .setNegativeButton("Cancelar", null).show()
         })
         box.addView(actions)
-        box.addView(android.view.View(this).apply { setBackgroundColor(Color.rgb(28, 64, 44)) }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(1)).apply { topMargin = dp(8) })
+        box.addView(android.view.View(this).apply { setBackgroundColor(Color.rgb(28, 64, 44)) }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(1)).apply { topMargin = dp(14) })
         return box
     }
 

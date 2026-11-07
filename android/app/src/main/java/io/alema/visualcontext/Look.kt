@@ -55,6 +55,14 @@ object Look {
     /** Height of the Android navigation bar under this view (0 until the system tells us). */
     fun nav(v: View) = navOf[v] ?: 0
 
+    /** A small outline chip for secondary actions in a row ("＋ Fotos", "Ver todas", "Apagar"); same height, same spacing. */
+    fun chip(ctx: Context, text: String, color: Int = green, onClick: () -> Unit): Button = Button(ctx).apply {
+        this.text = text; isAllCaps = false; textSize = 13f; setTextColor(color); stateListAnimator = null
+        minHeight = dp(ctx, 36); minimumHeight = dp(ctx, 36); minWidth = 0; minimumWidth = 0; setPadding(dp(ctx, 14), 0, dp(ctx, 14), 0)
+        background = GradientDrawable().apply { cornerRadius = dp(ctx, 12).toFloat(); setColor(Color.TRANSPARENT); setStroke(dp(ctx, 1), color) }
+        setOnClickListener { onClick() }
+    }
+
     /** Keep the page's end above the Android navigation bar (gesture or buttons). Pages that reset their padding add [nav]. */
     fun insets(v: View) {
         val l = v.paddingLeft; val t = v.paddingTop; val r = v.paddingRight; val b = v.paddingBottom

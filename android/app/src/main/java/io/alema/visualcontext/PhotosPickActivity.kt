@@ -47,7 +47,10 @@ class PhotosPickActivity : Activity() {
 
     /** Same buttons as Settings: filled = the main action of the step, outline = the rest. */
     private fun restyle(v: android.view.View = col) {
-        if (v is Button) { val t = v.text.toString(); Look.button(v, t.startsWith("Guardar") || t.startsWith("Importar contatos") || t.startsWith("Capturar enquanto") || t == "Terminei") }
+        if (v is Button) {
+            val t = v.text.toString(); Look.button(v, t.startsWith("Guardar") || t.startsWith("Importar contatos") || t.startsWith("Capturar enquanto") || t == "Terminei")
+            (v.layoutParams as? android.view.ViewGroup.MarginLayoutParams)?.let { if (it.topMargin < Look.dp(this, 10)) { it.topMargin = Look.dp(this, 10); v.layoutParams = it } }
+        }
         if (v is android.view.ViewGroup) for (i in 0 until v.childCount) restyle(v.getChildAt(i))
     }
 
