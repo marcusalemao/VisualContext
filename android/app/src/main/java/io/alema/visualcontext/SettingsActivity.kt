@@ -1,6 +1,7 @@
 package io.alema.visualcontext
 
 import io.alema.facecore.LocalFaces
+import io.alema.facecore.ArcFaceEngine
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
@@ -219,6 +220,7 @@ class SettingsActivity : Activity() {
                     clipToOutline = true; outlineProvider = object : android.view.ViewOutlineProvider() { override fun getOutline(v: android.view.View, o: android.graphics.Outline) { o.setOval(0, 0, v.width, v.height) } }
                 })
             }
+            thumbs.setOnClickListener { showLooks(g) }
             row.addView(thumbs, LinearLayout.LayoutParams(dp(84), LinearLayout.LayoutParams.WRAP_CONTENT))
             val side = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) }
             val saved = TextView(this).apply { textSize = 12f; setTextColor(green) }
@@ -244,6 +246,11 @@ class SettingsActivity : Activity() {
                 text = (if (g.size > 1) "${g.size} fotos" else "1 foto") + (if (g.any { it.personId != null }) " · ligado à memória" else "") + (g[0].desc?.let { " · $it" } ?: "")
             })
             side.addView(saved)
+            if (g[0].name != null) side.addView(TextView(this).apply {
+                text = "＋ adicionar fotos · ver todas"; textSize = 13f; setTextColor(green); setPadding(0, dp(4), 0, 0)
+                setOnClickListener { addTo = g[0].name; startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("image/*").putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true), REQ_ADD) }
+                setOnLongClickListener { showLooks(g); true }
+            })
             row.addView(side)
             row.addView(Button(this).apply {
                 text = "Apagar"; isAllCaps = false; setTextColor(Color.rgb(255, 120, 120)); setBackgroundColor(Color.TRANSPARENT)
@@ -254,6 +261,59 @@ class SettingsActivity : Activity() {
                 }
             })
             c.addView(row)
+        }
+    }
+
+    // ---------- several looks per person (beard, no beard, glasses…) ----------
+    private var addTo: String? = null
+
+    /** Every stored look of a person; long-press one to remove it. */
+    private fun showLooks(g: List<LocalFaces.Entry>) {
+        val grid = android.widget.GridLayout(this).apply { columnCount = 4; setPadding(dp(12), dp(12), dp(12), dp(12)) }
+        val dlg = AlertDialog.Builder(this).setTitle("${g[0].name ?: "Sem nome"} · ${g.size} ${if (g.size == 1) "foto" else "fotos"}")
+            .setView(ScrollView(this).apply { addView(grid) }).setPositiveButton("Fechar", null).create()
+        for (e in g.sortedByDescending { it.created }) grid.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL; setPadding(dp(4), dp(4), dp(4), dp(4))
+            addView(ImageView(context).apply {
+                layoutParams = LinearLayout.LayoutParams(dp(64), dp(64)); scaleType = ImageView.ScaleType.CENTER_CROP
+                try { val b = Base64.decode(e.thumb, Base64.DEFAULT); setImageBitmap(BitmapFactory.decodeByteArray(b, 0, b.size)) } catch (_: Exception) {}
+            })
+            addView(TextView(context).apply { text = (e.desc ?: "").removePrefix("rosto do ").take(14); textSize = 9f; setTextColor(soft) })
+            setOnLongClickListener {
+                AlertDialog.Builder(this@SettingsActivity).setMessage("Tirar esta foto?").setPositiveButton("Tirar") { _, _ -> LocalFaces.remove(this@SettingsActivity, e.id); dlg.dismiss(); render() }.setNegativeButton("Cancelar", null).show(); true
+            }
+        })
+        dlg.show()
+    }
+
+    @Deprecated("simple result API")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (requestCode != REQ_ADD || resultCode != RESULT_OK || data == null) return
+        val name = addTo ?: return
+        val uris = data.clipData?.let { c -> (0 until c.itemCount).map { c.getItemAt(it).uri } } ?: listOfNotNull(data.data)
+        Toast.makeText(this, "Lendo ${uris.size} ${if (uris.size == 1) "foto" else "fotos"}…", Toast.LENGTH_SHORT).show()
+        io.execute {
+            val engine = try { ArcFaceEngine(this) } catch (_: Throwable) { null } ?: return@execute
+            val pid = LocalFaces.all(this).firstOrNull { it.name.equals(name, true) && it.personId != null }?.personId
+            var ok = 0
+            for (u in uris) {
+                val bmp = try { contentResolver.openInputStream(u)?.use { BitmapFactory.decodeStream(it) } } catch (_: Exception) { null } ?: continue
+                val small = if (maxOf(bmp.width, bmp.height) > 1600) android.graphics.Bitmap.createScaledBitmap(bmp, bmp.width * 1600 / maxOf(bmp.width, bmp.height), bmp.height * 1600 / maxOf(bmp.width, bmp.height), true) else bmp
+                // The biggest face in the photo is the person (a group photo: crop it first).
+                val f = engine.describe(small).firstOrNull() ?: continue
+                val pad = f.w * 0.25f
+                val x = (f.x - pad).toInt().coerceAtLeast(0); val y = (f.y - pad).toInt().coerceAtLeast(0)
+                val w = (f.w + 2 * pad).toInt().coerceAtMost(small.width - x); val h = (f.h + 2 * pad).toInt().coerceAtMost(small.height - y)
+                val thumb = android.graphics.Bitmap.createScaledBitmap(android.graphics.Bitmap.createBitmap(small, x, y, w, h), 128, 128, true)
+                    .let { Base64.encodeToString(java.io.ByteArrayOutputStream().also { o -> it.compress(android.graphics.Bitmap.CompressFormat.JPEG, 82, o) }.toByteArray(), Base64.NO_WRAP) }
+                val e = LocalFaces.add(this, f.descriptor, thumb)
+                LocalFaces.update(this, e.id) { it.name = name; it.personId = pid; it.desc = "foto que você adicionou" }
+                Moments.send(this, org.json.JSONObject().put("action", "enroll_face").put("name", name).put("arc", org.json.JSONArray(f.descriptor.map { it.toDouble() }))
+                    .put("thumb", thumb).put("source", "manual").put("description", "foto que você adicionou").apply { if (pid != null) put("person_id", pid) })
+                ok++
+            }
+            engine.close()
+            runOnUiThread { Toast.makeText(this, if (ok == 0) "Não achei rosto nessas fotos" else "✓ $ok ${if (ok == 1) "foto adicionada" else "fotos adicionadas"} a $name", Toast.LENGTH_LONG).show(); render() }
         }
     }
 
@@ -282,4 +342,6 @@ class SettingsActivity : Activity() {
         setText(v); setTextColor(green); textSize = 14f; isSingleLine = true
         if (secret) inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
     }
+
+    companion object { private const val REQ_ADD = 61 }
 }

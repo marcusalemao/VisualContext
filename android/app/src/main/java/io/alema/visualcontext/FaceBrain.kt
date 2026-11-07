@@ -99,7 +99,7 @@ class FaceBrain(private val ctx: Context) {
             .filter { it.descriptor.size == size }
         val thumb = crop(bmp, f)
         return when (val r = FaceMatch.best(f.descriptor, known)) {
-            is FaceMatch.Result.Match -> card(r.key, f, local, thumb, sure = true)
+            is FaceMatch.Result.Match -> card(r.key, f, local, thumb, sure = true).also { learn(r.key, r.distance, f, local, thumb) }
             is FaceMatch.Result.Unsure -> card(r.key, f, local, thumb, sure = false)
             FaceMatch.Result.Unknown -> {
                 // New face: kept in memory only, described neutrally, never "pessoa 1".
@@ -116,6 +116,29 @@ class FaceBrain(private val ctx: Context) {
                 Seen(pd.desc ?: "…", listOf("primeira vez · aqui, agora"), true, false, f.x, f.y, f.w, f.h, f.descriptor, thumb, null, pd.id, pd.since)
             }
         }
+    }
+
+    /**
+     * Faces change (beard, no beard, dyed beard, glasses, light): a sure recognition that still looks different
+     * from every stored face of that person is kept as one more sample. At most one new sample per person every
+     * 10 minutes and [MAX_SAMPLES] per person; it also goes to the memory, so the glasses and a new phone learn it.
+     */
+    private val learnedAt = HashMap<String, Long>()
+    private fun learn(key: String, distance: Double, f: Face, local: List<LocalFaces.Entry>, thumb: String) {
+        if (distance < 0.75) return // looks like a face we already have
+        val now = System.currentTimeMillis()
+        if (now - (learnedAt[key] ?: 0) < 10 * 60_000) return
+        val direct = local.filter { "p:${it.personId}" == key || "l:${it.id}" == key }
+        val name = direct.firstOrNull { it.name != null }?.name ?: people.find { "p:${it.id}" == key }?.name ?: return
+        // All stored looks of this person, linked to the memory or not.
+        val mine = local.filter { it in direct || it.name.equals(name, ignoreCase = true) }
+        if (mine.size >= MAX_SAMPLES || now - (learnedAt[name.lowercase()] ?: 0) < 10 * 60_000) return
+        learnedAt[key] = now; learnedAt[name.lowercase()] = now
+        val e = LocalFaces.add(ctx, f.descriptor, thumb)
+        val pid = mine.firstOrNull()?.personId ?: key.takeIf { it.startsWith("p:") }?.removePrefix("p:")
+        LocalFaces.update(ctx, e.id) { it.name = name; it.personId = pid; it.desc = "variação vista pelos óculos" }
+        Moments.send(ctx, JSONObject().put("action", "enroll_face").put("name", name).put("arc", org.json.JSONArray(f.descriptor.map { it.toDouble() }))
+            .put("thumb", thumb).put("source", "glasses_variation").put("description", "variação vista pelos óculos").apply { if (pid != null) put("person_id", pid) })
     }
 
     private fun card(key: String, f: Face, local: List<LocalFaces.Entry>, thumb: String, sure: Boolean): Seen {
@@ -179,9 +202,20 @@ class FaceBrain(private val ctx: Context) {
         if (System.currentTimeMillis() - lastAt > 60_000 || last.isEmpty()) return JSONObject().put("erro", "não vi um rosto agora há pouco; olhe para a pessoa e peça de novo")
         val s = last.first { it.label.isNotEmpty() || it.pendingId != null || it.localId != null }
         val match = people.firstOrNull { it.name.equals(n, ignoreCase = true) }
+        val finalName = match?.name ?: n
         // Saying the name is consent enough: a pending face is stored right away.
-        val id = s.localId ?: s.pendingId?.let { keep(it, n) } ?: LocalFaces.add(ctx, s.descriptor, s.thumb).id
-        LocalFaces.update(ctx, id) { it.name = match?.name ?: n; it.personId = match?.id }
+        // A face already stored under ANOTHER name is never renamed (it was a wrong match, or a look-alike):
+        // this face becomes a new sample under the name said. Same name = one more look of that person.
+        val stored = s.localId?.let { id -> LocalFaces.all(ctx).firstOrNull { it.id == id } }
+        val id = when {
+            s.pendingId != null -> keep(s.pendingId, n)
+            stored == null -> LocalFaces.add(ctx, s.descriptor, s.thumb).id
+            stored.name == null -> stored.id
+            else -> LocalFaces.add(ctx, s.descriptor, s.thumb).id.also { if (stored.name.equals(finalName, true)) LocalFaces.update(ctx, it) { e -> e.desc = "variação: nome dito" } }
+        } ?: LocalFaces.add(ctx, s.descriptor, s.thumb).id
+        LocalFaces.update(ctx, id) { it.name = finalName; it.personId = match?.id ?: stored?.personId?.takeIf { _ -> stored.name.equals(finalName, true) } }
+        Moments.send(ctx, JSONObject().put("action", "enroll_face").put("name", finalName).put("arc", org.json.JSONArray(s.descriptor.map { it.toDouble() }))
+            .put("thumb", s.thumb).put("source", "glasses").put("description", "rosto ensinado pela voz"))
         val count = LocalFaces.all(ctx).count { (it.name ?: "").equals(match?.name ?: n, ignoreCase = true) }
         return JSONObject().put("guardado", true).put("nome", match?.name ?: n).put("na_memoria", match != null).put("fotos", count)
     }
@@ -215,4 +249,6 @@ class FaceBrain(private val ctx: Context) {
     } catch (_: Exception) { "" }
 
     fun close() { engine?.close(); engine = null }
+
+    companion object { const val MAX_SAMPLES = 12 }
 }
