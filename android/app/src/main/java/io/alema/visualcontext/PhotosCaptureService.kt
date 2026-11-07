@@ -33,6 +33,7 @@ class PhotosCaptureService : Service() {
     private var grid: PhotosGrid? = null
     private val busy = AtomicBoolean(false)
     private var lastSig = 0L
+    private var dmListener: DisplayManager.DisplayListener? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -54,6 +55,30 @@ class PhotosCaptureService : Service() {
         val r = ImageReader.newInstance(w, hgt, PixelFormat.RGBA_8888, 2); reader = r
         display = p.createVirtualDisplay("vc-photos", w, hgt, m.densityDpi, DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, r.surface, null, h)
         h.post { grid = PhotosGrid(this) }
+        listen(r, h)
+        // Turning the phone (Google Photos on the web, landscape: names are no longer cut) resizes the capture.
+        val dm = getSystemService(DisplayManager::class.java)
+        dmListener = object : DisplayManager.DisplayListener {
+            override fun onDisplayAdded(id: Int) {}
+            override fun onDisplayRemoved(id: Int) {}
+            override fun onDisplayChanged(id: Int) {
+                if (id != android.view.Display.DEFAULT_DISPLAY || !running) return
+                val b = (getSystemService(android.view.WindowManager::class.java)).maximumWindowMetrics.bounds
+                val nw = b.width(); val nh = b.height()
+                val cur = reader ?: return
+                if (nw == cur.width && nh == cur.height) return
+                val nr = ImageReader.newInstance(nw, nh, PixelFormat.RGBA_8888, 2)
+                display?.resize(nw, nh, resources.displayMetrics.densityDpi)
+                display?.surface = nr.surface
+                listen(nr, h)
+                reader = nr; lastSig = 0
+                try { cur.close() } catch (_: Exception) {}
+            }
+        }.also { dm.registerDisplayListener(it, h) }
+        return START_NOT_STICKY
+    }
+
+    private fun listen(r: ImageReader, h: Handler) {
         r.setOnImageAvailableListener({ ir ->
             val img = try { ir.acquireLatestImage() } catch (_: Exception) { null } ?: return@setOnImageAvailableListener
             if (!busy.compareAndSet(false, true)) { img.close(); return@setOnImageAvailableListener }
@@ -75,7 +100,6 @@ class PhotosCaptureService : Service() {
                 } finally { bmp.recycle(); busy.set(false) }
             }, 450)
         }, h)
-        return START_NOT_STICKY
     }
 
     /** A cheap fingerprint, so a still screen is not read again and again. */
@@ -90,6 +114,7 @@ class PhotosCaptureService : Service() {
         running = false
         PhotosGrid.last = grid?.found?.toList() ?: emptyList()
         PhotosGrid.lastNameless = grid?.let { g -> g.nameless.filter { n -> g.people.none { p -> sim(p.descriptor, n.descriptor) > 0.45f } } } ?: emptyList()
+        dmListener?.let { getSystemService(DisplayManager::class.java).unregisterDisplayListener(it) }; dmListener = null
         try { display?.release() } catch (_: Exception) {}
         try { reader?.close() } catch (_: Exception) {}
         try { projection?.stop() } catch (_: Exception) {}

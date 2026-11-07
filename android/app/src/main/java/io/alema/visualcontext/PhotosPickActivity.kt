@@ -92,9 +92,9 @@ class PhotosPickActivity : Activity() {
     private fun intro() {
         col.addView(label("Importar do Google Fotos", 20f, green))
         col.addView(label("O Google Fotos já sabe o nome das pessoas que aparecem nas suas fotos. O VisualContext lê essa tela, com a sua permissão, e aprende os rostos. Nada sai do celular até você escolher quem entra."))
-        col.addView(label("Como funciona", 15f, green))
-        col.addView(label("1. Toque em Começar e permita a captura de tela.\n2. O Google Fotos abre. Vá em Coleções → Pessoas e animais.\n3. Role devagar até o fim da lista.\n4. Toque em Terminei, na notificação.\n5. Escolha quem entra. Pronto."))
-        col.addView(label("Outro jeito, sem compartilhar a tela: no Google Fotos, abra Pessoas e animais e tire um print com rolagem (no Samsung: print → ícone de rolagem, até o fim). Depois toque abaixo e escolha o print, ou compartilhe o print com o VisualContext.", 13f))
+        col.addView(label("Como funciona (recomendado: pelo navegador)", 15f, green))
+        col.addView(label("1. Toque em Começar e permita a captura de tela.\n2. O Google Fotos abre no Chrome, já em Pessoas.\n3. Vire o celular deitado e diminua o zoom para uns 80% (pinça com dois dedos): os nomes não cortam e os rostos continuam grandes.\n4. Role devagar até o fim.\n5. Toque em Terminei, na notificação, e escolha quem entra."))
+        col.addView(label("Outro jeito, sem compartilhar a tela: abra photos.google.com/people no Chrome, deitado e com zoom em 80%, e tire prints (ou um print com rolagem). Depois toque abaixo e escolha o print, ou compartilhe o print com o VisualContext.", 13f))
         col.addView(Button(this).apply { text = "Usar um print longo"; setOnClickListener {
             startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("image/*").putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true), REQ_IMAGE)
         } })
@@ -105,18 +105,25 @@ class PhotosPickActivity : Activity() {
             return
         }
         col.addView(Button(this).apply {
-            text = "Começar"
+            text = "Começar pelo navegador (recomendado)"
             setOnClickListener {
+                useApp = false
                 if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED)
                     requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), REQ_NOTE)
                 else askCapture()
             }
+        })
+        col.addView(Button(this).apply {
+            text = "Começar pelo app Google Fotos"
+            setOnClickListener { useApp = true; askCapture() }
         })
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         if (requestCode == REQ_NOTE) askCapture()
     }
+
+    private var useApp = false
 
     private fun askCapture() {
         startActivityForResult(getSystemService(MediaProjectionManager::class.java).createScreenCaptureIntent(), REQ_CAPTURE)
@@ -134,9 +141,13 @@ class PhotosPickActivity : Activity() {
         if (resultCode != RESULT_OK || data == null) { col.addView(label("Sem a permissão de captura não dá para ler o Google Fotos.", 14f, green)); return }
         PhotosGrid.last = emptyList()
         startForegroundService(Intent(this, PhotosCaptureService::class.java).putExtra(PhotosCaptureService.EXTRA_CODE, resultCode).putExtra(PhotosCaptureService.EXTRA_DATA, data))
-        val photos = packageManager.getLaunchIntentForPackage("com.google.android.apps.photos")
+        // Marcus, 07/11: on the web, in landscape at ~80% zoom, names are almost never cut (the app cuts them).
+        val web = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://photos.google.com/people")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val chrome = Intent(web).setPackage("com.android.chrome")
+        val app = packageManager.getLaunchIntentForPackage("com.google.android.apps.photos")
         col.postDelayed({
-            if (photos != null) startActivity(photos) else { col.addView(label("Não achei o Google Fotos neste celular.", 14f, green)); PhotosCaptureService.stop(this) }
+            try { startActivity(if (useApp && app != null) app else if (chrome.resolveActivity(packageManager) != null) chrome else web) }
+            catch (_: Exception) { col.addView(label("Não consegui abrir o Google Fotos.", 14f, green)); PhotosCaptureService.stop(this) }
         }, 700)
     }
 
