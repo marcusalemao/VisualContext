@@ -103,7 +103,7 @@ class PhotosPickActivity : Activity() {
                 sorted.forEachIndexed { i, f -> f.tick = f.score > 2 && i < 40 }
                 PhotosGrid.last = sorted; PhotosGrid.lastNameless = emptyList()
                 contactsSkipped = bad
-            } catch (_: Throwable) { } finally { g.close() }
+            } catch (_: Throwable) { } finally { g.close(); prog.done() }
             runOnUiThread { if (PhotosGrid.last.isEmpty()) { render(); col.addView(label("Nenhum contato com foto de rosto boa.", 14f, green)) } else render() }
         }
     }
@@ -124,10 +124,12 @@ class PhotosPickActivity : Activity() {
     private fun readImages(uris: List<android.net.Uri>) {
         col.removeAllViews()
         col.addView(label("Lendo o print…", 18f, green))
+        val prog = Look.Progress(this, "Lendo ${uris.size} ${if (uris.size == 1) "imagem" else "imagens"}", uris.size)
         io.execute {
             val g = PhotosGrid(this)
             try {
-                for (u in uris) {
+                for ((i, u) in uris.withIndex()) {
+                    prog.step(i, "recortando rostos e lendo nomes")
                     // Region by region, so a very long print never has to fit in memory at once.
                     val dec = contentResolver.openInputStream(u)?.use { android.graphics.BitmapRegionDecoder.newInstance(it) } ?: continue
                     val w = dec.width; val total = dec.height
@@ -361,10 +363,12 @@ class PhotosPickActivity : Activity() {
 
     private fun save(list: List<PhotosGrid.Found>, status: TextView, toContacts: Boolean = false) {
         if (list.isEmpty()) { status.text = "Nenhuma pessoa marcada."; return }
+        val prog = Look.Progress(this, "Guardando ${list.size} ${if (list.size == 1) "pessoa" else "pessoas"}", list.size)
         io.execute {
             var ok = 0; var offline = 0
             val all = LocalFaces.all(this)
             for ((i, f) in list.withIndex()) {
+                prog.step(i, f.name)
                 runOnUiThread { status.text = "Guardando ${i + 1} de ${list.size}…" }
                 val r = Backend.post(this, JSONObject().put("action", "enroll_face").put("name", f.name).put("arc", org.json.JSONArray(f.descriptor.map { it.toDouble() }))
                     .put("thumb", f.thumb).put("source", "import_" + source.lowercase().replace(' ', '_')).put("description", originLabel()))
@@ -383,7 +387,7 @@ class PhotosPickActivity : Activity() {
             }
             val agenda = if (!toContacts) "" else "\nAgenda: $set fotos novas" + (if (had > 0) " · $had já tinham foto" else "") + (if (twins > 0) " · $twins com nome repetido ou incompleto (ficaram de fora)" else "")
             PhotosGrid.last = emptyList(); PhotosGrid.lastNameless = emptyList()
-            runOnUiThread {
+            prog.done(); runOnUiThread {
                 status.text = "$ok ${if (ok == 1) "pessoa guardada" else "pessoas guardadas"}." + if (offline > 0) " $offline ficaram só neste celular (sem internet agora)." else " Já aparecem no Manager." + agenda
                 col.addView(Look.button(Button(this).apply { text = "Voltar"; setOnClickListener { finish() } }, true))
             }

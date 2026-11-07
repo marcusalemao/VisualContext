@@ -33,6 +33,24 @@ object Look {
             putExtra(android.provider.MediaStore.EXTRA_PICK_IMAGES_MAX, max.coerceAtMost(android.provider.MediaStore.getPickImagesMaxLimit()))
         } else android.content.Intent(android.content.Intent.ACTION_PICK, android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI).apply { type = "image/*"; putExtra(android.content.Intent.EXTRA_ALLOW_MULTIPLE, true) }
 
+    /**
+     * Work in progress the user must not walk away from (Marcus, 07/11: reading photos takes ~10 s and looked done).
+     * A sheet that cannot be dismissed, with a bar and "3 de 7". Call [Progress.step] from any thread; [Progress.done] closes it.
+     */
+    class Progress(act: android.app.Activity, title: String, private val total: Int) {
+        private val bar = android.widget.ProgressBar(act, null, android.R.attr.progressBarStyleHorizontal).apply { max = maxOf(total, 1); isIndeterminate = total <= 0; progressTintList = android.content.res.ColorStateList.valueOf(green); indeterminateTintList = android.content.res.ColorStateList.valueOf(green) }
+        private val line = android.widget.TextView(act).apply { textSize = 14f; setTextColor(soft); setPadding(0, dp(act, 10), 0, 0) }
+        private val dlg = android.app.AlertDialog.Builder(act).setCancelable(false).setView(android.widget.LinearLayout(act).apply {
+            orientation = android.widget.LinearLayout.VERTICAL; setPadding(dp(act, 24), dp(act, 20), dp(act, 24), dp(act, 20)); setBackgroundColor(Color.rgb(8, 22, 14))
+            addView(android.widget.TextView(act).apply { text = title; textSize = 17f; setTextColor(green); typeface = Typeface.DEFAULT_BOLD; setPadding(0, 0, 0, dp(act, 12)) })
+            addView(bar); addView(line)
+            addView(android.widget.TextView(act).apply { text = "Não saia desta tela até terminar."; textSize = 12f; setTextColor(soft); setPadding(0, dp(act, 8), 0, 0) })
+        }).create().also { it.show() }
+        private val act = act
+        fun step(i: Int, what: String = "") = act.runOnUiThread { bar.progress = i; line.text = (if (total > 0) "$i de $total" else "") + (if (what.isNotEmpty()) " · $what" else "") }
+        fun done() = act.runOnUiThread { runCatching { dlg.dismiss() } }
+    }
+
     private val navOf = java.util.WeakHashMap<View, Int>()
     /** Height of the Android navigation bar under this view (0 until the system tells us). */
     fun nav(v: View) = navOf[v] ?: 0

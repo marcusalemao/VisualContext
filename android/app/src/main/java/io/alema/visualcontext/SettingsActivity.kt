@@ -478,12 +478,13 @@ class SettingsActivity : Activity() {
         if (requestCode != REQ_ADD || resultCode != RESULT_OK || data == null) return
         val name = addTo ?: return
         val uris = data.clipData?.let { c -> (0 until c.itemCount).map { c.getItemAt(it).uri } } ?: listOfNotNull(data.data)
-        Toast.makeText(this, "Lendo ${uris.size} ${if (uris.size == 1) "foto" else "fotos"}…", Toast.LENGTH_SHORT).show()
+        val prog = Look.Progress(this, "Lendo ${uris.size} ${if (uris.size == 1) "foto" else "fotos"} de $name", uris.size)
         io.execute {
-            val engine = try { ArcFaceEngine(this) } catch (_: Throwable) { null } ?: return@execute
+            val engine = try { ArcFaceEngine(this) } catch (_: Throwable) { null } ?: run { prog.done(); return@execute }
             val pid = LocalFaces.all(this).firstOrNull { it.name.equals(name, true) && it.personId != null }?.personId
             var ok = 0
-            for (u in uris) {
+            for ((i, u) in uris.withIndex()) {
+                prog.step(i, "procurando o rosto")
                 val bmp = try { contentResolver.openInputStream(u)?.use { BitmapFactory.decodeStream(it) } } catch (_: Exception) { null } ?: continue
                 val small = if (maxOf(bmp.width, bmp.height) > 1600) android.graphics.Bitmap.createScaledBitmap(bmp, bmp.width * 1600 / maxOf(bmp.width, bmp.height), bmp.height * 1600 / maxOf(bmp.width, bmp.height), true) else bmp
                 // The biggest face in the photo is the person (a group photo: crop it first).
@@ -499,7 +500,7 @@ class SettingsActivity : Activity() {
                     .put("thumb", thumb).put("source", "manual").put("description", "foto que você adicionou").apply { if (pid != null) put("person_id", pid) })
                 ok++
             }
-            engine.close()
+            engine.close(); prog.step(uris.size, "pronto"); prog.done()
             runOnUiThread { Toast.makeText(this, if (ok == 0) "Não achei rosto nessas fotos" else "✓ $ok ${if (ok == 1) "foto adicionada" else "fotos adicionadas"} a $name", Toast.LENGTH_LONG).show(); render() }
         }
     }
