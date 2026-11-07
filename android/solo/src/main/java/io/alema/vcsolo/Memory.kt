@@ -70,6 +70,6 @@ class Memory(private val ctx: Context, private val token: String?) {
     private fun norm(s: String) = Normalizer.normalize(s.lowercase().trim(), Normalizer.Form.NFD).replace(Regex("\\p{M}"), "")
 
     companion object {
-        const val BACKEND = "https://base44.app/api/apps/6a11083db49430b410a8c066/functions/fcProxy"
+        const val BACKEND = "https://vzqjwhlpwvqrosoiwiin.supabase.co/functions/v1/vc"
     }
 }
