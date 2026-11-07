@@ -1,0 +1,161 @@
+// VisualContext — the one door the phone and the glasses use (replaces Base44's fcProxy).
+// Auth: header x-vc-token (device token). Only its SHA-256 is stored, in public.devices.
+// Same request shape as fcProxy ({ action, entity, ... }), so the apps switch by changing the address.
+import { createClient } from "npm:@supabase/supabase-js@2.45.4";
+
+const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
+const cors = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "content-type, x-vc-token",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
+
+async function sha256(t: string) {
+  const h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t));
+  return [...new Uint8Array(h)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+type Who = { owner: string | null; email: string | null };
+/** Rows of this device's owner (claimed after first login, or still by e-mail). */
+const mine = (q: any, w: Who) => (w.owner ? q.eq("owner", w.owner) : q.is("owner", null).eq("owner_email", w.email));
+const stamp = (w: Who) => ({ owner: w.owner, owner_email: w.email });
+const vec = (a: unknown, n: number) => {
+  const v = typeof a === "string" ? JSON.parse(a) : a;
+  return Array.isArray(v) && v.length === n && v.every((x) => typeof x === "number") ? `[${v.join(",")}]` : null;
+};
+
+/** People in the shape the apps already read (FaceContextPerson). */
+async function listPeople(w: Who, limit = 1000) {
+  const { data: people, error } = await mine(db.from("people").select("*"), w).order("updated_at", { ascending: false }).limit(limit);
+  if (error) throw error;
+  const ids = (people ?? []).map((p: any) => p.id);
+  const { data: faces } = ids.length ? await db.from("faces").select("person_id, legacy").in("person_id", ids).not("legacy", "is", null) : { data: [] };
+  const legacy = new Map((faces ?? []).map((f: any) => [f.person_id, f.legacy]));
+  return (people ?? []).map((p: any) => ({
+    id: p.id, name: p.name, nickname: p.nickname, company: p.company, role: p.role, relation: p.relation,
+    relation_context: p.relation_context, photo_url: p.photo_url, tags: p.tags, notes: p.notes,
+    contact_email: p.contact_email, contact_phone: p.contact_phone, contact_whatsapp: p.contact_whatsapp, contact_linkedin: p.contact_linkedin,
+    last_seen_date: p.last_seen_at, last_seen_context: p.last_seen_context, status: p.status, source: p.source,
+    face_embedding: legacy.get(p.id) ?? null,
+  }));
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  if (req.method !== "POST") return json({ error: "use POST" }, 405);
+  const token = req.headers.get("x-vc-token") ?? "";
+  if (!/^vc_[A-Za-z0-9]{16,128}$/.test(token)) return json({ error: "token" }, 401);
+  const { data: dev } = await db.from("devices").select("id, owner, owner_email, revoked_at").eq("token_hash", await sha256(token)).maybeSingle();
+  if (!dev || dev.revoked_at) return json({ error: "token" }, 401);
+  await db.from("devices").update({ last_used_at: new Date().toISOString() }).eq("id", dev.id);
+  const w: Who = { owner: dev.owner, email: dev.owner_email };
+
+  let body: any;
+  try { body = await req.json(); } catch { return json({ error: "json" }, 400); }
+  try {
+    switch (body.action) {
+      case "list": {
+        if (!body.entity || /person/i.test(body.entity)) return json(await listPeople(w, Math.min(body.limit ?? 1000, 1000)));
+        const table = /encounter/i.test(body.entity) ? "encounters" : /thing|episodic/i.test(body.entity) ? "things" : /note/i.test(body.entity) ? "notes" : null;
+        if (!table) return json({ error: "entity" }, 400);
+        const { data, error } = await mine(db.from(table).select("*"), w).limit(Math.min(body.limit ?? 200, 1000));
+        if (error) throw error;
+        return json(data);
+      }
+      case "faces": { // ArcFace signatures, so a new phone or the glasses can recognise without re-teaching
+        const { data, error } = await mine(db.from("faces").select("id, person_id, arc, description, last_seen_at, prev_seen_at, people(name)"), w).not("arc", "is", null);
+        if (error) throw error;
+        return json(data);
+      }
+      case "enroll_face": {
+        const arc = vec(body.arc, 512);
+        if (!arc) return json({ error: "arc must be 512 numbers" }, 400);
+        let personId: string | null = body.person_id ?? null;
+        if (!personId && body.name) {
+          const { data: hit } = await mine(db.from("people").select("id").ilike("name", body.name), w).limit(1);
+          personId = hit?.[0]?.id ?? null;
+          if (!personId) {
+            const { data: p, error } = await db.from("people").insert({ ...stamp(w), name: body.name, source: "glasses" }).select("id").single();
+            if (error) throw error;
+            personId = p.id;
+          }
+        }
+        const { data: f, error } = await db.from("faces").insert({ ...stamp(w), person_id: personId, arc, thumb: body.thumb ?? null, description: body.description ?? null, source: body.source ?? "glasses", last_seen_at: new Date().toISOString() }).select("id").single();
+        if (error) throw error;
+        return json({ face_id: f.id, person_id: personId });
+      }
+      case "seen": {
+        if (!body.person_id) return json({ error: "person_id" }, 400);
+        await mine(db.from("people").update({ last_seen_at: body.when ?? new Date().toISOString(), last_seen_context: body.context ?? null }), w).eq("id", body.person_id);
+        return json({ ok: true });
+      }
+      case "note": {
+        if (!body.text) return json({ error: "text" }, 400);
+        const { error } = await db.from("notes").insert({ ...stamp(w), text: body.text, source: body.source ?? "voice" });
+        if (error) throw error;
+        return json({ ok: true });
+      }
+      case "import_people": { // one-off migration from Base44 (FaceContextPerson records); re-runnable (upsert by legacy_id)
+        const rows = (body.people ?? []) as any[];
+        let n = 0, faces = 0;
+        for (const p of rows) {
+          if (!p?.id || !p?.name) continue;
+          const rec = {
+            ...stamp(w), legacy_id: String(p.id), name: p.name, nickname: p.nickname ?? null, company: p.company ?? null, role: p.role ?? null,
+            relation: p.relation ?? null, relation_context: p.relation_context ?? null, photo_url: p.photo_url ?? null, tags: p.tags ?? [],
+            contact_whatsapp: p.contact_whatsapp ?? null, contact_email: p.contact_email ?? null, contact_phone: p.contact_phone ?? null, contact_linkedin: p.contact_linkedin ?? null,
+            last_seen_at: p.last_seen_date || null, last_seen_context: p.last_seen_context ?? null, notes: p.notes ?? null,
+            custom: p.custom_fields ?? {}, status: p.status ?? "active", source: p.source ?? "base44", created_at: p.created_date ?? new Date().toISOString(),
+          };
+          const { data: up, error } = await db.from("people").upsert(rec, { onConflict: "legacy_id" }).select("id").single();
+          if (error) throw error;
+          n++;
+          const legacy = vec(p.face_embedding, 128);
+          if (legacy) {
+            const { data: has } = await db.from("faces").select("id").eq("person_id", up.id).not("legacy", "is", null).limit(1);
+            if (!has?.length) { await db.from("faces").insert({ ...stamp(w), person_id: up.id, legacy, source: "base44" }); faces++; }
+          }
+        }
+        return json({ people: n, legacy_faces: faces });
+      }
+      case "import_encounters": {
+        const rows = (body.encounters ?? []) as any[];
+        const { data: ppl } = await mine(db.from("people").select("id, legacy_id"), w);
+        const byLegacy = new Map((ppl ?? []).map((p: any) => [p.legacy_id, p.id]));
+        let n = 0;
+        for (const e of rows) {
+          if (!e?.id) continue;
+          const { error } = await db.from("encounters").upsert({
+            ...stamp(w), legacy_id: String(e.id), person_id: byLegacy.get(e.person_id) ?? null, person_name: e.person_name ?? null,
+            at: e.date ?? e.created_date ?? new Date().toISOString(), place: e.location ?? null, context: e.context ?? null,
+            transcript: e.speech_captured ?? null, ocr: e.ocr_captured ?? null, capture_mode: e.capture_mode ?? null, summary: e.notes ?? null,
+          }, { onConflict: "legacy_id" });
+          if (error) throw error;
+          n++;
+        }
+        return json({ encounters: n });
+      }
+      case "import_things": {
+        const rows = (body.things ?? []) as any[];
+        let n = 0;
+        for (const t of rows) {
+          if (!t?.id || !t?.item_name) continue;
+          const { error } = await db.from("things").upsert({
+            ...stamp(w), legacy_id: String(t.id), name: t.item_name, category: t.category ?? null, location_description: t.location_description ?? null,
+            lat: t.coordinates_lat ?? null, lng: t.coordinates_lng ?? null, snapshot_url: t.snapshot_url ?? null, audio_context: t.audio_context ?? null,
+            seen_at: t.captured_at ?? t.created_date ?? new Date().toISOString(),
+          }, { onConflict: "legacy_id" });
+          if (error) throw error;
+          n++;
+        }
+        return json({ things: n });
+      }
+      default:
+        return json({ error: "action" }, 400);
+    }
+  } catch (e) {
+    console.error(e);
+    return json({ error: "server", detail: String((e as any)?.message ?? e).slice(0, 200) }, 500);
+  }
+});
