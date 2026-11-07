@@ -66,7 +66,16 @@ Taking the glasses off already locks them. On top of that, unlocking on the glas
 - **Developer mode can turn it off** (Marcus, 06/11), so other people can try the glasses in tests. Like the other guards, it turns itself back on after 1 hour and the status line shows DEV meanwhile.
 - **Limits, said plainly:** a recording of the owner's voice could fool it; that is why it is combined with the worn sensor (off the face = locked again) and why the phone fallback exists.
 
-### 5c. Emergencies (proposal, 06/11)
+### 5c. SOS for the wearer (decided 06/11)
+For when **you** are in danger (a robbery, an accident). **Optional and off by default** (Marcus, 06/11: some people would be confused); turned on in Settings, with a test mode that sends nothing.
+- **Two triggers, the user picks one or both:**
+  - **a code phrase,** different from the unlock passphrase, something you would say naturally to a robber ("calma, eu entrego tudo"), so nothing looks suspicious. The user chooses it; the app warns if it is too common;
+  - **a tap pattern on the temple:** 5 quick taps, like Android's emergency SOS on the power button.
+- **What happens:** 5 seconds to cancel with a hidden tap; then your location goes to your trusted contacts (SMS and WhatsApp), and camera and microphone record to a copy that is uploaded at once, so the evidence survives if the glasses and phone are taken. Calling 190 is one more tap or the phrase again.
+- An app cannot trigger Android's own SOS; this does the same job.
+- **Not part of this:** the app never watches what the wearer does in order to report it. Proposed and declined on 06/11: it would break "your memory, only yours", it is a legal risk (LGPD, Lei 9.296/96 on interception, ECA art. 241-B on holding abuse material) and it makes the company a target. Misuse is handled by the guards, the terms of use, a public abuse channel and court orders.
+
+### 5d. Emergencies around you (proposal, 06/11)
 If an encounter looks like violence or an emergency (the scene and the words), the glasses **ask the wearer**: "Quer ligar para o 190?" / "Avisar o seu contato de confiança?". One tap or "sim" calls. **The app never reports to anyone on its own:** a false alarm about a private moment would be its own harm. The wearer decides.
 - **Misuse of the product** (using it to watch someone): forbidden in the terms of use, with a public channel to report abuse; accounts can be closed. We cannot see anyone's memory (local first, encrypted), so this rests on reports, not on watching users.
 
@@ -211,7 +220,16 @@ Tirar os óculos já trava. Além disso, destravar nos óculos pede **a voz do d
 - **O modo desenvolvedor pode desligar** (Marcus, 06/11), para outras pessoas testarem os óculos. Como as outras proteções, volta a ligar sozinha depois de 1 hora, e a linha de status mostra DEV enquanto isso.
 - **Limites, sem enfeite:** uma gravação da voz do dono poderia enganar; por isso ela se soma ao sensor de uso (tirou do rosto = trava de novo) e existe a alternativa pelo celular.
 
-### 5c. Emergências (proposta, 06/11)
+### 5c. SOS de quem usa (decidido em 06/11)
+Para quando **você** está em perigo (um assalto, um acidente). **Opcional e desligado por padrão** (Marcus, 06/11: tem gente que se confundiria); liga nos Ajustes, com um modo de teste que não envia nada.
+- **Dois gatilhos, o usuário escolhe um ou os dois:**
+  - **uma frase-código,** diferente da frase de desbloqueio, algo que você diria naturalmente para um ladrão ("calma, eu entrego tudo"), para nada parecer suspeito. O usuário escolhe; o app avisa se for comum demais;
+  - **um padrão de toques na haste:** 5 toques rápidos, como o SOS do Android no botão de ligar.
+- **O que acontece:** 5 segundos para cancelar com um toque escondido; depois a sua localização vai para os seus contatos de confiança (SMS e WhatsApp), e câmera e microfone gravam numa cópia que sobe na hora, para a prova sobreviver se levarem os óculos e o celular. Ligar para o 190 é mais um toque ou a frase de novo.
+- Um app não consegue acionar o SOS do próprio Android; isto faz o mesmo papel.
+- **Fora disto:** o app nunca vigia o que quem usa faz para denunciar. Proposto e recusado em 06/11: quebraria "a sua memória, só sua", é risco jurídico (LGPD, Lei 9.296/96 de interceptação, ECA art. 241-B sobre guardar material de abuso) e torna a empresa um alvo. Mau uso se resolve com as proteções, os termos de uso, um canal público de denúncia e ordens judiciais.
+
+### 5d. Emergências em volta (proposta, 06/11)
 Se um encontro parece violência ou emergência (a cena e as palavras), os óculos **perguntam a quem usa**: "Quer ligar para o 190?" / "Avisar o seu contato de confiança?". Um toque ou "sim" liga. **O app nunca denuncia ninguém sozinho:** um alarme falso sobre um momento privado seria um dano por si só. Quem decide é quem usa.
 - **Mau uso do produto** (usar para vigiar alguém): proibido nos termos de uso, com um canal público para denunciar abuso; contas podem ser encerradas. Nós não vemos a memória de ninguém (local primeiro, criptografada), então isso depende de denúncias, não de vigiar usuários.
 
