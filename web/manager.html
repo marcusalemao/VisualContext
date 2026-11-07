@@ -97,6 +97,9 @@ header .sp{flex:1}
 .day p{margin:6px 0 8px}
 .day .stops{display:flex;flex-direction:column;gap:3px;font-size:13.5px;color:var(--g2)}
 .day .stops span{font-family:var(--mono);color:var(--m);margin-right:6px}
+.day .stop{display:flex;gap:8px;align-items:flex-start;margin-top:4px}.day .stop>span{flex:0 0 auto;padding-top:2px}.day .stopb{min-width:0;flex:1}
+.day .who{display:flex;flex-wrap:wrap;gap:6px;margin-top:5px}.day .whoa{display:inline-flex;align-items:center;gap:6px;padding:3px 10px 3px 3px;border-radius:99px;background:var(--s2);border:1px solid var(--line);font-size:13px;color:var(--g1)}
+.day .whoa .av{width:26px;height:26px;font-size:10px;border-radius:50%;overflow:hidden;flex:0 0 auto}.day .whoa .av img{width:100%;height:100%;object-fit:cover}
 .day .foot{display:flex;justify-content:space-between;margin-top:10px;font:12px var(--mono);color:var(--m)}
 .day .foot button{color:var(--g)}
 
@@ -280,7 +283,7 @@ function items() {
   for (const p of S.people) out.push({ kind: "person", id: p.id, title: isMe(p.name) ? p.name + " ★ você" : p.name, sub: isMe(p.name) ? "você mesmo · nunca vira encontro" : [p.relation, p.company, p.role].filter(Boolean).join(" · ") || (p.faces ? "rosto guardado" : "sem rosto ainda"), date: p.last_seen_date || p.created_at, ref: p, av: avatar(p) });
   for (const e of S.enc) {
     const live = e.capture_mode === "live";
-    out.push({ kind: "memory", id: e.id, title: live ? "✦ Conversa com o assistente" : isMe(e.person_name) ? "Você mesmo (teste ou espelho)" : e.person_name ? "Encontro com " + e.person_name : (e.context || "Momento"), sub: [e.place, e.summary].filter(Boolean).join(" · "), date: e.at, ref: e, sub2: "enc", av: `<span class="av k">${live ? "✦" : "◷"}</span>` });
+    out.push({ kind: "memory", id: e.id, title: live ? "✦ Conversa com o assistente" : isMe(e.person_name) ? "Você mesmo (teste ou espelho)" : e.person_name ? "Encontro com " + e.person_name : (e.context || "Momento"), sub: [e.place, e.summary].filter(Boolean).join(" · "), date: e.at, ref: e, sub2: "enc", av: (() => { const p = e.person_name && S.people.find(x => nameKey(x.name) === nameKey(e.person_name)); return p && photo(p) ? avatar(p) : `<span class="av k">${live ? "✦" : "◷"}</span>`; })() });
   }
   const PK = { pix: ["◈", "Pix"], link: ["↗", "link"], cartao: ["☏", "cartão de visita"], cracha: ["☏", "crachá"], receita: ["✚", "receita"], formulario: ["▤", "formulário"], cardapio: ["▤", "cardápio"], outro: ["▤", "papel"] };
   for (const n of S.notes) { const k = PK[n.kind]; out.push({ kind: "memory", id: n.id, title: n.title || n.text, sub: k ? k[1] + (n.place ? " · " + n.place : "") : "nota" + (n.source === "voice" ? " por voz" : ""), date: n.at, ref: n, sub2: "note", av: `<span class="av k">${k ? k[0] : "✎"}</span>` }); }
@@ -382,9 +385,20 @@ function myDay() {
   if (enc.some(e => e.capture_mode === "live")) bits.push("conversou com o assistente");
   if (th.length) bits.push("guardou onde deixou " + listPt(th.map(t => t.name.toLowerCase())));
   if (no.length) bits.push("anotou " + no.length + (no.length === 1 ? " lembrete" : " lembretes"));
-  const stops = [...enc.filter(e => !isMe(e.person_name)).map(e => [e.at, (e.place || "—") + (e.person_name ? " · " + e.person_name : e.capture_mode === "live" ? " · assistente" : "")]), ...th.map(t => [t.seen_at, t.name + " → " + (t.location_description || "")])].sort((a, b) => new Date(a[0]) - new Date(b[0])).slice(0, 5);
-  return `<div class="day"><h4>✦ Meu dia · hoje</h4><p>Hoje você ${esc(listPt(bits))}.</p><div class="stops">${stops.map(s => `<div><span>${esc(new Date(s[0]).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }))}</span>${esc(s[1])}</div>`).join("")}</div>
-  <div class="foot"><span>${people.length} pessoas · ${places.length} lugares · ${no.length} notas · ${follow} pendências</span><button data-day="1">Ver o dia →</button></div></div>`;
+  // Stops grouped by place (Marcus, 07/11: the same address five times says nothing): one line per place,
+  // the time span, and the faces of who was there.
+  const byPlace = [];
+  for (const e of enc.filter(e => !isMe(e.person_name))) {
+    const key = e.place || "—"; const last = byPlace.at(-1);
+    const who = e.person_name ? { name: e.person_name, p: S.people.find(x => nameKey(x.name) === nameKey(e.person_name)) } : e.capture_mode === "live" ? { name: "assistente" } : null;
+    if (last && last.key === key) { last.to = e.at; if (who && !last.who.some(w => w.name === who.name)) last.who.push(who); }
+    else byPlace.push({ key, from: e.at, to: e.at, who: who ? [who] : [] });
+  }
+  const tm = d => new Date(d).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const stopsHtml = byPlace.map(b => `<div class="stop"><span>${esc(tm(b.from))}${b.to !== b.from ? "–" + esc(tm(b.to)) : ""}</span><div class="stopb"><div>${esc(b.key)}</div><div class="who">${b.who.map(w => w.p ? `<button class="whoa" data-k="person" data-id="${w.p.id}">${avatar(w.p, "sm")}${esc(w.name.split(" ")[0])}</button>` : `<span class="whoa">${w.name === "assistente" ? "✦ " : ""}${esc(w.name)}</span>`).join("")}</div></div></div>`)
+    .concat(th.map(t => `<div class="stop"><span>${esc(tm(t.seen_at))}</span><div class="stopb"><div>${esc(t.name)} → ${esc(t.location_description || "")}</div></div></div>`)).slice(0, 6).join("");
+  return `<div class="day"><h4>✦ Meu dia · hoje</h4><p>Hoje você ${esc(listPt(bits))}.</p><div class="stops">${stopsHtml}</div>
+  <div class="foot"><span>${people.length} ${people.length === 1 ? "pessoa" : "pessoas"} · ${places.length} ${places.length === 1 ? "lugar" : "lugares"} · ${no.length} ${no.length === 1 ? "nota" : "notas"} · ${follow} ${follow === 1 ? "pendência" : "pendências"}</span><button data-day="1">Ver o dia →</button></div></div>`;
 }
 const listPt = a => a.length <= 1 ? (a[0] || "") : a.slice(0, -1).join(", ") + " e " + a.at(-1);
 
@@ -522,7 +536,7 @@ function personHtml(p) {
 const encHtml = e => `<div class="enc"><div class="d">${esc(fmtFull(e.at))}${e.place ? " · " + esc(e.place) : ""}</div><div>${esc(e.summary || e.context || "")}</div>${(e.follow_ups || []).length ? `<ul>${e.follow_ups.map(f => `<li>${esc(typeof f === "string" ? f : f.text || JSON.stringify(f))}</li>`).join("")}</ul>` : ""}</div>`;
 function memHtml(r, it) {
   if (it.sub2 === "note") return noteHtml(r, it);
-  const p = S.people.find(x => x.id === r.person_id);
+  const p = S.people.find(x => x.id === r.person_id) || (r.person_name ? S.people.find(x => nameKey(x.name) === nameKey(r.person_name)) : null);
   return `<h2>${esc(it.title)}</h2><div class="hook">${esc(fmtFull(r.at))}${r.place ? " · " + esc(r.place) : ""}</div>
   ${r.summary ? `<div class="sec"><h5>Resumo</h5><p>${esc(r.summary)}</p></div>` : ""}
   ${(r.follow_ups || []).length ? `<div class="sec"><h5>Pendências</h5><ul style="margin-left:18px">${r.follow_ups.map(f => `<li>${esc(typeof f === "string" ? f : f.text || "")}</li>`).join("")}</ul></div>` : ""}
