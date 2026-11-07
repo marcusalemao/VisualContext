@@ -175,7 +175,7 @@ Inspired by Gemma 4 on Marcus's phone (ask questions about a one-hour video; it 
 ### 5b. Import from Google Photos (decided 06/11)
 Google Photos has no API for its named face groups (since 31/03/2025 apps only see photos the user picks one by one), so the app reads the screen, with the user's permission (Android screen capture).
 1. **Capture the grid:** the user opens "People and pets" and scrolls; the app collects every face with a name.
-2. **Select in our app:** the grid is rebuilt in VisualContext with a checkbox per person ("select all" / "clear"). Children come unticked; pets and the user himself are left out (the user becomes "Me").
+2. **Select in our app:** the grid is rebuilt in VisualContext with a checkbox per person ("select all" / "clear"). Children come ticked like everyone (Marcus, 06/11: they are already named in his own Google Photos; a stranger's child is still never enrolled by the glasses); pets and the user himself are left out (the user becomes "Me").
 3. **Recent photos, automatically:** for each ticked person the app opens their page (newest photos first), reads the full name from the header (the grid cuts names) and keeps 3–5 faces that agree with each other (a group photo doesn't mix people). Uses the same accessibility technique as the Zap; without it, the user taps each person and the app captures each page by itself.
 4. **Review and save.** Faces from Google Photos are used for recognition (Marcus, 06/11: any name in the capture, replacing the 11/10 rule for this source), marked "face from Google Photos"; the first real encounter confirms.
 - **Faces stay current by themselves:** every sure recognition by the glasses stores a new face and drops the oldest, up to 5 per person.
@@ -372,7 +372,7 @@ Inspirado no Gemma 4 no celular do Marcus (perguntas sobre um vídeo de uma hora
 ### 5b. Importar do Google Fotos (decidido em 06/11)
 O Google Fotos não tem API para os grupos de rostos com nome (desde 31/03/2025 os apps só veem fotos que o usuário escolhe uma a uma), então o app lê a tela, com permissão do usuário (captura de tela do Android).
 1. **Capturar a grade:** o usuário abre "Pessoas e animais" e rola; o app junta todos os rostos com nome.
-2. **Selecionar no nosso app:** a grade é recriada no VisualContext com uma caixinha por pessoa ("selecionar todos" / "limpar"). Crianças vêm desmarcadas; animais e o próprio usuário ficam de fora (o usuário vira o "Eu").
+2. **Selecionar no nosso app:** a grade é recriada no VisualContext com uma caixinha por pessoa ("selecionar todos" / "limpar"). Crianças vêm marcadas como todo mundo (Marcus, 06/11: já têm nome no Google Fotos dele; filho de estranho continua nunca sendo cadastrado pelos óculos); animais e o próprio usuário ficam de fora (o usuário vira o "Eu").
 3. **Fotos recentes, sozinho:** para cada pessoa marcada o app abre a página dela (fotos mais novas primeiro), lê o nome completo no topo (a grade corta os nomes) e guarda de 3 a 5 rostos parecidos entre si (foto em grupo não mistura pessoas). Usa a mesma técnica de acessibilidade do Zap; sem ela, o usuário toca em cada pessoa e o app captura cada página sozinho.
 4. **Conferir e guardar.** Rostos do Google Fotos servem para reconhecer (Marcus, 06/11: qualquer nome da captura, substituindo a regra de 11/10 para esta fonte), marcados "rosto do Google Fotos"; o primeiro encontro de verdade confirma.
 - **Os rostos se atualizam sozinhos:** cada reconhecimento com certeza pelos óculos guarda um rosto novo e descarta o mais antigo, até 5 por pessoa.
