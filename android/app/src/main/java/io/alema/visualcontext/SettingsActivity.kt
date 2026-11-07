@@ -130,6 +130,21 @@ class SettingsActivity : Activity() {
         c4.p("Do Google Fotos, dos contatos do celular, do LinkedIn, Facebook ou Instagram: quem tem foto e nome passa a ser reconhecido pelos óculos.")
         c4.btn("Importar rostos", false) { startActivity(Intent(this, PhotosPickActivity::class.java)) }
 
+        // 4b. Who you talk to most
+        val c4b = card()
+        c4b.h("Com quem você mais fala")
+        c4b.p("Conta as mensagens que chegam no WhatsApp, Telegram, Signal e SMS, por pessoa, nos últimos 30 dias. Só a contagem: o texto nunca é guardado, e grupos ficam de fora. Ajuda a importar primeiro quem importa e a preparar conversas. Com o Zap instalado, ele já traz 7 dias de histórico.", 13f)
+        val on = TalkCounter.enabled(this)
+        c4b.p(if (on) "● Ligado · ${TalkCounter.counts(this).size} pessoas contadas" else "○ Desligado", 14f).setTextColor(if (on) green else soft)
+        c4b.btn(if (on) "Desligar (acesso às notificações)" else "Ligar (acesso às notificações)", !on) { startActivity(Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
+        // Cross-sell (Marcus, 07/11): Zap brings the last 7 days at once, and WhatsApp on the glasses.
+        if (packageManager.resolveContentProvider("io.alema.zap.frequent", 0) == null) c4b.addView(TextView(this).apply {
+            text = "Ainda não tem o Zap? Ele traz os últimos 7 dias de uma vez e põe o WhatsApp nos óculos. Baixar →"
+            textSize = 14f; setTextColor(green); setPadding(0, dp(12), 0, 0)
+            setOnClickListener { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://z.alema.io"))) }
+        })
+        if (on) c4b.addView(TextView(this).apply { text = "Apagar a contagem"; textSize = 14f; setTextColor(Color.rgb(255, 120, 120)); setPadding(0, dp(10), 0, 0); setOnClickListener { TalkCounter.clear(this@SettingsActivity); render() } })
+
         // 5. Prep
         val c5 = card()
         c5.h("Preparação")

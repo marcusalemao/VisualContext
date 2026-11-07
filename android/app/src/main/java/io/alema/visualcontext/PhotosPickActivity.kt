@@ -72,6 +72,8 @@ class PhotosPickActivity : Activity() {
                         while (c.moveToNext()) c.getString(0)?.trim()?.lowercase()?.let { zap[it] = c.getInt(1) }
                     }
                 } catch (_: Exception) {}
+                // Our own count (no Zap needed), merged: the bigger number wins.
+                TalkCounter.counts(this).forEach { (k, v) -> if (v > (zap[k] ?: 0)) zap[k] = v }
                 contentResolver.query(android.provider.ContactsContract.Contacts.CONTENT_URI,
                     arrayOf(android.provider.ContactsContract.Contacts.DISPLAY_NAME_PRIMARY, android.provider.ContactsContract.Contacts.PHOTO_URI, android.provider.ContactsContract.Contacts.STARRED),
                     "${android.provider.ContactsContract.Contacts.PHOTO_URI} IS NOT NULL", null, null)?.use { c ->
