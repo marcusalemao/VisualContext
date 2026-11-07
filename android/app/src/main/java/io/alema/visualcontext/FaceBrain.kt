@@ -33,6 +33,20 @@ class FaceBrain(private val ctx: Context) {
     /** A new face, in memory only. Nobody becomes a record for passing by (privacy spec, section 7). */
     class Pending(val id: String, var descriptor: FloatArray, var thumb: String, val since: Long, var lastSeen: Long, var desc: String? = null, var face: Face? = null)
     private val pending = java.util.concurrent.CopyOnWriteArrayList<Pending>()
+    /**
+     * Who was where a moment ago. A recognised person keeps the name while the face stays in about the same
+     * place (turned, half hidden, bad light), for up to [HOLD_MS] since the last sure match.
+     */
+    private class Track(val seen: Seen, var cx: Float, var cy: Float, var w: Float, var sureAt: Long, var lastAt: Long)
+    private val tracks = java.util.concurrent.CopyOnWriteArrayList<Track>()
+    private val HOLD_MS = 12_000L
+
+    private fun near(t: Track, f: Face): Boolean {
+        val cx = f.x + f.w / 2; val cy = f.y + f.h / 2
+        val d = kotlin.math.hypot((cx - t.cx).toDouble(), (cy - t.cy).toDouble())
+        return d < maxOf(t.w, f.w) * 1.2 && f.w > t.w * 0.5 && f.w < t.w * 2
+    }
+
     /** Faces the user cancelled in this session: not proposed again. */
     private val ignored = java.util.concurrent.CopyOnWriteArrayList<FloatArray>()
 
@@ -56,7 +70,20 @@ class FaceBrain(private val ctx: Context) {
         val e = engine() ?: return emptyList()
         refreshPeople()
         val local = LocalFaces.all(ctx)
-        val out = e.describe(bmp).take(4).map { f -> identify(f, bmp, local, describeUnknown) }
+        val now = System.currentTimeMillis()
+        tracks.removeAll { now - it.lastAt > 5000 || now - it.sureAt > HOLD_MS }
+        val out = e.describe(bmp).take(4).map { f ->
+            val s = identify(f, bmp, local, describeUnknown)
+            val t = tracks.firstOrNull { near(it, f) }
+            val result = if (s.known && s.sure) s
+                else if (t != null) t.seen.copy(x = f.x, y = f.y, w = f.w, h = f.h, sure = true).also { held ->
+                    // the pending buffer of a misread profile is not a new person
+                    s.pendingId?.let { pid -> pending.removeAll { it.id == pid } }
+                } else s
+            if (t != null) { t.cx = f.x + f.w / 2; t.cy = f.y + f.h / 2; t.w = f.w; t.lastAt = now; if (s.known && s.sure) t.sureAt = now }
+            else if (result.known && result.sure) tracks += Track(result, f.x + f.w / 2, f.y + f.h / 2, f.w, now, now)
+            result
+        }
         if (out.isNotEmpty()) { last = out; lastAt = System.currentTimeMillis() }
         return out
     }

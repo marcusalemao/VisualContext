@@ -74,7 +74,10 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
             // Tap anywhere on the lens during the countdown = cancel (the swipe on the glasses).
             setOnTouchListener { _, e -> if (e.action == MotionEvent.ACTION_UP && countdownId != null) { cancelCountdown(); true } else false }
         }
-        val root = FrameLayout(this).apply { setBackgroundColor(Color.BLACK); addView(preview); addView(hud) }
+        // Lens on top, buttons in their own strip below it (never under the Android navigation bar).
+        val lens = FrameLayout(this).apply { setBackgroundColor(Color.BLACK); addView(preview); addView(hud) }
+        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.BLACK) }
+        root.addView(lens, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
         val bar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
             setBackgroundColor(Color.argb(170, 0, 0, 0)); setPadding(4, 4, 4, 4)
@@ -88,13 +91,16 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         placesBtn = btn("") { placesOn = !placesOn; if (!placesOn) hud.pins = emptyList() else refreshPlaces(true); paintToggles() }; bar.addView(placesBtn)
         bar.addView(btn("⟲ Câmera") { front = !front; startCamera() })
         bar.addView(btn("✕ Fechar") { finish() })
-        root.addView(bar, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM))
-        // Android 15 draws apps under the system bars: keep the buttons above the navigation bar (and clear of the camera cut-out).
-        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(bar) { v, insets ->
+        root.addView(bar, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        // Android 15+ draws apps under the system bars: the whole screen steps in by the bars' size.
+        // Fallback to the system's own navigation-bar height if the insets come back empty.
+        val navFallback = resources.getIdentifier("navigation_bar_height", "dimen", "android").let { if (it > 0) resources.getDimensionPixelSize(it) else 0 }
+        val statusFallback = resources.getIdentifier("status_bar_height", "dimen", "android").let { if (it > 0) resources.getDimensionPixelSize(it) else 0 }
+        root.setPadding(0, statusFallback, 0, navFallback)
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
             val sys = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars() or androidx.core.view.WindowInsetsCompat.Type.displayCutout())
-            v.setPadding(4 + sys.left, 4, 4 + sys.right, 4 + sys.bottom)
-            hud.setPadding(sys.left, sys.top, sys.right, 0)
-            insets
+            v.setPadding(sys.left, maxOf(sys.top, 0), sys.right, if (sys.bottom > 0) sys.bottom else navFallback)
+            androidx.core.view.WindowInsetsCompat.CONSUMED
         }
         setContentView(root)
         paintToggles()

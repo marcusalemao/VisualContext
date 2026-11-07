@@ -22,7 +22,8 @@ object Describe {
         val body = JSONObject().put("contents", JSONArray().put(JSONObject().put("parts", JSONArray()
             .put(JSONObject().put("text", PROMPT))
             .put(JSONObject().put("inlineData", JSONObject().put("mimeType", "image/jpeg").put("data", Base64.encodeToString(jpeg, Base64.NO_WRAP)))))))
-            .put("generationConfig", JSONObject().put("maxOutputTokens", 40).put("temperature", 0.2))
+            // Room for the model's own thinking before the 6 words (newer Flash models think by default).
+            .put("generationConfig", JSONObject().put("maxOutputTokens", 600).put("temperature", 0.2))
         return try {
             val c = (URL("https://generativelanguage.googleapis.com/v1beta/$model:generateContent").openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"; connectTimeout = 10_000; readTimeout = 30_000; doOutput = true
@@ -31,8 +32,10 @@ object Describe {
             c.outputStream.use { it.write(body.toString().toByteArray()) }
             if (c.responseCode !in 200..299) return null
             val j = JSONObject(c.inputStream.bufferedReader().readText())
-            j.optJSONArray("candidates")?.optJSONObject(0)?.optJSONObject("content")?.optJSONArray("parts")?.optJSONObject(0)
-                ?.optString("text")?.trim()?.trim('.', '"')?.lowercase()?.takeIf { it.isNotBlank() }
+            val parts = j.optJSONArray("candidates")?.optJSONObject(0)?.optJSONObject("content")?.optJSONArray("parts") ?: return null
+            (0 until parts.length()).mapNotNull { parts.optJSONObject(it) }
+                .firstOrNull { !it.optBoolean("thought") && it.optString("text").isNotBlank() }
+                ?.optString("text")?.trim()?.lines()?.first()?.trim('.', '"', ' ')?.lowercase()?.take(48)?.takeIf { it.isNotBlank() }
         } catch (_: Exception) { null }
     }
 
