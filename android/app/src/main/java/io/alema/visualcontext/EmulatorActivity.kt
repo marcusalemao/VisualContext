@@ -47,6 +47,13 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     private val work = Executors.newSingleThreadExecutor()
     private val faces by lazy { FaceBrain(this) }
     private val live by lazy { LiveBrain(this, this) }
+    /**
+     * The old engine (face-api.js), only in the background: when the new engine sees a stranger, the old one checks
+     * the faces registered with it long ago. A match is moved to the new engine without the user doing anything.
+     */
+    private var legacy: FaceEngine? = null
+    private val legacyChecked = HashSet<String>()
+    private var legacyBusy = false
     @Volatile private var lastJpeg: ByteArray? = null
     @Volatile private var facesOn = true
     @Volatile private var scanning = false
@@ -163,7 +170,26 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
             }
             val bw = b.width; val bh = b.height
             main.post { if (facesOn) onFaces(seen, bw, bh) }
+            seen.firstOrNull { it.pendingId != null }?.let { p -> legacyCheck(p, j) }
         } finally { scanning = false }
+    }
+
+    private fun legacyCheck(p: FaceBrain.Seen, jpeg: ByteArray) {
+        val pid = p.pendingId ?: return
+        val old = faces.legacyPeople(); if (old.isEmpty()) return
+        main.post {
+            if (legacyBusy || !legacyChecked.add(pid)) return@post
+            legacyBusy = true
+            val e = legacy ?: FaceEngine(applicationContext).also { legacy = it }
+            val small = Frames.shrink(jpeg, 640) ?: jpeg
+            e.describe(android.util.Base64.encodeToString(small, android.util.Base64.NO_WRAP)) { r ->
+                legacyBusy = false
+                val f = (r as? FaceEngine.Result.Faces)?.faces?.firstOrNull() ?: return@describe
+                val known = old.mapNotNull { pp -> pp.embedding?.let { io.alema.facecore.FaceMatch.Known(pp.name, it) } }
+                val m = io.alema.facecore.FaceMatch.best(f.descriptor, known) as? io.alema.facecore.FaceMatch.Result.Match ?: return@describe
+                work.execute { if (faces.adopt(pid, m.key)) main.post { toast("reconhecido pela memória antiga: ${m.key}") } }
+            }
+        }
     }
 
     /** Analysis bitmap → screen, as the preview shows it (FILL_CENTER, mirrored for the front camera). */
@@ -272,6 +298,6 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     }
     override fun onAccuracyChanged(s: Sensor?, a: Int) = Unit
 
-    override fun onDestroy() { main.removeCallbacksAndMessages(null); live.destroy(); faces.close(); work.shutdownNow(); super.onDestroy() }
+    override fun onDestroy() { main.removeCallbacksAndMessages(null); live.destroy(); faces.close(); legacy?.destroy(); work.shutdownNow(); super.onDestroy() }
     private fun toast(t: String) = Toast.makeText(this, t, Toast.LENGTH_SHORT).show()
 }

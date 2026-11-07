@@ -158,6 +158,12 @@ class FaceBrain(private val ctx: Context) {
         return e.id
     }
 
+    /** People in the memory whose only face record is an old face-api one (128-d). */
+    fun legacyPeople(): List<Backend.Person> = people.filter { it.embedding?.size == 128 } .filter { p -> LocalFaces.all(ctx).none { it.personId == p.id } }
+
+    /** The old engine recognised a new face as someone in the memory: store it under that person, silently. */
+    fun adopt(pendingId: String, personName: String): Boolean = keep(pendingId, personName) != null
+
     /** "Cancelar" during the countdown: nothing stored, and this face is not proposed again in this session. */
     fun ignore(pendingId: String) {
         pending.firstOrNull { it.id == pendingId }?.let { ignored += it.descriptor; pending.remove(it) }
