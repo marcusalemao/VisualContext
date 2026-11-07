@@ -380,7 +380,23 @@ function suggestions() {
   if (out.length < 4) out.push("Quem eu conheci esta semana?");
   return out.slice(0, 4);
 }
-function renderChips() { $("#chips").innerHTML = $("#q").value ? "" : suggestions().map(s => `<button class="chip" data-ask="${esc(s)}">✦ ${esc(s)}</button>`).join(""); }
+/** Prep for someone not in the memory yet (an interviewer, a new client): they come in, then the prep opens. */
+function prepNew() {
+  sheet(`<h3>Preparar uma conversa</h3><p class="sub">Com alguém que ainda não está na sua memória: um entrevistador, um cliente novo.</p>
+  <form class="f" id="nf"><label>Nome da pessoa<input name="name" required></label><label>Empresa<input name="company"></label><label>Cargo<input name="role"></label>
+  <div class="btns" style="margin-top:0"><button class="btn pri">Continuar</button><button class="btn" type="button" data-x="1">Cancelar</button></div></form>`);
+  $("#nf").onsubmit = async e => {
+    e.preventDefault();
+    const fd = new FormData(e.target), name = String(fd.get("name")).trim(); if (!name) return;
+    try {
+      await call("add_people", { people: [{ name, company: fd.get("company"), role: fd.get("role"), source: "preparacao" }] });
+      closeSheet(); await load();
+      const p = S.people.find(x => norm(x.name) === norm(name));
+      if (p) { open("person", p.id); prepForm(p.id); }
+    } catch (err) { toast("Não consegui: " + err.message); }
+  };
+}
+function renderChips() { $("#chips").innerHTML = $("#q").value ? "" : suggestions().map(s => `<button class="chip" data-ask="${esc(s)}">✦ ${esc(s)}</button>`).join("") + `<button class="chip" data-prepnew="1">✦ Preparar uma conversa</button>`; }
 
 /* ---------- scope box while typing ---------- */
 $("#q").addEventListener("input", () => {
@@ -512,7 +528,33 @@ function shareNote(id) {
   else navigator.clipboard.writeText(text).then(() => toast("Copiado. Cole no Keep ou no Notas."), () => toast("Não consegui copiar"));
 }
 /* ---------- spec 1o: prep before a conversation (memory first, then the web, kept apart) ---------- */
-async function prep(id) {
+/** Connectors for prep (07/11): memory + web always; your own material (job post, CV, LinkedIn "Save to PDF", proposal) attached or pasted. */
+function prepForm(id) {
+  const box = $("#prep"); if (!box) return;
+  box.innerHTML = `<div class="sec" style="border:1.5px solid var(--line2);border-radius:14px;padding:14px"><h5 style="border:0;color:var(--g)">✦ Preparar conversa</h5>
+    <form class="f" id="pf" style="margin-top:4px">
+      <label>Que conversa é?<select name="tipo"><option value="negocios">Negócios / reunião</option><option value="entrevista_candidato">Entrevista de emprego (sou candidato)</option><option value="entrevista_entrevistador">Entrevista (eu entrevisto)</option><option value="pessoal">Pessoal</option></select></label>
+      <label>Material (opcional): a vaga, um currículo, o PDF do perfil do LinkedIn (no perfil: Mais → Salvar como PDF), uma proposta<input type="file" name="files" multiple accept=".pdf,.txt,.md,image/*"></label>
+      <label>Ou cole aqui (texto da vaga, um e-mail, o contexto)<textarea name="texto" placeholder="opcional"></textarea></label>
+      <div class="btns" style="margin-top:0"><button class="btn pri">✦ Preparar</button></div>
+      <p class="muted" style="font-size:12.5px">Fontes: sua memória e a web, sempre. Gmail e Drive: em breve.</p>
+    </form></div>`;
+  box.scrollIntoView({ behavior: "smooth", block: "start" });
+  $("#pf").onsubmit = async e => {
+    e.preventDefault();
+    const fd = new FormData(e.target), files = [];
+    let total = 0;
+    for (const f of fd.getAll("files")) {
+      if (!f || !f.size) continue;
+      total += f.size; if (total > 15e6) { toast("Material grande demais (máx. 15 MB)"); return; }
+      const b64 = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(String(fr.result).split(",")[1]); fr.readAsDataURL(f); });
+      files.push({ inlineData: { mimeType: f.type || (f.name.endsWith(".pdf") ? "application/pdf" : "text/plain"), data: b64 } });
+    }
+    prep(id, { tipo: fd.get("tipo"), texto: String(fd.get("texto") || "").slice(0, 20000), files, nomes: fd.getAll("files").filter(f => f && f.size).map(f => f.name) });
+  };
+}
+
+async function prep(id, opt = {}) {
   const p = S.people.find(x => x.id === id); if (!p) return;
   const box = $("#prep"), key = store.get("vc_gemini");
   if (!box) return;
@@ -529,11 +571,13 @@ Use PRIMEIRO a memória dele (abaixo). Depois procure na web, com cuidado para n
 Responda SÓ com JSON, em português, curto e direto:
 {"quem": "1 frase: quem é para o usuário", "como_se_conhecem": "1 frase ou vazio", "ultimo_encontro": "1 frase ou vazio", "pendencias": ["o que ficou combinado ou prometido"], "para_nao_errar": ["como gosta de ser chamada, nomes de pessoas próximas, assuntos a evitar, promessas feitas — só o que estiver na memória"], "pontos": ["3 pontos de conversa"], "web": ["2-4 fatos públicos e recentes: empresa, cargo, notícias"], "web_certeza": "alta|media|baixa"}
 Nunca invente. Campo sem dado fica vazio.
-MEMÓRIA: ${JSON.stringify(mem)}`;
+TIPO DE CONVERSA: ${opt.tipo || "negocios"}.${opt.tipo === "entrevista_candidato" ? ` O usuário é o CANDIDATO: inclua "perguntas_provaveis" (5 perguntas que podem fazer a ele, com base na vaga e na empresa) e "perguntas_para_fazer" (3 perguntas inteligentes para ele fazer), e em "web" a cultura e notícias recentes da empresa.` : opt.tipo === "entrevista_entrevistador" ? ` O usuário ENTREVISTA a pessoa: inclua "perguntas_para_fazer" (5, a partir do currículo/perfil) e "pontos" com o que checar.` : ""}
+Campos extras opcionais no mesmo JSON: "perguntas_provaveis": [], "perguntas_para_fazer": [], "do_material": ["3 pontos tirados do material anexado, se houver"].
+${opt.texto ? "TEXTO COLADO PELO USUÁRIO: " + opt.texto + "\n" : ""}${opt.files?.length ? "MATERIAL ANEXADO: " + opt.nomes.join(", ") + " (em anexo).\n" : ""}MEMÓRIA: ${JSON.stringify(mem)}`;
   try {
     const model = await geminiModel(key);
     const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/${model}:generateContent`, { method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": key },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], tools: [{ google_search: {} }], generationConfig: { temperature: 0.2, maxOutputTokens: 4096 } }) });
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, ...(opt.files || [])] }], tools: [{ google_search: {} }], generationConfig: { temperature: 0.2, maxOutputTokens: 6000 } }) });
     const j = await r.json();
     if (!r.ok) throw new Error(j.error?.message || r.status);
     const cand = j.candidates?.[0] || {};
@@ -548,6 +592,9 @@ MEMÓRIA: ${JSON.stringify(mem)}`;
       <h5 style="margin-top:14px">Pendências</h5>${list(a.pendencias)}
       <h5 style="margin-top:14px">Para não errar</h5>${list(a.para_nao_errar)}
       <h5 style="margin-top:14px">Pontos de conversa</h5>${list(a.pontos)}
+      ${(a.do_material || []).length ? `<h5 style="margin-top:14px">Do seu material</h5>${list(a.do_material)}` : ""}
+      ${(a.perguntas_provaveis || []).length ? `<h5 style="margin-top:14px">Perguntas que podem te fazer</h5>${list(a.perguntas_provaveis)}` : ""}
+      ${(a.perguntas_para_fazer || []).length ? `<h5 style="margin-top:14px">Perguntas para você fazer</h5>${list(a.perguntas_para_fazer)}` : ""}
       <h5 style="margin-top:14px">Da web ${a.web_certeza && a.web_certeza !== "alta" ? `<span style="color:#ffd166">· confira: pode ser outra pessoa</span>` : ""}</h5>${list(a.web)}
       ${links.length ? `<div class="src">${links.map(l => `<a href="${esc(l.uri)}" target="_blank" rel="noopener" style="font-size:12.5px;border:1.5px solid var(--line2);border-radius:10px;padding:5px 9px;color:var(--g2);text-decoration:none">${esc(l.title || "fonte")}</a>`).join("")}</div>` : ""}
     </div>`;
@@ -751,7 +798,8 @@ document.addEventListener("click", e => {
   else if (d.delRow) { const [kind, id] = d.delRow.split(":"); confirmDelete({ note: "esta nota", thing: "esta coisa", encounter: "este momento" }[kind], () => call("delete_row", { kind, id })); }
   else if (d.dups) dupReview();
   else if (d.share) shareNote(d.share);
-  else if (d.prep) prep(d.prep);
+  else if (d.prep) prepForm(d.prep);
+  else if (d.prepnew) prepNew();
 });
 $("#bImport").onclick = importSheet;
 $("#bSet").onclick = settings;
