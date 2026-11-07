@@ -80,11 +80,19 @@ class SettingsActivity : Activity() {
             })
         }
         col.addView(label("Emulador no celular", 16f, green))
-        col.addView(label("A tela do celular vira a lente: câmera, microfone, GPS. Pessoas, Gemini Live e Lugares juntos. Vire o celular na horizontal."))
+        col.addView(label("A tela do celular vira a lente: câmera, microfone, GPS. Pessoas, Gemini Live e Lugares juntos, em pé ou deitado."))
         col.addView(Button(this).apply {
             text = "Abrir o emulador"
             setOnClickListener { startActivity(Intent(this@SettingsActivity, EmulatorActivity::class.java)) }
         })
+        if (Backend.token(this).isNotEmpty()) {
+            col.addView(label("Manager", 16f, green))
+            col.addView(label("Sua memória no navegador: pergunte qualquer coisa, edite pessoas, junte repetidas, importe contatos. Abre já conectado, sem senha."))
+            col.addView(Button(this).apply {
+                text = "Abrir o Manager"
+                setOnClickListener { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(Backend.managerLink(this@SettingsActivity)))) }
+            })
+        }
         col.addView(label("Chave do Gemini (Google AI Studio)", 14f, green))
         val gk = field(Backend.geminiKey(this), true).apply { hint = "AIza…" }
         col.addView(gk)

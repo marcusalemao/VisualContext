@@ -39,6 +39,28 @@ object Describe {
         } catch (_: Exception) { null }
     }
 
+    /** One short sentence about a conversation with the assistant, for the memory list. Blocking; null on failure. */
+    fun summary(ctx: Context, conversation: String): String? {
+        val key = Backend.geminiKey(ctx); if (key.length < 20) return null
+        val model = textModel(ctx, key) ?: return null
+        val prompt = "Resuma em UMA frase curta (até 15 palavras), em português, sobre o que foi esta conversa entre o usuário e o assistente. " +
+            "Sem nomes de remetente, sem \"o usuário perguntou\": diga o assunto. Se houver algo íntimo ou sensível (nudez, sexo, saúde de alguém), " +
+            "escreva só uma frase neutra, sem detalhes.\n\n" + conversation.take(8000)
+        val body = JSONObject().put("contents", JSONArray().put(JSONObject().put("parts", JSONArray().put(JSONObject().put("text", prompt)))))
+            .put("generationConfig", JSONObject().put("maxOutputTokens", 800).put("temperature", 0.2))
+        return try {
+            val c = (URL("https://generativelanguage.googleapis.com/v1beta/$model:generateContent").openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"; connectTimeout = 10_000; readTimeout = 30_000; doOutput = true
+                setRequestProperty("Content-Type", "application/json"); setRequestProperty("x-goog-api-key", key)
+            }
+            c.outputStream.use { it.write(body.toString().toByteArray()) }
+            if (c.responseCode !in 200..299) return null
+            val parts = JSONObject(c.inputStream.bufferedReader().readText()).optJSONArray("candidates")?.optJSONObject(0)?.optJSONObject("content")?.optJSONArray("parts") ?: return null
+            (0 until parts.length()).mapNotNull { parts.optJSONObject(it) }.firstOrNull { !it.optBoolean("thought") && it.optString("text").isNotBlank() }
+                ?.optString("text")?.trim()?.lines()?.first()?.trim('"', ' ')?.take(160)
+        } catch (_: Exception) { null }
+    }
+
     /** A cheap text+vision model this key can use, from ListModels (cached). */
     fun textModel(ctx: Context, key: String): String? {
         Backend.prefsText(ctx)?.let { return it }

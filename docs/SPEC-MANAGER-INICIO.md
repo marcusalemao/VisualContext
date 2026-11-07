@@ -197,6 +197,14 @@ The current Manager is **visualcontext.base44.app/dashboard** (code in the priva
 - Fix while at it: the "Óculos conectados" indicator is fake (it flips at random every 8 s) → show the real status or nothing; delete asks for confirmation; remove the leftover "Live Companion" name; one ask field instead of a separate text filter per tab.
 - Publish only when the new Home is ready, after a checkpoint and a preview test.
 
+### 1m. Free conversations with the assistant are memory too (decided 07/11)
+- Every free conversation with Gemini Live becomes **one moment**, kept with its context: when, where (address and coordinates), who was in view (names recognised in the last 10 minutes) and a one-sentence summary. "What did I ask about MASP that day?" must have an answer years later.
+- **Text only, both sides** ("Você: …" / "Assistente: …"). Audio is never stored.
+- **Exceptions (privacy rules):** saying "não guarda isso", "esquece o que eu disse" or "apaga isso" removes that exchange and the one before; sensitive moments get one neutral sentence; nothing is saved while memory is paused.
+- Saved when Live closes (Fechar, 40 s of silence, or the connection drops). Offline, it waits on the phone and goes with the next one.
+- In the Manager it shows under **Memories** with ✦ ("Conversa com o assistente").
+- Built in app 0.7.0 (`LiveBrain.saveConversation`, `Moments`, vc action `moment`, `capture_mode = live`).
+
 ---
 
 ## PT — Português
@@ -393,3 +401,11 @@ O Manager atual é o **visualcontext.base44.app/dashboard** (código no reposit�
 - Manter o que funciona: cards de memória com "Ver no mapa", o formulário de memória, a revisão de duplicados, o recorte circular da foto.
 - Corrigir junto: o indicador "Óculos conectados" é falso (troca sozinho a cada 8 s) → mostrar o status real ou nada; apagar pede confirmação; tirar o nome antigo "Live Companion"; um campo de pergunta único em vez de um filtro de texto separado em cada aba.
 - Publicar só quando a nova tela inicial estiver pronta, depois de um ponto de restauração e de um teste na prévia.
+
+### 1m. Conversas livres com o assistente também são memória (decidido em 07/11)
+- Toda conversa livre com o Gemini Live vira **um momento**, guardado com o contexto: quando, onde (endereço e coordenadas), quem estava no campo de visão (nomes reconhecidos nos últimos 10 minutos) e um resumo de uma frase. "O que eu perguntei sobre o MASP naquele dia?" precisa ter resposta anos depois.
+- **Só texto, dos dois lados** ("Você: …" / "Assistente: …"). O áudio nunca é guardado.
+- **Exceções (regras de privacidade):** dizer "não guarda isso", "esquece o que eu disse" ou "apaga isso" tira aquela troca e a anterior; momentos sensíveis viram uma frase neutra; nada é guardado com a memória pausada.
+- É salvo quando o Live fecha (Fechar, 40 s de silêncio ou queda da conexão). Sem internet, espera no celular e vai junto com o próximo.
+- No Manager aparece em **Lembranças** com ✦ ("Conversa com o assistente").
+- Feito no app 0.7.0 (`LiveBrain.saveConversation`, `Moments`, ação `moment` do vc, `capture_mode = live`).

@@ -38,6 +38,26 @@ object Backend {
         data class Failed(val reason: String) : Result()
     }
 
+    /** Blocking. Any vc action; null when offline, no token or an error. */
+    fun post(ctx: Context, body: JSONObject): String? {
+        val token = token(ctx); if (token.isEmpty()) return null
+        return try {
+            val c = (URL(url(ctx)).openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"; connectTimeout = 10_000; readTimeout = 20_000; doOutput = true
+                setRequestProperty("Content-Type", "application/json"); setRequestProperty("x-vc-token", token)
+            }
+            c.outputStream.use { it.write(body.toString().toByteArray()) }
+            if (c.responseCode in 200..299) c.inputStream.bufferedReader().use { it.readText() } else null
+        } catch (_: Exception) { null }
+    }
+
+    /** The Manager in the browser, already signed in with this phone (fragment: never sent to a server). */
+    const val MANAGER_URL = "https://web-visualcontext-site.visualcontext.pages.dev/manager"
+    fun managerLink(ctx: Context): String {
+        val g = geminiKey(ctx).takeIf { it.length > 20 }?.let { "&g=" + java.net.URLEncoder.encode(it, "UTF-8") } ?: ""
+        return "$MANAGER_URL#t=${token(ctx)}$g"
+    }
+
     /** Blocking — call it off the main thread. */
     fun people(ctx: Context): Result {
         val token = token(ctx)

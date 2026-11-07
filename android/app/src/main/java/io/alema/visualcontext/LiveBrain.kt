@@ -40,6 +40,11 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
     private var lastNamed = ""
     private var lastNamedAt = 0L
     private var resumeHandle: String? = null
+    /** The conversation so far, in text (never audio): it becomes one moment in the memory when Live closes. */
+    private val turns = mutableListOf<Pair<String, String>>()
+    private val userTurn = StringBuilder()
+    private val modelTurn = StringBuilder()
+    private var talkStartedAt = 0L
     @Volatile var open = false; private set
     var lastActivity = 0L; private set
 
@@ -55,6 +60,7 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
     }
 
     fun stop() {
+        saveConversation()
         open = false
         mic.stop(); speaker.stop(); live.close()
         host.onState("idle")
@@ -74,6 +80,7 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
         when (e) {
             is LiveProtocol.Event.SetupComplete -> {
                 open = true; lastActivity = SystemClock.elapsedRealtime()
+                if (turns.isEmpty()) talkStartedAt = System.currentTimeMillis()
                 if (!mic.start()) { host.onState("error: microfone não liberado"); return }
                 host.onState("listening")
             }
@@ -81,23 +88,52 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
                 lastActivity = SystemClock.elapsedRealtime()
                 if (lastActivity - heardAt > 8000) heard.setLength(0)
                 heardAt = lastActivity
-                heard.append(e.text)
+                heard.append(e.text); userTurn.append(e.text)
                 host.onTranscript(transcript.lines(), heard.toString().trim().takeLast(40))
                 spotName()
             }
             is LiveProtocol.Event.ModelText -> {
                 lastActivity = SystemClock.elapsedRealtime()
                 if (turnDone) { transcript.clear(); turnDone = false }
+                modelTurn.append(e.text)
                 transcript.add(e.text); host.onTranscript(transcript.lines(), null); host.onState("speaking")
             }
             is LiveProtocol.Event.Interrupted -> speaker.flush()
-            is LiveProtocol.Event.TurnComplete -> { heard.setLength(0); turnDone = true; lastActivity = SystemClock.elapsedRealtime(); host.onState("listening") }
+            is LiveProtocol.Event.TurnComplete -> { endTurn(); heard.setLength(0); turnDone = true; lastActivity = SystemClock.elapsedRealtime(); host.onState("listening") }
             is LiveProtocol.Event.ToolCall -> tool(e)
             is LiveProtocol.Event.Resumption -> resumeHandle = e.handle
             is LiveProtocol.Event.GoAway -> Unit
             is LiveProtocol.Event.Error -> host.onState("error: " + e.message.take(60))
             is LiveProtocol.Event.Audio -> Unit
         }
+    }
+
+    /** "não guarda isso" / "esquece o que eu disse": that exchange (and the one before) leaves the memory. */
+    private fun endTurn() {
+        val u = userTurn.toString().trim(); val m = modelTurn.toString().trim()
+        userTurn.setLength(0); modelTurn.setLength(0)
+        if (FORGET.containsMatchIn(u)) { if (turns.isNotEmpty()) turns.removeAt(turns.lastIndex); return }
+        if (u.isNotEmpty() || m.isNotEmpty()) turns += u to m
+    }
+
+    /** Spec: every free conversation with the assistant is a moment, with when, where and who was around. */
+    private fun saveConversation() {
+        endTurn()
+        if (turns.isEmpty()) return
+        val text = turns.joinToString("\n") { (u, m) -> listOfNotNull(u.takeIf { it.isNotEmpty() }?.let { "Você: $it" }, m.takeIf { it.isNotEmpty() }?.let { "Assistente: $it" }).joinToString("\n") }
+        val at = talkStartedAt.takeIf { it > 0 } ?: System.currentTimeMillis()
+        turns.clear(); talkStartedAt = 0
+        val who = host.faces().recentNames(10 * 60_000)
+        Thread {
+            val loc = Where.location(ctx)
+            val body = JSONObject().put("action", "moment").put("transcript", text)
+                .put("at", java.time.Instant.ofEpochMilli(at).toString()).put("capture_mode", "live")
+                .put("context", if (who.isEmpty()) "conversa com o assistente" else "conversa com o assistente, com " + who.joinToString(", "))
+            if (who.size == 1) body.put("person_name", who[0])
+            if (loc != null) body.put("lat", loc.latitude).put("lng", loc.longitude).put("place", Where.address(ctx, loc))
+            Describe.summary(ctx, text)?.let { body.put("summary", it) }
+            Moments.send(ctx, body)
+        }.start()
     }
 
     /** Names are caught here, not left to Gemini: saying the name is enough, no button, no tool call needed. */
@@ -115,7 +151,7 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
     }
 
     override fun onClosed(reason: String, byUs: Boolean) {
-        main.post { open = false; mic.stop(); if (!byUs) { Backend.saveLiveModel(ctx, null); host.onState("error: $reason") } }
+        main.post { saveConversation(); open = false; mic.stop(); if (!byUs) { Backend.saveLiveModel(ctx, null); host.onState("error: $reason") } }
     }
 
     private fun tool(call: LiveProtocol.Event.ToolCall) {
@@ -160,4 +196,8 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
     }
 
     fun destroy() { stop(); io.shutdownNow() }
+
+    companion object {
+        private val FORGET = Regex("""(n[ãa]o (guarda|grava|salva|anota)|esquece (isso|o que eu (disse|falei))|apaga (isso|o que eu (disse|falei)))""", RegexOption.IGNORE_CASE)
+    }
 }

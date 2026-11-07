@@ -70,6 +70,27 @@
 - **Watch the value of the paid edition:** Google gives a free Gemini key in 2 minutes, so "keys included" alone is weak. Plus should also carry what is hard to do alone: encrypted cloud backup/sync, the hosted Manager on the laptop, better models, updates without setup.
 - **The community should accept it:** the Nexus Assistant itself is bring-your-own-key, and awesome-rokid accepts commercial projects labeled `· Commercial`. Free + open + your own keys is the friendliest model there is.
 
+### Update 07/11 — Born independent, subscription from day one, lifetime memory
+
+**Marcus's decisions:**
+- **Independent of Nexus.** Our own app works without it; being on Nexus too is a bonus, not a dependency.
+- **Subscription from the start.** We supply the database (and the AI, unless the user brings a key). Donations to Zap brought interest but no money.
+- **A full free trial** that is good enough to hook people (about one week, or a number of uses), then paid.
+- **Two paid levels**, a low price and a higher one.
+- **Lifetime memory.** No 30/90-day memory like the others: someone uses it for 10 years, grows old, and can still relive their memories.
+- **Every free conversation with Gemini Live goes into the memory**, with its context (not decontextualized).
+
+**Claude's proposal (pending Marcus's OK):**
+- **Plans differ by AI, not by memory.** A memory cap contradicts "lifetime". Storage is cheap: moments are kept as text and the frames are discarded, so 10 years are a few hundred MB per person. What costs money is live AI (Gemini voice and vision).
+  - **Trial:** 7 full days, no card.
+  - **Essential (low price):** lifetime memory, faces, things, places, Manager, a monthly quota of live conversation.
+  - **Plus:** much more live conversation, several devices (glasses + phone), Google Photos import, new features first.
+  - **Bring your own key:** a discount for people who paste their own Gemini key (it removes our biggest cost).
+- **Memory is never deleted when payment stops.** It stays read-only and exportable at any time (LGPD/GDPR portability, and the trust needed to hand over 10 years of life).
+- **Where it lives:** our database (Supabase) as the main copy, because meaning search, sync between glasses, phone and Manager need a real database. Plus an optional weekly encrypted backup in the user's Google Drive, WhatsApp-style. A privacy-max option (phone only + Drive backup, no Manager on the web) can be a Plus feature.
+- **Charging:** Play Store billing (simple, 15% fee) or Stripe on the site. Decide closer to launch.
+- **Already built:** table `accounts` (plan: trial / essential / plus / byok / founder / paused; `trial_ends_at` = 7 days). Marcus's account is `founder`. The Manager shows the plan and has "Export everything".
+
 ---
 
 ## PT — Português
@@ -139,3 +160,24 @@
 - **Nome:** "Developer" sugere que é preciso programar, mas qualquer pessoa consegue colar uma chave. Sugestão: **Community** (grátis, suas chaves) e **Plus** (pronto para usar).
 - **Atenção ao valor da edição paga:** o Google dá uma chave grátis do Gemini em 2 minutos, então só "chave incluída" vale pouco. O Plus deve trazer também o que é difícil fazer sozinho: backup e sincronização criptografados na nuvem, o Manager hospedado para usar no laptop, modelos melhores, atualizações sem configurar nada.
 - **A comunidade deve aceitar:** o próprio Assistant do Nexus funciona com a chave do usuário, e o awesome-rokid aceita projetos comerciais marcados com `· Commercial`. Grátis, aberto e com as suas chaves é o modelo mais amigável que existe.
+
+### Atualização 07/11 — Nascer independente, assinatura desde o início, memória vitalícia
+
+**Decisões do Marcus:**
+- **Independente do Nexus.** O app próprio funciona sem ele; estar também no Nexus é um bônus, não uma dependência.
+- **Assinatura desde o começo.** Nós fornecemos o banco de dados (e a IA, quando a pessoa não traz a chave). O Zap atraiu interesse, mas nenhuma doação.
+- **Teste grátis completo**, bom o bastante para a pessoa se interessar (cerca de uma semana, ou um número de usos), depois pago.
+- **Dois níveis pagos**, um barato e outro mais caro.
+- **Memória vitalícia.** Nada de memória de 30 ou 90 dias como os outros: a pessoa usa por 10 anos, envelhece e ainda consegue reviver as memórias.
+- **Toda conversa livre com o Gemini Live entra na memória**, com o contexto junto (sem descontextualizar).
+
+**Proposta do Claude (aguardando o OK do Marcus):**
+- **Planos se diferenciam pela IA, não pela memória.** Limite de memória contradiz o "vitalício". Armazenar custa pouco: os momentos ficam em texto e as fotos são descartadas, então 10 anos dão algumas centenas de MB por pessoa. O que custa caro é a IA ao vivo (voz e visão do Gemini).
+  - **Teste:** 7 dias completos, sem cartão.
+  - **Essencial (preço baixo):** memória vitalícia, rostos, coisas, lugares, Manager, cota mensal de conversa ao vivo.
+  - **Plus:** muito mais conversa ao vivo, vários aparelhos (óculos + celular), importação do Google Fotos, recursos novos primeiro.
+  - **Traga sua chave:** desconto para quem cola a própria chave do Gemini (tira o nosso maior custo).
+- **A memória nunca é apagada se a pessoa parar de pagar.** Fica só para leitura e exportável a qualquer momento (portabilidade da LGPD/GDPR, e a confiança para entregar 10 anos de vida).
+- **Onde fica:** o nosso banco (Supabase) é a cópia principal, porque busca por significado e sincronização entre óculos, celular e Manager pedem um banco de verdade. Mais um backup semanal criptografado e opcional no Google Drive da pessoa, como o do WhatsApp. Uma opção de privacidade máxima (só no celular + backup no Drive, sem Manager na web) pode ser recurso do Plus.
+- **Cobrança:** pela Play Store (simples, 15% de taxa) ou Stripe no site. Decidir perto do lançamento.
+- **Já feito:** tabela `accounts` (plano: trial / essential / plus / byok / founder / paused; `trial_ends_at` = 7 dias). A conta do Marcus é `founder`. O Manager mostra o plano e tem "Exportar tudo".

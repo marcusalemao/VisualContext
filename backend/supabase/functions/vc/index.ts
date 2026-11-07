@@ -30,14 +30,16 @@ async function listPeople(w: Who, limit = 1000) {
   const { data: people, error } = await mine(db.from("people").select("*"), w).order("updated_at", { ascending: false }).limit(limit);
   if (error) throw error;
   const ids = (people ?? []).map((p: any) => p.id);
-  const { data: faces } = ids.length ? await db.from("faces").select("person_id, legacy").in("person_id", ids).not("legacy", "is", null) : { data: [] };
-  const legacy = new Map((faces ?? []).map((f: any) => [f.person_id, f.legacy]));
+  const { data: faces } = ids.length ? await db.from("faces").select("person_id, legacy").in("person_id", ids) : { data: [] };
+  const legacy = new Map((faces ?? []).filter((f: any) => f.legacy).map((f: any) => [f.person_id, f.legacy]));
+  const nFaces = new Map<string, number>();
+  for (const f of faces ?? []) nFaces.set((f as any).person_id, (nFaces.get((f as any).person_id) ?? 0) + 1);
   return (people ?? []).map((p: any) => ({
     id: p.id, name: p.name, nickname: p.nickname, company: p.company, role: p.role, relation: p.relation,
     relation_context: p.relation_context, photo_url: p.photo_url, tags: p.tags, notes: p.notes,
     contact_email: p.contact_email, contact_phone: p.contact_phone, contact_whatsapp: p.contact_whatsapp, contact_linkedin: p.contact_linkedin,
     last_seen_date: p.last_seen_at, last_seen_context: p.last_seen_context, status: p.status, source: p.source,
-    face_embedding: legacy.get(p.id) ?? null,
+    face_embedding: legacy.get(p.id) ?? null, faces: nFaces.get(p.id) ?? 0, created_at: p.created_at,
   }));
 }
 
@@ -59,7 +61,8 @@ Deno.serve(async (req) => {
         if (!body.entity || /person/i.test(body.entity)) return json(await listPeople(w, Math.min(body.limit ?? 1000, 1000)));
         const table = /encounter/i.test(body.entity) ? "encounters" : /thing|episodic/i.test(body.entity) ? "things" : /note/i.test(body.entity) ? "notes" : null;
         if (!table) return json({ error: "entity" }, 400);
-        const { data, error } = await mine(db.from(table).select("*"), w).limit(Math.min(body.limit ?? 200, 1000));
+        const col = table === "encounters" ? "at" : table === "things" ? "seen_at" : "at";
+        const { data, error } = await mine(db.from(table).select("*"), w).order(col, { ascending: false }).limit(Math.min(body.limit ?? 500, 2000));
         if (error) throw error;
         return json(data);
       }
@@ -95,6 +98,84 @@ Deno.serve(async (req) => {
         const { error } = await db.from("notes").insert({ ...stamp(w), text: body.text, source: body.source ?? "voice" });
         if (error) throw error;
         return json({ ok: true });
+      }
+      case "moment": { // a free conversation with the assistant (Gemini Live), or any moment: text only, never audio
+        if (!body.transcript && !body.summary) return json({ error: "transcript" }, 400);
+        let personId: string | null = null;
+        if (body.person_name) { const { data: hit } = await mine(db.from("people").select("id").ilike("name", body.person_name), w).limit(1); personId = hit?.[0]?.id ?? null; }
+        const { data, error } = await db.from("encounters").insert({ ...stamp(w), person_id: personId, person_name: body.person_name ?? null, at: body.at ?? new Date().toISOString(),
+          place: body.place ?? null, lat: body.lat ?? null, lng: body.lng ?? null, context: body.context ?? "conversa com o assistente",
+          transcript: String(body.transcript ?? "").slice(0, 20000), summary: body.summary ?? null, capture_mode: body.capture_mode ?? "live" }).select("id").single();
+        if (error) throw error;
+        return json({ id: data.id });
+      }
+      // ---- Manager ----
+      case "me": { // who is this, which plan, how much is stored (the Manager's header)
+        const email = w.email;
+        let { data: acc } = await db.from("accounts").select("*").eq("owner_email", email).maybeSingle();
+        if (!acc) ({ data: acc } = await db.from("accounts").insert({ owner_email: email }).select("*").single());
+        const count = async (t: string) => (await mine(db.from(t).select("id", { count: "exact", head: true }), w)).count ?? 0;
+        return json({ email, plan: acc?.plan, trial_ends_at: acc?.trial_ends_at, counts: { people: await count("people"), encounters: await count("encounters"), things: await count("things"), notes: await count("notes"), faces: await count("faces") } });
+      }
+      case "delete_row": { // a thing, a note or a moment, from the Manager (confirmed in the page)
+        const table = ({ thing: "things", note: "notes", encounter: "encounters" } as Record<string, string>)[body.kind];
+        if (!table || !body.id) return json({ error: "kind/id" }, 400);
+        const { data, error } = await mine(db.from(table).delete(), w).eq("id", body.id).select("id");
+        if (error) throw error;
+        return json({ deleted: data?.length ?? 0 });
+      }
+      case "update_person": {
+        const allowed = ["name", "nickname", "company", "role", "relation", "relation_context", "photo_url", "tags", "contact_whatsapp", "contact_email", "contact_phone", "contact_linkedin", "notes", "status", "last_seen_context"];
+        const patch: Record<string, unknown> = {};
+        for (const k of allowed) if (body.fields && k in body.fields) patch[k] = body.fields[k];
+        if (!body.id || !Object.keys(patch).length) return json({ error: "id/fields" }, 400);
+        const { data, error } = await mine(db.from("people").update(patch), w).eq("id", body.id).select("id");
+        if (error) throw error;
+        return json({ updated: data?.length ?? 0 });
+      }
+      case "delete_person": {
+        if (!body.id) return json({ error: "id" }, 400);
+        const { data, error } = await mine(db.from("people").delete(), w).eq("id", body.id).select("id");
+        if (error) throw error;
+        return json({ deleted: data?.length ?? 0 });
+      }
+      case "merge_people": { // keep ← drop: faces and encounters move, empty fields are filled, tags joined, notes appended
+        if (!body.keep || !body.drop || body.keep === body.drop) return json({ error: "keep/drop" }, 400);
+        const { data: two } = await mine(db.from("people").select("*"), w).in("id", [body.keep, body.drop]);
+        const keep = two?.find((p: any) => p.id === body.keep), drop = two?.find((p: any) => p.id === body.drop);
+        if (!keep || !drop) return json({ error: "not found" }, 404);
+        const fill: Record<string, unknown> = {};
+        for (const k of ["nickname", "company", "role", "relation", "relation_context", "photo_url", "contact_whatsapp", "contact_email", "contact_phone", "contact_linkedin", "last_seen_context"]) if (!keep[k] && drop[k]) fill[k] = drop[k];
+        fill.tags = Array.from(new Set([...(keep.tags ?? []), ...(drop.tags ?? [])]));
+        if (drop.notes) fill.notes = [keep.notes, drop.notes].filter(Boolean).join("\n");
+        if (drop.last_seen_at && (!keep.last_seen_at || drop.last_seen_at > keep.last_seen_at)) { fill.last_seen_at = drop.last_seen_at; fill.last_seen_context = drop.last_seen_context; }
+        await db.from("people").update(fill).eq("id", keep.id);
+        await db.from("faces").update({ person_id: keep.id }).eq("person_id", drop.id);
+        await db.from("encounters").update({ person_id: keep.id, person_name: keep.name }).eq("person_id", drop.id);
+        await db.from("people").delete().eq("id", drop.id);
+        return json({ merged: true, keep: keep.id });
+      }
+      case "add_people": { // import from contacts/LinkedIn/CSV: same name = fill empty fields, never duplicate
+        const rows = (body.people ?? []) as any[];
+        const { data: have } = await mine(db.from("people").select("id, name, company, role, contact_email, contact_phone, contact_linkedin, photo_url"), w);
+        const byName = new Map((have ?? []).map((p: any) => [String(p.name).trim().toLowerCase(), p]));
+        let added = 0, filled = 0;
+        for (const r of rows) {
+          const name = String(r?.name ?? "").trim();
+          if (!name) continue;
+          const fields = { company: r.company || null, role: r.role || null, contact_email: r.contact_email || null, contact_phone: r.contact_phone || null, contact_linkedin: r.contact_linkedin || null, photo_url: r.photo_url || null };
+          const ex: any = byName.get(name.toLowerCase());
+          if (ex) {
+            const fill: Record<string, unknown> = {};
+            for (const [k, v] of Object.entries(fields)) if (v && !ex[k]) fill[k] = v;
+            if (Object.keys(fill).length) { await db.from("people").update(fill).eq("id", ex.id); filled++; }
+          } else {
+            const { data: p, error } = await db.from("people").insert({ ...stamp(w), name, ...fields, source: r.source ?? "import", tags: r.tags ?? [] }).select("*").single();
+            if (error) throw error;
+            byName.set(name.toLowerCase(), p); added++;
+          }
+        }
+        return json({ added, filled });
       }
       case "import_people": { // one-off migration from Base44 (FaceContextPerson records); re-runnable (upsert by legacy_id)
         const rows = (body.people ?? []) as any[];

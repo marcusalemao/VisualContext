@@ -33,6 +33,9 @@ class FaceBrain(private val ctx: Context) {
     /** A new face, in memory only. Nobody becomes a record for passing by (privacy spec, section 7). */
     class Pending(val id: String, var descriptor: FloatArray, var thumb: String, val since: Long, var lastSeen: Long, var desc: String? = null, var face: Face? = null)
     private val pending = java.util.concurrent.CopyOnWriteArrayList<Pending>()
+    /** Names recognised lately, so a conversation with the assistant knows who was around. */
+    private val recent = java.util.concurrent.ConcurrentHashMap<String, Long>()
+    fun recentNames(sinceMs: Long): List<String> { val t = System.currentTimeMillis() - sinceMs; return recent.filter { it.value >= t }.keys.toList() }
     /**
      * Who was where a moment ago. A recognised person keeps the name while the face stays in about the same
      * place (turned, half hidden, bad light), for up to [HOLD_MS] since the last sure match.
@@ -85,6 +88,7 @@ class FaceBrain(private val ctx: Context) {
             result
         }
         if (out.isNotEmpty()) { last = out; lastAt = System.currentTimeMillis() }
+        out.filter { it.known && it.sure }.forEach { recent[it.label] = now }
         return out
     }
 
