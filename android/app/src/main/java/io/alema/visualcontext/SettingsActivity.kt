@@ -161,7 +161,8 @@ class SettingsActivity : Activity() {
                 }
             }
         } else {
-            val status = TextView(this).apply { text = "verificando…"; textSize = 16f; setTextColor(green) }
+            if (Backend.token(this).isNotEmpty()) io.execute { Backend.syncMe(this) }
+        val status = TextView(this).apply { text = "verificando…"; textSize = 16f; setTextColor(green) }
             c1.addView(status); check(status)
             Backend.email(this).takeIf { it.isNotEmpty() }?.let { c1.p("Conta: $it", 13f) }
             c1.btn("Abrir o Manager", true) { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(Backend.managerLink(this)))) }

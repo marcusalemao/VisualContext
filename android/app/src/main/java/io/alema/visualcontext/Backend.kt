@@ -26,7 +26,16 @@ object Backend {
     fun saveGemini(ctx: Context, key: String, voice: String) { prefs(ctx).edit().putString("gemini_key", key.trim()).putString("voice", voice).remove("live_model").remove("text_model").apply() }
     /** The wearer's own name in the faces list (Marcus, 07/11): that face is never an encounter, even in a mirror or on a friend's phone. */
     fun meName(ctx: Context): String = prefs(ctx).getString("me_name", "") ?: ""
-    fun setMeName(ctx: Context, n: String) { prefs(ctx).edit().putString("me_name", n.trim()).apply() }
+    fun setMeName(ctx: Context, n: String) {
+        prefs(ctx).edit().putString("me_name", n.trim()).apply()
+        Moments.send(ctx, org.json.JSONObject().put("action", "set_me").put("name", n.trim())) // the Manager shows "★ você" too
+    }
+    /** Pull the account's "me" (set in the Manager, or on another phone). Blocking. */
+    fun syncMe(ctx: Context) {
+        val r = post(ctx, org.json.JSONObject().put("action", "me")) ?: return
+        val n = runCatching { org.json.JSONObject(r).optString("me_name") }.getOrDefault("")
+        if (n != "null") prefs(ctx).edit().putString("me_name", n).apply()
+    }
     /** Only the phone: no Gemini Live at all (recognise, transcribe and warn offline). */
     fun offlineOnly(ctx: Context) = prefs(ctx).getBoolean("offline_only", false)
     fun setOfflineOnly(ctx: Context, on: Boolean) { prefs(ctx).edit().putBoolean("offline_only", on).apply() }

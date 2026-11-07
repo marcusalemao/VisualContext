@@ -162,7 +162,12 @@ Deno.serve(async (req) => {
         let { data: acc } = await db.from("accounts").select("*").eq("owner_email", email).maybeSingle();
         if (!acc) ({ data: acc } = await db.from("accounts").insert({ owner_email: email }).select("*").single());
         const count = async (t: string) => (await mine(db.from(t).select("id", { count: "exact", head: true }), w)).count ?? 0;
-        return json({ email, plan: acc?.plan, trial_ends_at: acc?.trial_ends_at, counts: { people: await count("people"), encounters: await count("encounters"), things: await count("things"), notes: await count("notes"), faces: await count("faces") } });
+        return json({ email, plan: acc?.plan, trial_ends_at: acc?.trial_ends_at, me_name: acc?.me_name ?? null, counts: { people: await count("people"), encounters: await count("encounters"), things: await count("things"), notes: await count("notes"), faces: await count("faces") } });
+      }
+      case "set_me": { // the wearer's own name (Marcus, 07/11): never an encounter, marked "você" everywhere
+        const name = String(body.name ?? "").trim().slice(0, 120);
+        await db.from("accounts").upsert({ owner_email: w.email, owner: w.owner, me_name: name || null }, { onConflict: "owner_email" });
+        return json({ me_name: name || null });
       }
       case "delete_row": { // a thing, a note or a moment, from the Manager (confirmed in the page)
         const table = ({ thing: "things", note: "notes", encounter: "encounters" } as Record<string, string>)[body.kind];
