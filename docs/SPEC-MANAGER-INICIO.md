@@ -172,6 +172,16 @@ Inspired by Gemma 4 on Marcus's phone (ask questions about a one-hour video; it 
 - An imported photo is for **display only** (card and Manager). The app never builds face templates from the address book.
 - Face recognition starts only from a **real encounter**. When a new face appears, the app compares names and asks: "Is this Rafael Souza from your contacts?". On confirmation, the records merge.
 
+### 5b. Import from Google Photos (decided 06/11)
+Google Photos has no API for its named face groups (since 31/03/2025 apps only see photos the user picks one by one), so the app reads the screen, with the user's permission (Android screen capture).
+1. **Capture the grid:** the user opens "People and pets" and scrolls; the app collects every face with a name.
+2. **Select in our app:** the grid is rebuilt in VisualContext with a checkbox per person ("select all" / "clear"). Children come unticked; pets and the user himself are left out (the user becomes "Me").
+3. **Recent photos, automatically:** for each ticked person the app opens their page (newest photos first), reads the full name from the header (the grid cuts names) and keeps 3–5 faces that agree with each other (a group photo doesn't mix people). Uses the same accessibility technique as the Zap; without it, the user taps each person and the app captures each page by itself.
+4. **Review and save.** Faces from Google Photos are used for recognition (Marcus, 06/11: any name in the capture, replacing the 11/10 rule for this source), marked "face from Google Photos"; the first real encounter confirms.
+- **Faces stay current by themselves:** every sure recognition by the glasses stores a new face and drops the oldest, up to 5 per person.
+- **Also put the photo in the phone's contacts (option, off by default):** only contacts that already exist, only those without a photo (replacing one is a per-person tick), the most recent face cropped square, no new contacts created. Note shown: the phone's contacts usually sync to Google Contacts, so the photo shows on all the user's devices (only to the user). Permission to edit contacts is asked only when this option is turned on.
+- **Same names (three "Bruno"s):** the photo goes to a contact only when the full name matches exactly one contact. Two or more matches, a first name only, or no match: nothing is written; the review shows the candidates and the user picks. When candidates already have a photo, the app compares faces and suggests the likely one, but never decides alone.
+
 ### 6. Offline, as the user sees it (11/10)
 - **Promise:** "Works offline. When you connect, the rest fills in." No settings to choose what stays where.
 - **Daily use:** nothing to do. If something is missing offline, the card shows "full memory when connected", never an error.
@@ -358,6 +368,16 @@ Inspirado no Gemma 4 no celular do Marcus (perguntas sobre um vídeo de uma hora
 **Regra das fotos (dado biométrico, LGPD):**
 - A foto importada serve **só para mostrar** (card e Manager). O app nunca gera modelo de rosto a partir da agenda.
 - O reconhecimento facial só nasce de um **encontro real**. Quando aparece um rosto novo, o app compara os nomes e pergunta: "É o Rafael Souza da sua agenda?". Com a confirmação, os registros se juntam.
+
+### 5b. Importar do Google Fotos (decidido em 06/11)
+O Google Fotos não tem API para os grupos de rostos com nome (desde 31/03/2025 os apps só veem fotos que o usuário escolhe uma a uma), então o app lê a tela, com permissão do usuário (captura de tela do Android).
+1. **Capturar a grade:** o usuário abre "Pessoas e animais" e rola; o app junta todos os rostos com nome.
+2. **Selecionar no nosso app:** a grade é recriada no VisualContext com uma caixinha por pessoa ("selecionar todos" / "limpar"). Crianças vêm desmarcadas; animais e o próprio usuário ficam de fora (o usuário vira o "Eu").
+3. **Fotos recentes, sozinho:** para cada pessoa marcada o app abre a página dela (fotos mais novas primeiro), lê o nome completo no topo (a grade corta os nomes) e guarda de 3 a 5 rostos parecidos entre si (foto em grupo não mistura pessoas). Usa a mesma técnica de acessibilidade do Zap; sem ela, o usuário toca em cada pessoa e o app captura cada página sozinho.
+4. **Conferir e guardar.** Rostos do Google Fotos servem para reconhecer (Marcus, 06/11: qualquer nome da captura, substituindo a regra de 11/10 para esta fonte), marcados "rosto do Google Fotos"; o primeiro encontro de verdade confirma.
+- **Os rostos se atualizam sozinhos:** cada reconhecimento com certeza pelos óculos guarda um rosto novo e descarta o mais antigo, até 5 por pessoa.
+- **Também pôr a foto na agenda do celular (opção, desligada por padrão):** só contatos que já existem, só os sem foto (trocar é uma caixinha por pessoa), o rosto mais recente recortado quadrado, nenhum contato novo criado. Aviso: a agenda costuma sincronizar com o Google Contatos, então a foto aparece em todos os aparelhos do usuário (só para ele). A permissão de editar contatos só é pedida quando a opção é ligada.
+- **Nomes iguais (três "Bruno"):** a foto só vai para um contato quando o nome completo bate com exatamente um contato. Dois ou mais, só o primeiro nome, ou nenhum: nada é escrito; a conferência mostra os candidatos e o usuário escolhe. Quando os candidatos já têm foto, o app compara os rostos e sugere o provável, mas nunca decide sozinho.
 
 ### 6. Offline, do jeito que o usuário vê (11/10)
 - **Promessa:** "Funciona offline. Quando você se conecta, o resto se completa." Sem ajuste para escolher o que fica onde.
