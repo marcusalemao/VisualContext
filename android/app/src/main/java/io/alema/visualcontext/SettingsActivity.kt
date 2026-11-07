@@ -234,7 +234,9 @@ class SettingsActivity : Activity() {
         // 7. Assistant
         val c7 = card()
         c7.h("Assistente (Gemini)")
-        c7.p("Chave do Google AI Studio. Fica só neste celular; não cole em nenhum chat.", 13f)
+        c7.p("Chave do Google AI Studio: é ela que faz o Live, a leitura de papéis, a preparação e as habilidades funcionarem. É grátis para começar. Fica só neste celular; não cole em nenhum chat.", 13f)
+        c7.btn("Pegar a chave no Google AI Studio ↗", false) { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://aistudio.google.com/apikey"))) }
+        c7.p("Lá: entre com sua conta Google → \"Create API key\" → copie e cole aqui.", 12f)
         val gk = c7.keyRow(Backend.geminiKey(this), "AIza…",
             save = { Backend.saveGemini(this, it, Backend.voiceName(this)) },
             test = { k -> // a real call, never the cached model name
@@ -313,7 +315,8 @@ class SettingsActivity : Activity() {
         // Optional, its own card (Marcus, 07/11: inside Habilidades it read as a requirement).
         val ca = card()
         ca.h("Outro assistente (opcional)")
-        ca.p("Só se quiser falar com o Claude ou o GPT pelos óculos (\"pergunta pro Claude…\"). Chave do OpenRouter (sk-or-, qualquer modelo), da OpenAI (sk-) ou da Anthropic (sk-ant-). Fica só neste celular. É uma pergunta solta ao modelo: a memória do VisualContext não vai junto.", 13f)
+        ca.p("Não é necessário: com a chave do Gemini acima tudo já funciona. Isto é só para quem também quer fazer perguntas ao Claude ou ao ChatGPT pelos óculos (\"pergunta pro Claude…\").", 13f)
+        ca.p("Atenção: é uma chave de API, não a sua conta pessoal. O que você pergunta por aqui não vê nem entra no histórico das suas conversas no Claude ou no ChatGPT; é uma pergunta solta ao modelo, paga por uso. Chave do OpenRouter (sk-or-, qualquer modelo), da OpenAI (sk-) ou da Anthropic (sk-ant-). Fica só neste celular.", 13f)
         lateinit var mdl: EditText
         ca.keyRow(Claude.key(this), "sk-or-… / sk-… / sk-ant-…",
             save = { Claude.setKey(this, it); mdl.hint = Claude.defaultModel(it) },
