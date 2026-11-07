@@ -45,6 +45,8 @@ class PhotosPickActivity : Activity() {
         sharedImages(intent)?.let { readImages(it) }
     }
 
+    private fun dot(a: FloatArray, b: FloatArray): Float { var d = 0f; for (i in a.indices) d += a[i] * b[i]; return d } // unit vectors: dot = cosine
+
     /** Same buttons as Settings: filled = the main action of the step, outline = the rest. */
     private fun restyle(v: android.view.View = col) {
         if (v is Button) {
@@ -379,7 +381,8 @@ class PhotosPickActivity : Activity() {
                 val pid = r?.let { try { JSONObject(it).optString("person_id").ifEmpty { null } } catch (_: Exception) { null } }
                 if (r == null) offline++
                 val now = System.currentTimeMillis()
-                all += LocalFaces.Entry(java.util.UUID.randomUUID().toString(), f.name, pid, f.descriptor, f.thumb, now, 0, originLabel())
+                if (all.none { e -> e.name.equals(f.name, true) && e.descriptor.size == f.descriptor.size && dot(e.descriptor, f.descriptor) >= 0.93f })
+                    all += LocalFaces.Entry(java.util.UUID.randomUUID().toString(), f.name, pid, f.descriptor, f.thumb, now, 0, originLabel())
                 ok++
             }
             LocalFaces.save(this, all)

@@ -50,6 +50,24 @@ object LocalFaces {
         tmp.renameTo(File(ctx.filesDir, FILE))
     }
 
+    /**
+     * The same photo stored twice (contacts import + Google Photos of the same picture) adds nothing and
+     * clutters the list: a new sample for [name] whose signature is almost identical to a stored one is a duplicate.
+     */
+    fun isDuplicate(ctx: Context, name: String?, descriptor: FloatArray, minCos: Float = 0.93f): Boolean {
+        if (name == null) return false
+        return all(ctx).any { e -> e.name.equals(name, ignoreCase = true) && e.descriptor.size == descriptor.size && cos(e.descriptor, descriptor) >= minCos }
+    }
+    private fun cos(a: FloatArray, b: FloatArray): Float { var d = 0f; var na = 0f; var nb = 0f; for (i in a.indices) { d += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i] }; return if (na == 0f || nb == 0f) 0f else d / kotlin.math.sqrt(na * nb) }
+
+    /** Removes near-identical samples of the same person (keeps the oldest). Returns how many went. */
+    fun dedupe(ctx: Context, minCos: Float = 0.93f): Int {
+        val list = all(ctx).sortedBy { it.created }; val keep = ArrayList<Entry>()
+        for (e in list) if (e.name == null || keep.none { k -> k.name.equals(e.name, true) && k.descriptor.size == e.descriptor.size && cos(k.descriptor, e.descriptor) >= minCos }) keep += e
+        if (keep.size != list.size) save(ctx, keep)
+        return list.size - keep.size
+    }
+
     fun add(ctx: Context, descriptor: FloatArray, thumb: String): Entry {
         val now = System.currentTimeMillis()
         val e = Entry(UUID.randomUUID().toString(), null, null, descriptor, thumb, now, now)

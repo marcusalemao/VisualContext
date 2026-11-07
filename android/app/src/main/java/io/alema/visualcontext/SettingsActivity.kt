@@ -353,6 +353,20 @@ class SettingsActivity : Activity() {
                     .setNegativeButton("Cancelar", null).show()
             }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(6) })
         }
+        run { // who is the wearer: that face is "você", never an encounter (Marcus, 07/11)
+            val me = Backend.meName(this)
+            val line = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL; setPadding(0, dp(4), 0, dp(8)) }
+            line.addView(TextView(this).apply { text = if (me.isEmpty()) "Quem é você na lista? Ainda não marcado." else "★ Você: $me"; textSize = 14f; setTextColor(if (me.isEmpty()) Color.rgb(255, 170, 90) else Color.rgb(255, 214, 90)) }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            line.addView(Look.chip(this, if (me.isEmpty()) "Marcar" else "Trocar", soft) {
+                val names = all.mapNotNull { it.name }.distinct().sortedBy { it.lowercase() }
+                if (names.isEmpty()) { Toast.makeText(this, "Dê nome a um rosto seu primeiro", Toast.LENGTH_SHORT).show(); return@chip }
+                val opts = (names + "Nenhum (desmarcar)").toTypedArray()
+                AlertDialog.Builder(this).setTitle("Qual rosto é o seu?").setItems(opts) { _, i -> Backend.setMeName(this, if (i == names.size) "" else names[i]); render() }.setNegativeButton("Cancelar", null).show()
+            })
+            c.addView(line)
+            val gone = LocalFaces.dedupe(this)
+            if (gone > 0) Toast.makeText(this, "$gone ${if (gone == 1) "foto repetida tirada" else "fotos repetidas tiradas"}", Toast.LENGTH_SHORT).show()
+        }
         c.btn(if (facesOpen) "Fechar a lista" else if (fresh > 0) "Dar nome a quem falta" else "Ver e editar", fresh > 0 && !facesOpen) { facesOpen = !facesOpen; render() }
         if (!facesOpen) return
         // Search: with hundreds of people the list needs it.
@@ -433,11 +447,7 @@ class SettingsActivity : Activity() {
         val lp = { LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { rightMargin = dp(10) } }
         if (g[0].name != null) actions.addView(Look.chip(this, "＋ Fotos") { addTo = g[0].name; startActivityForResult(Look.pickPhotos(if (android.os.Build.VERSION.SDK_INT >= 33) 30 else 12), REQ_ADD) }, lp())
         actions.addView(Look.chip(this, "Ver todas") { showLooks(g) }, lp())
-        val me = Backend.meName(this)
-        if (g[0].name != null) {
-            val isMe = g[0].name.equals(me, true)
-            actions.addView(Look.chip(this, if (isMe) "★ Sou eu" else "Sou eu", if (isMe) Color.rgb(255, 214, 90) else soft) { Backend.setMeName(this, if (isMe) "" else g[0].name!!); render() }, lp())
-        }
+        if (g[0].name.equals(Backend.meName(this), true)) actions.addView(TextView(this).apply { text = "★ você"; textSize = 13f; setTextColor(Color.rgb(255, 214, 90)); setPadding(0, 0, dp(10), 0) }, lp())
         actions.addView(android.view.View(this), LinearLayout.LayoutParams(0, 1, 1f))
         actions.addView(Look.chip(this, "Apagar", Color.rgb(255, 120, 120)) {
             AlertDialog.Builder(this@SettingsActivity).setMessage("Apagar ${g[0].name ?: "este rosto"} deste celular?")
@@ -479,6 +489,7 @@ class SettingsActivity : Activity() {
         val prog = Look.Progress(this, "Lendo ${uris.size} ${if (uris.size == 1) "foto" else "fotos"} de $name", uris.size)
         io.execute {
             val engine = try { ArcFaceEngine(this) } catch (_: Throwable) { null } ?: run { prog.done(); return@execute }
+            var dup = 0
             val pid = LocalFaces.all(this).firstOrNull { it.name.equals(name, true) && it.personId != null }?.personId
             var ok = 0
             for ((i, u) in uris.withIndex()) {
@@ -492,6 +503,7 @@ class SettingsActivity : Activity() {
                 val w = (f.w + 2 * pad).toInt().coerceAtMost(small.width - x); val h = (f.h + 2 * pad).toInt().coerceAtMost(small.height - y)
                 val thumb = android.graphics.Bitmap.createScaledBitmap(android.graphics.Bitmap.createBitmap(small, x, y, w, h), 128, 128, true)
                     .let { Base64.encodeToString(java.io.ByteArrayOutputStream().also { o -> it.compress(android.graphics.Bitmap.CompressFormat.JPEG, 82, o) }.toByteArray(), Base64.NO_WRAP) }
+                if (LocalFaces.isDuplicate(this, name, f.descriptor)) { dup++; continue } // the same picture again
                 val e = LocalFaces.add(this, f.descriptor, thumb)
                 LocalFaces.update(this, e.id) { it.name = name; it.personId = pid; it.desc = "foto que você adicionou" }
                 Moments.send(this, org.json.JSONObject().put("action", "enroll_face").put("name", name).put("arc", org.json.JSONArray(f.descriptor.map { it.toDouble() }))
@@ -499,7 +511,7 @@ class SettingsActivity : Activity() {
                 ok++
             }
             engine.close(); prog.step(uris.size, "pronto"); prog.done()
-            runOnUiThread { Toast.makeText(this, if (ok == 0) "Não achei rosto nessas fotos" else "✓ $ok ${if (ok == 1) "foto adicionada" else "fotos adicionadas"} a $name", Toast.LENGTH_LONG).show(); render() }
+            runOnUiThread { Toast.makeText(this, if (ok == 0 && dup > 0) "Essas fotos já estavam guardadas" else if (ok == 0) "Não achei rosto nessas fotos" else "✓ $ok ${if (ok == 1) "foto adicionada" else "fotos adicionadas"} a $name", Toast.LENGTH_LONG).show(); render() }
         }
     }
 
