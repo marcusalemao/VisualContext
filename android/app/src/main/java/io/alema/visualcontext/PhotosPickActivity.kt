@@ -100,6 +100,7 @@ class PhotosPickActivity : Activity() {
         bar.addView(Button(this).apply { text = "Marcar todos"; setOnClickListener { ticks.values.forEach { it.isChecked = true } } })
         bar.addView(Button(this).apply { text = "Limpar"; setOnClickListener { ticks.values.forEach { it.isChecked = false } } })
         col.addView(bar)
+        col.addView(Button(this).apply { text = "↺ Capturar de novo"; setOnClickListener { PhotosGrid.last = emptyList(); render(); askCapture() } })
         val grid = GridLayout(this).apply { columnCount = 3 }
         val cell = (resources.displayMetrics.widthPixels - 80) / 3
         ticks.clear()
@@ -138,7 +139,7 @@ class PhotosPickActivity : Activity() {
             setOnClickListener { b -> b.isEnabled = false; save(found.filter { ticks[it.name]?.isChecked == true }, status) }
         })
         col.addView(status)
-        col.addView(Button(this).apply { text = "Ler de novo"; setOnClickListener { PhotosGrid.last = emptyList(); render() } })
+        col.addView(Button(this).apply { text = "↺ Capturar de novo"; setOnClickListener { PhotosGrid.last = emptyList(); render(); askCapture() } })
     }
 
     /** Spec 5b step 4: faces from Google Photos recognise right away, marked as such; the first real encounter confirms. */
