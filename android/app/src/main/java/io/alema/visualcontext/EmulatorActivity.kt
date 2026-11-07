@@ -89,6 +89,13 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         bar.addView(btn("⟲ Câmera") { front = !front; startCamera() })
         bar.addView(btn("✕ Fechar") { finish() })
         root.addView(bar, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM))
+        // Android 15 draws apps under the system bars: keep the buttons above the navigation bar (and clear of the camera cut-out).
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(bar) { v, insets ->
+            val sys = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars() or androidx.core.view.WindowInsetsCompat.Type.displayCutout())
+            v.setPadding(4 + sys.left, 4, 4 + sys.right, 4 + sys.bottom)
+            hud.setPadding(sys.left, sys.top, sys.right, 0)
+            insets
+        }
         setContentView(root)
         paintToggles()
         val need = listOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO, Manifest.permission.ACCESS_FINE_LOCATION)
