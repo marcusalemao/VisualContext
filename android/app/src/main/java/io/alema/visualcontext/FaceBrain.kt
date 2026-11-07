@@ -75,8 +75,11 @@ class FaceBrain(private val ctx: Context) {
         val local = LocalFaces.all(ctx)
         val now = System.currentTimeMillis()
         tracks.removeAll { now - it.lastAt > 5000 || now - it.sureAt > HOLD_MS }
-        val out = e.describe(bmp).take(4).map { f ->
+        val me = Backend.meName(ctx)
+        val out = e.describe(bmp).take(4).mapNotNull { f ->
             val s = identify(f, bmp, local, describeUnknown)
+            // The wearer's own face (mirror, a friend wearing the glasses, the emulator pointed at me) is never a person met.
+            if (me.isNotEmpty() && s.label.equals(me, true)) return@mapNotNull null
             val t = tracks.firstOrNull { near(it, f) }
             val result = if (s.known && s.sure) s
                 else if (t != null) t.seen.copy(x = f.x, y = f.y, w = f.w, h = f.h, sure = true).also { held ->

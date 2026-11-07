@@ -246,24 +246,13 @@ class SettingsActivity : Activity() {
                 } catch (e: Exception) { "Sem internet." } })
         val voices = listOf("Kore", "Aoede", "Puck", "Charon")
         c7.p("Voz de quem fala com você no Live. Toque em ▶ para ouvir antes de escolher.", 13f)
-        val vg = android.widget.RadioGroup(this).apply { orientation = LinearLayout.VERTICAL }
+        val vg = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val vmsg = TextView(this).apply { textSize = 12f; setTextColor(soft) }
-        voices.forEachIndexed { i, v ->
-            vg.addView(LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL
-                addView(android.widget.RadioButton(context).apply { id = 300 + i; text = v; setTextColor(soft); buttonTintList = android.content.res.ColorStateList.valueOf(green); isChecked = v == Backend.voiceName(context)
-                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) })
-                addView(Button(context).apply { text = "▶ Ouvir"; isAllCaps = false; textSize = 13f; setTextColor(green); stateListAnimator = null
-                    background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(12).toFloat(); setColor(Color.TRANSPARENT); setStroke(dp(1), green) }
-                    minHeight = dp(36); minimumHeight = dp(36); setPadding(dp(14), 0, dp(14), 0)
-                    setOnClickListener { vmsg.text = "Gerando a voz $v…"; isEnabled = false
-                        io.execute { val why = VoicePreview.play(this@SettingsActivity, v); runOnUiThread { isEnabled = true; vmsg.text = why ?: "" } } }
-                })
-            })
-        }
-        // RadioGroup only unchecks siblings that are direct children, so do it by hand.
-        val rbs = (0 until voices.size).map { vg.findViewById<android.widget.RadioButton>(300 + it) }
-        rbs.forEachIndexed { i, rb -> rb.setOnClickListener { rbs.forEach { it.isChecked = it === rb }; Backend.saveVoice(this, voices[i]) } }
+        val grbs = ArrayList<android.widget.RadioButton>()
+        for (v in voices) vg.addView(voiceRow(v, v == Backend.voiceName(this), grbs, pick = { Backend.saveVoice(this, v) }) { b ->
+            vmsg.text = "Gerando a voz $v…"; b.isEnabled = false
+            io.execute { val why = VoicePreview.play(this@SettingsActivity, v); runOnUiThread { b.isEnabled = true; vmsg.text = why ?: "" } }
+        })
         c7.addView(vg); c7.addView(vmsg)
         // Phone voice: offline, free, instant. Used for everything outside the Live (names, warnings, cards, skills) and when the network is gone.
         c7.p("Voz do celular (offline, sem custo): usada fora do Live — nomes, avisos, dicas, habilidades — e quando faltar internet.", 13f)
@@ -277,20 +266,16 @@ class SettingsActivity : Activity() {
             if (list.isEmpty()) { pmsg.text = "Nenhuma voz em português instalada. Ajustes do Android → Conversão de texto em voz."; return@postDelayed }
             pmsg.text = ""
             val rbs = ArrayList<android.widget.RadioButton>()
-            for ((name, label) in list.take(8)) pv.addView(LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL
-                val rb = android.widget.RadioButton(context).apply { text = label; textSize = 14f; setTextColor(soft); buttonTintList = android.content.res.ColorStateList.valueOf(green); isChecked = name == cur
-                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                    setOnClickListener { rbs.forEach { it.isChecked = it === this }; tv.use(name) } }
-                rbs.add(rb); addView(rb)
-                addView(Button(context).apply { text = "▶ Ouvir"; isAllCaps = false; textSize = 13f; setTextColor(green); stateListAnimator = null
-                    background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(12).toFloat(); setColor(Color.TRANSPARENT); setStroke(dp(1), green) }
-                    minHeight = dp(36); minimumHeight = dp(36); setPadding(dp(14), 0, dp(14), 0)
-                    setOnClickListener { val keep = Voice.phoneVoice(this@SettingsActivity); tv.use(name); tv.say("Oi. Eu sou uma voz do seu celular. Falo mesmo sem internet.", interrupt = true); Voice.setPhoneVoice(this@SettingsActivity, keep); if (keep.isNotEmpty()) tv.use(keep) }
-                })
+            for ((name, label) in list.take(8)) pv.addView(voiceRow(label, name == cur, rbs, pick = { tv.use(name) }) { _ ->
+                val keep = Voice.phoneVoice(this@SettingsActivity); tv.use(name); tv.say("Oi. Eu sou uma voz do seu celular. Falo mesmo sem internet.", interrupt = true); Voice.setPhoneVoice(this@SettingsActivity, keep); if (keep.isNotEmpty()) tv.use(keep)
             })
             if (Voice.phoneVoice(this).isEmpty() && cur.isNotEmpty()) Voice.setPhoneVoice(this, cur)
         }, 900)
+        c7.addView(android.widget.CheckBox(this).apply {
+            text = "Só offline: não usar o Live. Os óculos reconhecem, transcrevem e avisam pelo celular; não respondem perguntas."
+            textSize = 14f; setTextColor(soft); buttonTintList = android.content.res.ColorStateList.valueOf(green); isChecked = Backend.offlineOnly(this@SettingsActivity)
+            setOnCheckedChangeListener { _, on -> Backend.setOfflineOnly(this@SettingsActivity, on) }
+        })
         c7.p("Saída: como os óculos falam com você", 13f)
         val outs = listOf("tela" to "Só tela", "tela_voz" to "Tela + voz", "voz" to "Só voz (óculos sem tela)")
         c7.addView(android.widget.RadioGroup(this).apply {
@@ -370,8 +355,12 @@ class SettingsActivity : Activity() {
         c.btn(if (facesOpen) "Fechar a lista" else if (fresh > 0) "Dar nome a quem falta" else "Ver e editar", fresh > 0 && !facesOpen) { facesOpen = !facesOpen; render() }
         if (!facesOpen) return
         // Search: with hundreds of people the list needs it.
-        val search = field(facesQuery, false).apply { hint = "buscar nome"; setHintTextColor(Color.rgb(90, 130, 108)) }
-        c.addView(search)
+        val search = field(facesQuery, false).apply {
+            hint = "🔍  Buscar por nome"; setHintTextColor(Color.rgb(110, 160, 130)); textSize = 16f
+            background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(14).toFloat(); setColor(Color.rgb(8, 24, 15)); setStroke(dp(1), Color.rgb(28, 84, 56)) }
+            setPadding(dp(16), dp(14), dp(16), dp(14))
+        }
+        c.addView(search, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12); bottomMargin = dp(6) })
         val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         c.addView(list)
         fun fill() {
@@ -443,6 +432,11 @@ class SettingsActivity : Activity() {
         val lp = { LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { rightMargin = dp(10) } }
         if (g[0].name != null) actions.addView(Look.chip(this, "＋ Fotos") { addTo = g[0].name; startActivityForResult(Look.pickPhotos(if (android.os.Build.VERSION.SDK_INT >= 33) 30 else 12), REQ_ADD) }, lp())
         actions.addView(Look.chip(this, "Ver todas") { showLooks(g) }, lp())
+        val me = Backend.meName(this)
+        if (g[0].name != null) {
+            val isMe = g[0].name.equals(me, true)
+            actions.addView(Look.chip(this, if (isMe) "★ Sou eu" else "Sou eu", if (isMe) Color.rgb(255, 214, 90) else soft) { Backend.setMeName(this, if (isMe) "" else g[0].name!!); render() }, lp())
+        }
         actions.addView(android.view.View(this), LinearLayout.LayoutParams(0, 1, 1f))
         actions.addView(Look.chip(this, "Apagar", Color.rgb(255, 120, 120)) {
             AlertDialog.Builder(this@SettingsActivity).setMessage("Apagar ${g[0].name ?: "este rosto"} deste celular?")
@@ -528,6 +522,19 @@ class SettingsActivity : Activity() {
 
     private fun label(t: String, size: Float = 14f, c: Int = soft) =
         TextView(this).apply { text = t; textSize = size; setTextColor(c); setPadding(0, 24, 0, 8) }
+
+    /** One line per voice: radio (fills the width) + a ▶ Ouvir chip at the right, the same in both lists. */
+    private fun voiceRow(label: String, checked: Boolean, group: MutableList<android.widget.RadioButton>, pick: () -> Unit, play: (Button) -> Unit): LinearLayout {
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL; setPadding(0, dp(2), 0, dp(2)) }
+        val rb = android.widget.RadioButton(this).apply { text = label; textSize = 14f; setTextColor(soft); buttonTintList = android.content.res.ColorStateList.valueOf(green); isChecked = checked }
+        rb.setOnClickListener { group.forEach { it.isChecked = it === rb }; pick() }
+        group.add(rb)
+        row.addView(rb, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        lateinit var b: Button
+        b = Look.chip(this, "▶ Ouvir") { play(b) }
+        row.addView(b, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(10) })
+        return row
+    }
 
     /** sk-or-ab…wxyz — enough to tell keys apart, never the whole key. */
     private fun mask(k: String) = if (k.length < 12) "" else k.take(6) + "…" + k.takeLast(4)

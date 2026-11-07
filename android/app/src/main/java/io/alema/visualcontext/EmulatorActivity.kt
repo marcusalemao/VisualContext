@@ -400,6 +400,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     override fun onBrief(name: String, lines: List<String>) { hud.cardTitle = "✦ $name"; hud.cardLines = lines; hud.invalidate() }
 
     private fun toggleLive() {
+        if (!liveOn && Backend.offlineOnly(this)) { toast("Só offline (Ajustes): ouço e anoto, não respondo. Desligue lá para usar o Live."); return }
         if (liveOn) { if (live.speaking) live.interrupt() else { live.stop(); liveOn = false; ears.resume() } }
         else { liveOn = true; ears.pause(); live.start() }
     }
