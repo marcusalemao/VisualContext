@@ -81,7 +81,7 @@ class FaceBrain(private val ctx: Context) {
         val out = e.describe(bmp).take(4).map { f ->
             val s0 = identify(f, bmp, local, describeUnknown)
             // The wearer's own face (mirror, a friend wearing the glasses, the emulator pointed at me) is never a person met.
-            val s = if (me.isNotEmpty() && s0.label.equals(me, true)) s0.copy(label = "você", lines = listOf("é você mesmo · não vira encontro"), known = true, sure = true, isMe = true) else s0
+            val s = if (me.isNotEmpty() && sameName(s0.label, me)) s0.copy(label = "você", lines = listOf("é você mesmo · não vira encontro"), known = true, sure = true, isMe = true) else s0
             val t = tracks.firstOrNull { near(it, f) }
             val result = if (s.known && s.sure) s
                 else if (t != null) t.seen.copy(x = f.x, y = f.y, w = f.w, h = f.h, sure = true).also { held ->
@@ -233,6 +233,12 @@ class FaceBrain(private val ctx: Context) {
             arr.put(o)
         }
         return JSONObject().put("rostos", arr.length()).put("pessoas", arr)
+    }
+
+    /** "Marcus Magalhães" = "Marcus de Magalhães": particles and accents do not count. */
+    private fun sameName(a: String, b: String): Boolean {
+        fun k(s: String) = java.text.Normalizer.normalize(s.lowercase(), java.text.Normalizer.Form.NFD).replace(Regex("\\p{M}"), "").split(Regex("\\s+")).filter { it.isNotEmpty() && it !in setOf("de", "da", "do", "dos", "das", "e") }.joinToString(" ")
+        return k(a) == k(b)
     }
 
     private fun shortDate(iso: String) = if (iso.length >= 10) "${iso.substring(8, 10)}/${iso.substring(5, 7)}" else iso

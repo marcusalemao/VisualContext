@@ -447,7 +447,7 @@ class SettingsActivity : Activity() {
         val lp = { LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { rightMargin = dp(10) } }
         if (g[0].name != null) actions.addView(Look.chip(this, "＋ Fotos") { addTo = g[0].name; startActivityForResult(Look.pickPhotos(if (android.os.Build.VERSION.SDK_INT >= 33) 30 else 12), REQ_ADD) }, lp())
         actions.addView(Look.chip(this, "Ver todas") { showLooks(g) }, lp())
-        if (g[0].name.equals(Backend.meName(this), true)) actions.addView(TextView(this).apply { text = "★ você"; textSize = 13f; setTextColor(Color.rgb(255, 214, 90)); setPadding(0, 0, dp(10), 0) }, lp())
+        if (Backend.meName(this).isNotEmpty() && nameKey(g[0].name ?: "") == nameKey(Backend.meName(this))) actions.addView(TextView(this).apply { text = "★ você"; textSize = 13f; setTextColor(Color.rgb(255, 214, 90)); setPadding(0, 0, dp(10), 0) }, lp())
         actions.addView(android.view.View(this), LinearLayout.LayoutParams(0, 1, 1f))
         actions.addView(Look.chip(this, "Apagar", Color.rgb(255, 120, 120)) {
             AlertDialog.Builder(this@SettingsActivity).setMessage("Apagar ${g[0].name ?: "este rosto"} deste celular?")
@@ -548,6 +548,8 @@ class SettingsActivity : Activity() {
         row.addView(b, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(10) })
         return row
     }
+
+    private fun nameKey(s: String) = java.text.Normalizer.normalize(s.lowercase(), java.text.Normalizer.Form.NFD).replace(Regex("\\p{M}"), "").split(Regex("\\s+")).filter { it.isNotEmpty() && it !in setOf("de", "da", "do", "dos", "das", "e") }.joinToString(" ")
 
     /** sk-or-ab…wxyz — enough to tell keys apart, never the whole key. */
     private fun mask(k: String) = if (k.length < 12) "" else k.take(6) + "…" + k.takeLast(4)

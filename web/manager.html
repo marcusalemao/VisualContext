@@ -293,7 +293,9 @@ function items() {
 }
 const CATS = [["all", "Todos"], ["person", "Pessoas"], ["place", "Lugares"], ["thing", "Coisas"], ["memory", "Lembranças"]];
 function matches(it, q) { if (!q) return true; const n = norm(q); return norm(it.title + " " + it.sub + " " + (it.ref.notes || "") + " " + (it.ref.source || "") + " " + (it.ref.tags || []).join(" ")).includes(n); }
-const isMe = n => !!n && !!(S.me && S.me.me_name) && norm(n) === norm(S.me.me_name);
+// "Marcus Magalhães" and "Marcus de Magalhães" are the same person: particles and accents do not count.
+const nameKey = n => norm(n).split(" ").filter(w => w && !["de", "da", "do", "dos", "das", "e"].includes(w)).join(" ");
+const isMe = n => !!n && !!(S.me && S.me.me_name) && nameKey(n) === nameKey(S.me.me_name);
 const faceOk = it => it.kind !== "person" || S.face === "all" || (S.face === "yes" ? it.ref.faces > 0 : !it.ref.faces);
 
 /* ---------- duplicates ---------- */
@@ -380,7 +382,7 @@ function myDay() {
   if (enc.some(e => e.capture_mode === "live")) bits.push("conversou com o assistente");
   if (th.length) bits.push("guardou onde deixou " + listPt(th.map(t => t.name.toLowerCase())));
   if (no.length) bits.push("anotou " + no.length + (no.length === 1 ? " lembrete" : " lembretes"));
-  const stops = [...enc.map(e => [e.at, (e.place || "—") + (e.person_name ? " · " + e.person_name : e.capture_mode === "live" ? " · assistente" : "")]), ...th.map(t => [t.seen_at, t.name + " → " + (t.location_description || "")])].sort((a, b) => new Date(a[0]) - new Date(b[0])).slice(0, 5);
+  const stops = [...enc.filter(e => !isMe(e.person_name)).map(e => [e.at, (e.place || "—") + (e.person_name ? " · " + e.person_name : e.capture_mode === "live" ? " · assistente" : "")]), ...th.map(t => [t.seen_at, t.name + " → " + (t.location_description || "")])].sort((a, b) => new Date(a[0]) - new Date(b[0])).slice(0, 5);
   return `<div class="day"><h4>✦ Meu dia · hoje</h4><p>Hoje você ${esc(listPt(bits))}.</p><div class="stops">${stops.map(s => `<div><span>${esc(new Date(s[0]).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }))}</span>${esc(s[1])}</div>`).join("")}</div>
   <div class="foot"><span>${people.length} pessoas · ${places.length} lugares · ${no.length} notas · ${follow} pendências</span><button data-day="1">Ver o dia →</button></div></div>`;
 }
@@ -389,7 +391,7 @@ const listPt = a => a.length <= 1 ? (a[0] || "") : a.slice(0, -1).join(", ") + "
 /* ---------- suggested questions (spec 1c), changing with context ---------- */
 function suggestions() {
   const h = new Date().getHours(), out = [];
-  const last = [...S.enc].filter(e => e.person_name).sort((a, b) => new Date(b.at) - new Date(a.at))[0];
+  const last = [...S.enc].filter(e => e.person_name && !isMe(e.person_name)).sort((a, b) => new Date(b.at) - new Date(a.at))[0];
   if (h < 11) out.push("O que eu tenho para hoje?"); else out.push("Como foi o meu dia?");
   if (last) out.push("Resumo do encontro com " + last.person_name.split(" ")[0]);
   if (S.enc.some(e => (e.follow_ups || []).length)) out.push("O que ainda está pendente?");
