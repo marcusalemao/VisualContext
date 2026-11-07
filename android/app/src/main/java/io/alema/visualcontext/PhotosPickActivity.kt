@@ -39,6 +39,7 @@ class PhotosPickActivity : Activity() {
         col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(40, 96, 40, 64) }
         setContentView(ScrollView(this).apply { addView(col); setBackgroundColor(Color.rgb(3, 12, 6)) })
         if (PhotosCaptureService.running) PhotosCaptureService.stop(this)
+        PhotosAuto.stop()
         render()
         sharedImages(intent)?.let { readImages(it) }
     }
@@ -104,10 +105,29 @@ class PhotosPickActivity : Activity() {
             col.addView(Button(this).apply { text = "Terminei"; setOnClickListener { PhotosCaptureService.stop(this@PhotosPickActivity); col.postDelayed({ render() }, 800) } })
             return
         }
+        col.addView(label("Automático (recomendado)", 15f, green))
+        col.addView(label("O app abre o Google Fotos no Chrome e rola a página sozinho até o fim. Você só espera. Na primeira vez, ele pede para ligar \"VisualContext · importar do Google Fotos\" em Acessibilidade (só age no Chrome e só durante a importação).", 13f))
+        col.addView(Button(this).apply {
+            text = "Importar sozinho"
+            setOnClickListener {
+                if (!PhotosAuto.enabled(this@PhotosPickActivity)) {
+                    android.app.AlertDialog.Builder(this@PhotosPickActivity).setTitle("Ligar a rolagem automática")
+                        .setMessage("Na próxima tela, toque em \"VisualContext · importar do Google Fotos\" (em Apps instalados) e ligue. Se estiver cinza (app instalado fora da loja): Ajustes → Apps → VisualContext → ⋮ → Permitir configurações restritas, e tente de novo. Depois volte aqui e toque em Importar sozinho.")
+                        .setPositiveButton("Abrir Acessibilidade") { _, _ -> startActivity(Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+                        .setNegativeButton("Agora não", null).show()
+                    return@setOnClickListener
+                }
+                auto = true; useApp = false
+                if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED)
+                    requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), REQ_NOTE)
+                else askCapture()
+            }
+        })
+        col.addView(label("Ou você mesmo rola:", 13f))
         col.addView(Button(this).apply {
             text = "Começar pelo navegador (recomendado)"
             setOnClickListener {
-                useApp = false
+                useApp = false; auto = false
                 if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED)
                     requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), REQ_NOTE)
                 else askCapture()
@@ -115,7 +135,7 @@ class PhotosPickActivity : Activity() {
         })
         col.addView(Button(this).apply {
             text = "Começar pelo app Google Fotos"
-            setOnClickListener { useApp = true; askCapture() }
+            setOnClickListener { useApp = true; auto = false; askCapture() }
         })
     }
 
@@ -124,6 +144,7 @@ class PhotosPickActivity : Activity() {
     }
 
     private var useApp = false
+    private var auto = false
 
     private fun askCapture() {
         startActivityForResult(getSystemService(MediaProjectionManager::class.java).createScreenCaptureIntent(), REQ_CAPTURE)
@@ -146,7 +167,10 @@ class PhotosPickActivity : Activity() {
         val chrome = Intent(web).setPackage("com.android.chrome")
         val app = packageManager.getLaunchIntentForPackage("com.google.android.apps.photos")
         col.postDelayed({
-            try { startActivity(if (useApp && app != null) app else if (chrome.resolveActivity(packageManager) != null) chrome else web) }
+            try {
+                startActivity(if (useApp && app != null) app else if (chrome.resolveActivity(packageManager) != null) chrome else web)
+                if (auto && !PhotosAuto.start()) android.widget.Toast.makeText(this, "Ligue a rolagem automática em Acessibilidade e tente de novo", android.widget.Toast.LENGTH_LONG).show()
+            }
             catch (_: Exception) { col.addView(label("Não consegui abrir o Google Fotos.", 14f, green)); PhotosCaptureService.stop(this) }
         }, 700)
     }

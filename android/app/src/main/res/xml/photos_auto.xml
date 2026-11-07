@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Spec 5b: scrolls Google Photos (People) in Chrome by itself while the screen capture reads the faces. Only Chrome, only while an import runs. -->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/photos_auto_desc"
+    android:packageNames="com.android.chrome"
+    android:accessibilityEventTypes="typeWindowContentChanged|typeWindowStateChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:notificationTimeout="300"
+    android:canPerformGestures="true"
+    android:canRetrieveWindowContent="true" />

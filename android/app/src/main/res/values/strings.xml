@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">VisualContext</string>
+    <string name="photos_auto_desc">VisualContext: rola sozinho a página Pessoas do Google Fotos no Chrome, só enquanto você importa rostos. Não lê nada fora disso.</string>
+    <string name="photos_auto_label">VisualContext · importar do Google Fotos</string>
 </resources>
