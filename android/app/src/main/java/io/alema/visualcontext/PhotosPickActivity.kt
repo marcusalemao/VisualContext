@@ -65,6 +65,13 @@ class PhotosPickActivity : Activity() {
                     }
                 } catch (_: Exception) {}
                 val memory = (Backend.peopleFull(this) ?: emptyList()).map { it.name.trim().lowercase() }.toSet()
+                // Who you talk to most on WhatsApp, shared by the Zap app (counts only, never the messages; off by default there).
+                val zap = HashMap<String, Int>()
+                try {
+                    contentResolver.query(android.net.Uri.parse("content://io.alema.zap.frequent/people"), arrayOf("name", "messages_30d"), null, null, null)?.use { c ->
+                        while (c.moveToNext()) c.getString(0)?.trim()?.lowercase()?.let { zap[it] = c.getInt(1) }
+                    }
+                } catch (_: Exception) {}
                 contentResolver.query(android.provider.ContactsContract.Contacts.CONTENT_URI,
                     arrayOf(android.provider.ContactsContract.Contacts.DISPLAY_NAME_PRIMARY, android.provider.ContactsContract.Contacts.PHOTO_URI, android.provider.ContactsContract.Contacts.STARRED),
                     "${android.provider.ContactsContract.Contacts.PHOTO_URI} IS NOT NULL", null, null)?.use { c ->
@@ -76,9 +83,9 @@ class PhotosPickActivity : Activity() {
                         val bmp = try { contentResolver.openInputStream(android.net.Uri.parse(uri))?.use { BitmapFactory.decodeStream(it) } } catch (_: Exception) { null } ?: continue
                         val f = g.readOne(bmp, name); bmp.recycle()
                         if (f == null) { bad++; continue }
-                        val star = c.getInt(2) == 1; val nc = calls[name] ?: 0; val mem = name.lowercase() in memory
-                        f.score = (if (star) 100 else 0) + nc * 5 + (if (mem) 50 else 0) + (if (name.split(' ').size > 1) 2 else 0)
-                        f.why = listOfNotNull(if (star) "⭐ favorito" else null, if (nc > 0) "$nc ${if (nc == 1) "ligação" else "ligações"}" else null, if (mem) "na memória" else null).joinToString(" · ")
+                        val star = c.getInt(2) == 1; val nc = calls[name] ?: 0; val mem = name.lowercase() in memory; val zm = zap[name.lowercase()] ?: 0
+                        f.score = (if (star) 100 else 0) + nc * 5 + zm + (if (mem) 50 else 0) + (if (name.split(' ').size > 1) 2 else 0)
+                        f.why = listOfNotNull(if (star) "⭐ favorito" else null, if (zm > 0) "💬 $zm mensagens" else null, if (nc > 0) "$nc ${if (nc == 1) "ligação" else "ligações"}" else null, if (mem) "na memória" else null).joinToString(" · ")
                         if (++n % 10 == 0) runOnUiThread { col.removeAllViews(); col.addView(label("Lendo os contatos com foto… $n", 18f, green)) }
                     }
                 }
