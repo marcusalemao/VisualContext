@@ -98,6 +98,7 @@ Marcus, 07/11: very important; loose hints during the conversation, including **
 - Any conversation is transcribed, known person or not. Someone unknown to the system may be someone you know who is not registered yet, or someone you are meeting now: that is how the people database grows.
 - A transcript is discarded only if you cancel it (✕ on the countdown) or if the encounter was too short (the timer).
 - The old rule "transcript only with a known person" is retired.
+- **Built 07/11 (app 0.14.0): listening is separate from answering.** While a face is in front of you and the assistant (Falar) is off, the phone transcribes with its own on-device recognizer (free; offline when supported), catches names, and keeps the conversation as the encounter (summary by the AI). It never speaks. Falar takes the microphone while on. Ends 60 s after the last face; under 20 s or cancelled (✕), nothing is kept. Why not Falar always on (Marcus asked): Live answers whatever it hears, costs per minute and drains battery.
 - **Person card during an encounter: always short** (decided 11/10): name, how you know each other, last time you met. No expanded version during the conversation, even with phone or Wi-Fi; the full card belongs to Recall mode.
 
 ### 1i. Audio-only mode, accessible from the start (12/10)
@@ -341,6 +342,7 @@ Marcus, 07/11: muito importante; dicas soltas durante a conversa, inclusive **su
 - Qualquer conversa é transcrita, com pessoa conhecida ou não. Alguém desconhecido para o sistema pode ser alguém que você conhece e ainda não cadastrou, ou alguém que você está conhecendo agora: é assim que o banco de pessoas cresce.
 - A transcrição só é descartada se você cancelar (✕ no countdown) ou se o encontro for curto demais (o timer).
 - A regra antiga "transcrição só com pessoa conhecida" sai.
+- **Feito em 07/11 (app 0.14.0): ouvir é separado de responder.** Com um rosto na frente e o assistente (Falar) desligado, o celular transcreve com o reconhecedor do próprio aparelho (de graça; offline quando o aparelho permite), pega os nomes e guarda a conversa como o encontro (resumo pela IA). Nunca fala. O Falar assume o microfone enquanto está ligado. Termina 60 s depois do último rosto; com menos de 20 s ou cancelado (✕), nada fica. Por que não o Falar sempre ligado (pergunta do Marcus): o Live responde a tudo que ouve, cobra por minuto e gasta bateria.
 - **Card da pessoa durante o encontro: sempre curto** (decidido em 11/10): nome, de onde se conhecem, última vez que se viram. Sem versão expandida durante a conversa, mesmo com celular ou Wi-Fi; o card completo é do modo Recordar.
 
 ### 1i. Modo só áudio, acessível desde o começo (12/10)

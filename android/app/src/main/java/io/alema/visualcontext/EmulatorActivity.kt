@@ -75,6 +75,9 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     private val qrWork = java.util.concurrent.Executors.newSingleThreadExecutor()
     @Volatile private var qrBusy = false
     private var lastQrScan = 0L
+    /** Spec 1h: the conversation in front of you is transcribed by the phone while the assistant is off. */
+    private lateinit var ears: Ears
+    private var hearing = false
     /** QR mode (07/11): only while the ▣ QR button is on, with a window to aim; closes by itself after 25 s. */
     private var qrOn = false
     private var qrAt = 0L
@@ -126,6 +129,10 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
             androidx.core.view.WindowInsetsCompat.CONSUMED
         }
         setContentView(root)
+        ears = Ears(this, onName = { n -> work.execute {
+                val r = faces.name(n)
+                if (r.optBoolean("guardado")) main.post { onNamed(r.optString("nome", n)) }
+            } }, onState = { h -> hearing = h; main.post { paintToggles() } })
         paintToggles()
         val need = listOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO, Manifest.permission.ACCESS_FINE_LOCATION)
             .filter { ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED }
@@ -140,7 +147,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         facesBtn.setTextColor(if (facesOn) green else dim)
         placesBtn.text = if (placesOn) "● Lugares" else "○ Lugares"
         placesBtn.setTextColor(if (placesOn) green else dim)
-        hud.footer = listOf(if (facesOn) "pessoas: ligado" else "pessoas: desligado", if (placesOn) "lugares: ligado" else "lugares: desligado").joinToString(" · ")
+        hud.footer = listOfNotNull(if (facesOn) "pessoas: ligado" else "pessoas: desligado", if (placesOn) "lugares: ligado" else "lugares: desligado", if (::ears.isInitialized && hearing) "🎙 ouvindo a conversa" else null).joinToString(" · ")
         hud.invalidate()
     }
 
@@ -316,6 +323,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     override fun onFaces(seen: List<FaceBrain.Seen>, bw: Int, bh: Int) {
         lastSeen = seen; lastBw = bw; lastBh = bh
         val primary = seen.firstOrNull { it.label.isNotEmpty() }
+        if (primary != null && ::ears.isInitialized && !liveOn) ears.faceSeen(if (primary.known) primary.label else null)
         // Countdown: a new face that stays in front of you for 7 s; then 5…0 and it is kept.
         val pid = primary?.pendingId
         // The buffer runs from the first second (in memory); at 7 s the countdown starts; cancelling discards it all.
@@ -342,6 +350,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         val id = countdownId ?: return
         countdownId = null
         work.execute { faces.ignore(id) }
+        ears.discard()
         toast("descartado: nada foi guardado")
     }
 
@@ -350,8 +359,8 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     override fun onBrief(name: String, lines: List<String>) { hud.cardTitle = "✦ $name"; hud.cardLines = lines; hud.invalidate() }
 
     private fun toggleLive() {
-        if (liveOn) { if (live.speaking) live.interrupt() else { live.stop(); liveOn = false } }
-        else { liveOn = true; live.start() }
+        if (liveOn) { if (live.speaking) live.interrupt() else { live.stop(); liveOn = false; ears.resume() } }
+        else { liveOn = true; ears.pause(); live.start() }
     }
 
     override fun frame(): ByteArray? = lastJpeg
@@ -359,7 +368,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     override fun onState(state: String) {
         hud.listening = state == "listening"; hud.speaking = state == "speaking"
         talk.text = when { state == "connecting" -> "… conectando"; state == "speaking" -> "■ Interromper"; state == "listening" -> "■ Encerrar"; else -> "🎙 Falar" }
-        if (state.startsWith("error")) { toast(state.removePrefix("error: ")); liveOn = false; talk.text = "🎙 Falar" }
+        if (state.startsWith("error")) { toast(state.removePrefix("error: ")); liveOn = false; talk.text = "🎙 Falar"; ears.resume() }
         hud.invalidate()
     }
     override fun onTranscript(lines: List<String>, userLine: String?) {
@@ -392,7 +401,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     private val ticker = object : Runnable {
         override fun run() {
             countdownTick()
-            if (liveOn && live.open && !live.speaking && SystemClock.elapsedRealtime() - live.lastActivity > 40_000) { live.stop(); liveOn = false; toast("Gemini Live encerrado: 40 s em silêncio") }
+            if (liveOn && live.open && !live.speaking && SystemClock.elapsedRealtime() - live.lastActivity > 40_000) { live.stop(); liveOn = false; ears.resume(); toast("Gemini Live encerrado: 40 s em silêncio") }
             refreshPlaces(false)
             main.postDelayed(this, 250)
         }
@@ -414,6 +423,6 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     }
     override fun onAccuracyChanged(s: Sensor?, a: Int) = Unit
 
-    override fun onDestroy() { main.removeCallbacksAndMessages(null); live.destroy(); faces.close(); legacy?.destroy(); work.shutdownNow(); super.onDestroy() }
+    override fun onDestroy() { ears.finish(); main.removeCallbacksAndMessages(null); live.destroy(); faces.close(); legacy?.destroy(); work.shutdownNow(); super.onDestroy() }
     private fun toast(t: String) = Toast.makeText(this, t, Toast.LENGTH_SHORT).show()
 }
