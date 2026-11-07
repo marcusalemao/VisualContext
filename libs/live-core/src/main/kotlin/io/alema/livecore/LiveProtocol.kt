@@ -19,17 +19,20 @@ object LiveProtocol {
     const val TOOL_WHERE = "onde_estou"
     const val TOOL_PAPER = "guardar_papel"
     const val TOOL_PREP = "preparar_conversa"
+    const val TOOL_GO = "ir_para"
 
     /** Extra instructions when the app knows where the user is (phone GPS). */
     val PLACES = """
-        Se o usuário perguntar onde está, o que tem em volta, ou sobre um lugar que está vendo, chame onde_estou para saber o endereço e os lugares próximos antes de responder.
+        Se o usuário perguntar onde está, em que rua está, o que tem em volta, ou sobre um lugar ou prédio que está vendo, chame onde_estou (e olhar, se for algo que ele está vendo) antes de responder. Pergunta de lugar nunca é sobre pessoas: não chame quem_e.
+        Se onde_estou não trouxer lugares, use a busca do Google com o endereço para achar o que é conhecido ali perto (restaurantes famosos, museus, prédios). Nunca diga "não identifiquei lugares" nem "não há lugares por perto": se não souber, diga só o endereço.
+        Se o usuário aceitar ir até um lugar, chame ir_para com o nome e o endereço do lugar: o celular abre a navegação a pé.
         Depois de responder onde algo está (a moto, um lugar), faça uma única pergunta curta, já com o modo sugerido pela distância: perto, "Quer ir até lá? A pé são uns X minutos."; longe, "Quer ir até lá? São X km: transporte público, moto ou carro?". Se o usuário não responder ou disser não, não insista e não pergunte de novo.
         Quando o usuário vir uma pessoa sem nome conhecido, nunca chame de "pessoa 1" ou "desconhecido": descreva em poucas palavras neutras (ex.: "homem de barba, jaqueta azul") e a ocasião.
     """.trimIndent()
 
     /** Extra instructions when the app can recognise faces (the Solo app on the glasses). */
     val FACES = """
-        Se o usuário perguntar quem é a pessoa na frente dele ("quem é?", "como ele se chama?"), chame quem_e. Diga só o nome e de onde se conhecem, baixinho, em uma frase.
+        Só chame quem_e quando o usuário perguntar sobre uma pessoa ("quem é?", "como ele se chama?"). Nunca fale de pessoas (nem "não há ninguém na sua frente") quando a pergunta for sobre outra coisa. Diga só o nome e de onde se conhecem, baixinho, em uma frase.
         Se quem_e responder que a pessoa é desconhecida, diga isso em poucas palavras. Só guarde um rosto se o usuário pedir ou disser o nome da pessoa ("essa é a Ana", "guarda o rosto do Rafael"): aí chame guardar_pessoa com o nome.
         Nunca descreva o corpo, a aparência ou a roupa de alguém sem o usuário pedir.
     """.trimIndent()
@@ -45,6 +48,7 @@ object LiveProtocol {
         Se ele pedir para lembrar ou guardar um papel, cartão de visita, crachá, receita, formulário ou documento que está olhando, chame guardar_papel (ele lê o papel pela câmera).
         Ler algo para o usuário (cardápio, placa, bula) é ajuda: não guarde a leitura, a menos que ele peça "lembra disso".
         Para horários, preços e fatos atuais, use a busca do Google. Não invente.
+        Converse sobre qualquer assunto que o usuário trouxer; se ele quiser explicar mais, responda com a profundidade que ele pedir.
     """.trimIndent()
 
     fun setup(voice: String, resumeHandle: String?, model: String = MODEL, faces: Boolean = false, location: Boolean = false): String {
@@ -62,6 +66,8 @@ object LiveProtocol {
             .put(fn(TOOL_PAPER, "Lê pela câmera o papel, cartão de visita, crachá, receita ou formulário que o usuário está olhando e guarda na memória dele como nota. Só quando ele pedir para lembrar ou guardar.", null))
             .put(fn(TOOL_SAVE, "Guarda uma nota curta na memória do usuário, quando ele pedir.",
                 JSONObject().put("type", "OBJECT").put("properties", JSONObject().put("texto", JSONObject().put("type", "STRING"))).put("required", JSONArray().put("texto"))))
+        if (location) functions.put(fn(TOOL_GO, "Abre no celular a navegação a pé (Google Maps) até um lugar, quando o usuário aceitar ir até lá.",
+            JSONObject().put("type", "OBJECT").put("properties", JSONObject().put("destino", JSONObject().put("type", "STRING").put("description", "nome e endereço do lugar"))).put("required", JSONArray().put("destino"))))
         if (location) functions.put(fn(TOOL_WHERE, "Diz onde o usuário está agora (endereço aproximado pelo GPS do celular) e os lugares importantes por perto, com distância.", null))
         if (faces) {
             functions.put(fn(TOOL_WHO, "Reconhece o rosto da pessoa na frente do usuário, com a câmera dos óculos e a memória de rostos dele.", null))
@@ -71,13 +77,20 @@ object LiveProtocol {
         val setup = JSONObject()
             .put("model", model)
             .put("generationConfig", gen)
-            .put("systemInstruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", SYSTEM + (if (faces) "\n" + FACES else "") + (if (location) "\n" + PLACES else "")))))
+            .put("systemInstruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", now() + "\n" + SYSTEM + (if (faces) "\n" + FACES else "") + (if (location) "\n" + PLACES else "")))))
             .put("tools", JSONArray().put(JSONObject().put("functionDeclarations", functions)).put(JSONObject().put("googleSearch", JSONObject())))
             .put("inputAudioTranscription", JSONObject())
             .put("outputAudioTranscription", JSONObject())
             .put("contextWindowCompression", JSONObject().put("slidingWindow", JSONObject()))
             .put("sessionResumption", JSONObject().apply { resumeHandle?.let { put("handle", it) } })
         return JSONObject().put("setup", setup).toString()
+    }
+
+    /** The user's local time and zone (Marcus, 07/11: it said "4:48, horário UTC" at 01:48 in São Paulo). */
+    private fun now(): String {
+        val z = java.time.ZonedDateTime.now()
+        return "Agora são " + z.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm 'de' EEEE, d 'de' MMMM 'de' yyyy", java.util.Locale("pt", "BR"))) +
+            ", no fuso do usuário (" + z.zone.id + "). Diga sempre a hora local, nunca UTC."
     }
 
     private fun fn(name: String, description: String, params: JSONObject?) =

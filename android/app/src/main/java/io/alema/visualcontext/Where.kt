@@ -39,13 +39,15 @@ object Where {
 
     /** Named points of interest within [radius] m, nearest first. Blocking. */
     fun nearby(loc: Location, radius: Int = 300, max: Int = 8): List<Place> {
-        val q = """[out:json][timeout:8];(nwr(around:$radius,${loc.latitude},${loc.longitude})["name"]["tourism"];
-            nwr(around:$radius,${loc.latitude},${loc.longitude})["name"]["amenity"~"cafe|restaurant|library|theatre|cinema|university|hospital|pharmacy|bank|place_of_worship"];
-            nwr(around:$radius,${loc.latitude},${loc.longitude})["name"]["leisure"~"park|garden"];
-            nwr(around:$radius,${loc.latitude},${loc.longitude})["name"]["historic"];);out center $max;""".trimIndent()
+        // Named places people talk about: food and drink first (Marcus, 07/11: Rua Avanhandava's famous restaurants were missed),
+        // culture, landmarks, shops with a brand. Ask for many, keep the nearest; notable ones (Wikipedia/Wikidata) first.
+        val a = "(around:$radius,${loc.latitude},${loc.longitude})"
+        val q = """[out:json][timeout:15];(nwr$a["name"]["tourism"];nwr$a["name"]["historic"];nwr$a["name"]["leisure"~"park|garden|stadium"];
+            nwr$a["name"]["amenity"~"restaurant|cafe|bar|pub|fast_food|ice_cream|library|theatre|cinema|arts_centre|university|college|hospital|pharmacy|bank|place_of_worship|marketplace|nightclub"];
+            nwr$a["name"]["shop"]["brand"];nwr$a["name"]["building"]["wikidata"];);out center 80;""".trimIndent()
         for (m in MIRRORS) {
             try {
-                val c = (URL("$m?data=" + URLEncoder.encode(q, "UTF-8")).openConnection() as HttpURLConnection).apply { connectTimeout = 6000; readTimeout = 12000 }
+                val c = (URL("$m?data=" + URLEncoder.encode(q, "UTF-8")).openConnection() as HttpURLConnection).apply { connectTimeout = 8000; readTimeout = 18000 }
                 if (c.responseCode !in 200..299) continue
                 val els = JSONObject(c.inputStream.bufferedReader().readText()).optJSONArray("elements") ?: continue
                 return (0 until els.length()).mapNotNull { i ->
@@ -54,10 +56,11 @@ object Where {
                     val lon = if (e.has("lon")) e.optDouble("lon") else e.optJSONObject("center")?.optDouble("lon") ?: return@mapNotNull null
                     val t = e.optJSONObject("tags") ?: return@mapNotNull null
                     val name = t.optString("name").ifEmpty { return@mapNotNull null }
-                    val kind = listOf("tourism", "amenity", "leisure", "historic").firstNotNullOfOrNull { k -> t.optString(k).takeIf { it.isNotEmpty() } } ?: "lugar"
+                    val kind = listOf("tourism", "amenity", "leisure", "historic", "shop", "building").firstNotNullOfOrNull { k -> t.optString(k).takeIf { it.isNotEmpty() } } ?: "lugar"
                     val r = FloatArray(2); Location.distanceBetween(loc.latitude, loc.longitude, lat, lon, r)
-                    Place(name, kind.replace('_', ' '), lat, lon, r[0].toInt(), ((r[1] + 360) % 360).toInt())
-                }.sortedBy { it.dist }.take(max)
+                    val notable = t.has("wikidata") || t.has("wikipedia")
+                    Place(name, kind.replace('_', ' '), lat, lon, r[0].toInt() - (if (notable) 150 else 0), ((r[1] + 360) % 360).toInt())
+                }.sortedBy { it.dist }.take(max).map { p -> val r = FloatArray(2); Location.distanceBetween(loc.latitude, loc.longitude, p.lat, p.lon, r); p.copy(dist = r[0].toInt()) }
             } catch (_: Exception) { }
         }
         return emptyList()

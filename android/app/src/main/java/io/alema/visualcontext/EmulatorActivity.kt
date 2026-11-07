@@ -365,7 +365,11 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     override fun onTranscript(lines: List<String>, userLine: String?) {
         hud.transcript = if (userLine != null && lines.isEmpty()) listOf("🎙 " + userLine.takeLast(34)) else lines
         hud.invalidate()
+        // The answer leaves the lens by itself (Marcus, 07/11: it stayed fixed on screen).
+        main.removeCallbacks(clearTranscript); main.postDelayed(clearTranscript, 9000)
     }
+    private val clearTranscript = Runnable { if (!live.speaking) { hud.transcript = emptyList(); hud.invalidate() } else main.postDelayed(this::clearLater, 3000) }
+    private fun clearLater() { main.removeCallbacks(clearTranscript); main.postDelayed(clearTranscript, 3000) }
 
     private fun refreshPlaces(force: Boolean) {
         if (!placesOn) return

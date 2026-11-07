@@ -244,6 +244,16 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
                     else { main.post { host.onBrief(b.name, b.lines) }; JSONObject().put("pessoa", b.name).put("na_lente", JSONArray(b.lines)).put("diga", b.spoken) }
                 }
                 LiveProtocol.TOOL_WHERE -> Where.asJson(ctx)
+                LiveProtocol.TOOL_GO -> {
+                    val dest = call.args.optString("destino")
+                    try {
+                        val i = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("google.navigation:q=" + android.net.Uri.encode(dest) + "&mode=w"))
+                            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        if (i.resolveActivity(ctx.packageManager) == null) i.data = android.net.Uri.parse("https://www.google.com/maps/dir/?api=1&travelmode=walking&destination=" + android.net.Uri.encode(dest))
+                        main.post { ctx.startActivity(i) }
+                        JSONObject().put("ok", true).put("dica", "a navegação a pé abriu no celular")
+                    } catch (e: Exception) { JSONObject().put("erro", "não consegui abrir a navegação") }
+                }
                 else -> JSONObject().put("erro", "ferramenta desconhecida")
             }
             live.send(LiveProtocol.toolResponse(call.id, call.name, r))
