@@ -309,14 +309,18 @@ class SettingsActivity : Activity() {
                 AlertDialog.Builder(this@SettingsActivity).setMessage("Apagar a habilidade ${sk.name}?").setPositiveButton("Apagar") { _, _ -> Skills.remove(this@SettingsActivity, sk.slug); render() }.setNegativeButton("Cancelar", null).show(); true
             }
         })
-        ck.p("Falar com outro assistente: sua chave do OpenRouter (sk-or-, qualquer modelo), da OpenAI (sk-) ou da Anthropic (sk-ant-). Fica só neste celular. É uma pergunta solta ao modelo: a memória do VisualContext não vai junto.", 13f)
+        ck.p("As habilidades usam a chave do Gemini acima. Não precisa de outra.", 12f)
+        // Optional, its own card (Marcus, 07/11: inside Habilidades it read as a requirement).
+        val ca = card()
+        ca.h("Outro assistente (opcional)")
+        ca.p("Só se quiser falar com o Claude ou o GPT pelos óculos (\"pergunta pro Claude…\"). Chave do OpenRouter (sk-or-, qualquer modelo), da OpenAI (sk-) ou da Anthropic (sk-ant-). Fica só neste celular. É uma pergunta solta ao modelo: a memória do VisualContext não vai junto.", 13f)
         lateinit var mdl: EditText
-        ck.keyRow(Claude.key(this), "sk-or-… / sk-… / sk-ant-…",
+        ca.keyRow(Claude.key(this), "sk-or-… / sk-… / sk-ant-…",
             save = { Claude.setKey(this, it); mdl.hint = Claude.defaultModel(it) },
             test = { _ -> Claude.test(this) })
-        ck.p("Modelo (vazio = o padrão da chave). No OpenRouter pode ser qualquer um: anthropic/claude-sonnet-5.5, openai/gpt-5, google/gemini-2.5-pro…", 12f)
+        ca.p("Modelo (vazio = o padrão da chave). No OpenRouter pode ser qualquer um: anthropic/claude-sonnet-5.5, openai/gpt-5, google/gemini-2.5-pro…", 12f)
         mdl = field(getSharedPreferences("visualcontext", MODE_PRIVATE).getString("claude_model", "") ?: "", false).apply { hint = Claude.defaultModel(Claude.key(this@SettingsActivity)) }
-        ck.addView(mdl)
+        ca.addView(mdl)
         mdl.setOnFocusChangeListener { _, has -> if (!has) Claude.setModel(this, mdl.text.toString()) }
         mdl.setOnEditorActionListener { _, _, _ -> Claude.setModel(this, mdl.text.toString()); Toast.makeText(this, "✓ Modelo salvo", Toast.LENGTH_SHORT).show(); false }
 
