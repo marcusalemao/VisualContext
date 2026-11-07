@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Black = transparent on the waveguide. No fills anywhere. -->
+    <style name="Theme.Solo" parent="android:style/Theme.Material.NoActionBar.Fullscreen">
+        <item name="android:windowBackground">#000000</item>
+        <item name="android:fontFamily">monospace</item>
+        <item name="android:statusBarColor">#000000</item>
+        <item name="android:navigationBarColor">#000000</item>
+    </style>
+</resources>

@@ -1,5 +1,6 @@
 package io.alema.visualcontext
 
+import io.alema.facecore.FaceMatch
 import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
@@ -12,11 +13,26 @@ import java.net.URL
  * The token lives only in this phone's private app storage, never in the code.
  */
 object Backend {
-    const val DEFAULT_URL = "https://base44.app/api/apps/6a11083db49430b410a8c066/functions/fcProxy"
+    /** The VisualContext memory (Supabase, São Paulo). Base44 was the old one; saved Base44 addresses move here by themselves. */
+    const val DEFAULT_URL = "https://vzqjwhlpwvqrosoiwiin.supabase.co/functions/v1/vc"
     private const val PREFS = "visualcontext"
 
-    fun url(ctx: Context): String = prefs(ctx).getString("backend_url", DEFAULT_URL) ?: DEFAULT_URL
+    fun url(ctx: Context): String = (prefs(ctx).getString("backend_url", DEFAULT_URL) ?: DEFAULT_URL).let { if ("base44.app" in it) DEFAULT_URL else it }
+    /** Face engine: "arc" (ArcFace, default from 0.3) or "faceapi" (old, compatible with the 7 stored faces). */
+    fun engine(ctx: Context): String = prefs(ctx).getString("face_engine", "arc") ?: "arc"
+    fun setEngine(ctx: Context, e: String) { prefs(ctx).edit().putString("face_engine", e).apply() }
+    fun geminiKey(ctx: Context): String = prefs(ctx).getString("gemini_key", "") ?: ""
+    fun voiceName(ctx: Context): String = prefs(ctx).getString("voice", "Kore") ?: "Kore"
+    fun saveGemini(ctx: Context, key: String, voice: String) { prefs(ctx).edit().putString("gemini_key", key.trim()).putString("voice", voice).remove("live_model").remove("text_model").apply() }
+    fun saveVoice(ctx: Context, voice: String) { prefs(ctx).edit().putString("voice", voice).apply() }
+    fun prefsText(ctx: Context): String? = prefs(ctx).getString("text_model", null)
+    fun saveTextModel(ctx: Context, m: String?) { prefs(ctx).edit().putString("text_model", m).apply() }
+    fun liveModel(ctx: Context): String? = prefs(ctx).getString("live_model", null)
+    fun saveLiveModel(ctx: Context, m: String?) { prefs(ctx).edit().putString("live_model", m).apply() }
     fun token(ctx: Context): String = prefs(ctx).getString("device_token", "") ?: ""
+    /** The e-mail this phone signed in with (shown in Settings). */
+    fun email(ctx: Context): String = prefs(ctx).getString("account_email", "") ?: ""
+    fun saveEmail(ctx: Context, e: String) { prefs(ctx).edit().putString("account_email", e.trim().lowercase()).apply() }
     fun save(ctx: Context, url: String, token: String) {
         prefs(ctx).edit().putString("backend_url", url.trim().ifEmpty { DEFAULT_URL }).putString("device_token", token.trim()).apply()
     }
@@ -24,6 +40,26 @@ object Backend {
     sealed class Result {
         data class People(val count: Int, val newest: List<String>) : Result()
         data class Failed(val reason: String) : Result()
+    }
+
+    /** Blocking. Any vc action; null when offline, no token or an error. */
+    fun post(ctx: Context, body: JSONObject): String? {
+        val token = token(ctx); if (token.isEmpty()) return null
+        return try {
+            val c = (URL(url(ctx)).openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"; connectTimeout = 10_000; readTimeout = 20_000; doOutput = true
+                setRequestProperty("Content-Type", "application/json"); setRequestProperty("x-vc-token", token)
+            }
+            c.outputStream.use { it.write(body.toString().toByteArray()) }
+            if (c.responseCode in 200..299) c.inputStream.bufferedReader().use { it.readText() } else null
+        } catch (_: Exception) { null }
+    }
+
+    /** The Manager in the browser, already signed in with this phone (fragment: never sent to a server). */
+    const val MANAGER_URL = "https://web-visualcontext-site.visualcontext.pages.dev/manager"
+    fun managerLink(ctx: Context): String {
+        val g = geminiKey(ctx).takeIf { it.length > 20 }?.let { "&g=" + java.net.URLEncoder.encode(it, "UTF-8") } ?: ""
+        return "$MANAGER_URL#t=${token(ctx)}$g"
     }
 
     /** Blocking — call it off the main thread. */
@@ -51,6 +87,35 @@ object Backend {
         } catch (e: Exception) {
             Result.Failed("sem conexão")
         }
+    }
+
+    /** One person from the memory, only the fields the glasses card needs. */
+    data class Person(
+        val id: String, val name: String, val relation: String, val company: String,
+        val lastSeenContext: String, val lastSeenDate: String, val embedding: FloatArray?,
+    )
+
+    /** Blocking. The whole people list with face embeddings, or null when offline / no token. */
+    fun peopleFull(ctx: Context): List<Person>? {
+        val token = token(ctx)
+        if (token.isEmpty()) return null
+        return try {
+            val conn = (URL(url(ctx)).openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"; connectTimeout = 10_000; readTimeout = 30_000; doOutput = true
+                setRequestProperty("Content-Type", "application/json")
+                setRequestProperty("x-vc-token", token)
+            }
+            val body = JSONObject().put("action", "list").put("entity", "FaceContextPerson").put("limit", 1000)
+            conn.outputStream.use { it.write(body.toString().toByteArray()) }
+            if (conn.responseCode !in 200..299) return null
+            val list = JSONArray(conn.inputStream.bufferedReader().use { it.readText() })
+            (0 until list.length()).mapNotNull { i ->
+                val o = list.optJSONObject(i) ?: return@mapNotNull null
+                fun f(k: String) = o.optString(k).takeIf { it.isNotBlank() && it != "null" } ?: ""
+                val name = f("name").ifEmpty { return@mapNotNull null }
+                Person(f("id"), name, f("relation"), f("company"), f("last_seen_context"), f("last_seen_date"), FaceMatch.parse(f("face_embedding")))
+            }
+        } catch (_: Exception) { null }
     }
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
