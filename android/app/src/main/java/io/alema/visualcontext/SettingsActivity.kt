@@ -303,6 +303,17 @@ class SettingsActivity : Activity() {
         ca.h("Outro assistente (opcional)")
         ca.p("Não é necessário: com a chave do Gemini acima tudo já funciona. Isto é só para quem também quer fazer perguntas ao Claude ou ao ChatGPT pelos óculos (\"pergunta pro Claude…\").", 13f)
         ca.p("Atenção: é uma chave de API, não a sua conta pessoal. O que você pergunta por aqui não vê nem entra no histórico das suas conversas no Claude ou no ChatGPT; é uma pergunta solta ao modelo, paga por uso. Chave do OpenRouter (sk-or-, qualquer modelo), da OpenAI (sk-) ou da Anthropic (sk-ant-). Fica só neste celular.", 13f)
+        // Music (Marcus, 07/11): AudD recognises what is playing; Google's sound search has no API.
+        val cm = card()
+        cm.h("Música (opcional)")
+        cm.p("\"Que música é essa?\" nos óculos. Sem chave, o celular abre a pesquisa por som do Google (o resultado fica lá). Com uma chave do AudD (audd.io, tem plano grátis), o nome aparece na lente e vira lembrança.", 13f)
+        cm.btn("Pegar a chave no AudD ↗", false) { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://dashboard.audd.io/"))) }
+        cm.keyRow(Music.key(this), "chave do AudD", save = { Music.setKey(this, it) }, test = { k ->
+            try {
+                val c = (java.net.URL("https://api.audd.io/?api_token=" + java.net.URLEncoder.encode(k, "UTF-8") + "&url=https://audd.tech/example.mp3").openConnection() as java.net.HttpURLConnection).apply { connectTimeout = 10_000; readTimeout = 25_000 }
+                val j = org.json.JSONObject(c.inputStream.bufferedReader().readText())
+                if (j.optString("status") == "success") null else (j.optJSONObject("error")?.optString("error_message") ?: "Chave recusada pelo AudD.")
+            } catch (_: Exception) { "Sem internet." } })
         lateinit var mdl: EditText
         ca.keyRow(Claude.key(this), "sk-or-… / sk-… / sk-ant-…",
             save = { Claude.setKey(this, it); mdl.hint = Claude.defaultModel(it) },

@@ -405,6 +405,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         else { liveOn = true; ears.pause(); live.start() }
     }
 
+    override fun placeName(): String? = Where.location(this)?.let { Where.address(this, it) }
     override fun frame(): ByteArray? = lastJpeg
     override fun faces(): FaceBrain = faces
     override fun onState(state: String) {

@@ -32,12 +32,14 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
         fun onBrief(name: String, lines: List<String>) {}
         /** The user said "sim" / "copia": true when the lens had a question waiting (a QR code, for now). */
         fun onYes(): Boolean = false
+        /** Where we are, in words, for memories made by tools (blocking, may be null). */
+        fun placeName(): String? = null
     }
 
     private val main = Handler(Looper.getMainLooper())
     private val io = Executors.newSingleThreadExecutor()
     private val live = LiveSession(this).apply { faceTools = true; locationTools = true }
-    private val mic = MicIn { pcm -> if (open) live.send(LiveProtocol.audio(Base64.encodeToString(if (speaker.speaking) ByteArray(pcm.size) else pcm, Base64.NO_WRAP))) }
+    private val mic = MicIn { pcm -> Music.feed(pcm); if (open) live.send(LiveProtocol.audio(Base64.encodeToString(if (speaker.speaking) ByteArray(pcm.size) else pcm, Base64.NO_WRAP))) }
     private val speaker = SpeakerOut()
     private val transcript = Transcript(3, 34)
     private var turnDone = true
@@ -67,7 +69,7 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
             val model = Backend.liveModel(ctx) ?: (live.listModels(key)?.let { LiveProtocol.pickLiveModel(it) } ?: LiveProtocol.MODEL).also { Backend.saveLiveModel(ctx, it) }
             // Spec 1r: the learned skills become tools of this session.
             Skills.refresh(ctx)
-            live.extraTools = Skills.tools(ctx); live.extraSystem = Skills.system(ctx)
+            live.extraTools = Skills.tools(ctx).put(Music.tool()); live.extraSystem = Skills.system(ctx) + " MÚSICA: se ele perguntar que música está tocando, chame identificar_musica e espere; não adivinhe."
             main.post { live.connect(key, Backend.voiceName(ctx), resumeHandle, model) }
         }
     }
@@ -247,6 +249,25 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
                     else { main.post { host.onBrief(b.name, b.lines) }; JSONObject().put("pessoa", b.name).put("na_lente", JSONArray(b.lines)).put("diga", b.spoken) }
                 }
                 LiveProtocol.TOOL_WHERE -> Where.asJson(ctx)
+                Music.TOOL -> {
+                    main.post { host.onBrief("♪ Ouvindo…", listOf("uns segundos de silêncio, por favor")) }
+                    try {
+                        val song = Music.identify(ctx)
+                        if (song == null) { main.post { host.onBrief("♪", listOf("não reconheci essa música")) }; JSONObject().put("resultado", "não reconhecida").put("diga", "Não reconheci essa música. Quer que eu tente de novo?") }
+                        else {
+                            val line = "${song.title} — ${song.artist}" + (song.album?.let { " · $it" } ?: "")
+                            main.post { host.onBrief("♪ " + song.title, listOf(song.artist, song.album ?: "")) }
+                            Moments.send(ctx, JSONObject().put("action", "note").put("kind", "musica").put("title", line).put("text", "Ouviu $line").put("source", "glasses").put("place", host.placeName()))
+                            JSONObject().put("musica", song.title).put("artista", song.artist).put("album", song.album ?: "").put("diga", "É ${song.title}, de ${song.artist}.")
+                        }
+                    } catch (e: IllegalStateException) {
+                        if (e.message == "sem chave") {
+                            val ok = Music.openGoogle(ctx)
+                            JSONObject().put("resultado", if (ok) "abri a pesquisa por som do Google no celular; o resultado aparece lá" else "sem serviço de identificação de música; a chave do AudD pode ser configurada nos Ajustes")
+                                .put("diga", if (ok) "Abri a pesquisa por som do Google no seu celular." else "Ainda não tenho como identificar músicas; dá para ligar isso nos Ajustes.")
+                        } else JSONObject().put("erro", e.message)
+                    }
+                }
                 Skills.TOOL_LEARN -> {
                     val sk = Skills.learn(ctx, call.args.optString("nome"), call.args.optString("o_que_faz"), call.args.optString("detalhes"))
                     if (sk == null) JSONObject().put("erro", "não consegui criar a habilidade agora")
