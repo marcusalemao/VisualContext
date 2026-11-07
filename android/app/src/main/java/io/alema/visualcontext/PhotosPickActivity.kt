@@ -40,8 +40,15 @@ class PhotosPickActivity : Activity() {
         setContentView(ScrollView(this).apply { addView(col); setBackgroundColor(Color.rgb(3, 12, 6)) })
         if (PhotosCaptureService.running) PhotosCaptureService.stop(this)
         PhotosAuto.stop()
+        Look.insets(col)
         render()
         sharedImages(intent)?.let { readImages(it) }
+    }
+
+    /** Same buttons as Settings: filled = the main action of the step, outline = the rest. */
+    private fun restyle(v: android.view.View = col) {
+        if (v is Button) { val t = v.text.toString(); Look.button(v, t.startsWith("Guardar") || t.startsWith("Importar contatos") || t.startsWith("Capturar enquanto") || t == "Terminei") }
+        if (v is android.view.ViewGroup) for (i in 0 until v.childCount) restyle(v.getChildAt(i))
     }
 
     /** Phone contacts with a photo: one face each, the name is the contact's. */
@@ -147,6 +154,7 @@ class PhotosPickActivity : Activity() {
         col.removeAllViews()
         val found = PhotosGrid.last
         if (found.isEmpty() && PhotosGrid.lastNameless.isEmpty()) intro() else pick(found)
+        restyle()
     }
 
     private fun intro() {
@@ -335,7 +343,7 @@ class PhotosPickActivity : Activity() {
             text = "Guardar os marcados"
             setOnClickListener { b ->
                 val list = picked.filter { (f, c) -> c.isChecked && f.name.isNotEmpty() }.keys.toList()
-                pendingSave = list; pendingStatus = status; b.isEnabled = false
+                pendingSave = list; pendingStatus = status; b.isEnabled = false; b.alpha = 0.45f
                 val wantContacts = toContacts.isChecked && source != "contatos"
                 if (wantContacts && (checkSelfPermission(android.Manifest.permission.WRITE_CONTACTS) != android.content.pm.PackageManager.PERMISSION_GRANTED ||
                         checkSelfPermission(android.Manifest.permission.READ_CONTACTS) != android.content.pm.PackageManager.PERMISSION_GRANTED))
@@ -377,7 +385,7 @@ class PhotosPickActivity : Activity() {
             PhotosGrid.last = emptyList(); PhotosGrid.lastNameless = emptyList()
             runOnUiThread {
                 status.text = "$ok ${if (ok == 1) "pessoa guardada" else "pessoas guardadas"}." + if (offline > 0) " $offline ficaram só neste celular (sem internet agora)." else " Já aparecem no Manager." + agenda
-                col.addView(Button(this).apply { text = "Voltar"; setOnClickListener { finish() } })
+                col.addView(Look.button(Button(this).apply { text = "Voltar"; setOnClickListener { finish() } }, true))
             }
         }
     }

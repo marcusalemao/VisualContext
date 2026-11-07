@@ -88,7 +88,7 @@ Tipos de passo (só estes):
 - {"tipo":"ler","url":"https://..."}: lê uma página pública.
 - {"tipo":"memoria","busca":"..."}: procura na memória do usuário (pessoas, encontros, notas).
 - {"tipo":"ia","pedido":"..."}: pede algo a uma IA com o resultado anterior.
-- {"tipo":"claude","pedido":"..."}: manda a pergunta ao Claude (para "falar com o Claude").
+- {"tipo":"claude","pedido":"..."}: manda a pergunta a outro assistente (Claude, GPT ou o modelo que o usuário escolheu) — para "falar com o Claude", "pergunta pro GPT".
 Nos textos, use {{pedido}} (o que o usuário pediu agora), {{anterior}} (resultado do passo anterior), {{hoje}} e {{nome_do_param}}.
 Nada que envie, compre ou apague. No máximo 3 passos.
 HABILIDADE: $name — $what. DETALHES DO USUÁRIO: $details"""
@@ -166,41 +166,61 @@ object Gemini {
     }
 }
 
-/** "Falar com o Claude": the user's own key (Anthropic, or OpenRouter when it starts with sk-or-). Blocking. */
+/**
+ * "Falar com outro assistente": the user's own key. OpenRouter (sk-or-…, any model), OpenAI (sk-…),
+ * or Anthropic (sk-ant-…). The key and the model id are settings, so a new model needs no new build.
+ * Blocking. No project memory travels with it: it is a plain question to that model.
+ */
 object Claude {
-    fun key(ctx: Context) = ctx.getSharedPreferences("visualcontext", Context.MODE_PRIVATE).getString("claude_key", "") ?: ""
-    fun setKey(ctx: Context, k: String) { ctx.getSharedPreferences("visualcontext", Context.MODE_PRIVATE).edit().putString("claude_key", k.trim()).apply() }
+    private fun prefs(ctx: Context) = ctx.getSharedPreferences("visualcontext", Context.MODE_PRIVATE)
+    fun key(ctx: Context) = prefs(ctx).getString("claude_key", "") ?: ""
+    fun setKey(ctx: Context, k: String) { prefs(ctx).edit().putString("claude_key", k.trim()).apply() }
+    fun provider(k: String) = when { k.startsWith("sk-or-") -> "openrouter"; k.startsWith("sk-ant-") -> "anthropic"; k.startsWith("sk-") -> "openai"; else -> "" }
+    fun providerName(k: String) = when (provider(k)) { "openrouter" -> "OpenRouter"; "anthropic" -> "Anthropic"; "openai" -> "OpenAI"; else -> "" }
 
-    fun ask(ctx: Context, q: String): String? {
-        val k = key(ctx); if (k.length < 20) return "Falta a chave do Claude nos Ajustes do VisualContext."
+    fun ask(ctx: Context, q: String): String? = call(ctx, q).first
+
+    /** Settings → "Testar": null when it works, otherwise what went wrong, in words. */
+    fun test(ctx: Context): String? {
+        val k = key(ctx); if (provider(k).isEmpty()) return "Chave não reconhecida: precisa começar com sk-or-, sk-ant- ou sk-."
+        val (a, why) = call(ctx, "Responda só: ok")
+        return if (a != null) null else why
+    }
+
+    private fun call(ctx: Context, q: String): Pair<String?, String> {
+        val k = key(ctx); val prov = provider(k)
+        if (prov.isEmpty()) return null to "Falta a chave do assistente nos Ajustes do VisualContext."
         val sys = "Você responde pelos óculos do usuário: em português, curto (até 4 frases), sem markdown."
         return try {
-            if (k.startsWith("sk-or-")) {
-                val c = (URL("https://openrouter.ai/api/v1/chat/completions").openConnection() as HttpURLConnection).apply {
-                    requestMethod = "POST"; connectTimeout = 10_000; readTimeout = 60_000; doOutput = true
-                    setRequestProperty("Content-Type", "application/json"); setRequestProperty("Authorization", "Bearer $k")
-                }
-                c.outputStream.use { it.write(JSONObject().put("model", model(ctx, openRouter = true)).put("messages", JSONArray().put(JSONObject().put("role", "system").put("content", sys)).put(JSONObject().put("role", "user").put("content", q))).toString().toByteArray()) }
-                if (c.responseCode !in 200..299) return null
-                JSONObject(c.inputStream.bufferedReader().readText()).optJSONArray("choices")?.optJSONObject(0)?.optJSONObject("message")?.optString("content")
-            } else {
-                val c = (URL("https://api.anthropic.com/v1/messages").openConnection() as HttpURLConnection).apply {
-                    requestMethod = "POST"; connectTimeout = 10_000; readTimeout = 60_000; doOutput = true
-                    setRequestProperty("Content-Type", "application/json"); setRequestProperty("x-api-key", k); setRequestProperty("anthropic-version", "2023-06-01")
-                }
-                c.outputStream.use { it.write(JSONObject().put("model", model(ctx, openRouter = false)).put("max_tokens", 800).put("system", sys).put("messages", JSONArray().put(JSONObject().put("role", "user").put("content", q))).toString().toByteArray()) }
-                if (c.responseCode !in 200..299) return null
-                val a = JSONObject(c.inputStream.bufferedReader().readText()).optJSONArray("content") ?: return null
-                (0 until a.length()).mapNotNull { a.optJSONObject(it) }.filter { it.optString("type") == "text" }.joinToString("") { it.optString("text") }
+            val (url, headers, body) = when (prov) {
+                "anthropic" -> Triple("https://api.anthropic.com/v1/messages", mapOf("x-api-key" to k, "anthropic-version" to "2023-06-01"),
+                    JSONObject().put("model", model(ctx)).put("max_tokens", 800).put("system", sys).put("messages", JSONArray().put(JSONObject().put("role", "user").put("content", q))))
+                else -> Triple(if (prov == "openrouter") "https://openrouter.ai/api/v1/chat/completions" else "https://api.openai.com/v1/chat/completions", mapOf("Authorization" to "Bearer $k"),
+                    JSONObject().put("model", model(ctx)).put("messages", JSONArray().put(JSONObject().put("role", "system").put("content", sys)).put(JSONObject().put("role", "user").put("content", q))))
             }
-        } catch (_: Exception) { null }
+            val c = (URL(url).openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"; connectTimeout = 10_000; readTimeout = 60_000; doOutput = true
+                setRequestProperty("Content-Type", "application/json"); headers.forEach { (h, v) -> setRequestProperty(h, v) }
+            }
+            c.outputStream.use { it.write(body.toString().toByteArray()) }
+            val code = c.responseCode
+            if (code !in 200..299) {
+                val err = runCatching { JSONObject(c.errorStream.bufferedReader().readText()).optJSONObject("error")?.optString("message") }.getOrNull().orEmpty()
+                return null to when (code) { 401, 403 -> "Chave recusada pela ${providerName(k)}."; 402 -> "Sem créditos na ${providerName(k)}."; 404 -> "Modelo \"${model(ctx)}\" não existe na ${providerName(k)}."; 429 -> "Limite de uso atingido. Tente daqui a pouco."; else -> "Erro $code${if (err.isNotEmpty()) ": " + err.take(120) else ""}" }
+            }
+            val j = JSONObject(c.inputStream.bufferedReader().readText())
+            val text = if (prov == "anthropic") j.optJSONArray("content")?.let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it) }.filter { it.optString("type") == "text" }.joinToString("") { it.optString("text") } }
+                else j.optJSONArray("choices")?.optJSONObject(0)?.optJSONObject("message")?.optString("content")
+            if (text.isNullOrBlank()) null to "Resposta vazia." else text to ""
+        } catch (e: Exception) { null to "Sem internet (${e.javaClass.simpleName})." }
     }
 
-    /** The model id is a setting ("claude_model"), so a newer Claude needs no new build. */
-    fun model(ctx: Context, openRouter: Boolean): String {
-        val m = ctx.getSharedPreferences("visualcontext", Context.MODE_PRIVATE).getString("claude_model", "")?.trim().orEmpty()
-        if (m.isNotEmpty()) return if (openRouter && !m.contains('/')) "anthropic/" + m.replace("-5-5", "-5.5") else m
-        return if (openRouter) "anthropic/claude-sonnet-5.5" else "claude-sonnet-5-5"
+    /** Model id for the key's provider: the saved one, or a sensible default. */
+    fun model(ctx: Context): String {
+        val m = prefs(ctx).getString("claude_model", "")?.trim().orEmpty()
+        if (m.isNotEmpty()) return m
+        return defaultModel(key(ctx))
     }
-    fun setModel(ctx: Context, m: String) { ctx.getSharedPreferences("visualcontext", Context.MODE_PRIVATE).edit().putString("claude_model", m.trim()).apply() }
+    fun defaultModel(k: String) = when (provider(k)) { "openrouter" -> "anthropic/claude-sonnet-5.5"; "openai" -> "gpt-5-mini"; else -> "claude-sonnet-5-5" }
+    fun setModel(ctx: Context, m: String) { prefs(ctx).edit().putString("claude_model", m.trim()).apply() }
 }

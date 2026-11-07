@@ -2,6 +2,7 @@ package io.alema.visualcontext
 
 import io.alema.facecore.LocalFaces
 import io.alema.facecore.ArcFaceEngine
+import io.alema.livecore.LiveProtocol
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
@@ -41,6 +42,7 @@ class SettingsActivity : Activity() {
         super.onCreate(savedInstanceState)
         col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(48, 96, 48, 48) }
         setContentView(ScrollView(this).apply { addView(col); setBackgroundColor(Color.rgb(3, 12, 6)) })
+        Look.insets(col)
         handle(intent)
     }
 
@@ -86,7 +88,7 @@ class SettingsActivity : Activity() {
 
     private fun render() {
         col.removeAllViews()
-        col.setPadding(dp(16), dp(40), dp(16), dp(32))
+        col.setPadding(dp(16), dp(40), dp(16), dp(32) + Look.nav(col))
         // The full logo (symbol + wordmark); long-press = developer mode.
         col.addView(android.widget.ImageView(this).apply {
             setImageResource(R.drawable.logo_full)
@@ -231,8 +233,13 @@ class SettingsActivity : Activity() {
         val c7 = card()
         c7.h("Assistente (Gemini)")
         c7.p("Chave do Google AI Studio. Fica só neste celular; não cole em nenhum chat.", 13f)
-        val gk = field(Backend.geminiKey(this), true).apply { hint = "AIza…" }
-        c7.addView(gk)
+        val gk = c7.keyRow(Backend.geminiKey(this), "AIza…",
+            save = { Backend.saveGemini(this, it, Backend.voiceName(this)) },
+            test = { k -> // a real call, never the cached model name
+                try {
+                    val c = (java.net.URL(LiveProtocol.MODELS_URL).openConnection() as java.net.HttpURLConnection).apply { setRequestProperty("x-goog-api-key", k); connectTimeout = 10_000 }
+                    when (c.responseCode) { in 200..299 -> null; 400, 401, 403 -> "Chave recusada pelo Google."; 429 -> "Limite de uso do Google atingido."; else -> "Erro ${c.responseCode} do Google." }
+                } catch (e: Exception) { "Sem internet." } })
         val voices = listOf("Kore", "Aoede", "Puck", "Charon")
         c7.p("Voz de quem fala com você no Live", 13f)
         val vg = android.widget.RadioGroup(this).apply { orientation = LinearLayout.HORIZONTAL
@@ -244,7 +251,7 @@ class SettingsActivity : Activity() {
             outs.forEachIndexed { i, (k, l) -> addView(android.widget.RadioButton(context).apply { id = 500 + i; text = l; setTextColor(soft); textSize = 14f; buttonTintList = android.content.res.ColorStateList.valueOf(green); isChecked = Voice.output(context) == k }) }
             setOnCheckedChangeListener { _, id -> Voice.setOutput(context, outs[id - 500].first) }
         })
-        c7.btn("Salvar chave e voz", false) { Backend.saveGemini(this, gk.text.toString(), voices.getOrElse(vg.checkedRadioButtonId - 300) { "Kore" }); Toast.makeText(this, "✓ Salvo", Toast.LENGTH_SHORT).show() }
+        vg.setOnCheckedChangeListener { _, id -> Backend.saveGemini(this, Backend.geminiKey(this), voices.getOrElse(id - 300) { "Kore" }) }
 
         // 8. Skills (spec 1r)
         val ck = card()
@@ -259,10 +266,16 @@ class SettingsActivity : Activity() {
                 AlertDialog.Builder(this@SettingsActivity).setMessage("Apagar a habilidade ${sk.name}?").setPositiveButton("Apagar") { _, _ -> Skills.remove(this@SettingsActivity, sk.slug); render() }.setNegativeButton("Cancelar", null).show(); true
             }
         })
-        ck.p("Chave do Claude (para \"falar com o Claude\"): da Anthropic ou do OpenRouter (começa com sk-or-). Fica só neste celular.", 13f)
-        val clk = field(Claude.key(this), true).apply { hint = "sk-ant-… ou sk-or-…" }
-        ck.addView(clk)
-        ck.btn("Salvar a chave do Claude", false) { Claude.setKey(this, clk.text.toString()); Toast.makeText(this, "✓ Salvo", Toast.LENGTH_SHORT).show() }
+        ck.p("Falar com outro assistente: sua chave do OpenRouter (sk-or-, qualquer modelo), da OpenAI (sk-) ou da Anthropic (sk-ant-). Fica só neste celular. É uma pergunta solta ao modelo: a memória do VisualContext não vai junto.", 13f)
+        lateinit var mdl: EditText
+        ck.keyRow(Claude.key(this), "sk-or-… / sk-… / sk-ant-…",
+            save = { Claude.setKey(this, it); mdl.hint = Claude.defaultModel(it) },
+            test = { _ -> Claude.test(this) })
+        ck.p("Modelo (vazio = o padrão da chave). No OpenRouter pode ser qualquer um: anthropic/claude-sonnet-5.5, openai/gpt-5, google/gemini-2.5-pro…", 12f)
+        mdl = field(getSharedPreferences("visualcontext", MODE_PRIVATE).getString("claude_model", "") ?: "", false).apply { hint = Claude.defaultModel(Claude.key(this@SettingsActivity)) }
+        ck.addView(mdl)
+        mdl.setOnFocusChangeListener { _, has -> if (!has) Claude.setModel(this, mdl.text.toString()) }
+        mdl.setOnEditorActionListener { _, _, _ -> Claude.setModel(this, mdl.text.toString()); Toast.makeText(this, "✓ Modelo salvo", Toast.LENGTH_SHORT).show(); false }
 
         if (Backend.token(this).isNotEmpty()) {
             val c8 = card()
@@ -468,6 +481,49 @@ class SettingsActivity : Activity() {
 
     private fun label(t: String, size: Float = 14f, c: Int = soft) =
         TextView(this).apply { text = t; textSize = size; setTextColor(c); setPadding(0, 24, 0, 8) }
+
+    /** sk-or-ab…wxyz — enough to tell keys apart, never the whole key. */
+    private fun mask(k: String) = if (k.length < 12) "" else k.take(6) + "…" + k.takeLast(4)
+
+    /**
+     * A secret with a visible state (Marcus, 07/11: "não sei se entrou, se está salva"): a line that says which
+     * key is saved (masked), an empty field to paste a new one, Salvar, and Testar — which runs a real call
+     * and says in words whether it worked.
+     */
+    private fun LinearLayout.keyRow(saved: String, hint: String, save: (String) -> Unit, test: (String) -> String?): EditText {
+        var cur = saved
+        val state = TextView(context).apply { textSize = 13f; setTextColor(if (cur.isEmpty()) Color.rgb(255, 170, 90) else soft); text = if (cur.isEmpty()) "Nenhuma chave salva." else "Chave salva: ${mask(cur)}" }
+        addView(state)
+        val f = field("", true).apply { this.hint = if (cur.isEmpty()) hint else "colar outra chave…" }
+        addView(f)
+        val row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
+        addView(row)
+        lateinit var tb: Button
+        val sb = btn("Salvar", true) {
+            val v = f.text.toString().trim()
+            if (v.length < 12) { Toast.makeText(context, "Cole a chave primeiro", Toast.LENGTH_SHORT).show(); return@btn }
+            save(v); cur = v; f.setText(""); f.hint = "colar outra chave…"
+            state.setTextColor(soft); state.text = "Chave salva: ${mask(cur)} (ainda não testada)"
+        }
+        tb = btn("Testar", false) {
+            val pending = f.text.toString().trim()
+            if (pending.length >= 12 && pending != cur) { Toast.makeText(context, "Salve a chave colada antes de testar", Toast.LENGTH_SHORT).show(); return@btn }
+            if (cur.isEmpty()) { Toast.makeText(context, "Nenhuma chave salva", Toast.LENGTH_SHORT).show(); return@btn }
+            tb.isEnabled = false; state.text = "Testando ${mask(cur)}…"
+            io.execute {
+                val why = runCatching { test(cur) }.getOrElse { "Erro: ${it.message}" }
+                runOnUiThread {
+                    tb.isEnabled = true
+                    if (why == null) { state.setTextColor(green); state.text = "✓ Chave ${mask(cur)} funciona" }
+                    else { state.setTextColor(Color.rgb(255, 120, 100)); state.text = "✗ ${mask(cur)}: $why" }
+                }
+            }
+        }
+        // Side by side: move the two buttons from the card into the row.
+        removeView(sb); removeView(tb)
+        for ((i, b) in listOf(sb, tb).withIndex()) row.addView(b, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { topMargin = dp(8); if (i == 0) rightMargin = dp(8) })
+        return f
+    }
 
     private fun field(v: String, secret: Boolean) = EditText(this).apply {
         setText(v); setTextColor(green); textSize = 14f; isSingleLine = true
