@@ -59,6 +59,7 @@ class PhotosPickActivity : Activity() {
      */
     private fun readContacts() {
         col.removeAllViews(); col.addView(label("Lendo os contatos com foto…", 18f, green))
+        val prog = Look.Progress(this, "Lendo os contatos com foto", 0)
         io.execute {
             val g = PhotosGrid(this)
             var bad = 0
@@ -145,7 +146,7 @@ class PhotosPickActivity : Activity() {
                 }
                 PhotosGrid.last = g.found.toList()
                 PhotosGrid.lastNameless = g.nameless.toList()
-            } catch (_: Throwable) { } finally { g.close() }
+            } catch (_: Throwable) { } finally { g.close(); prog.done() }
             runOnUiThread { if (PhotosGrid.last.isEmpty() && PhotosGrid.lastNameless.isEmpty()) { render(); col.addView(label("Não achei rostos com nome nesse print. Confira se é a tela Pessoas e animais.", 14f, green)) } else render() }
         }
     }
