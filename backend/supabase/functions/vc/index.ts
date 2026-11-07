@@ -26,20 +26,21 @@ const vec = (a: unknown, n: number) => {
 };
 
 /** People in the shape the apps already read (FaceContextPerson). */
-async function listPeople(w: Who, limit = 1000) {
+async function listPeople(w: Who, limit = 1000, thumbs = false) {
   const { data: people, error } = await mine(db.from("people").select("*"), w).order("updated_at", { ascending: false }).limit(limit);
   if (error) throw error;
   const ids = (people ?? []).map((p: any) => p.id);
-  const { data: faces } = ids.length ? await db.from("faces").select("person_id, legacy").in("person_id", ids) : { data: [] };
+  const { data: faces } = ids.length ? await db.from("faces").select(thumbs ? "person_id, legacy, thumb, last_seen_at" : "person_id, legacy, last_seen_at").in("person_id", ids).order("last_seen_at", { ascending: false }) : { data: [] };
   const legacy = new Map((faces ?? []).filter((f: any) => f.legacy).map((f: any) => [f.person_id, f.legacy]));
   const nFaces = new Map<string, number>();
-  for (const f of faces ?? []) nFaces.set((f as any).person_id, (nFaces.get((f as any).person_id) ?? 0) + 1);
+  const thumb = new Map<string, string>(); // newest face crop per person: the Manager shows it when there is no photo_url
+  for (const f of faces ?? []) { nFaces.set((f as any).person_id, (nFaces.get((f as any).person_id) ?? 0) + 1); if ((f as any).thumb && !thumb.has((f as any).person_id)) thumb.set((f as any).person_id, (f as any).thumb); }
   return (people ?? []).map((p: any) => ({
     id: p.id, name: p.name, nickname: p.nickname, company: p.company, role: p.role, relation: p.relation,
     relation_context: p.relation_context, photo_url: p.photo_url, tags: p.tags, notes: p.notes,
     contact_email: p.contact_email, contact_phone: p.contact_phone, contact_whatsapp: p.contact_whatsapp, contact_linkedin: p.contact_linkedin,
     last_seen_date: p.last_seen_at, last_seen_context: p.last_seen_context, status: p.status, source: p.source,
-    face_embedding: legacy.get(p.id) ?? null, faces: nFaces.get(p.id) ?? 0, created_at: p.created_at,
+    face_embedding: legacy.get(p.id) ?? null, faces: nFaces.get(p.id) ?? 0, thumb: thumb.get(p.id) ?? null, created_at: p.created_at,
   }));
 }
 
@@ -80,7 +81,7 @@ Deno.serve(async (req) => {
   try {
     switch (body.action) {
       case "list": {
-        if (!body.entity || /person/i.test(body.entity)) return json(await listPeople(w, Math.min(body.limit ?? 1000, 1000)));
+        if (!body.entity || /person/i.test(body.entity)) return json(await listPeople(w, Math.min(body.limit ?? 1000, 1000), !!body.thumbs));
         const table = /encounter/i.test(body.entity) ? "encounters" : /thing|episodic/i.test(body.entity) ? "things" : /note/i.test(body.entity) ? "notes" : null;
         if (!table) return json({ error: "entity" }, 400);
         const col = table === "encounters" ? "at" : table === "things" ? "seen_at" : "at";
@@ -182,6 +183,13 @@ Deno.serve(async (req) => {
       case "delete_person": {
         if (!body.id) return json({ error: "id" }, 400);
         const { data, error } = await mine(db.from("people").delete(), w).eq("id", body.id).select("id");
+        if (error) throw error;
+        return json({ deleted: data?.length ?? 0 });
+      }
+      case "delete_people": { // several at once (Manager select mode); their faces and notes go with them, encounters keep the name
+        const ids = Array.isArray(body.ids) ? body.ids.filter((x: unknown) => typeof x === "string").slice(0, 500) : [];
+        if (!ids.length) return json({ error: "ids" }, 400);
+        const { data, error } = await mine(db.from("people").delete(), w).in("id", ids).select("id");
         if (error) throw error;
         return json({ deleted: data?.length ?? 0 });
       }

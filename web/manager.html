@@ -201,6 +201,7 @@ header .sp{flex:1}
 
   <div class="bar">
     <div class="pills" id="pills"></div>
+    <div class="pills hide" id="pills2" style="flex:1 1 100%"></div>
     <div class="tools">
       <div class="seg" id="views"><button data-v="time" class="on">Linha do tempo</button><button data-v="grid">Grade</button><button data-v="az">A–Z</button></div>
       <div class="seg" id="order"><button data-o="new" class="on" title="Mais novos primeiro">↓</button><button data-o="old" title="Mais antigos primeiro">↑</button></div>
@@ -249,9 +250,9 @@ async function call(action, extra = {}) {
 function toast(t) { const el = $("#toast"); el.textContent = t; el.classList.add("on"); clearTimeout(toast.h); toast.h = setTimeout(() => el.classList.remove("on"), 2600); }
 
 /* ---------- data ---------- */
-const S = { me: null, people: [], enc: [], things: [], notes: [], cat: "all", view: "time", order: "new", sel: null, filter: null, dayOnly: false };
+const S = { me: null, people: [], enc: [], things: [], notes: [], cat: "all", view: "time", order: "new", sel: null, filter: null, dayOnly: false, face: "all", pick: null };
 async function load() {
-  const [me, people, enc, things, notes] = await Promise.all([call("me"), call("list", { entity: "person" }), call("list", { entity: "encounter" }), call("list", { entity: "thing" }), call("list", { entity: "note" })]);
+  const [me, people, enc, things, notes] = await Promise.all([call("me"), call("list", { entity: "person", thumbs: true }), call("list", { entity: "encounter" }), call("list", { entity: "thing" }), call("list", { entity: "note" })]);
   Object.assign(S, { me, people, enc, things, notes });
   render();
   let o = null; try { o = sessionStorage.getItem("vc_open"); sessionStorage.removeItem("vc_open") } catch {}
@@ -270,7 +271,7 @@ const fmtWhen = d => {
 const fmtFull = d => d ? new Date(d).toLocaleString("pt-BR", { weekday: "short", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
 const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 const initials = n => String(n || "?").split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join("").toUpperCase();
-const photo = p => p && p.photo_url && !/ui-avatars\.com/.test(p.photo_url) ? p.photo_url : null;
+const photo = p => p && p.photo_url && !/ui-avatars\.com/.test(p.photo_url) ? p.photo_url : p && p.thumb ? "data:image/jpeg;base64," + p.thumb : null;
 const avatar = (p, cls = "") => { const u = photo(p); return `<span class="av ${cls}">${u ? `<img src="${esc(u)}" alt="" loading="lazy" onerror="this.remove()">` : esc(initials(p.name))}</span>`; };
 
 /** Everything as one catalog: people, places, things, memories (moments and notes). */
@@ -291,7 +292,8 @@ function items() {
   return out;
 }
 const CATS = [["all", "Todos"], ["person", "Pessoas"], ["place", "Lugares"], ["thing", "Coisas"], ["memory", "Lembranças"]];
-function matches(it, q) { if (!q) return true; const n = norm(q); return norm(it.title + " " + it.sub + " " + (it.ref.notes || "") + " " + (it.ref.tags || []).join(" ")).includes(n); }
+function matches(it, q) { if (!q) return true; const n = norm(q); return norm(it.title + " " + it.sub + " " + (it.ref.notes || "") + " " + (it.ref.source || "") + " " + (it.ref.tags || []).join(" ")).includes(n); }
+const faceOk = it => it.kind !== "person" || S.face === "all" || (S.face === "yes" ? it.ref.faces > 0 : !it.ref.faces);
 
 /* ---------- duplicates ---------- */
 function lev(a, b) { const m = a.length, n = b.length; if (Math.abs(m - n) > 2) return 9; const d = Array.from({ length: m + 1 }, (_, i) => [i]); for (let j = 1; j <= n; j++) d[0][j] = j; for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); return d[m][n]; }
@@ -322,7 +324,16 @@ function render() {
   document.querySelectorAll("#order button").forEach(b => b.classList.toggle("on", b.dataset.o === S.order));
   renderChips();
 
-  let list = all.filter(i => (S.cat === "all" || i.kind === S.cat) && matches(i, q));
+  let list = all.filter(i => (S.cat === "all" || i.kind === S.cat) && matches(i, q) && faceOk(i));
+  $("#pills2").classList.add("hide");
+  if (S.cat === "person") { // Marcus, 07/11: with / without a face, and a way to delete many (LinkedIn imports without photo)
+    const ppl = all.filter(i => i.kind === "person" && matches(i, q)), withF = ppl.filter(i => i.ref.faces > 0).length;
+    const srcs = [...new Set(ppl.map(i => i.ref.source).filter(Boolean))];
+    $("#pills2").classList.remove("hide");
+    $("#pills2").innerHTML = [["all", "Todas", ppl.length], ["yes", "Com rosto", withF], ["no", "Sem rosto", ppl.length - withF]].map(([k, l, n]) => `<button class="pill ${S.face === k ? "on" : ""}" data-face="${k}">${l}<b>${n}</b></button>`).join("")
+      + (S.pick ? `<button class="pill on" data-pickall="1">Marcar todas da lista</button><button class="pill" data-pickdel="1" style="color:var(--danger,#ff7a6a)">Apagar ${S.pick.size} marcadas</button><button class="pill" data-pickoff="1">✕ Sair</button>` : `<button class="pill" data-pickon="1">Selecionar…</button>`)
+      + (srcs.length > 1 ? `<span class="muted" style="font-size:12px;align-self:center;white-space:nowrap">origem: ${srcs.map(x => `<button data-ask-src="${esc(x)}" style="text-decoration:underline">${esc(srcName(x))}</button>`).join(", ")}</span>` : "");
+  }
   if (S.dayOnly) list = list.filter(i => i.date && sameDay(new Date(i.date), new Date()));
   const dir = S.order === "new" ? -1 : 1;
   let html = "";
@@ -351,7 +362,8 @@ function bucket(d) {
   if (t.getFullYear() === now.getFullYear()) return t.toLocaleDateString("pt-BR", { month: "long" }).replace(/^./, c => c.toUpperCase());
   return String(t.getFullYear());
 }
-const row = i => `<button class="row ${S.sel === i.id ? "sel" : ""}" data-k="${i.kind}" data-id="${esc(i.id)}">${i.av}<span class="tx"><span class="t1">${esc(i.title)}</span><span class="t2">${esc(i.sub)}</span></span><span class="when">${esc(fmtWhen(i.date))}</span></button>`;
+const srcName = x => ({ import_linkedin: "LinkedIn", import_contatos: "contatos", import_google_fotos: "Google Fotos", import: "importação", glasses: "óculos", base44: "antigo", manual: "você" })[x] || String(x).replace(/^import_/, "");
+const row = i => S.pick && i.kind === "person" ? `<button class="row ${S.pick.has(i.id) ? "sel" : ""}" data-pick="${esc(i.id)}"><span class="av" style="font-size:18px">${S.pick.has(i.id) ? "☑" : "☐"}</span>${i.av}<span class="tx"><span class="t1">${esc(i.title)}</span><span class="t2">${esc(i.sub)}${i.ref.source ? " · " + esc(srcName(i.ref.source)) : ""}</span></span></button>` : `<button class="row ${S.sel === i.id ? "sel" : ""}" data-k="${i.kind}" data-id="${esc(i.id)}">${i.av}<span class="tx"><span class="t1">${esc(i.title)}</span><span class="t2">${esc(i.sub)}</span></span><span class="when">${esc(fmtWhen(i.date))}</span></button>`;
 const card = i => `<button class="card ${S.sel === i.id ? "sel" : ""}" data-k="${i.kind}" data-id="${esc(i.id)}">${i.av}<span class="t1">${esc(i.title)}</span><span class="t2">${esc(i.sub)}</span><span class="t2" style="margin-top:auto;font-family:var(--mono);font-size:11px">${esc(fmtWhen(i.date))}</span></button>`;
 
 /** Spec 1b: "My day", built only from what is already recorded. */
@@ -786,6 +798,13 @@ document.addEventListener("click", e => {
   const t = e.target.closest("button,a"); if (!t) return;
   const d = t.dataset;
   if (d.c) { S.cat = d.c; render(); }
+  else if (d.face) { S.face = d.face; render(); }
+  else if (d.askSrc) { S.filter = d.askSrc; $("#q").value = ""; render(); }
+  else if (d.pickon) { S.pick = new Set(); S.view = S.view === "grid" ? "time" : S.view; render(); }
+  else if (d.pickoff) { S.pick = null; render(); }
+  else if (d.pick) { S.pick.has(d.pick) ? S.pick.delete(d.pick) : S.pick.add(d.pick); render(); }
+  else if (d.pickall) { items().filter(i => i.kind === "person" && matches(i, S.filter) && faceOk(i)).forEach(i => S.pick.add(i.id)); render(); }
+  else if (d.pickdel) { const ids = [...S.pick]; if (!ids.length) return toast("Marque alguém primeiro"); confirmDelete(`${ids.length} ${ids.length === 1 ? "pessoa" : "pessoas"} (e os rostos guardados)`, async () => { await call("delete_people", { ids }); S.pick = null; }); }
   else if (d.clear) { S.filter = null; $("#q").value = ""; render(); }
   else if (d.clearday) { S.dayOnly = false; render(); }
   else if (d.day) { S.dayOnly = true; S.cat = "all"; render(); }
