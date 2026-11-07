@@ -39,25 +39,34 @@ object Describe {
         } catch (_: Exception) { null }
     }
 
-    /** One short sentence about a conversation with the assistant, for the memory list. Blocking; null on failure. */
-    fun summary(ctx: Context, conversation: String): String? {
+    /**
+     * The memory version of a conversation with the assistant (07/11): reading for the user is help, not memory.
+     * Keeps the user's words and decisions; long readings (menu, sign, leaflet, book page) become one line.
+     * Returns (one-sentence summary, condensed conversation). Blocking; null on failure (then the raw text is kept).
+     */
+    fun memoryVersion(ctx: Context, conversation: String): Pair<String, String>? {
         val key = Backend.geminiKey(ctx); if (key.length < 20) return null
         val model = textModel(ctx, key) ?: return null
-        val prompt = "Resuma em UMA frase curta (até 15 palavras), em português, sobre o que foi esta conversa entre o usuário e o assistente. " +
-            "Sem nomes de remetente, sem \"o usuário perguntou\": diga o assunto. Se houver algo íntimo ou sensível (nudez, sexo, saúde de alguém), " +
-            "escreva só uma frase neutra, sem detalhes.\n\n" + conversation.take(8000)
+        val prompt = "Abaixo está uma conversa entre o usuário e o assistente dos óculos. Prepare a versão que vai para a memória dele, em português, e responda em JSON " +
+            "{\"resumo\": \"uma frase (até 15 palavras) com o assunto ou o que ele decidiu\", \"conversa\": \"a conversa condensada\"}.\n" +
+            "Regras da conversa condensada: mantenha as falas do usuário e tudo o que ele decidiu, pediu, comprou, combinou ou comeu. " +
+            "Quando o assistente apenas leu algo para ele (cardápio, placa, bula, página, tela), troque a leitura por uma linha só, por exemplo \"[o assistente leu o cardápio]\". " +
+            "Respostas curtas do assistente ficam. Mantenha o formato \"Você: …\" / \"Assistente: …\". " +
+            "Se houver algo íntimo ou sensível (nudez, sexo, saúde de alguém), o resumo é uma frase neutra, sem detalhes.\n\n" + conversation.take(12000)
         val body = JSONObject().put("contents", JSONArray().put(JSONObject().put("parts", JSONArray().put(JSONObject().put("text", prompt)))))
-            .put("generationConfig", JSONObject().put("maxOutputTokens", 800).put("temperature", 0.2))
+            .put("generationConfig", JSONObject().put("maxOutputTokens", 6000).put("temperature", 0.2).put("responseMimeType", "application/json"))
         return try {
             val c = (URL("https://generativelanguage.googleapis.com/v1beta/$model:generateContent").openConnection() as HttpURLConnection).apply {
-                requestMethod = "POST"; connectTimeout = 10_000; readTimeout = 30_000; doOutput = true
+                requestMethod = "POST"; connectTimeout = 10_000; readTimeout = 45_000; doOutput = true
                 setRequestProperty("Content-Type", "application/json"); setRequestProperty("x-goog-api-key", key)
             }
             c.outputStream.use { it.write(body.toString().toByteArray()) }
             if (c.responseCode !in 200..299) return null
             val parts = JSONObject(c.inputStream.bufferedReader().readText()).optJSONArray("candidates")?.optJSONObject(0)?.optJSONObject("content")?.optJSONArray("parts") ?: return null
-            (0 until parts.length()).mapNotNull { parts.optJSONObject(it) }.firstOrNull { !it.optBoolean("thought") && it.optString("text").isNotBlank() }
-                ?.optString("text")?.trim()?.lines()?.first()?.trim('"', ' ')?.take(160)
+            val txt = (0 until parts.length()).mapNotNull { parts.optJSONObject(it) }.filter { !it.optBoolean("thought") }.joinToString("") { it.optString("text") }
+            val j = JSONObject(txt.trim().removePrefix("```json").removeSuffix("```"))
+            val r = j.optString("resumo").trim().take(160); val conv = j.optString("conversa").trim()
+            if (conv.isBlank()) null else r to conv
         } catch (_: Exception) { null }
     }
 

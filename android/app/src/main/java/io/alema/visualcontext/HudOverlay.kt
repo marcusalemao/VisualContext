@@ -37,6 +37,10 @@ class HudOverlay(ctx: Context) : View(ctx) {
     var arrowText: String = ""
     var pins: List<Pin> = emptyList()
     var heading: Float = 0f
+    /** QR mode: the camera's centre, shown inside a window in the middle of the lens so the code can be aimed (as on the glasses). */
+    var qrWindow = false
+    var qrView: android.graphics.Bitmap? = null
+    var qrHint: String = "encaixe o QR aqui"
     var listening = false
     var speaking = false
 
@@ -118,6 +122,7 @@ class HudOverlay(ctx: Context) : View(ctx) {
             c.drawText(footer, dp(16f), h - dp(14f), pText)
             pText.color = soft
         }
+        if (qrWindow) drawQrWindow(c, w, useful)
         // the 70 % line, faint
         pDash.alpha = 60; c.drawLine(0f, useful, w, useful, pDash); pDash.alpha = 255
     }
@@ -170,6 +175,24 @@ class HudOverlay(ctx: Context) : View(ctx) {
             lines.forEachIndexed { i, s -> c.drawText(s, r.left + pad, r.top + pad + sp(20f) + dp(4f) + (i + 1) * sp(16f) - dp(3f), pText) }
         }
         if (moving) postInvalidateOnAnimation()
+    }
+
+    private fun drawQrWindow(c: Canvas, w: Float, useful: Float) {
+        val side = minOf(w, useful) * 0.46f
+        val l = (w - side) / 2; val t = (useful - side) / 2 + dp(10f)
+        val r = RectF(l, t, l + side, t + side)
+        c.drawRoundRect(RectF(r.left - dp(4f), r.top - dp(4f), r.right + dp(4f), r.bottom + dp(4f)), dp(14f), dp(14f), pShadow)
+        qrView?.let { b -> c.drawBitmap(b, null, r, null) }
+        // corner brackets, the viewfinder grammar
+        val k = side * 0.18f
+        listOf(r.left to r.top, r.right to r.top, r.left to r.bottom, r.right to r.bottom).forEach { (x, y) ->
+            val sx = if (x == r.left) 1 else -1; val sy = if (y == r.top) 1 else -1
+            c.drawLine(x, y, x + sx * k, y, pStroke); c.drawLine(x, y, x, y + sy * k, pStroke)
+        }
+        pTitle.textSize = sp(15f)
+        val tw = pTitle.measureText(qrHint)
+        c.drawRect((w - tw) / 2 - dp(6f), r.top - dp(30f), (w + tw) / 2 + dp(6f), r.top - dp(8f), pShadow)
+        c.drawText(qrHint, (w - tw) / 2, r.top - dp(13f), pTitle)
     }
 
     private fun fit(t: String, p: Paint, max: Float): String {

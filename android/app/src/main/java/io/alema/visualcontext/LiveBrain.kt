@@ -25,6 +25,10 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
         fun onTranscript(lines: List<String>, userLine: String?)
         fun onFaces(seen: List<FaceBrain.Seen>, bw: Int, bh: Int)
         fun onNamed(name: String)
+        /** A paper or note was kept ("guardado: Receita do Dr. Paulo"). */
+        fun onSaved(title: String) {}
+        /** The user said "sim" / "copia": true when the lens had a question waiting (a QR code, for now). */
+        fun onYes(): Boolean = false
     }
 
     private val main = Handler(Looper.getMainLooper())
@@ -46,6 +50,9 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
     private val modelTurn = StringBuilder()
     private var talkStartedAt = 0L
     @Volatile var open = false; private set
+    /** Context to hand to Live (a menu, for now): sent now if open, or right after it connects. */
+    private var pendingContext: String? = null
+    fun context(text: String) { if (open) live.send(LiveProtocol.text(text)) else pendingContext = text }
     var lastActivity = 0L; private set
 
     fun start() {
@@ -83,6 +90,7 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
                 if (turns.isEmpty()) talkStartedAt = System.currentTimeMillis()
                 if (!mic.start()) { host.onState("error: microfone não liberado"); return }
                 host.onState("listening")
+                pendingContext?.let { pendingContext = null; live.send(LiveProtocol.text(it)) }
             }
             is LiveProtocol.Event.UserText -> {
                 lastActivity = SystemClock.elapsedRealtime()
@@ -90,7 +98,7 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
                 heardAt = lastActivity
                 heard.append(e.text); userTurn.append(e.text)
                 host.onTranscript(transcript.lines(), heard.toString().trim().takeLast(40))
-                spotName()
+                spotName(); spotPaper(); spotYes()
             }
             is LiveProtocol.Event.ModelText -> {
                 lastActivity = SystemClock.elapsedRealtime()
@@ -131,9 +139,40 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
                 .put("context", if (who.isEmpty()) "conversa com o assistente" else "conversa com o assistente, com " + who.joinToString(", "))
             if (who.size == 1) body.put("person_name", who[0])
             if (loc != null) body.put("lat", loc.latitude).put("lng", loc.longitude).put("place", Where.address(ctx, loc))
-            Describe.summary(ctx, text)?.let { body.put("summary", it) }
+            Describe.memoryVersion(ctx, text)?.let { (sum, conv) -> if (sum.isNotBlank()) body.put("summary", sum); body.put("transcript", conv) }
             Moments.send(ctx, body)
         }.start()
+    }
+
+    private var yesAt = 0L
+    private fun spotYes() {
+        if (!YES.containsMatchIn(heard.toString().takeLast(30))) return
+        val now = SystemClock.elapsedRealtime(); if (now - yesAt < 3000) return
+        if (host.onYes()) { yesAt = now; if (open) live.send(LiveProtocol.text("(o app já fez o que o usuário aceitou na lente. Diga só \"pronto\".)")) }
+    }
+
+    /** Spec 1n: "lembra disso" / "guarda isso" with a paper in view: read it, keep it, offer it to the notes app. */
+    @Volatile private var paperAt = 0L
+    @Volatile private var lastPaper = ""
+    private fun spotPaper() {
+        if (!REMEMBER.containsMatchIn(heard)) return
+        val now = SystemClock.elapsedRealtime()
+        if (now - paperAt < 30_000) return
+        paperAt = now
+        io.execute { paperNow(fromSpeech = true) }
+    }
+
+    private fun paperNow(fromSpeech: Boolean = false): JSONObject {
+        paperAt = SystemClock.elapsedRealtime()
+        val f = host.frame()?.let { Frames.shrink(it, 1600) } ?: return JSONObject().put("erro", "a câmera não respondeu")
+        val p = Papers.read(ctx, f)
+        if (p == null) { if (fromSpeech) paperAt = 0; return JSONObject().put("papel", false).put("dica", "não vi papel com texto; se for outra coisa, use guardar_nota") }
+        lastPaper = p.title
+        val place = Where.location(ctx)?.let { Where.address(ctx, it) }
+        Papers.save(ctx, p, place)
+        main.post { host.onSaved(p.title) }
+        if (fromSpeech && open) live.send(LiveProtocol.text("(o app já guardou na memória: ${p.title}. Confirme em poucas palavras, sem chamar ferramenta.)"))
+        return JSONObject().put("guardado", true).put("titulo", p.title).put("tipo", p.kind)
     }
 
     /** Names are caught here, not left to Gemini: saying the name is enough, no button, no tool call needed. */
@@ -184,10 +223,18 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
                     JSONObject().put("pessoas", org.json.JSONArray().apply { hits.forEach { put(JSONObject().put("nome", it.name).put("relacao", it.relation).put("empresa", it.company).put("ultima_vez", it.lastSeenContext).put("data", it.lastSeenDate)) } })
                 }
                 LiveProtocol.TOOL_SAVE -> {
-                    val dir = File(ctx.filesDir, "notas").apply { mkdirs() }
-                    File(dir, "notas.jsonl").appendText(JSONObject().put("quando", System.currentTimeMillis()).put("texto", call.args.optString("texto")).toString() + "\n")
-                    JSONObject().put("guardado", true)
+                    // "lembra disso" with a paper in view is kept by spotPaper(); don't add a second, poorer note.
+                    if (SystemClock.elapsedRealtime() - paperAt < 30_000) JSONObject().put("guardado", true).put("papel", lastPaper)
+                    else {
+                        val texto = call.args.optString("texto")
+                        val dir = File(ctx.filesDir, "notas").apply { mkdirs() }
+                        File(dir, "notas.jsonl").appendText(JSONObject().put("quando", System.currentTimeMillis()).put("texto", texto).toString() + "\n")
+                        Moments.send(ctx, JSONObject().put("action", "note").put("text", texto).put("source", "voice"))
+                        main.post { host.onSaved(texto.take(40)) }
+                        JSONObject().put("guardado", true)
+                    }
                 }
+                LiveProtocol.TOOL_PAPER -> paperNow()
                 LiveProtocol.TOOL_WHERE -> Where.asJson(ctx)
                 else -> JSONObject().put("erro", "ferramenta desconhecida")
             }
@@ -198,6 +245,8 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
     fun destroy() { stop(); io.shutdownNow() }
 
     companion object {
+        private val YES = Regex("""\b(sim|pode|copia|copiar|isso|ok|beleza|quero)\b""", RegexOption.IGNORE_CASE)
+        private val REMEMBER = Regex("""\b(lembra (disso|isso|desse|dessa|deste|desta)|guarda (isso|esse papel|essa receita|esse cart[ãa]o)|anota (isso|esse|essa))\b""", RegexOption.IGNORE_CASE)
         private val FORGET = Regex("""(n[ãa]o (guarda|grava|salva|anota)|esquece (isso|o que eu (disse|falei))|apaga (isso|o que eu (disse|falei)))""", RegexOption.IGNORE_CASE)
     }
 }

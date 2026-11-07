@@ -85,6 +85,23 @@ class SettingsActivity : Activity() {
             text = "Abrir o emulador"
             setOnClickListener { startActivity(Intent(this@SettingsActivity, EmulatorActivity::class.java)) }
         })
+        col.addView(label("Notas", 16f, green))
+        col.addView(label("\"Lembra disso\" olhando um papel, cartão de visita, crachá ou receita: vai para a memória e, com um toque na notificação, para o seu app de notas."))
+        val apps = listOf("keep" to "Google Keep", "samsung" to "Samsung Notes", "ask" to "Perguntar sempre", "none" to "Só na memória")
+        col.addView(android.widget.RadioGroup(this).apply {
+            apps.forEachIndexed { i, (k, l) -> addView(android.widget.RadioButton(context).apply {
+                id = 400 + i; text = l; setTextColor(soft); isChecked = NotesOut.target(context) == k
+                isEnabled = k !in listOf("keep", "samsung") || NotesOut.installed(context, if (k == "keep") NotesOut.KEEP else NotesOut.SAMSUNG)
+            }) }
+            setOnCheckedChangeListener { _, id ->
+                NotesOut.setTarget(context, apps[id - 400].first)
+                if (android.os.Build.VERSION.SDK_INT >= 33 && apps[id - 400].first != "none") requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 9)
+            }
+        })
+        col.addView(android.widget.CheckBox(this).apply {
+            text = "Mandar receitas médicas também (dado de saúde)"; setTextColor(soft); isChecked = NotesOut.health(context)
+            setOnCheckedChangeListener { _, on -> NotesOut.setHealth(context, on) }
+        })
         col.addView(label("Importar rostos", 16f, green))
         col.addView(label("Do Google Fotos: as pessoas que já têm nome lá passam a ser reconhecidas pelos óculos."))
         col.addView(Button(this).apply {

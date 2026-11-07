@@ -203,6 +203,7 @@ The current Manager is **visualcontext.base44.app/dashboard** (code in the priva
 - **Text only, both sides** ("Você: …" / "Assistente: …"). Audio is never stored.
 - **Exceptions (privacy rules):** saying "não guarda isso", "esquece o que eu disse" or "apaga isso" removes that exchange and the one before; sensitive moments get one neutral sentence; nothing is saved while memory is paused.
 - Saved when Live closes (Fechar, 40 s of silence, or the connection drops). Offline, it waits on the phone and goes with the next one.
+- **Reading for the user is help, not memory (07/11):** what the assistant reads aloud (menu, sign, leaflet, book page) is kept as one line ("[o assistente leu o cardápio]"); what the user said or decided stays ("pediu o risoto de cogumelos"). The full paper becomes memory only with "lembra disso". Done by a "memory version" of the conversation made by the AI when Live closes (`Describe.memoryVersion`).
 - In the Manager it shows under **Memories** with ✦ ("Conversa com o assistente").
 - Built in app 0.7.0 (`LiveBrain.saveConversation`, `Moments`, vc action `moment`, `capture_mode = live`).
 
@@ -419,6 +420,7 @@ O Manager atual é o **visualcontext.base44.app/dashboard** (código no reposit�
 - **Só texto, dos dois lados** ("Você: …" / "Assistente: …"). O áudio nunca é guardado.
 - **Exceções (regras de privacidade):** dizer "não guarda isso", "esquece o que eu disse" ou "apaga isso" tira aquela troca e a anterior; momentos sensíveis viram uma frase neutra; nada é guardado com a memória pausada.
 - É salvo quando o Live fecha (Fechar, 40 s de silêncio ou queda da conexão). Sem internet, espera no celular e vai junto com o próximo.
+- **Ler para o usuário é ajuda, não memória (07/11):** o que o assistente lê em voz alta (cardápio, placa, bula, página de livro) fica como uma linha ("[o assistente leu o cardápio]"); o que o usuário disse ou decidiu fica ("pediu o risoto de cogumelos"). O papel inteiro só vira memória com "lembra disso". Feito por uma "versão de memória" da conversa, que a IA prepara quando o Live fecha (`Describe.memoryVersion`).
 - No Manager aparece em **Lembranças** com ✦ ("Conversa com o assistente").
 - Feito no app 0.7.0 (`LiveBrain.saveConversation`, `Moments`, ação `moment` do vc, `capture_mode = live`).
 

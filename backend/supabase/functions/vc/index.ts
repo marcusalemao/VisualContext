@@ -95,7 +95,8 @@ Deno.serve(async (req) => {
       }
       case "note": {
         if (!body.text) return json({ error: "text" }, 400);
-        const { error } = await db.from("notes").insert({ ...stamp(w), text: body.text, source: body.source ?? "voice" });
+        const { error } = await db.from("notes").insert({ ...stamp(w), text: String(body.text).slice(0, 20000), source: body.source ?? "voice",
+          kind: body.kind ?? null, title: body.title ?? null, fields: body.fields ?? null, sensitive: !!body.sensitive, place: body.place ?? null });
         if (error) throw error;
         return json({ ok: true });
       }

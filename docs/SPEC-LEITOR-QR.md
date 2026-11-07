@@ -65,7 +65,13 @@ Pure Kotlin library, no Android, unit-tested on the JVM. Input: the decoded stri
 3. Test on Marcus's glasses: Wi-Fi, a menu link, a Pix code, a vCard.
 4. Proposal to Anezium for option A, together with the other platform ideas.
 
----
+### 9. Inside VisualContext: the ▣ QR button (07/11, app 0.9.0)
+- **Only on purpose** (Marcus, 07/11): a **▣ QR** button in the main menu. It opens a window in the middle of the lens with the camera's view inside ("encaixe o QR aqui"), so the code can be aimed, as it will be on the glasses. Nothing is read outside this mode; it closes after 25 s or after the action.
+- **Pix:** shows what the code says (name, city, amount; "Pix dinâmico: valor no banco"). Yes (tap, or "sim"/"copia" with Live on) = Pix Copia e Cola to the clipboard + a Pix note in the memory. The bank app (or Google Wallet, if it supports Pix there) offers to pay. **Never pays by itself.**
+- **Link:** sites are not opened (no browser in the lens): "guardar nas notas?" → saved as a link note.
+- **Menu link** (digital menus): the AI reads the menu into categories (starters, pasta, meat, poultry, fish, desserts, drinks), the lens shows them and Gemini Live walks the user through ("tem massas e peixes, quer ver alguma?"). Server-rendered pages are read on the phone; the rest through Gemini's own page reader (may fail on some sites). **The menu is help, not memory**; what the user orders is (see SPEC-MANAGER 1m).
+- Wi-Fi (copy the password, open Wi-Fi settings), contact (save to the memory), text (copy).
+- Code: `QrLook`, `MenuRead`, `HudOverlay.qrWindow` in the app, with `qr-core` and ZXing.
 
 ## PT — Português
 
@@ -127,3 +133,11 @@ Biblioteca Kotlin pura, sem Android, com testes na JVM. Entrada: o texto lido do
 2. Plugin v1 no SDK 0.22 com a capacidade `camera` (Claude); assinatura e PR no registro (Beto).
 3. Teste nos óculos do Marcus: Wi-Fi, link de cardápio, código Pix, vCard.
 4. Proposta ao Anezium para a opção A, junto com as outras ideias de plataforma.
+
+### 9. Dentro do VisualContext: o botão ▣ QR (07/11, app 0.9.0)
+- **Só de propósito** (Marcus, 07/11): um botão **▣ QR** no menu principal. Ele abre uma janelinha no meio da lente com a imagem da câmera dentro ("encaixe o QR aqui"), para mirar o código, como vai ser nos óculos. Fora desse modo nada é lido; ele fecha depois de 25 s ou depois da ação.
+- **Pix:** mostra o que o código diz (nome, cidade, valor; "Pix dinâmico: valor no banco"). Sim (toque, ou "sim"/"copia" com o Live ligado) = Pix Copia e Cola na área de transferência + uma nota de Pix na memória. O app do banco (ou o Google Carteira, se aceitar Pix ali) oferece pagar. **Nunca paga sozinho.**
+- **Link:** sites não são abertos (não tem navegador na lente): "guardar nas notas?" → vira uma nota de link.
+- **Link de cardápio** (cardápios digitais): a IA lê o cardápio em categorias (entradas, massas, carnes, aves, peixes, sobremesas, bebidas), a lente mostra e o Gemini Live conduz ("tem massas e peixes, quer ver alguma?"). Páginas simples são lidas no celular; as outras pelo leitor de páginas do próprio Gemini (pode falhar em alguns sites). **O cardápio é ajuda, não memória**; o que a pessoa pede, sim (ver SPEC-MANAGER 1m).
+- Wi-Fi (copiar a senha, abrir os ajustes de Wi-Fi), contato (guardar na memória), texto (copiar).
+- Código: `QrLook`, `MenuRead`, `HudOverlay.qrWindow` no app, com o `qr-core` e o ZXing.

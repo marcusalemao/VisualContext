@@ -14,6 +14,8 @@
 
     <queries>
         <package android:name="com.google.android.apps.photos" />
+        <package android:name="com.google.android.keep" />
+        <package android:name="com.samsung.android.app.notes" />
         <intent>
             <action android:name="com.anezium.rokidbus.action.HUB" />
         </intent>

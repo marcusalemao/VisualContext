@@ -8,6 +8,7 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -69,6 +70,15 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     private var countdownAt = 0L
     private var lastSeen: List<FaceBrain.Seen> = emptyList()
     private var lastBw = 1; private var lastBh = 1
+    /** QR codes you keep looking at (Pix etc.). Read on their own thread, never stored. */
+    private val qr = QrLook()
+    private val qrWork = java.util.concurrent.Executors.newSingleThreadExecutor()
+    @Volatile private var qrBusy = false
+    private var lastQrScan = 0L
+    /** QR mode (07/11): only while the ▣ QR button is on, with a window to aim; closes by itself after 25 s. */
+    private var qrOn = false
+    private var qrAt = 0L
+    private lateinit var qrBtn: Button
 
     private val green = Color.rgb(0, 255, 136)
     private val dim = Color.rgb(90, 120, 104)
@@ -79,7 +89,12 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         preview = PreviewView(this).apply { implementationMode = PreviewView.ImplementationMode.COMPATIBLE; scaleType = PreviewView.ScaleType.FILL_CENTER }
         hud = HudOverlay(this).apply {
             // Tap anywhere on the lens during the countdown = cancel (the swipe on the glasses).
-            setOnTouchListener { _, e -> if (e.action == MotionEvent.ACTION_UP && countdownId != null) { cancelCountdown(); true } else false }
+            setOnTouchListener { _, e ->
+                if (e.action != MotionEvent.ACTION_UP) false
+                else if (countdownId != null) { cancelCountdown(); true }
+                else if (qr.offer != null) { acceptQr(); true }
+                else if (hud.cardTitle != null && hud.cardTitle != "Câmera") { hud.cardTitle = null; hud.cardLines = emptyList(); hud.invalidate(); true } else false
+            }
         }
         // Lens on top, buttons in their own strip below it (never under the Android navigation bar).
         val lens = FrameLayout(this).apply { setBackgroundColor(Color.BLACK); addView(preview); addView(hud) }
@@ -96,6 +111,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         talk = btn("🎙 Falar") { toggleLive() }; bar.addView(talk)
         facesBtn = btn("") { facesOn = !facesOn; if (!facesOn) { hud.faces = emptyList(); cancelCountdown() }; paintToggles() }; bar.addView(facesBtn)
         placesBtn = btn("") { placesOn = !placesOn; if (!placesOn) hud.pins = emptyList() else refreshPlaces(true); paintToggles() }; bar.addView(placesBtn)
+        qrBtn = btn("▣ QR") { setQr(!qrOn) }; bar.addView(qrBtn)
         bar.addView(btn("⟲ Câmera") { front = !front; startCamera() })
         bar.addView(btn("✕ Fechar") { finish() })
         root.addView(bar, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
@@ -148,6 +164,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
                     if (now - lastFaceScan > 350) {
                         lastJpeg = Frames.jpeg(img, 80) ?: lastJpeg
                         if (facesOn && !scanning) { lastFaceScan = now; scan() }
+                        if (qrOn && now - lastQrScan > 300 && !qrBusy) { lastQrScan = now; qrScan() }
                     }
                 } finally { img.close() }
             }
@@ -173,6 +190,99 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
             seen.firstOrNull { it.pendingId != null }?.let { p -> legacyCheck(p, j) }
         } finally { scanning = false }
     }
+
+    private fun qrScan() {
+        val j = lastJpeg ?: return
+        qrBusy = true
+        qrWork.execute {
+            try {
+                val full = Frames.bitmap(j, 1280) ?: return@execute
+                // The window shows (and reads) the centre of what the camera sees.
+                val side = (minOf(full.width, full.height) * 0.62f).toInt()
+                val b = android.graphics.Bitmap.createBitmap(full, (full.width - side) / 2, (full.height - side) / 2, side, side)
+                val view = if (front) android.graphics.Bitmap.createBitmap(b, 0, 0, side, side, android.graphics.Matrix().apply { preScale(-1f, 1f) }, false) else b
+                val changed = qr.feed(b, SystemClock.elapsedRealtime())
+                main.post { if (qrOn) { hud.qrView = view; if (changed) paintQr() else hud.invalidate() } }
+            } catch (_: Throwable) { } finally { qrBusy = false }
+        }
+    }
+
+    private fun setQr(on: Boolean) {
+        qrOn = on; qrAt = SystemClock.elapsedRealtime()
+        hud.qrWindow = on; hud.qrHint = "encaixe o QR aqui"
+        if (!on) { hud.qrView = null; qr.dismiss(SystemClock.elapsedRealtime()) }
+        qrBtn.setTextColor(if (on) green else dim); qrBtn.text = if (on) "● QR" else "▣ QR"
+        paintQr()
+        if (on) main.postDelayed({ if (qrOn && SystemClock.elapsedRealtime() - qrAt >= 25_000 && qr.offer == null) setQr(false) }, 25_000)
+    }
+
+    private fun paintQr() {
+        val o = qr.offer
+        if (o == null) { if (hud.cardTitle != null && hud.cardTitle != "Câmera") { hud.cardTitle = null; hud.cardLines = emptyList() } }
+        else { val (t, l) = QrLook.card(o); hud.cardTitle = t; hud.cardLines = l; hud.qrHint = "achei: $t" }
+        hud.invalidate()
+    }
+
+    /** The tap (or "sim") on a QR card. Pix: copy the code; the bank app (or the wallet) offers to pay. Never pays by itself. */
+    private fun acceptQr() {
+        val (r, raw) = qr.consume(SystemClock.elapsedRealtime()) ?: return
+        setQr(false)
+        val clip = getSystemService(android.content.ClipboardManager::class.java)
+        when (r) {
+            is io.alema.qrcore.QrResult.Pix -> {
+                clip.setPrimaryClip(android.content.ClipData.newPlainText("Pix copia e cola", raw))
+                val title = "Pix" + (r.merchantName?.let { ": $it" } ?: "") + (r.amount?.let { " · R$ " + it.replace('.', ',') } ?: "")
+                work.execute {
+                    val place = Where.location(this)?.let { Where.address(this, it) }
+                    Moments.send(this, org.json.JSONObject().put("action", "note").put("kind", "pix").put("title", title).put("source", "qr")
+                        .put("text", "Código Pix copiado" + (r.merchantName?.let { " (o código diz: $it${r.merchantCity?.let { c -> ", $c" } ?: ""})" } ?: "") + ".")
+                        .put("fields", org.json.JSONObject().put("pix", org.json.JSONObject().put("nome", r.merchantName ?: "").put("cidade", r.merchantCity ?: "")
+                            .put("valor", r.amount ?: "").put("dinamico", r.isDynamic).put("descricao", r.description ?: "")))
+                        .apply { if (place != null) put("place", place) })
+                }
+                toast("Código Pix copiado. Abra o banco: ele oferece pagar.")
+            }
+            // Sites are not opened (no browser in the lens): a menu is read for you, any other link goes to the notes.
+            is io.alema.qrcore.QrResult.Link -> if (MenuRead.looksLikeMenu(r.url)) openMenu(r.url) else {
+                work.execute { Moments.send(this, org.json.JSONObject().put("action", "note").put("kind", "link").put("title", "Link: " + r.host).put("text", r.url).put("source", "qr")) }
+                toast("link guardado nas notas: ${r.host}")
+            }
+            is io.alema.qrcore.QrResult.Wifi -> {
+                clip.setPrimaryClip(android.content.ClipData.newPlainText("Wi-Fi", r.password ?: ""))
+                try { startActivity(Intent(android.provider.Settings.ACTION_WIFI_SETTINGS)) } catch (_: Exception) {}
+                toast("Senha do Wi-Fi ${r.ssid} copiada")
+            }
+            is io.alema.qrcore.QrResult.Contact -> {
+                val name = r.name
+                if (name.isNullOrBlank()) toast("contato sem nome")
+                else { work.execute { Moments.send(this, org.json.JSONObject().put("action", "add_people").put("people", org.json.JSONArray().put(org.json.JSONObject()
+                    .put("name", name).put("company", r.org ?: "").put("role", r.title ?: "").put("contact_phone", r.phones.firstOrNull() ?: "").put("contact_email", r.emails.firstOrNull() ?: "").put("source", "qr")))) }
+                    toast("guardado: $name") }
+            }
+            is io.alema.qrcore.QrResult.Text -> { clip.setPrimaryClip(android.content.ClipData.newPlainText("QR", r.text)); toast("texto copiado") }
+            else -> Unit
+        }
+    }
+
+    private fun openMenu(url: String) {
+        hud.cardTitle = "Cardápio"; hud.cardLines = listOf("lendo o cardápio…"); hud.invalidate()
+        work.execute {
+            val m = MenuRead.read(this, url)
+            main.post {
+                if (m == null) { hud.cardTitle = "Cardápio"; hud.cardLines = listOf("não consegui ler este cardápio", "o link ficou nas notas"); hud.invalidate()
+                    work.execute { Moments.send(this, org.json.JSONObject().put("action", "note").put("kind", "link").put("title", "Cardápio: " + (android.net.Uri.parse(url).host ?: url)).put("text", url).put("source", "qr")) }
+                    return@post }
+                hud.cardTitle = m.place.ifBlank { "Cardápio" }; hud.cardLines = m.categories.take(6) + listOf("diga uma categoria"); hud.invalidate()
+                // Gemini Live walks the user through it; the menu itself is not memory.
+                live.context("(contexto, não é fala do usuário) O usuário escaneou o cardápio do restaurante${if (m.place.isNotBlank()) " " + m.place else ""}. " +
+                    "Apresente as categorias numa frase curta e pergunte qual ele quer ver; depois diga os pratos e preços da categoria escolhida, poucos por vez. " +
+                    "Não guarde o cardápio na memória. CARDÁPIO: ${m.json.take(20000)}")
+                if (!liveOn) { liveOn = true; live.start() }
+            }
+        }
+    }
+
+    override fun onYes(): Boolean = if (qr.offer != null) { main.post { acceptQr() }; true } else false
 
     private fun legacyCheck(p: FaceBrain.Seen, jpeg: ByteArray) {
         val pid = p.pendingId ?: return
@@ -236,6 +346,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     }
 
     override fun onNamed(name: String) { toast("guardado: $name") }
+    override fun onSaved(title: String) { toast("guardado: $title") }
 
     private fun toggleLive() {
         if (liveOn) { if (live.speaking) live.interrupt() else { live.stop(); liveOn = false } }
