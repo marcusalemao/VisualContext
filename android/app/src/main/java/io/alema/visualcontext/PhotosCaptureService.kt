@@ -88,7 +88,7 @@ class PhotosCaptureService : Service() {
     private fun finishCapture() {
         if (!running) return
         running = false
-        PhotosGrid.last = grid?.found?.values?.toList() ?: emptyList()
+        PhotosGrid.last = grid?.found?.toList() ?: emptyList()
         try { display?.release() } catch (_: Exception) {}
         try { reader?.close() } catch (_: Exception) {}
         try { projection?.stop() } catch (_: Exception) {}

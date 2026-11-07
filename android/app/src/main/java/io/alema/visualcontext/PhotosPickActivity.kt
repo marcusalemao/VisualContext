@@ -95,7 +95,7 @@ class PhotosPickActivity : Activity() {
     private fun pick(found: List<PhotosGrid.Found>) {
         val known = try { LocalFaces.all(this).mapNotNull { it.name?.let(PhotosGrid::norm) }.toSet() } catch (_: Exception) { emptySet() }
         col.addView(label("${found.size} pessoas encontradas", 20f, green))
-        col.addView(label("Todas vêm marcadas. Desmarque quem não quiser (e você mesmo). Nomes com … estão cortados na tela do Google Fotos: dá para corrigir depois no Manager.", 13f))
+        col.addView(label("Todas vêm marcadas. Desmarque quem não quiser (e você mesmo). Nome cortado (…) ou errado? Segure o dedo na pessoa para corrigir.", 13f))
         val bar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         bar.addView(Button(this).apply { text = "Marcar todos"; setOnClickListener { ticks.values.forEach { it.isChecked = true } } })
         bar.addView(Button(this).apply { text = "Limpar"; setOnClickListener { ticks.values.forEach { it.isChecked = false } } })
@@ -118,6 +118,15 @@ class PhotosPickActivity : Activity() {
                 setTextColor(soft); textSize = 12f; isChecked = true; buttonTintList = android.content.res.ColorStateList.valueOf(green)
             }
             box.setOnClickListener { cb.toggle() }
+            // Long press: fix the name (cut names, nicknames).
+            val rename = View.OnLongClickListener {
+                val et = android.widget.EditText(this).apply { setText(f.name); setSelection(f.name.length) }
+                android.app.AlertDialog.Builder(this).setTitle("Nome").setView(et)
+                    .setPositiveButton("OK") { _, _ -> val n = et.text.toString().trim(); if (n.length > 1) { ticks.remove(f.name); f.name = n; cb.text = n; ticks[n] = cb; cb.isChecked = true } }
+                    .setNegativeButton("Cancelar", null).show()
+                true
+            }
+            box.setOnLongClickListener(rename); cb.setOnLongClickListener(rename)
             box.addView(cb)
             ticks[f.name] = cb
             grid.addView(box)
