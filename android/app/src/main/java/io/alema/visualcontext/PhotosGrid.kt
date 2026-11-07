@@ -51,7 +51,7 @@ class PhotosGrid(ctx: Context) {
                 val cx = w.box.exactCenterX()
                 cx in left..right && w.box.top >= f.y + f.h * 0.85f && w.box.top <= f.y + f.h * 1.9f
             }.sortedWith(compareBy<Word> { it.box.top / maxOf(1, it.box.height()) }.thenBy { it.box.left })
-            if (mine.isEmpty()) continue
+            if (mine.isEmpty()) { keepNameless(bmp, f); continue }
             // At most the two rows right under the face.
             val firstTop = mine.minOf { it.box.top }; val rowH = mine.first().box.height().coerceAtLeast(1)
             val name = mine.filter { it.box.top < firstTop + rowH * 2.6f }.joinToString(" ") { it.text }.replace(Regex("\\s+"), " ").trim().trimEnd('.', ',', ' ')
@@ -67,6 +67,16 @@ class PhotosGrid(ctx: Context) {
             added++
         }
         return added
+    }
+
+    /** Faces with no name in Google Photos: shown apart, so the user can name the ones he knows. */
+    val nameless = mutableListOf<Found>()
+    private fun keepNameless(bmp: Bitmap, f: io.alema.facecore.Face) {
+        if (f.w < bmp.width * 0.12f) return // only grid faces, not tiny ones in a banner
+        if (people.any { dot(it.descriptor, f.descriptor) > SAME }) return
+        val same = nameless.maxByOrNull { dot(it.descriptor, f.descriptor) }?.takeIf { dot(it.descriptor, f.descriptor) > SAME }
+        if (same != null) { if (f.w > same.size) { same.thumb = crop(bmp, f.x, f.y, f.w, f.h); same.size = f.w }; return }
+        nameless += Found("", f.descriptor, crop(bmp, f.x, f.y, f.w, f.h), f.w, false)
     }
 
     private fun dot(a: FloatArray, b: FloatArray): Float { var s = 0f; for (i in a.indices) s += a[i] * b[i]; return s }
@@ -86,5 +96,6 @@ class PhotosGrid(ctx: Context) {
         fun norm(s: String) = Normalizer.normalize(s, Normalizer.Form.NFD).replace(Regex("\\p{M}+"), "").lowercase().trim()
         /** What the last capture found, for the pick screen. */
         @Volatile var last: List<Found> = emptyList()
+        @Volatile var lastNameless: List<Found> = emptyList()
     }
 }

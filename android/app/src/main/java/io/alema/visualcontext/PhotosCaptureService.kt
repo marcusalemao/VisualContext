@@ -89,6 +89,7 @@ class PhotosCaptureService : Service() {
         if (!running) return
         running = false
         PhotosGrid.last = grid?.found?.toList() ?: emptyList()
+        PhotosGrid.lastNameless = grid?.let { g -> g.nameless.filter { n -> g.people.none { p -> sim(p.descriptor, n.descriptor) > 0.45f } } } ?: emptyList()
         try { display?.release() } catch (_: Exception) {}
         try { reader?.close() } catch (_: Exception) {}
         try { projection?.stop() } catch (_: Exception) {}
@@ -112,6 +113,8 @@ class PhotosCaptureService : Service() {
             .addAction(Notification.Action.Builder(null, "Terminei", done).build())
             .build()
     }
+
+    private fun sim(a: FloatArray, b: FloatArray): Float { var s = 0f; for (i in a.indices) s += a[i] * b[i]; return s }
 
     override fun onDestroy() { finishCapture(); super.onDestroy() }
 

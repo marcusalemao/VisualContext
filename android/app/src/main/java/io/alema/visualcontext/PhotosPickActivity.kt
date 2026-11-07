@@ -33,7 +33,6 @@ class PhotosPickActivity : Activity() {
     private val soft = Color.rgb(143, 223, 181)
     private val io = Executors.newSingleThreadExecutor()
     private lateinit var col: LinearLayout
-    private val ticks = HashMap<String, CheckBox>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -76,8 +75,9 @@ class PhotosPickActivity : Activity() {
                     dec.recycle()
                 }
                 PhotosGrid.last = g.found.toList()
+                PhotosGrid.lastNameless = g.nameless.toList()
             } catch (_: Throwable) { } finally { g.close() }
-            runOnUiThread { if (PhotosGrid.last.isEmpty()) { render(); col.addView(label("Não achei rostos com nome nesse print. Confira se é a tela Pessoas e animais.", 14f, green)) } else render() }
+            runOnUiThread { if (PhotosGrid.last.isEmpty() && PhotosGrid.lastNameless.isEmpty()) { render(); col.addView(label("Não achei rostos com nome nesse print. Confira se é a tela Pessoas e animais.", 14f, green)) } else render() }
         }
     }
 
@@ -86,7 +86,7 @@ class PhotosPickActivity : Activity() {
     private fun render() {
         col.removeAllViews()
         val found = PhotosGrid.last
-        if (found.isEmpty()) intro() else pick(found)
+        if (found.isEmpty() && PhotosGrid.lastNameless.isEmpty()) intro() else pick(found)
     }
 
     private fun intro() {
@@ -140,19 +140,14 @@ class PhotosPickActivity : Activity() {
         }, 700)
     }
 
-    private fun pick(found: List<PhotosGrid.Found>) {
+    /** Every face on the screen, named or not, with its tick (only ticked faces with a name are saved). */
+    private val picked = LinkedHashMap<PhotosGrid.Found, CheckBox>()
+
+    private fun grid(list: List<PhotosGrid.Found>, named: Boolean): GridLayout {
         val known = try { LocalFaces.all(this).mapNotNull { it.name?.let(PhotosGrid::norm) }.toSet() } catch (_: Exception) { emptySet() }
-        col.addView(label("${found.size} pessoas encontradas", 20f, green))
-        col.addView(label("Todas vêm marcadas. Desmarque quem não quiser (e você mesmo). Nome cortado (…) ou errado? Segure o dedo na pessoa para corrigir.", 13f))
-        val bar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        bar.addView(Button(this).apply { text = "Marcar todos"; setOnClickListener { ticks.values.forEach { it.isChecked = true } } })
-        bar.addView(Button(this).apply { text = "Limpar"; setOnClickListener { ticks.values.forEach { it.isChecked = false } } })
-        col.addView(bar)
-        col.addView(Button(this).apply { text = "↺ Capturar de novo"; setOnClickListener { PhotosGrid.last = emptyList(); render(); askCapture() } })
         val grid = GridLayout(this).apply { columnCount = 3 }
         val cell = (resources.displayMetrics.widthPixels - 80) / 3
-        ticks.clear()
-        for (f in found) {
+        for (f in list) {
             val box = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(8, 16, 8, 16)
                 layoutParams = GridLayout.LayoutParams().apply { width = cell }
@@ -163,31 +158,49 @@ class PhotosPickActivity : Activity() {
                 try { val b = Base64.decode(f.thumb, Base64.DEFAULT); setImageBitmap(BitmapFactory.decodeByteArray(b, 0, b.size)) } catch (_: Exception) {}
             })
             val cb = CheckBox(this).apply {
-                text = f.name + if (PhotosGrid.norm(f.name) in known) "\n(já tem rosto)" else ""
-                setTextColor(soft); textSize = 12f; isChecked = true; buttonTintList = android.content.res.ColorStateList.valueOf(green)
+                text = if (f.name.isEmpty()) "dar nome" else f.name + if (PhotosGrid.norm(f.name) in known) "\n(já tem rosto)" else ""
+                setTextColor(soft); textSize = 12f; isChecked = named; buttonTintList = android.content.res.ColorStateList.valueOf(green)
             }
-            box.setOnClickListener { cb.toggle() }
-            // Long press: fix the name (cut names, nicknames).
-            val rename = View.OnLongClickListener {
-                val et = android.widget.EditText(this).apply { setText(f.name); setSelection(f.name.length) }
-                android.app.AlertDialog.Builder(this).setTitle("Nome").setView(et)
-                    .setPositiveButton("OK") { _, _ -> val n = et.text.toString().trim(); if (n.length > 1) { ticks.remove(f.name); f.name = n; cb.text = n; ticks[n] = cb; cb.isChecked = true } }
-                    .setNegativeButton("Cancelar", null).show()
-                true
-            }
+            val rename = View.OnLongClickListener { askName(f, cb); true }
+            if (named) { box.setOnClickListener { cb.toggle() } } else { box.setOnClickListener { askName(f, cb) }; cb.setOnClickListener { if (f.name.isEmpty()) { cb.isChecked = false; askName(f, cb) } } }
             box.setOnLongClickListener(rename); cb.setOnLongClickListener(rename)
             box.addView(cb)
-            ticks[f.name] = cb
+            picked[f] = cb
             grid.addView(box)
         }
-        col.addView(grid)
+        return grid
+    }
+
+    private fun askName(f: PhotosGrid.Found, cb: CheckBox) {
+        val et = android.widget.EditText(this).apply { setText(f.name); setSelection(f.name.length); hint = "nome" }
+        android.app.AlertDialog.Builder(this).setTitle("Quem é?").setView(et)
+            .setPositiveButton("OK") { _, _ -> val n = et.text.toString().trim(); if (n.length > 1) { f.name = n; cb.text = n; cb.isChecked = true } }
+            .setNegativeButton("Cancelar", null).show()
+    }
+
+    private fun pick(found: List<PhotosGrid.Found>) {
+        col.addView(label("${found.size} pessoas com nome", 20f, green))
+        col.addView(label("Todas vêm marcadas. Desmarque quem não quiser (e você mesmo). Nome cortado (…) ou errado? Segure o dedo na pessoa para corrigir.", 13f))
+        val bar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        bar.addView(Button(this).apply { text = "Marcar todos"; setOnClickListener { picked.forEach { (f, c) -> if (f.name.isNotEmpty()) c.isChecked = true } } })
+        bar.addView(Button(this).apply { text = "Limpar"; setOnClickListener { picked.values.forEach { it.isChecked = false } } })
+        col.addView(bar)
+        col.addView(Button(this).apply { text = "↺ Capturar de novo"; setOnClickListener { PhotosGrid.last = emptyList(); PhotosGrid.lastNameless = emptyList(); render(); askCapture() } })
+        picked.clear()
+        col.addView(grid(found, true))
+        val nl = PhotosGrid.lastNameless
+        if (nl.isNotEmpty()) {
+            col.addView(label("Sem nome no Google Fotos (${nl.size})", 16f, green))
+            col.addView(label("Conhece? Toque e digite o nome. Só entra quem ganhar um nome aqui.", 13f))
+            col.addView(grid(nl, false))
+        }
         val status = label("", 14f, green)
         col.addView(Button(this).apply {
             text = "Guardar os marcados"
-            setOnClickListener { b -> b.isEnabled = false; save(found.filter { ticks[it.name]?.isChecked == true }, status) }
+            setOnClickListener { b -> b.isEnabled = false; save(picked.filter { (f, c) -> c.isChecked && f.name.isNotEmpty() }.keys.toList(), status) }
         })
         col.addView(status)
-        col.addView(Button(this).apply { text = "↺ Capturar de novo"; setOnClickListener { PhotosGrid.last = emptyList(); render(); askCapture() } })
+        col.addView(Button(this).apply { text = "↺ Capturar de novo"; setOnClickListener { PhotosGrid.last = emptyList(); PhotosGrid.lastNameless = emptyList(); render(); askCapture() } })
     }
 
     /** Spec 5b step 4: faces from Google Photos recognise right away, marked as such; the first real encounter confirms. */
@@ -207,7 +220,7 @@ class PhotosPickActivity : Activity() {
                 ok++
             }
             LocalFaces.save(this, all)
-            PhotosGrid.last = emptyList()
+            PhotosGrid.last = emptyList(); PhotosGrid.lastNameless = emptyList()
             runOnUiThread {
                 status.text = "$ok ${if (ok == 1) "pessoa guardada" else "pessoas guardadas"}." + if (offline > 0) " $offline ficaram só neste celular (sem internet agora)." else " Já aparecem no Manager."
                 col.addView(Button(this).apply { text = "Voltar"; setOnClickListener { finish() } })
