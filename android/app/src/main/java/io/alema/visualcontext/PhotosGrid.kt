@@ -22,6 +22,10 @@ class PhotosGrid(ctx: Context) {
     class Found(var name: String, val descriptor: FloatArray, var thumb: String, var size: Float, var cut: Boolean) {
         /** A bigger square crop (up to 480 px) for the phone's contacts, so the photo isn't blurred there. */
         var photo: ByteArray? = null
+        /** Why it is suggested ("⭐ favorito · 12 ligações"), and whether it comes ticked. */
+        var why: String = ""
+        var score = 0
+        var tick = true
         val names = HashMap<String, Int>()
         fun vote(n: String) { names[n] = (names[n] ?: 0) + 1; name = names.maxByOrNull { it.value }!!.key; cut = name.endsWith("…") || name.endsWith("...") }
     }
@@ -99,9 +103,18 @@ class PhotosGrid(ctx: Context) {
     }
 
     /** One picture of one person with a known name (a phone contact's photo). */
-    fun readOne(bmp: Bitmap, name: String): Boolean {
-        val f = engine.describe(bmp).firstOrNull() ?: return false
-        addFound(bmp, f, name); return true
+    /**
+     * One picture of one person with a known name (a phone contact's photo). Refused when it isn't a usable
+     * face (Marcus, 07/11: contacts brought group photos and tiny pictures): no face, more than one face, or a
+     * face under 80 px. Returns the face kept, or null.
+     */
+    fun readOne(bmp: Bitmap, name: String): Found? {
+        val faces = engine.describe(bmp)
+        val f = faces.firstOrNull() ?: return null
+        if (faces.size > 1 && faces[1].w > f.w * 0.5f) return null // a group photo: whose face is it?
+        if (f.w < 80 || f.w < bmp.width * 0.18f) return null // too small to recognise anyone
+        addFound(bmp, f, name)
+        return people.firstOrNull { it.names.containsKey(name) }
     }
 
     /** Faces with no name in Google Photos: shown apart, so the user can name the ones he knows. */

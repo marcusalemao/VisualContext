@@ -213,6 +213,15 @@ class SettingsActivity : Activity() {
         val c = card()
         c.h("Rostos")
         c.p("${groups.size - fresh} pessoas com nome" + (if (fresh > 0) " · $fresh sem nome" else "") + " · ${all.size} fotos")
+        val fromContacts = all.filter { (it.desc ?: "").contains("contatos") }
+        if (fromContacts.isNotEmpty()) c.addView(TextView(this).apply {
+            text = "Desfazer a importação dos contatos (${fromContacts.size} fotos)"; textSize = 14f; setTextColor(Color.rgb(255, 120, 120)); setPadding(0, dp(4), 0, dp(4))
+            setOnClickListener {
+                AlertDialog.Builder(this@SettingsActivity).setMessage("Tirar deste celular as ${fromContacts.size} fotos que vieram dos contatos? Quem você já usou nos óculos continua com as outras fotos.")
+                    .setPositiveButton("Tirar") { _, _ -> val ids = fromContacts.map { it.id }.toSet(); LocalFaces.save(this@SettingsActivity, LocalFaces.all(this@SettingsActivity).filterNot { it.id in ids }); render() }
+                    .setNegativeButton("Cancelar", null).show()
+            }
+        })
         c.btn(if (facesOpen) "Fechar a lista" else if (fresh > 0) "Dar nome a quem falta" else "Ver e editar", fresh > 0 && !facesOpen) { facesOpen = !facesOpen; render() }
         if (!facesOpen) return
         // Search: with hundreds of people the list needs it.

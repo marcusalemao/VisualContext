@@ -45,13 +45,28 @@ class PhotosPickActivity : Activity() {
     }
 
     /** Phone contacts with a photo: one face each, the name is the contact's. */
+    /**
+     * Phone contacts with a photo, the people you deal with first (Marcus, 07/11: "não pegar todos de uma vez"):
+     * favourites, the ones you call most (call log, if you allow it) and people already in your memory come
+     * ticked; everyone else comes unticked, below. Group photos and tiny pictures are left out.
+     */
     private fun readContacts() {
         col.removeAllViews(); col.addView(label("Lendo os contatos com foto…", 18f, green))
         io.execute {
             val g = PhotosGrid(this)
+            var bad = 0
             try {
+                // How much you deal with each number: calls in the last 180 days (only with permission).
+                val calls = HashMap<String, Int>()
+                if (checkSelfPermission(android.Manifest.permission.READ_CALL_LOG) == android.content.pm.PackageManager.PERMISSION_GRANTED) try {
+                    contentResolver.query(android.provider.CallLog.Calls.CONTENT_URI, arrayOf(android.provider.CallLog.Calls.CACHED_NAME),
+                        "${android.provider.CallLog.Calls.DATE} > ?", arrayOf((System.currentTimeMillis() - 180L * 86_400_000).toString()), null)?.use { c ->
+                        while (c.moveToNext()) c.getString(0)?.trim()?.takeIf { it.isNotEmpty() }?.let { calls[it] = (calls[it] ?: 0) + 1 }
+                    }
+                } catch (_: Exception) {}
+                val memory = (Backend.peopleFull(this) ?: emptyList()).map { it.name.trim().lowercase() }.toSet()
                 contentResolver.query(android.provider.ContactsContract.Contacts.CONTENT_URI,
-                    arrayOf(android.provider.ContactsContract.Contacts.DISPLAY_NAME_PRIMARY, android.provider.ContactsContract.Contacts.PHOTO_URI),
+                    arrayOf(android.provider.ContactsContract.Contacts.DISPLAY_NAME_PRIMARY, android.provider.ContactsContract.Contacts.PHOTO_URI, android.provider.ContactsContract.Contacts.STARRED),
                     "${android.provider.ContactsContract.Contacts.PHOTO_URI} IS NOT NULL", null, null)?.use { c ->
                     var n = 0
                     while (c.moveToNext()) {
@@ -59,15 +74,25 @@ class PhotosPickActivity : Activity() {
                         val uri = c.getString(1) ?: continue
                         if (name.length < 2 || name.any { it.isDigit() }) continue
                         val bmp = try { contentResolver.openInputStream(android.net.Uri.parse(uri))?.use { BitmapFactory.decodeStream(it) } } catch (_: Exception) { null } ?: continue
-                        g.readOne(bmp, name); bmp.recycle()
+                        val f = g.readOne(bmp, name); bmp.recycle()
+                        if (f == null) { bad++; continue }
+                        val star = c.getInt(2) == 1; val nc = calls[name] ?: 0; val mem = name.lowercase() in memory
+                        f.score = (if (star) 100 else 0) + nc * 5 + (if (mem) 50 else 0) + (if (name.split(' ').size > 1) 2 else 0)
+                        f.why = listOfNotNull(if (star) "⭐ favorito" else null, if (nc > 0) "$nc ${if (nc == 1) "ligação" else "ligações"}" else null, if (mem) "na memória" else null).joinToString(" · ")
                         if (++n % 10 == 0) runOnUiThread { col.removeAllViews(); col.addView(label("Lendo os contatos com foto… $n", 18f, green)) }
                     }
                 }
-                PhotosGrid.last = g.found.toList(); PhotosGrid.lastNameless = emptyList()
+                val sorted = g.found.sortedByDescending { it.score }
+                // Ticked: whoever has a reason (favourite, calls, memory), at most 40; the rest wait unticked.
+                sorted.forEachIndexed { i, f -> f.tick = f.score > 2 && i < 40 }
+                PhotosGrid.last = sorted; PhotosGrid.lastNameless = emptyList()
+                contactsSkipped = bad
             } catch (_: Throwable) { } finally { g.close() }
-            runOnUiThread { if (PhotosGrid.last.isEmpty()) { render(); col.addView(label("Nenhum contato com foto de rosto.", 14f, green)) } else render() }
+            runOnUiThread { if (PhotosGrid.last.isEmpty()) { render(); col.addView(label("Nenhum contato com foto de rosto boa.", 14f, green)) } else render() }
         }
     }
+
+    private var contactsSkipped = 0
 
     /** A long screenshot shared from the gallery ("Compartilhar → VisualContext"). */
     private fun sharedImages(i: Intent?): List<android.net.Uri>? = when (i?.action) {
@@ -120,10 +145,10 @@ class PhotosPickActivity : Activity() {
         col.addView(label("De qualquer lista com foto e nome: Google Fotos, contatos do celular, LinkedIn, Facebook, Instagram. O VisualContext lê a tela, com a sua permissão, e aprende os rostos. Nada sai do celular até você escolher quem entra."))
         // Phone contacts: the photo is already there, no screenshot needed.
         col.addView(label("Contatos do celular", 15f, green))
-        col.addView(label("Os contatos que têm foto (muitos vêm do Google Contatos).", 13f))
+        col.addView(label("Os contatos com foto de rosto boa. Vêm marcados primeiro os favoritos, com quem você mais liga (se permitir ver o histórico de chamadas) e quem já está na sua memória. Fotos de grupo e muito pequenas ficam de fora.", 13f))
         col.addView(Button(this).apply { text = "Importar contatos com foto"; setOnClickListener {
             source = "contatos"
-            if (checkSelfPermission(android.Manifest.permission.READ_CONTACTS) != android.content.pm.PackageManager.PERMISSION_GRANTED) requestPermissions(arrayOf(android.Manifest.permission.READ_CONTACTS), REQ_CONTACTS)
+            if (checkSelfPermission(android.Manifest.permission.READ_CONTACTS) != android.content.pm.PackageManager.PERMISSION_GRANTED) requestPermissions(arrayOf(android.Manifest.permission.READ_CONTACTS, android.Manifest.permission.READ_CALL_LOG), REQ_CONTACTS)
             else readContacts()
         } })
         // LinkedIn, Facebook, Instagram: the user scrolls (their terms forbid robots), the capture reads.
@@ -252,8 +277,8 @@ class PhotosPickActivity : Activity() {
                 try { val b = Base64.decode(f.thumb, Base64.DEFAULT); setImageBitmap(BitmapFactory.decodeByteArray(b, 0, b.size)) } catch (_: Exception) {}
             })
             val cb = CheckBox(this).apply {
-                text = if (f.name.isEmpty()) "dar nome" else f.name + if (PhotosGrid.norm(f.name) in known) "\n(já tem rosto)" else ""
-                setTextColor(soft); textSize = 12f; isChecked = named; buttonTintList = android.content.res.ColorStateList.valueOf(green)
+                text = if (f.name.isEmpty()) "dar nome" else f.name + (if (f.why.isNotEmpty()) "\n" + f.why else "") + if (PhotosGrid.norm(f.name) in known) "\n(já tem rosto)" else ""
+                setTextColor(soft); textSize = 12f; isChecked = named && f.tick; buttonTintList = android.content.res.ColorStateList.valueOf(green)
             }
             val rename = View.OnLongClickListener { askName(f, cb); true }
             if (named) { box.setOnClickListener { cb.toggle() } } else { box.setOnClickListener { askName(f, cb) }; cb.setOnClickListener { if (f.name.isEmpty()) { cb.isChecked = false; askName(f, cb) } } }
@@ -274,7 +299,8 @@ class PhotosPickActivity : Activity() {
 
     private fun pick(found: List<PhotosGrid.Found>) {
         col.addView(label("${found.size} pessoas com nome", 20f, green))
-        col.addView(label("Todas vêm marcadas. Desmarque quem não quiser (e você mesmo). Nome cortado (…) ou errado? Segure o dedo na pessoa para corrigir.", 13f))
+        col.addView(label(if (source == "contatos") "Marcados: ${found.count { it.tick }} (favoritos, com quem você mais liga, quem já está na memória). Os outros vêm desmarcados, abaixo." + (if (contactsSkipped > 0) " $contactsSkipped fotos ficaram de fora (grupo, muito pequenas ou sem rosto)." else "")
+            else "Todas vêm marcadas. Desmarque quem não quiser (e você mesmo). Nome cortado (…) ou errado? Segure o dedo na pessoa para corrigir.", 13f))
         val bar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         bar.addView(Button(this).apply { text = "Marcar todos"; setOnClickListener { picked.forEach { (f, c) -> if (f.name.isNotEmpty()) c.isChecked = true } } })
         bar.addView(Button(this).apply { text = "Limpar"; setOnClickListener { picked.values.forEach { it.isChecked = false } } })
