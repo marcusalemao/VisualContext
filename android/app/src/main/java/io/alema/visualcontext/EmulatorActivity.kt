@@ -80,6 +80,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     private var hearing = false
     /** Spec 1i: output = screen, screen + voice, or voice only (the glasses without a display). */
     private lateinit var voice: Voice
+    private var offlineSaidAt = 0L
     private var output = "tela"
     private val spoken = HashMap<String, Long>()
     private val speaks get() = output != "tela"
@@ -408,7 +409,13 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     override fun onState(state: String) {
         hud.listening = state == "listening"; hud.speaking = state == "speaking"
         talk.text = when { state == "connecting" -> "… conectando"; state == "speaking" -> "■ Interromper"; state == "listening" -> "■ Encerrar"; else -> "🎙 Falar" }
-        if (state.startsWith("error")) { toast(state.removePrefix("error: ")); liveOn = false; talk.text = "🎙 Falar"; ears.resume() }
+        if (state.startsWith("error")) {
+            val why = state.removePrefix("error: "); toast(why); liveOn = false; talk.text = "🎙 Falar"; ears.resume()
+            val now = android.os.SystemClock.elapsedRealtime()
+            val cm = getSystemService(CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+            val offline = cm.activeNetwork == null
+            if (offline && speaks && now - offlineSaidAt > 5 * 60_000) { offlineSaidAt = now; voice.say("Sem internet para o assistente. Continuo avisando pelo celular.", interrupt = true) }
+        }
         hud.invalidate()
     }
     override fun onTranscript(lines: List<String>, userLine: String?) {

@@ -36,6 +36,8 @@ class SettingsActivity : Activity() {
     private val soft = Color.rgb(143, 223, 181)
     private lateinit var col: LinearLayout
     private var dev = false
+    private val phoneTts by lazy { Voice(this) }
+    override fun onDestroy() { super.onDestroy(); runCatching { phoneTts.close() } }
     @Volatile private var people: List<Backend.Person> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -261,6 +263,32 @@ class SettingsActivity : Activity() {
         val rbs = (0 until voices.size).map { vg.findViewById<android.widget.RadioButton>(300 + it) }
         rbs.forEachIndexed { i, rb -> rb.setOnClickListener { rbs.forEach { it.isChecked = it === rb }; Backend.saveVoice(this, voices[i]) } }
         c7.addView(vg); c7.addView(vmsg)
+        // Phone voice: offline, free, instant. Used for everything outside the Live (names, warnings, cards, skills) and when the network is gone.
+        c7.p("Voz do celular (offline, sem custo): usada fora do Live — nomes, avisos, dicas, habilidades — e quando faltar internet.", 13f)
+        val pv = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        c7.addView(pv)
+        val pmsg = TextView(this).apply { textSize = 12f; setTextColor(soft); text = "carregando vozes do celular…" }
+        c7.addView(pmsg)
+        val tv = phoneTts
+        pv.postDelayed({
+            val list = tv.choices(); val cur = Voice.phoneVoice(this).ifEmpty { list.firstOrNull()?.first ?: "" }
+            if (list.isEmpty()) { pmsg.text = "Nenhuma voz em português instalada. Ajustes do Android → Conversão de texto em voz."; return@postDelayed }
+            pmsg.text = ""
+            val rbs = ArrayList<android.widget.RadioButton>()
+            for ((name, label) in list.take(8)) pv.addView(LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL
+                val rb = android.widget.RadioButton(context).apply { text = label; textSize = 14f; setTextColor(soft); buttonTintList = android.content.res.ColorStateList.valueOf(green); isChecked = name == cur
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                    setOnClickListener { rbs.forEach { it.isChecked = it === this }; tv.use(name) } }
+                rbs.add(rb); addView(rb)
+                addView(Button(context).apply { text = "▶ Ouvir"; isAllCaps = false; textSize = 13f; setTextColor(green); stateListAnimator = null
+                    background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(12).toFloat(); setColor(Color.TRANSPARENT); setStroke(dp(1), green) }
+                    minHeight = dp(36); minimumHeight = dp(36); setPadding(dp(14), 0, dp(14), 0)
+                    setOnClickListener { val keep = Voice.phoneVoice(this@SettingsActivity); tv.use(name); tv.say("Oi. Eu sou uma voz do seu celular. Falo mesmo sem internet.", interrupt = true); Voice.setPhoneVoice(this@SettingsActivity, keep); if (keep.isNotEmpty()) tv.use(keep) }
+                })
+            })
+            if (Voice.phoneVoice(this).isEmpty() && cur.isNotEmpty()) Voice.setPhoneVoice(this, cur)
+        }, 900)
         c7.p("Saída: como os óculos falam com você", 13f)
         val outs = listOf("tela" to "Só tela", "tela_voz" to "Tela + voz", "voz" to "Só voz (óculos sem tela)")
         c7.addView(android.widget.RadioGroup(this).apply {
