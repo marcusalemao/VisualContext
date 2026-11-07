@@ -197,6 +197,24 @@ class SettingsActivity : Activity() {
         })
         c7.btn("Salvar chave e voz", false) { Backend.saveGemini(this, gk.text.toString(), voices.getOrElse(vg.checkedRadioButtonId - 300) { "Kore" }); Toast.makeText(this, "✓ Salvo", Toast.LENGTH_SHORT).show() }
 
+        // 8. Skills (spec 1r)
+        val ck = card()
+        ck.h("Habilidades")
+        val skills = Skills.all(this)
+        ck.p(if (skills.isEmpty()) "O assistente aprende com você: peça algo duas vezes, ou diga \"aprende isso\", e ele oferece criar uma habilidade (sua carteira de ações, notícias de um assunto, falar com o Claude). Da próxima vez é só pedir." else "${skills.size} ${if (skills.size == 1) "habilidade" else "habilidades"}. Segure uma para apagar.", 13f)
+        for (sk in skills) ck.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL; setPadding(0, dp(8), 0, dp(8))
+            addView(TextView(context).apply { text = "✦ " + sk.name; textSize = 16f; setTextColor(green) })
+            addView(TextView(context).apply { text = sk.triggers.take(2).joinToString(" · ") { "\"$it\"" }; textSize = 13f; setTextColor(soft) })
+            setOnLongClickListener {
+                AlertDialog.Builder(this@SettingsActivity).setMessage("Apagar a habilidade ${sk.name}?").setPositiveButton("Apagar") { _, _ -> Skills.remove(this@SettingsActivity, sk.slug); render() }.setNegativeButton("Cancelar", null).show(); true
+            }
+        })
+        ck.p("Chave do Claude (para \"falar com o Claude\"): da Anthropic ou do OpenRouter (começa com sk-or-). Fica só neste celular.", 13f)
+        val clk = field(Claude.key(this), true).apply { hint = "sk-ant-… ou sk-or-…" }
+        ck.addView(clk)
+        ck.btn("Salvar a chave do Claude", false) { Claude.setKey(this, clk.text.toString()); Toast.makeText(this, "✓ Salvo", Toast.LENGTH_SHORT).show() }
+
         if (Backend.token(this).isNotEmpty()) {
             val c8 = card()
             c8.btn("Desconectar este celular", false) { Backend.save(this, Backend.url(this), ""); render() }

@@ -10,8 +10,8 @@ android {
         applicationId = "io.alema.visualcontext"
         minSdk = 30
         targetSdk = 36
-        versionCode = 35
-        versionName = "0.15.5"
+        versionCode = 36
+        versionName = "0.16.0"
         // Rokid users' phones are 64-bit ARM; keeps the APK small (ONNX Runtime ships many ABIs).
         ndk { abiFilters += listOf("arm64-v8a") }
     }

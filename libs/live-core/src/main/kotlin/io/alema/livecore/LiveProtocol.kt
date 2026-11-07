@@ -51,7 +51,8 @@ object LiveProtocol {
         Converse sobre qualquer assunto que o usuário trouxer; se ele quiser explicar mais, responda com a profundidade que ele pedir.
     """.trimIndent()
 
-    fun setup(voice: String, resumeHandle: String?, model: String = MODEL, faces: Boolean = false, location: Boolean = false): String {
+    fun setup(voice: String, resumeHandle: String?, model: String = MODEL, faces: Boolean = false, location: Boolean = false,
+              extraTools: JSONArray? = null, extraSystem: String = ""): String {
         val gen = JSONObject()
             .put("responseModalities", JSONArray().put("AUDIO"))
             // No languageCode: native-audio models pick the language from the conversation; the system text asks for pt-BR.
@@ -74,10 +75,11 @@ object LiveProtocol {
             functions.put(fn(TOOL_ENROLL, "Guarda o rosto da pessoa na frente do usuário com o nome que ele disse. Só quando o usuário pedir.",
                 JSONObject().put("type", "OBJECT").put("properties", JSONObject().put("nome", JSONObject().put("type", "STRING"))).put("required", JSONArray().put("nome"))))
         }
+        extraTools?.let { for (i in 0 until it.length()) functions.put(it.get(i)) }
         val setup = JSONObject()
             .put("model", model)
             .put("generationConfig", gen)
-            .put("systemInstruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", now() + "\n" + SYSTEM + (if (faces) "\n" + FACES else "") + (if (location) "\n" + PLACES else "")))))
+            .put("systemInstruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", now() + "\n" + SYSTEM + (if (faces) "\n" + FACES else "") + (if (location) "\n" + PLACES else "") + (if (extraSystem.isNotEmpty()) "\n" + extraSystem else "")))))
             .put("tools", JSONArray().put(JSONObject().put("functionDeclarations", functions)).put(JSONObject().put("googleSearch", JSONObject())))
             .put("inputAudioTranscription", JSONObject())
             .put("outputAudioTranscription", JSONObject())

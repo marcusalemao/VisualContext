@@ -110,6 +110,29 @@ Deno.serve(async (req) => {
         if (error) throw error;
         return json({ id: data.id });
       }
+      // ---- Skills (spec 1r): learned recipes, a closed menu of steps, never code ----
+      case "skills": {
+        const { data, error } = await mine(db.from("skills").select("*"), w).order("updated_at", { ascending: false });
+        if (error) throw error;
+        return json(data);
+      }
+      case "save_skill": {
+        const k = body.skill ?? {};
+        if (!k.slug || !k.name || !Array.isArray(k.steps)) return json({ error: "skill" }, 400);
+        const rec = { ...stamp(w), slug: String(k.slug).slice(0, 48), name: String(k.name).slice(0, 80), description: k.description ?? null, triggers: k.triggers ?? [],
+          params: k.params ?? {}, steps: k.steps, enabled: k.enabled ?? true, updated_at: new Date().toISOString() };
+        const { data: ex } = await mine(db.from("skills").select("id"), w).eq("slug", rec.slug).limit(1);
+        const q = ex?.length ? db.from("skills").update(rec).eq("id", ex[0].id) : db.from("skills").insert(rec);
+        const { error } = await q;
+        if (error) throw error;
+        return json({ saved: rec.slug });
+      }
+      case "delete_skill": {
+        if (!body.slug) return json({ error: "slug" }, 400);
+        const { data, error } = await mine(db.from("skills").delete(), w).eq("slug", body.slug).select("id");
+        if (error) throw error;
+        return json({ deleted: data?.length ?? 0 });
+      }
       // ---- Manager ----
       case "me": { // who is this, which plan, how much is stored (the Manager's header)
         const email = w.email;

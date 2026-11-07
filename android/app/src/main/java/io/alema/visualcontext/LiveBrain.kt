@@ -65,6 +65,9 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
         speaker.start()
         io.execute {
             val model = Backend.liveModel(ctx) ?: (live.listModels(key)?.let { LiveProtocol.pickLiveModel(it) } ?: LiveProtocol.MODEL).also { Backend.saveLiveModel(ctx, it) }
+            // Spec 1r: the learned skills become tools of this session.
+            Skills.refresh(ctx)
+            live.extraTools = Skills.tools(ctx); live.extraSystem = Skills.system(ctx)
             main.post { live.connect(key, Backend.voiceName(ctx), resumeHandle, model) }
         }
     }
@@ -244,6 +247,11 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
                     else { main.post { host.onBrief(b.name, b.lines) }; JSONObject().put("pessoa", b.name).put("na_lente", JSONArray(b.lines)).put("diga", b.spoken) }
                 }
                 LiveProtocol.TOOL_WHERE -> Where.asJson(ctx)
+                Skills.TOOL_LEARN -> {
+                    val sk = Skills.learn(ctx, call.args.optString("nome"), call.args.optString("o_que_faz"), call.args.optString("detalhes"))
+                    if (sk == null) JSONObject().put("erro", "não consegui criar a habilidade agora")
+                    else { main.post { host.onSaved("habilidade " + sk.name) }; JSONObject().put("criada", sk.name).put("como_pedir", JSONArray(sk.triggers)).put("dica", "funciona a partir da próxima vez que o assistente abrir; agora você pode responder o pedido normalmente") }
+                }
                 LiveProtocol.TOOL_GO -> {
                     val dest = call.args.optString("destino")
                     try {
@@ -254,7 +262,11 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
                         JSONObject().put("ok", true).put("dica", "a navegação a pé abriu no celular")
                     } catch (e: Exception) { JSONObject().put("erro", "não consegui abrir a navegação") }
                 }
-                else -> JSONObject().put("erro", "ferramenta desconhecida")
+                else -> Skills.all(ctx).firstOrNull { it.tool == call.name }?.let { sk ->
+                    val r = Skills.run(ctx, sk, call.args.optString("pedido"))
+                    main.post { host.onBrief(r.title, r.lines) }
+                    JSONObject().put("na_lente", JSONArray(r.lines)).put("diga", r.spoken)
+                } ?: JSONObject().put("erro", "ferramenta desconhecida")
             }
             live.send(LiveProtocol.toolResponse(call.id, call.name, r))
         }

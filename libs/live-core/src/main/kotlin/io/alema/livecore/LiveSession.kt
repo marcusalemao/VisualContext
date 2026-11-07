@@ -29,6 +29,10 @@ class LiveSession(private val listener: Listener) {
     /** True when the app has the phone's GPS: adds onde_estou. */
     var locationTools = false
 
+    /** Tools and instructions the host adds (VisualContext's learned skills). */
+    @Volatile var extraTools: org.json.JSONArray? = null
+    @Volatile var extraSystem: String = ""
+
     fun connect(apiKey: String, voice: String, resumeHandle: String?, model: String = LiveProtocol.MODEL) {
         closingByUs = false
         val req = Request.Builder().url("${LiveProtocol.URL}?key=$apiKey").build()
@@ -38,7 +42,7 @@ class LiveSession(private val listener: Listener) {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 if (!current(webSocket)) return
                 open = true
-                webSocket.send(LiveProtocol.setup(voice, resumeHandle, model, faceTools, locationTools))
+                webSocket.send(LiveProtocol.setup(voice, resumeHandle, model, faceTools, locationTools, extraTools, extraSystem))
             }
             override fun onMessage(webSocket: WebSocket, text: String) { if (current(webSocket)) listener.onEvents(LiveProtocol.parse(text)) }
             // The Live API sends its JSON in binary frames.
