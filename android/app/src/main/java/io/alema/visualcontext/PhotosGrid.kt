@@ -43,13 +43,22 @@ class PhotosGrid(ctx: Context) {
         } catch (_: Exception) { return 0 }
         if (words.isEmpty()) return 0
         var added = 0
-        for (f in engine.describe(bmp)) {
-            // The name sits under the face, inside its own column; skip faces whose name could be off screen.
+        val faces = engine.describe(bmp)
+        for (f in faces) {
+            // The name sits under the face (app) or over the bottom of the tile (web), inside its own column;
+            // skip faces whose name could be off screen.
             if (f.y + f.h * 1.9f > bmp.height || f.y < 0) continue
-            val left = f.x - f.w * 0.2f; val right = f.x + f.w * 1.2f
+            // Column = halfway to the neighbours on the same row, so long names ("Leonardo de Pinho Vieira") fit
+            // but never take a word from the next tile.
+            val cx = f.x + f.w / 2; val cy = f.y + f.h / 2
+            val row = faces.filter { it !== f && kotlin.math.abs((it.y + it.h / 2) - cy) < f.h }
+            val leftN = row.map { it.x + it.w / 2 }.filter { it < cx }.maxOrNull()
+            val rightN = row.map { it.x + it.w / 2 }.filter { it > cx }.minOrNull()
+            val left = leftN?.let { (it + cx) / 2 } ?: (cx - f.w * 1.1f)
+            val right = rightN?.let { (it + cx) / 2 } ?: (cx + f.w * 1.1f)
             val mine = words.filter { w ->
-                val cx = w.box.exactCenterX()
-                cx in left..right && w.box.top >= f.y + f.h * 0.85f && w.box.top <= f.y + f.h * 1.9f
+                val wx = w.box.exactCenterX()
+                wx in left..right && w.box.left >= left - f.w * 0.1f && w.box.right <= right + f.w * 0.1f && w.box.top >= f.y + f.h * 0.85f && w.box.top <= f.y + f.h * 1.9f
             }.sortedWith(compareBy<Word> { it.box.top / maxOf(1, it.box.height()) }.thenBy { it.box.left })
             if (mine.isEmpty()) { keepNameless(bmp, f); continue }
             // At most the two rows right under the face.
