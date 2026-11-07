@@ -180,6 +180,7 @@ Google Photos has no API for its named face groups (since 31/03/2025 apps only s
 4. **Review and save.** Faces from Google Photos are used for recognition (Marcus, 06/11: any name in the capture, replacing the 11/10 rule for this source), marked "face from Google Photos"; the first real encounter confirms.
 - **Faces stay current by themselves:** every sure recognition by the glasses stores a new face and drops the oldest, up to 5 per person.
 - **Also put the photo in the phone's contacts (option, off by default):** only contacts that already exist, only those without a photo (replacing one is a per-person tick), the most recent face cropped square, no new contacts created. Note shown: the phone's contacts usually sync to Google Contacts, so the photo shows on all the user's devices (only to the user). Permission to edit contacts is asked only when this option is turned on.
+- **Status 07/11 (app 0.8.0):** steps 1, 2 and 4 built (screen capture, names read under the faces, pick grid with all ticked, faces saved on the phone and in the memory as "rosto do Google Fotos"). Step 3 (each person's page, full name and recent faces) and the photo in contacts come next.
 - **Same names (three "Bruno"s):** the photo goes to a contact only when the full name matches exactly one contact. Two or more matches, a first name only, or no match: nothing is written; the review shows the candidates and the user picks. When candidates already have a photo, the app compares faces and suggests the likely one, but never decides alone.
 
 ### 6. Offline, as the user sees it (11/10)
@@ -204,6 +205,16 @@ The current Manager is **visualcontext.base44.app/dashboard** (code in the priva
 - Saved when Live closes (Fechar, 40 s of silence, or the connection drops). Offline, it waits on the phone and goes with the next one.
 - In the Manager it shows under **Memories** with ✦ ("Conversa com o assistente").
 - Built in app 0.7.0 (`LiveBrain.saveConversation`, `Moments`, vc action `moment`, `capture_mode = live`).
+
+### 1n. "Remember this" for papers: business card, badge, prescription, form (07/11)
+- Saying "lembra disso" with a paper in view takes one frame, reads it and stores a **note with a title and fields**; the frame is then discarded (option later: keep the photo of the paper).
+  - **Business card / badge:** creates or completes the person (name, company, role, phone, e-mail) and links it to the encounter.
+  - **Medical prescription:** medicine, dose, schedule, doctor, date. Health data: by default it stays only in the memory and is **not** sent to the notes app (a tick turns that on).
+  - **Form or any paper:** title, short summary and the full text.
+- **Notes apps, two per system:** Android = Google Keep and Samsung Notes; iPhone = Apple Notes and Google Keep. None of them lets another app write directly (Keep's API is Workspace-only; Apple Notes and Samsung Notes have none), so:
+  - **Android:** the app sends the note straight to the app chosen once in Settings (Keep, Samsung Notes, or "ask every time"); no login, no extra permission.
+  - **iPhone:** the Manager in Safari has "Send to Notes", which opens the iPhone share sheet (Notes, Keep…). Later, with the iPhone helper app, an Apple Shortcut can do it on its own.
+- Everything is also searchable in the Manager ("which medicine did the doctor prescribe in October?").
 
 ---
 
@@ -385,6 +396,7 @@ O Google Fotos não tem API para os grupos de rostos com nome (desde 31/03/2025 
 4. **Conferir e guardar.** Rostos do Google Fotos servem para reconhecer (Marcus, 06/11: qualquer nome da captura, substituindo a regra de 11/10 para esta fonte), marcados "rosto do Google Fotos"; o primeiro encontro de verdade confirma.
 - **Os rostos se atualizam sozinhos:** cada reconhecimento com certeza pelos óculos guarda um rosto novo e descarta o mais antigo, até 5 por pessoa.
 - **Também pôr a foto na agenda do celular (opção, desligada por padrão):** só contatos que já existem, só os sem foto (trocar é uma caixinha por pessoa), o rosto mais recente recortado quadrado, nenhum contato novo criado. Aviso: a agenda costuma sincronizar com o Google Contatos, então a foto aparece em todos os aparelhos do usuário (só para ele). A permissão de editar contatos só é pedida quando a opção é ligada.
+- **Situação 07/11 (app 0.8.0):** passos 1, 2 e 4 feitos (captura de tela, nomes lidos embaixo dos rostos, grade de escolha com todos marcados, rostos guardados no celular e na memória como "rosto do Google Fotos"). O passo 3 (página de cada pessoa, nome completo e rostos recentes) e a foto na agenda vêm depois.
 - **Nomes iguais (três "Bruno"):** a foto só vai para um contato quando o nome completo bate com exatamente um contato. Dois ou mais, só o primeiro nome, ou nenhum: nada é escrito; a conferência mostra os candidatos e o usuário escolhe. Quando os candidatos já têm foto, o app compara os rostos e sugere o provável, mas nunca decide sozinho.
 
 ### 6. Offline, do jeito que o usuário vê (11/10)
@@ -409,3 +421,13 @@ O Manager atual é o **visualcontext.base44.app/dashboard** (código no reposit�
 - É salvo quando o Live fecha (Fechar, 40 s de silêncio ou queda da conexão). Sem internet, espera no celular e vai junto com o próximo.
 - No Manager aparece em **Lembranças** com ✦ ("Conversa com o assistente").
 - Feito no app 0.7.0 (`LiveBrain.saveConversation`, `Moments`, ação `moment` do vc, `capture_mode = live`).
+
+### 1n. "Lembra disso" para papéis: cartão de visita, crachá, receita, formulário (07/11)
+- Dizer "lembra disso" com um papel à vista tira uma foto, lê e guarda uma **nota com título e campos**; a foto é descartada em seguida (opção depois: guardar a foto do papel).
+  - **Cartão de visita / crachá:** cria ou completa a pessoa (nome, empresa, cargo, telefone, e-mail) e liga ao encontro.
+  - **Receita médica:** remédio, dose, horário, médico, data. Dado de saúde: por padrão fica só na memória e **não** vai para o app de notas (uma caixinha liga isso).
+  - **Formulário ou papel qualquer:** título, resumo curto e o texto inteiro.
+- **Apps de notas, dois por sistema:** Android = Google Keep e Samsung Notes; iPhone = Apple Notas e Google Keep. Nenhum deixa outro app escrever direto (a API do Keep é só para Workspace; Apple Notas e Samsung Notes não têm), então:
+  - **Android:** o app manda a nota direto para o app escolhido uma vez nos Ajustes (Keep, Samsung Notes ou "perguntar sempre"); sem login, sem permissão extra.
+  - **iPhone:** o Manager no Safari tem "Enviar para Notas", que abre o menu de compartilhar do iPhone (Notas, Keep…). Depois, com o app de apoio do iPhone, um Atalho da Apple faz isso sozinho.
+- Tudo fica pesquisável no Manager também ("qual remédio o médico passou em outubro?").

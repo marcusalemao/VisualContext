@@ -91,6 +91,14 @@
 - **Charging:** Play Store billing (simple, 15% fee) or Stripe on the site. Decide closer to launch.
 - **Already built:** table `accounts` (plan: trial / essential / plus / byok / founder / paused; `trial_ends_at` = 7 days). Marcus's account is `founder`. The Manager shows the plan and has "Export everything".
 
+### Update 07/11 (later) — Storage decided; iPhone route
+- **Marcus OK'd:** our database (Supabase) is the main copy, plus a weekly encrypted backup in the user's Google Drive (opt-in during the trial, on by default when it ends).
+- **iPhone (Claude's route, to confirm):** no rewrite in Flutter, because the glasses are Android whatever the phone is.
+  - Glasses = the **Solo** app (Android, for everyone), installed once by cable: ADB from a computer, or our own web page that installs through Chrome (WebUSB) with no software. To check: whether Hi Rokid on iPhone can install an APK.
+  - Web = the **Manager** (works in Safari).
+  - Android phone = extras (emulator, Google Photos import, Nexus bridge).
+  - iPhone = a small helper app later, only if the survey shows demand.
+
 ---
 
 ## PT — Português
@@ -181,3 +189,11 @@
 - **Onde fica:** o nosso banco (Supabase) é a cópia principal, porque busca por significado e sincronização entre óculos, celular e Manager pedem um banco de verdade. Mais um backup semanal criptografado e opcional no Google Drive da pessoa, como o do WhatsApp. Uma opção de privacidade máxima (só no celular + backup no Drive, sem Manager na web) pode ser recurso do Plus.
 - **Cobrança:** pela Play Store (simples, 15% de taxa) ou Stripe no site. Decidir perto do lançamento.
 - **Já feito:** tabela `accounts` (plano: trial / essential / plus / byok / founder / paused; `trial_ends_at` = 7 dias). A conta do Marcus é `founder`. O Manager mostra o plano e tem "Exportar tudo".
+
+### Atualização 07/11 (mais tarde) — Armazenamento decidido; rota do iPhone
+- **Marcus aprovou:** o nosso banco (Supabase) é a cópia principal, mais um backup semanal criptografado no Google Drive da pessoa (opcional no teste, ligado por padrão quando ele acaba).
+- **iPhone (rota do Claude, a confirmar):** nada de refazer em Flutter, porque os óculos são Android seja qual for o celular.
+  - Óculos = app **Solo** (Android, para todos), instalado uma vez por cabo: ADB de um computador, ou uma página nossa que instala pelo Chrome (WebUSB) sem programa nenhum. A verificar: se o Hi Rokid do iPhone instala APK.
+  - Web = o **Manager** (funciona no Safari).
+  - Celular Android = extras (emulador, importar do Google Fotos, ponte com o Nexus).
+  - iPhone = um app pequeno de apoio depois, só se a pesquisa mostrar demanda.

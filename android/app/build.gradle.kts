@@ -10,8 +10,8 @@ android {
         applicationId = "io.alema.visualcontext"
         minSdk = 30
         targetSdk = 36
-        versionCode = 16
-        versionName = "0.7.0"
+        versionCode = 17
+        versionName = "0.8.0"
         // Rokid users' phones are 64-bit ARM; keeps the APK small (ONNX Runtime ships many ABIs).
         ndk { abiFilters += listOf("arm64-v8a") }
     }
@@ -37,6 +37,8 @@ dependencies {
     implementation("androidx.webkit:webkit:1.12.1")
     // Face engine 2: Google ML Kit face detection (bundled, on-device) + ONNX Runtime for ArcFace.
     implementation("com.google.mlkit:face-detection:16.1.7")
+    // Spec 5b: names under the faces in Google Photos (on the phone, Latin script).
+    implementation("com.google.mlkit:text-recognition:16.0.1")
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.20.0")
     // Emulator on the phone: camera, Gemini Live over WebSocket.
     implementation("androidx.camera:camera-core:1.3.4")

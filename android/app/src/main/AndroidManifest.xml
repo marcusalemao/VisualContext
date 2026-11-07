@@ -9,8 +9,11 @@
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <queries>
+        <package android:name="com.google.android.apps.photos" />
         <intent>
             <action android:name="com.anezium.rokidbus.action.HUB" />
         </intent>
@@ -47,6 +50,16 @@
             android:name=".EmulatorActivity"
             android:exported="false"
             android:configChanges="orientation|screenSize|keyboardHidden" />
+
+        <!-- Spec 5b: import named faces from Google Photos by reading the screen. -->
+        <activity
+            android:name=".PhotosPickActivity"
+            android:exported="false"
+            android:launchMode="singleTask" />
+        <service
+            android:name=".PhotosCaptureService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
 
         <service
             android:name=".VisualContextPluginService"

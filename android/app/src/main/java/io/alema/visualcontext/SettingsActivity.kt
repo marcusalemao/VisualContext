@@ -85,6 +85,12 @@ class SettingsActivity : Activity() {
             text = "Abrir o emulador"
             setOnClickListener { startActivity(Intent(this@SettingsActivity, EmulatorActivity::class.java)) }
         })
+        col.addView(label("Importar rostos", 16f, green))
+        col.addView(label("Do Google Fotos: as pessoas que já têm nome lá passam a ser reconhecidas pelos óculos."))
+        col.addView(Button(this).apply {
+            text = "Importar do Google Fotos"
+            setOnClickListener { startActivity(Intent(this@SettingsActivity, PhotosPickActivity::class.java)) }
+        })
         if (Backend.token(this).isNotEmpty()) {
             col.addView(label("Manager", 16f, green))
             col.addView(label("Sua memória no navegador: pergunte qualquer coisa, edite pessoas, junte repetidas, importe contatos. Abre já conectado, sem senha."))
