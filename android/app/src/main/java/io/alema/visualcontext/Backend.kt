@@ -13,10 +13,11 @@ import java.net.URL
  * The token lives only in this phone's private app storage, never in the code.
  */
 object Backend {
-    const val DEFAULT_URL = "https://base44.app/api/apps/6a11083db49430b410a8c066/functions/fcProxy"
+    /** The VisualContext memory (Supabase, São Paulo). Base44 was the old one; saved Base44 addresses move here by themselves. */
+    const val DEFAULT_URL = "https://vzqjwhlpwvqrosoiwiin.supabase.co/functions/v1/vc"
     private const val PREFS = "visualcontext"
 
-    fun url(ctx: Context): String = prefs(ctx).getString("backend_url", DEFAULT_URL) ?: DEFAULT_URL
+    fun url(ctx: Context): String = (prefs(ctx).getString("backend_url", DEFAULT_URL) ?: DEFAULT_URL).let { if ("base44.app" in it) DEFAULT_URL else it }
     /** Face engine: "arc" (ArcFace, default from 0.3) or "faceapi" (old, compatible with the 7 stored faces). */
     fun engine(ctx: Context): String = prefs(ctx).getString("face_engine", "arc") ?: "arc"
     fun setEngine(ctx: Context, e: String) { prefs(ctx).edit().putString("face_engine", e).apply() }
