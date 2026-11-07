@@ -56,8 +56,17 @@
         <!-- Spec 5b: import named faces from Google Photos by reading the screen. -->
         <activity
             android:name=".PhotosPickActivity"
-            android:exported="false"
-            android:launchMode="singleTask" />
+            android:exported="true"
+            android:label="VisualContext: rostos do print"
+            android:launchMode="singleTask">
+            <!-- A long screenshot of Google Photos' "People and pets", shared from the gallery. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+        </activity>
         <service
             android:name=".PhotosCaptureService"
             android:exported="false"
