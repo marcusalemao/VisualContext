@@ -24,6 +24,7 @@ object Backend {
     fun geminiKey(ctx: Context): String = prefs(ctx).getString("gemini_key", "") ?: ""
     fun voiceName(ctx: Context): String = prefs(ctx).getString("voice", "Kore") ?: "Kore"
     fun saveGemini(ctx: Context, key: String, voice: String) { prefs(ctx).edit().putString("gemini_key", key.trim()).putString("voice", voice).remove("live_model").remove("text_model").apply() }
+    fun saveVoice(ctx: Context, voice: String) { prefs(ctx).edit().putString("voice", voice).apply() }
     fun prefsText(ctx: Context): String? = prefs(ctx).getString("text_model", null)
     fun saveTextModel(ctx: Context, m: String?) { prefs(ctx).edit().putString("text_model", m).apply() }
     fun liveModel(ctx: Context): String? = prefs(ctx).getString("live_model", null)

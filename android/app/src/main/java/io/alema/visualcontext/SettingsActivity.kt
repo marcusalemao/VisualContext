@@ -241,17 +241,32 @@ class SettingsActivity : Activity() {
                     when (c.responseCode) { in 200..299 -> null; 400, 401, 403 -> "Chave recusada pelo Google."; 429 -> "Limite de uso do Google atingido."; else -> "Erro ${c.responseCode} do Google." }
                 } catch (e: Exception) { "Sem internet." } })
         val voices = listOf("Kore", "Aoede", "Puck", "Charon")
-        c7.p("Voz de quem fala com você no Live", 13f)
-        val vg = android.widget.RadioGroup(this).apply { orientation = LinearLayout.HORIZONTAL
-            voices.forEachIndexed { i, v -> addView(android.widget.RadioButton(context).apply { id = 300 + i; text = v; setTextColor(soft); buttonTintList = android.content.res.ColorStateList.valueOf(green); isChecked = v == Backend.voiceName(context) }) } }
-        c7.addView(vg)
+        c7.p("Voz de quem fala com você no Live. Toque em ▶ para ouvir antes de escolher.", 13f)
+        val vg = android.widget.RadioGroup(this).apply { orientation = LinearLayout.VERTICAL }
+        val vmsg = TextView(this).apply { textSize = 12f; setTextColor(soft) }
+        voices.forEachIndexed { i, v ->
+            vg.addView(LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL
+                addView(android.widget.RadioButton(context).apply { id = 300 + i; text = v; setTextColor(soft); buttonTintList = android.content.res.ColorStateList.valueOf(green); isChecked = v == Backend.voiceName(context)
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) })
+                addView(Button(context).apply { text = "▶ Ouvir"; isAllCaps = false; textSize = 13f; setTextColor(green); stateListAnimator = null
+                    background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(12).toFloat(); setColor(Color.TRANSPARENT); setStroke(dp(1), green) }
+                    minHeight = dp(36); minimumHeight = dp(36); setPadding(dp(14), 0, dp(14), 0)
+                    setOnClickListener { vmsg.text = "Gerando a voz $v…"; isEnabled = false
+                        io.execute { val why = VoicePreview.play(this@SettingsActivity, v); runOnUiThread { isEnabled = true; vmsg.text = why ?: "" } } }
+                })
+            })
+        }
+        // RadioGroup only unchecks siblings that are direct children, so do it by hand.
+        val rbs = (0 until voices.size).map { vg.findViewById<android.widget.RadioButton>(300 + it) }
+        rbs.forEachIndexed { i, rb -> rb.setOnClickListener { rbs.forEach { it.isChecked = it === rb }; Backend.saveVoice(this, voices[i]) } }
+        c7.addView(vg); c7.addView(vmsg)
         c7.p("Saída: como os óculos falam com você", 13f)
         val outs = listOf("tela" to "Só tela", "tela_voz" to "Tela + voz", "voz" to "Só voz (óculos sem tela)")
         c7.addView(android.widget.RadioGroup(this).apply {
             outs.forEachIndexed { i, (k, l) -> addView(android.widget.RadioButton(context).apply { id = 500 + i; text = l; setTextColor(soft); textSize = 14f; buttonTintList = android.content.res.ColorStateList.valueOf(green); isChecked = Voice.output(context) == k }) }
             setOnCheckedChangeListener { _, id -> Voice.setOutput(context, outs[id - 500].first) }
         })
-        vg.setOnCheckedChangeListener { _, id -> Backend.saveGemini(this, Backend.geminiKey(this), voices.getOrElse(id - 300) { "Kore" }) }
 
         // 8. Skills (spec 1r)
         val ck = card()
