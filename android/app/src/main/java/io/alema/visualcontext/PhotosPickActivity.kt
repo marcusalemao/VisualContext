@@ -185,6 +185,7 @@ class PhotosPickActivity : Activity() {
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        if (requestCode == REQ_WRITE) { val ok = grantResults.isNotEmpty() && grantResults.all { it == android.content.pm.PackageManager.PERMISSION_GRANTED }; pendingStatus?.let { save(pendingSave, it, ok) }; return }
         if (requestCode == REQ_CONTACTS) { if (grantResults.firstOrNull() == android.content.pm.PackageManager.PERMISSION_GRANTED) readContacts(); return }
         if (requestCode == REQ_NOTE) askCapture()
     }
@@ -286,17 +287,35 @@ class PhotosPickActivity : Activity() {
             col.addView(label("Conhece? Toque e digite o nome. Só entra quem ganhar um nome aqui.", 13f))
             col.addView(grid(nl, false))
         }
+        val toContacts = CheckBox(this).apply {
+            text = "Também pôr a foto na agenda do celular (só contatos que já existem, sem foto, e com nome completo único)"
+            setTextColor(soft); textSize = 13f; isChecked = getSharedPreferences("visualcontext", MODE_PRIVATE).getBoolean("photos_to_contacts", true)
+            buttonTintList = android.content.res.ColorStateList.valueOf(green)
+            setOnCheckedChangeListener { _, on -> getSharedPreferences("visualcontext", MODE_PRIVATE).edit().putBoolean("photos_to_contacts", on).apply() }
+        }
+        if (source != "contatos") col.addView(toContacts)
         val status = label("", 14f, green)
         col.addView(Button(this).apply {
             text = "Guardar os marcados"
-            setOnClickListener { b -> b.isEnabled = false; save(picked.filter { (f, c) -> c.isChecked && f.name.isNotEmpty() }.keys.toList(), status) }
+            setOnClickListener { b ->
+                val list = picked.filter { (f, c) -> c.isChecked && f.name.isNotEmpty() }.keys.toList()
+                pendingSave = list; pendingStatus = status; b.isEnabled = false
+                val wantContacts = toContacts.isChecked && source != "contatos"
+                if (wantContacts && (checkSelfPermission(android.Manifest.permission.WRITE_CONTACTS) != android.content.pm.PackageManager.PERMISSION_GRANTED ||
+                        checkSelfPermission(android.Manifest.permission.READ_CONTACTS) != android.content.pm.PackageManager.PERMISSION_GRANTED))
+                    requestPermissions(arrayOf(android.Manifest.permission.READ_CONTACTS, android.Manifest.permission.WRITE_CONTACTS), REQ_WRITE)
+                else save(list, status, wantContacts)
+            }
         })
         col.addView(status)
         col.addView(Button(this).apply { text = "↺ Capturar de novo"; setOnClickListener { PhotosGrid.last = emptyList(); PhotosGrid.lastNameless = emptyList(); render(); askCapture() } })
     }
 
     /** Spec 5b step 4: faces from Google Photos recognise right away, marked as such; the first real encounter confirms. */
-    private fun save(list: List<PhotosGrid.Found>, status: TextView) {
+    private var pendingSave: List<PhotosGrid.Found> = emptyList()
+    private var pendingStatus: TextView? = null
+
+    private fun save(list: List<PhotosGrid.Found>, status: TextView, toContacts: Boolean = false) {
         if (list.isEmpty()) { status.text = "Nenhuma pessoa marcada."; return }
         io.execute {
             var ok = 0; var offline = 0
@@ -312,9 +331,16 @@ class PhotosPickActivity : Activity() {
                 ok++
             }
             LocalFaces.save(this, all)
+            // Two birds: the same face also enriches the phone's contacts (spec 5b).
+            var set = 0; var had = 0; var twins = 0
+            if (toContacts) for (f in list) {
+                val jpg = f.photo ?: continue
+                when (ContactPhotos.put(this, f.name, jpg)) { ContactPhotos.Result.SET -> set++; ContactPhotos.Result.HAS_PHOTO -> had++; ContactPhotos.Result.SAME_NAME -> twins++; else -> Unit }
+            }
+            val agenda = if (!toContacts) "" else "\nAgenda: $set fotos novas" + (if (had > 0) " · $had já tinham foto" else "") + (if (twins > 0) " · $twins com nome repetido ou incompleto (ficaram de fora)" else "")
             PhotosGrid.last = emptyList(); PhotosGrid.lastNameless = emptyList()
             runOnUiThread {
-                status.text = "$ok ${if (ok == 1) "pessoa guardada" else "pessoas guardadas"}." + if (offline > 0) " $offline ficaram só neste celular (sem internet agora)." else " Já aparecem no Manager."
+                status.text = "$ok ${if (ok == 1) "pessoa guardada" else "pessoas guardadas"}." + if (offline > 0) " $offline ficaram só neste celular (sem internet agora)." else " Já aparecem no Manager." + agenda
                 col.addView(Button(this).apply { text = "Voltar"; setOnClickListener { finish() } })
             }
         }
@@ -324,5 +350,5 @@ class PhotosPickActivity : Activity() {
 
     override fun onDestroy() { io.shutdown(); super.onDestroy() }
 
-    companion object { private const val REQ_CAPTURE = 71; private const val REQ_NOTE = 72; private const val REQ_IMAGE = 73; private const val REQ_CONTACTS = 74 }
+    companion object { private const val REQ_CAPTURE = 71; private const val REQ_NOTE = 72; private const val REQ_IMAGE = 73; private const val REQ_CONTACTS = 74; private const val REQ_WRITE = 75 }
 }

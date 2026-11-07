@@ -20,6 +20,8 @@ import java.text.Normalizer
 class PhotosGrid(ctx: Context) {
     /** One person: the face, and every name read under it (the most frequent one wins). */
     class Found(var name: String, val descriptor: FloatArray, var thumb: String, var size: Float, var cut: Boolean) {
+        /** A bigger square crop (up to 480 px) for the phone's contacts, so the photo isn't blurred there. */
+        var photo: ByteArray? = null
         val names = HashMap<String, Int>()
         fun vote(n: String) { names[n] = (names[n] ?: 0) + 1; name = names.maxByOrNull { it.value }!!.key; cut = name.endsWith("…") || name.endsWith("...") }
     }
@@ -89,10 +91,10 @@ class PhotosGrid(ctx: Context) {
         val same = people.maxByOrNull { dot(it.descriptor, f.descriptor) }?.takeIf { dot(it.descriptor, f.descriptor) > SAME }
         if (same != null) {
             same.vote(name)
-            if (f.w > same.size) { same.thumb = crop(bmp, f.x, f.y, f.w, f.h); same.size = f.w }
+            if (f.w > same.size) { same.thumb = crop(bmp, f.x, f.y, f.w, f.h); same.photo = big(bmp, f); same.size = f.w }
             return false
         }
-        people += Found(name, f.descriptor, crop(bmp, f.x, f.y, f.w, f.h), f.w, false).also { it.vote(name) }
+        people += Found(name, f.descriptor, crop(bmp, f.x, f.y, f.w, f.h), f.w, false).also { it.vote(name); it.photo = big(bmp, f) }
         return true
     }
 
@@ -120,6 +122,14 @@ class PhotosGrid(ctx: Context) {
         val c = Bitmap.createScaledBitmap(Bitmap.createBitmap(bmp, r.left, r.top, r.width(), r.height()), 128, 128, true)
         Base64.encodeToString(ByteArrayOutputStream().also { c.compress(Bitmap.CompressFormat.JPEG, 82, it) }.toByteArray(), Base64.NO_WRAP)
     } catch (_: Exception) { "" }
+
+    private fun big(bmp: Bitmap, f: io.alema.facecore.Face): ByteArray? = try {
+        val side = (maxOf(f.w, f.h) * 1.7f).toInt().coerceAtMost(minOf(bmp.width, bmp.height))
+        val cx = (f.x + f.w / 2).toInt(); val cy = (f.y + f.h / 2).toInt()
+        val l = (cx - side / 2).coerceIn(0, bmp.width - side); val t = (cy - side / 2).coerceIn(0, bmp.height - side)
+        val c = Bitmap.createBitmap(bmp, l, t, side, side).let { if (side > 480) Bitmap.createScaledBitmap(it, 480, 480, true) else it }
+        ByteArrayOutputStream().also { c.compress(Bitmap.CompressFormat.JPEG, 90, it) }.toByteArray()
+    } catch (_: Exception) { null }
 
     fun close() { engine.close(); ocr.close() }
 
