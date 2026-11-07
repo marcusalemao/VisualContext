@@ -22,6 +22,17 @@ object Look {
         alpha = if (isEnabled) 1f else 0.45f
     }
 
+    /**
+     * Photos, not files (Marcus, 07/11: the file picker only offered Drive). The Android photo picker shows the
+     * gallery and, when the Google Photos app is set as its cloud source, Google Photos with search by name.
+     * Older phones get the system "pick an image" chooser, where Google Photos is one of the apps.
+     */
+    fun pickPhotos(max: Int = 12): android.content.Intent =
+        if (android.os.Build.VERSION.SDK_INT >= 33) android.content.Intent(android.provider.MediaStore.ACTION_PICK_IMAGES).apply {
+            type = "image/*"
+            putExtra(android.provider.MediaStore.EXTRA_PICK_IMAGES_MAX, max.coerceAtMost(android.provider.MediaStore.getPickImagesMaxLimit()))
+        } else android.content.Intent(android.content.Intent.ACTION_PICK, android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI).apply { type = "image/*"; putExtra(android.content.Intent.EXTRA_ALLOW_MULTIPLE, true) }
+
     private val navOf = java.util.WeakHashMap<View, Int>()
     /** Height of the Android navigation bar under this view (0 until the system tells us). */
     fun nav(v: View) = navOf[v] ?: 0

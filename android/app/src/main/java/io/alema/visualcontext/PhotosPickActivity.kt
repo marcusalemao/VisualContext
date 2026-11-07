@@ -184,7 +184,7 @@ class PhotosPickActivity : Activity() {
         col.addView(label("1. Toque em Começar e permita a captura de tela.\n2. O Google Fotos abre no Chrome, já em Pessoas.\n3. Vire o celular deitado e diminua o zoom para uns 80% (pinça com dois dedos): os nomes não cortam e os rostos continuam grandes.\n4. Role devagar até o fim.\n5. Toque em Terminei, na notificação, e escolha quem entra."))
         col.addView(label("Outro jeito, sem compartilhar a tela: abra photos.google.com/people no Chrome, deitado e com zoom em 80%, e tire prints (ou um print com rolagem). Depois toque abaixo e escolha o print, ou compartilhe o print com o VisualContext.", 13f))
         col.addView(Button(this).apply { text = "Usar um print longo"; setOnClickListener {
-            startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("image/*").putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true), REQ_IMAGE)
+            startActivityForResult(Look.pickPhotos(if (android.os.Build.VERSION.SDK_INT >= 33) 30 else 12), REQ_IMAGE)
         } })
         col.addView(label("Rostos sem nome aparecem à parte, para você dar nome se conhecer. Desmarque o seu próprio rosto na hora de escolher.", 13f))
         if (PhotosCaptureService.running) {

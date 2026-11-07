@@ -432,7 +432,7 @@ class SettingsActivity : Activity() {
         val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(4), 0, 0) }
         if (g[0].name != null) actions.addView(TextView(this).apply {
             text = "＋ fotos"; textSize = 14f; setTextColor(green); setPadding(0, dp(8), dp(24), dp(8))
-            setOnClickListener { addTo = g[0].name; startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("image/*").putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true), REQ_ADD) }
+            setOnClickListener { addTo = g[0].name; startActivityForResult(Look.pickPhotos(if (android.os.Build.VERSION.SDK_INT >= 33) 30 else 12), REQ_ADD) }
         })
         actions.addView(TextView(this).apply {
             text = "ver todas"; textSize = 14f; setTextColor(green); setPadding(0, dp(8), dp(24), dp(8)); setOnClickListener { showLooks(g) }
