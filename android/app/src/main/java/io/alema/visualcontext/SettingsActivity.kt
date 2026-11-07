@@ -57,8 +57,8 @@ class SettingsActivity : Activity() {
         if (token == null) { render(); return }
         intent?.data = null
         AlertDialog.Builder(this)
-            .setTitle("Conectar os óculos")
-            .setMessage("Ligar este celular à sua memória do VisualContext?")
+            .setTitle("Entrar")
+            .setMessage("Ligar este celular à sua conta do VisualContext?")
             .setPositiveButton("Conectar") { _, _ -> Backend.save(this, Backend.url(this), token); render() }
             .setNegativeButton("Cancelar") { _, _ -> render() }
             .show()
@@ -99,18 +99,67 @@ class SettingsActivity : Activity() {
         // 1. Connection
         val c1 = card()
         if (Backend.token(this).isEmpty()) {
-            c1.h("Conectar à sua memória")
-            c1.p("Cole o código do aparelho (começa com vc_). Depois disso, o Manager e o backup funcionam neste celular.")
-            val t = field("", true).apply { hint = "vc_…" }
-            c1.addView(t)
-            c1.btn("Conectar", true) {
-                val v = t.text.toString().trim()
-                if (DeepLink.parse(v) == null) Toast.makeText(this, "Código inválido", Toast.LENGTH_SHORT).show()
-                else { Backend.save(this, Backend.url(this), v); render() }
+            c1.h("Entrar")
+            c1.p("Use seu e-mail, sem senha. Sua memória fica na sua conta e volta em qualquer celular.")
+            val mail = field(Backend.email(this), false).apply { hint = "seu@email.com"; inputType = android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS or android.text.InputType.TYPE_CLASS_TEXT }
+            c1.addView(mail)
+            val code = field("", false).apply { hint = "código (se vier no e-mail)"; inputType = android.text.InputType.TYPE_CLASS_NUMBER; visibility = android.view.View.GONE }
+            c1.addView(code)
+            val msg = TextView(this).apply { textSize = 13f; setTextColor(soft) }
+            c1.addView(msg)
+            var sent = false
+            lateinit var go: Button
+            go = c1.btn("Enviar código", true) {
+                val e = mail.text.toString().trim()
+                if (!android.util.Patterns.EMAIL_ADDRESS.matcher(e).matches()) { msg.text = "Confira o e-mail."; return@btn }
+                go.isEnabled = false
+                if (!sent) {
+                    msg.text = "Enviando…"
+                    io.execute {
+                        val r = Login.sendCode(e)
+                        runOnUiThread {
+                            go.isEnabled = true
+                            if (r is Login.Out.Ok) {
+                                sent = true; Backend.saveEmail(this, e)
+                                code.visibility = android.view.View.VISIBLE; code.requestFocus(); go.text = "Entrar"
+                                msg.text = "Enviamos um e-mail para $e. Toque no link do e-mail neste celular: o app conecta sozinho. Se vier um código, digite aqui. Veja também o spam."
+                            } else msg.text = (r as Login.Out.Fail).why
+                        }
+                    }
+                } else {
+                    val k = code.text.toString().filter { it.isDigit() }
+                    if (k.length < 6) { msg.text = "Digite os 6 números."; go.isEnabled = true; return@btn }
+                    msg.text = "Entrando…"
+                    io.execute {
+                        val r = Login.verify(e, k, android.os.Build.MODEL ?: "celular")
+                        runOnUiThread {
+                            go.isEnabled = true
+                            if (r is Login.Out.Ok) { Backend.save(this, Backend.url(this), r.value); Backend.saveEmail(this, e); render() }
+                            else msg.text = (r as Login.Out.Fail).why
+                        }
+                    }
+                }
+            }
+            c1.p("Outro e-mail? Edite acima e toque em Enviar código de novo.", 12f)
+            mail.addTextChangedListener(object : android.text.TextWatcher {
+                override fun afterTextChanged(x: android.text.Editable?) { if (sent) { sent = false; go.text = "Enviar código"; code.visibility = android.view.View.GONE } }
+                override fun beforeTextChanged(x: CharSequence?, a: Int, b: Int, c: Int) {}
+                override fun onTextChanged(x: CharSequence?, a: Int, b: Int, c: Int) {}
+            })
+            if (dev) {
+                c1.p("Desenvolvedor: colar um código vc_.", 12f)
+                val t = field("", true).apply { hint = "vc_…" }
+                c1.addView(t)
+                c1.btn("Conectar com código", false) {
+                    val v = t.text.toString().trim()
+                    if (DeepLink.parse(v) == null) Toast.makeText(this, "Código inválido", Toast.LENGTH_SHORT).show()
+                    else { Backend.save(this, Backend.url(this), v); render() }
+                }
             }
         } else {
             val status = TextView(this).apply { text = "verificando…"; textSize = 16f; setTextColor(green) }
             c1.addView(status); check(status)
+            Backend.email(this).takeIf { it.isNotEmpty() }?.let { c1.p("Conta: $it", 13f) }
             c1.btn("Abrir o Manager", true) { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(Backend.managerLink(this)))) }
             c1.p("Sua memória no navegador: pergunte qualquer coisa, prepare conversas, edite pessoas, importe contatos.", 13f)
         }

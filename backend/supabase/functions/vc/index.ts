@@ -6,7 +6,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 const cors = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "content-type, x-vc-token",
+  "Access-Control-Allow-Headers": "content-type, x-vc-token, authorization, apikey",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
@@ -46,6 +46,28 @@ async function listPeople(w: Who, limit = 1000) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "use POST" }, 405);
+  // Login (07/11): the user signs in with an e-mail code (Supabase Auth); this turns that session into a
+  // device code for this phone or browser, so nobody ever types a "vc_" code.
+  const bearer = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
+  if (bearer && !req.headers.get("x-vc-token")) {
+    let b: any = {};
+    try { b = await req.json(); } catch { /* empty */ }
+    if (b.action !== "register_device") return json({ error: "action" }, 400);
+    const { data: u, error: ue } = await db.auth.getUser(bearer);
+    if (ue || !u?.user?.email) return json({ error: "login" }, 401);
+    const raw = new Uint8Array(30); crypto.getRandomValues(raw);
+    const abc = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    const tok = "vc_" + [...raw].map((x) => abc[x % abc.length]).join("");
+    const email = u.user.email.toLowerCase();
+    const { error: de } = await db.from("devices").insert({ owner: u.user.id, owner_email: email, name: String(b.name ?? "aparelho").slice(0, 60), token_hash: await sha256(tok) });
+    if (de) return json({ error: String(de.message ?? de) }, 500);
+    // Rows saved before this login (by e-mail) become this account's.
+    for (const t of ["people", "faces", "encounters", "things", "notes", "skills"]) await db.from(t).update({ owner: u.user.id }).is("owner", null).eq("owner_email", email);
+    await db.from("devices").update({ owner: u.user.id }).is("owner", null).eq("owner_email", email);
+    const { data: acc } = await db.from("accounts").select("owner_email").eq("owner_email", email).maybeSingle();
+    if (!acc) await db.from("accounts").insert({ owner_email: email, owner: u.user.id }); else await db.from("accounts").update({ owner: u.user.id }).eq("owner_email", email);
+    return json({ token: tok, email });
+  }
   const token = req.headers.get("x-vc-token") ?? "";
   if (!/^vc_[A-Za-z0-9]{16,128}$/.test(token)) return json({ error: "token" }, 401);
   const { data: dev } = await db.from("devices").select("id, owner, owner_email, revoked_at").eq("token_hash", await sha256(token)).maybeSingle();

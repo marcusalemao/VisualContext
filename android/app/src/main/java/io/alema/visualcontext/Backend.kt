@@ -29,6 +29,9 @@ object Backend {
     fun liveModel(ctx: Context): String? = prefs(ctx).getString("live_model", null)
     fun saveLiveModel(ctx: Context, m: String?) { prefs(ctx).edit().putString("live_model", m).apply() }
     fun token(ctx: Context): String = prefs(ctx).getString("device_token", "") ?: ""
+    /** The e-mail this phone signed in with (shown in Settings). */
+    fun email(ctx: Context): String = prefs(ctx).getString("account_email", "") ?: ""
+    fun saveEmail(ctx: Context, e: String) { prefs(ctx).edit().putString("account_email", e.trim().lowercase()).apply() }
     fun save(ctx: Context, url: String, token: String) {
         prefs(ctx).edit().putString("backend_url", url.trim().ifEmpty { DEFAULT_URL }).putString("device_token", token.trim()).apply()
     }

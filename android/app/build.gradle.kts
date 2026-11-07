@@ -1,17 +1,43 @@
+import java.io.File
+import java.util.Properties
+
 plugins {
     id("com.android.application")
+}
+
+/*
+ * One fixed signing key for every build (07/11/2026): debug keys change with each environment and Android refuses
+ * to update across keys, which forced reinstalls and wiped the device code. The key lives outside the repo:
+ * ~/.vc/signing.properties (copy of ~/Rokid/_chaves/visualcontext-signing.properties on Marcus's Mac).
+ */
+val vcSigning = Properties().apply {
+    val f = File(System.getProperty("user.home"), ".vc/signing.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
 }
 
 android {
     namespace = "io.alema.visualcontext"
     compileSdk = 36
 
+    signingConfigs {
+        create("fixed") {
+            vcSigning.getProperty("VC_KEYSTORE")?.let { storeFile = file(it.replaceFirst("~", System.getProperty("user.home"))) }
+            storePassword = vcSigning.getProperty("VC_KEYSTORE_PASSWORD")
+            keyAlias = vcSigning.getProperty("VC_KEY_ALIAS")
+            keyPassword = vcSigning.getProperty("VC_KEY_PASSWORD")
+        }
+    }
+    buildTypes {
+        getByName("debug") { if (vcSigning.getProperty("VC_KEYSTORE") != null) signingConfig = signingConfigs.getByName("fixed") }
+        getByName("release") { if (vcSigning.getProperty("VC_KEYSTORE") != null) signingConfig = signingConfigs.getByName("fixed") }
+    }
+
     defaultConfig {
         applicationId = "io.alema.visualcontext"
         minSdk = 30
         targetSdk = 36
-        versionCode = 36
-        versionName = "0.16.0"
+        versionCode = 37
+        versionName = "0.17.0"
         // Rokid users' phones are 64-bit ARM; keeps the APK small (ONNX Runtime ships many ABIs).
         ndk { abiFilters += listOf("arm64-v8a") }
     }
