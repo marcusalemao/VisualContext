@@ -102,7 +102,8 @@ class HudOverlay(ctx: Context) : View(ctx) {
         cardTitle?.let { t ->
             pTitle.textSize = sp(18f); pText.textSize = sp(13f)
             val cw = minOf(w * 0.7f, dp(340f)); val pad = dp(12f)
-            val lines = cardLines.map { fit(it, pText, cw - 2 * pad) }
+            // Lines wrap instead of ending in "…" (Marcus, 08/11): up to 3 rows each, 8 in all.
+            val lines = cardLines.flatMap { wrap(it, pText, cw - 2 * pad).let { w -> if (w.size > 3) w.take(2) + fit(w.drop(2).joinToString(" "), pText, cw - 2 * pad) else w } }.take(8)
             val ch = pad + sp(20f) + dp(8f) + lines.size * sp(17f) + pad
             val r = RectF(dp(16f), dp(16f), dp(16f) + cw, dp(16f) + ch)
             if (cardRect != r) { cardRect = r; post { invalidate() } } // pins are laid out from this
@@ -204,6 +205,16 @@ class HudOverlay(ctx: Context) : View(ctx) {
         val tw = pTitle.measureText(qrHint)
         c.drawRect((w - tw) / 2 - dp(6f), r.top - dp(30f), (w + tw) / 2 + dp(6f), r.top - dp(8f), pShadow)
         c.drawText(qrHint, (w - tw) / 2, r.top - dp(13f), pTitle)
+    }
+
+    private fun wrap(t: String, p: Paint, max: Float): List<String> {
+        val out = ArrayList<String>(); var line = ""
+        for (word in t.split(Regex("\\s+"))) {
+            val tryL = if (line.isEmpty()) word else "$line $word"
+            if (p.measureText(tryL) <= max || line.isEmpty()) line = tryL else { out += line; line = word }
+        }
+        if (line.isNotEmpty()) out += line
+        return out.map { fit(it, p, max) }
     }
 
     private fun fit(t: String, p: Paint, max: Float): String {
