@@ -69,7 +69,8 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
             val model = Backend.liveModel(ctx) ?: (live.listModels(key)?.let { LiveProtocol.pickLiveModel(it) } ?: LiveProtocol.MODEL).also { Backend.saveLiveModel(ctx, it) }
             // Spec 1r: the learned skills become tools of this session.
             Skills.refresh(ctx)
-            live.extraTools = Skills.tools(ctx).put(Music.tool()); live.extraSystem = Skills.system(ctx) + " MÚSICA: se ele perguntar que música está tocando, chame identificar_musica e espere; não adivinhe."
+            live.extraTools = Skills.tools(ctx).put(Music.tool()).also { a -> Things.tools().forEach { a.put(it) } }
+            live.extraSystem = Skills.system(ctx) + " MÚSICA: se ele perguntar que música está tocando, chame identificar_musica e espere; não adivinhe." + Things.SYSTEM
             main.post { live.connect(key, Backend.voiceName(ctx), resumeHandle, model) }
         }
     }
@@ -249,6 +250,22 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
                     else { main.post { host.onBrief(b.name, b.lines) }; JSONObject().put("pessoa", b.name).put("na_lente", JSONArray(b.lines)).put("diga", b.spoken) }
                 }
                 LiveProtocol.TOOL_WHERE -> Where.asJson(ctx)
+                Things.TOOL_KEEP -> {
+                    val name = call.args.optString("nome").ifEmpty { "objeto" }; val where = call.args.optString("onde").ifEmpty { null }
+                    val ok = Things.keep(ctx, name, where, host.frame(), host.placeName())
+                    main.post { host.onSaved("$name guardado"); host.onBrief("⌖ $name", listOf(where ?: "", if (ok) "guardado na memória" else "guardado; envia quando tiver rede")) }
+                    JSONObject().put("ok", true).put("diga", "Guardei: $name" + (where?.let { " em $it" } ?: "") + ".")
+                }
+                Things.TOOL_FIND -> {
+                    val q = call.args.optString("objeto")
+                    val f = Things.find(ctx, q)
+                    if (f.isEmpty()) JSONObject().put("resultado", "nenhum registro de \"$q\"").put("diga", "Não tenho registro de onde você deixou $q. Posso olhar agora, se quiser.")
+                    else {
+                        val t = f[0]; val whenTxt = runCatching { java.text.SimpleDateFormat("EEE HH:mm", java.util.Locale("pt", "BR")).format(java.time.OffsetDateTime.parse(t.at).toInstant().toEpochMilli()) }.getOrDefault("")
+                        main.post { host.onBrief("⌖ ${t.name}", listOf(t.where ?: "lugar não anotado", whenTxt)) }
+                        JSONObject().put("objeto", t.name).put("onde", t.where ?: "").put("quando", t.at).put("diga", "Você deixou ${t.name}" + (t.where?.let { " em $it" } ?: "") + (if (whenTxt.isNotEmpty()) ", $whenTxt" else "") + ".")
+                    }
+                }
                 Music.TOOL -> {
                     main.post { host.onBrief("♪ Ouvindo…", listOf("uns segundos de silêncio, por favor")) }
                     try {

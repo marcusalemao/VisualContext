@@ -81,7 +81,7 @@ class FaceBrain(private val ctx: Context) {
         val out = e.describe(bmp).take(4).map { f ->
             val s0 = identify(f, bmp, local, describeUnknown)
             // The wearer's own face (mirror, a friend wearing the glasses, the emulator pointed at me) is never a person met.
-            val s = if (me.isNotEmpty() && sameName(s0.label, me)) s0.copy(label = "você", lines = listOf("é você mesmo · não vira encontro"), known = true, sure = true, isMe = true) else s0
+            val s = if (me.isNotEmpty() && sameName(s0.label, me)) s0.copy(label = "você", lines = listOf("você mesmo"), known = true, sure = true, isMe = true) else s0
             val t = tracks.firstOrNull { near(it, f) }
             val result = if (s.known && s.sure) s
                 else if (t != null) t.seen.copy(x = f.x, y = f.y, w = f.w, h = f.h, sure = true).also { held ->

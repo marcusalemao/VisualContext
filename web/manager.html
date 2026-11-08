@@ -287,7 +287,7 @@ function items() {
   }
   const PK = { pix: ["◈", "Pix"], link: ["↗", "link"], cartao: ["☏", "cartão de visita"], cracha: ["☏", "crachá"], receita: ["✚", "receita"], formulario: ["▤", "formulário"], cardapio: ["▤", "cardápio"], musica: ["♪", "música"], outro: ["▤", "papel"] };
   for (const n of S.notes) { const k = PK[n.kind]; out.push({ kind: "memory", id: n.id, title: n.title || n.text, sub: k ? k[1] + (n.place ? " · " + n.place : "") : "nota" + (n.source === "voice" ? " por voz" : ""), date: n.at, ref: n, sub2: "note", av: `<span class="av k">${k ? k[0] : "✎"}</span>` }); }
-  for (const t of S.things) out.push({ kind: "thing", id: t.id, title: t.name, sub: t.location_description || "", date: t.seen_at, ref: t, av: `<span class="av k">⌖</span>` });
+  for (const t of S.things) out.push({ kind: "thing", id: t.id, title: t.name, sub: t.location_description || "", date: t.seen_at, ref: t, av: t.snapshot_url ? `<span class="av"><img src="${esc(t.snapshot_url)}" alt="" loading="lazy"></span>` : `<span class="av k">⌖</span>` });
   const places = new Map();
   const addPlace = (name, date, lat, lng) => { if (!name) return; const k = norm(name); const p = places.get(k) || { name, n: 0, date: null, lat, lng }; p.n++; if (!p.date || date > p.date) p.date = date; if (lat && !p.lat) { p.lat = lat; p.lng = lng; } places.set(k, p); };
   S.enc.forEach(e => addPlace(e.place, e.at, e.lat, e.lng));
@@ -640,6 +640,7 @@ ${opt.texto ? "TEXTO COLADO PELO USUÁRIO: " + opt.texto + "\n" : ""}${opt.files
 function thingHtml(t) {
   const q = t.lat ? `${t.lat},${t.lng}` : t.location_description;
   return `<div class="ph"><span class="av k" style="width:64px;height:64px;font-size:26px">⌖</span><div><h2>${esc(t.name)}</h2><div class="hook">${esc(t.category || "coisa")}</div></div></div>
+  ${t.snapshot_url ? `<img src="${esc(t.snapshot_url)}" alt="" style="width:100%;max-height:260px;object-fit:cover;border-radius:14px;margin:8px 0 4px">` : ""}
   <div class="sec"><h5>Onde ficou</h5><p style="font-size:17px">${esc(t.location_description || "—")}</p><p class="muted" style="margin-top:4px">${esc(fmtFull(t.seen_at))}</p></div>
   ${t.audio_context ? `<div class="sec"><h5>O que você disse</h5><p>${esc(t.audio_context)}</p></div>` : ""}
   <div class="btns">${q ? `<a class="btn pri" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}">Abrir no mapa</a>` : ""}<button class="btn dan" data-del-row="thing:${t.id}">Apagar</button></div>`;

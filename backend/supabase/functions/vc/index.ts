@@ -133,6 +133,21 @@ Deno.serve(async (req) => {
         if (error) throw error;
         return json({ id: data.id });
       }
+      // ---- Things (Marcus, 07/11): "essas são minhas chaves" → an object with a snapshot and where it was; "onde deixei" reads it back
+      case "thing": {
+        if (!body.name) return json({ error: "name" }, 400);
+        const { data, error } = await db.from("things").insert({ ...stamp(w), name: String(body.name).slice(0, 80), category: body.category ?? null, location_description: body.location_description ?? null,
+          lat: body.lat ?? null, lng: body.lng ?? null, snapshot_url: body.snapshot ? "data:image/jpeg;base64," + String(body.snapshot).slice(0, 120_000) : null,
+          audio_context: body.audio_context ?? null, seen_at: body.at ?? new Date().toISOString() }).select("id").single();
+        if (error) throw error;
+        return json({ id: data.id });
+      }
+      case "find_thing": { // latest sightings of an object by name ("chaves", "óculos de sol")
+        const q = String(body.name ?? "").trim(); if (!q) return json({ error: "name" }, 400);
+        const { data, error } = await mine(db.from("things").select("id, name, category, location_description, lat, lng, seen_at, audio_context, snapshot_url"), w).ilike("name", `%${q}%`).order("seen_at", { ascending: false }).limit(3);
+        if (error) throw error;
+        return json(data);
+      }
       // ---- Skills (spec 1r): learned recipes, a closed menu of steps, never code ----
       case "skills": {
         const { data, error } = await mine(db.from("skills").select("*"), w).order("updated_at", { ascending: false });

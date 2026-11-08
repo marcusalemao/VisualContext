@@ -69,3 +69,49 @@ object Music {
         return o.toByteArray()
     }
 }
+
+/**
+ * Things (Marcus, 07/11): "essas são minhas chaves" keeps a picture of the object and where it was; "onde deixei as chaves?"
+ * answers from memory before looking. Blocking.
+ */
+object Things {
+    const val TOOL_KEEP = "guardar_objeto"
+    const val TOOL_FIND = "onde_deixei"
+
+    fun tools(): List<JSONObject> = listOf(
+        JSONObject().put("name", TOOL_KEEP)
+            .put("description", "Guarda um objeto do usuário na memória visual, com foto e lugar: \"essas são minhas chaves\", \"guarda onde deixei o carregador\", \"lembra que o óculos ficou aqui\". Chame na hora; a foto é a câmera agora, então peça para ele olhar para o objeto se não estiver vendo.")
+            .put("parameters", JSONObject().put("type", "OBJECT").put("properties", JSONObject()
+                .put("nome", JSONObject().put("type", "STRING").put("description", "o objeto, curto: chaves, carteira, carregador"))
+                .put("onde", JSONObject().put("type", "STRING").put("description", "onde está, se ele disse ou se dá para ver: mesa da cozinha, bolso da mochila")))
+                .put("required", JSONArray().put("nome"))),
+        JSONObject().put("name", TOOL_FIND)
+            .put("description", "Onde o usuário deixou um objeto, pela memória visual: \"onde deixei as chaves?\", \"cadê meu carregador?\". Chame ANTES de olhar a câmera; responda com o lugar e quando foi.")
+            .put("parameters", JSONObject().put("type", "OBJECT").put("properties", JSONObject().put("objeto", JSONObject().put("type", "STRING"))).put("required", JSONArray().put("objeto"))),
+    )
+    const val SYSTEM = " OBJETOS: quando ele mostrar ou nomear um objeto seu (\"essas são minhas chaves\"), chame guardar_objeto; nunca transforme isso em nota. Quando perguntar onde deixou algo, chame onde_deixei primeiro e só depois, se não houver registro, olhe a câmera."
+
+    /** Current frame as a small JPEG (base64), or null. */
+    fun snapshot(jpeg: ByteArray?): String? = jpeg?.let {
+        val b = android.graphics.BitmapFactory.decodeByteArray(it, 0, it.size) ?: return null
+        val s = 480f / maxOf(b.width, b.height); val small = if (s < 1f) android.graphics.Bitmap.createScaledBitmap(b, (b.width * s).toInt(), (b.height * s).toInt(), true) else b
+        val o = ByteArrayOutputStream(); small.compress(android.graphics.Bitmap.CompressFormat.JPEG, 70, o)
+        android.util.Base64.encodeToString(o.toByteArray(), android.util.Base64.NO_WRAP)
+    }
+
+    fun keep(ctx: Context, name: String, where: String?, jpeg: ByteArray?, place: String?): Boolean {
+        val loc = Where.location(ctx)
+        val body = JSONObject().put("action", "thing").put("name", name).put("location_description", listOfNotNull(where?.takeIf { it.isNotBlank() }, place).joinToString(" · ").ifEmpty { null })
+            .put("snapshot", snapshot(jpeg)).apply { if (loc != null) put("lat", loc.latitude).put("lng", loc.longitude) }
+        val r = Backend.post(ctx, body)
+        if (r == null) { Moments.send(ctx, body); return false } // offline: queued, goes later
+        return true
+    }
+
+    data class Found(val name: String, val where: String?, val at: String, val snapshot: String?)
+    fun find(ctx: Context, name: String): List<Found> {
+        val r = Backend.post(ctx, JSONObject().put("action", "find_thing").put("name", name)) ?: return emptyList()
+        val a = runCatching { JSONArray(r) }.getOrNull() ?: return emptyList()
+        return (0 until a.length()).mapNotNull { a.optJSONObject(it) }.map { Found(it.optString("name"), it.optString("location_description").ifEmpty { null }, it.optString("seen_at"), it.optString("snapshot_url").ifEmpty { null }) }
+    }
+}
