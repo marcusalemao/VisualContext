@@ -278,6 +278,11 @@ class SettingsActivity : Activity() {
             textSize = 14f; setTextColor(soft); buttonTintList = android.content.res.ColorStateList.valueOf(green); isChecked = Backend.offlineOnly(this@SettingsActivity)
             setOnCheckedChangeListener { _, on -> Backend.setOfflineOnly(this@SettingsActivity, on) }
         })
+        c7.addView(android.widget.CheckBox(this).apply {
+            text = "Ouvir perguntas fora das conversas (experimental): sem apertar Falar, \"o que eu fiz hoje?\" ou \"onde deixei as chaves?\" são respondidos pelo celular, e \"assistente, …\" abre o Live. Gasta mais bateria."
+            textSize = 13f; setTextColor(soft); buttonTintList = android.content.res.ColorStateList.valueOf(green); isChecked = Backend.standby(this@SettingsActivity)
+            setOnCheckedChangeListener { _, on -> Backend.setStandby(this@SettingsActivity, on) }
+        })
         c7.p("Saída: como os óculos falam com você", 13f)
         val outs = listOf("tela" to "Só tela", "tela_voz" to "Tela + voz", "voz" to "Só voz (óculos sem tela)")
         c7.addView(android.widget.RadioGroup(this).apply {

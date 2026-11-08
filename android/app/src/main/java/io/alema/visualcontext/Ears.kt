@@ -18,7 +18,14 @@ import org.json.JSONObject
  * phone supports it), catches names ("prazer, Carla") and keeps the conversation for the encounter.
  * It never speaks. Ends 60 s after the last face; under 20 s, or cancelled, nothing is kept. Main thread.
  */
-class Ears(private val ctx: Context, private val onName: (String) -> Unit, private val onState: (Boolean) -> Unit) {
+class Ears(private val ctx: Context, private val onName: (String) -> Unit, private val onState: (Boolean) -> Unit, private val onQuestion: (String) -> Unit = {}) {
+    /**
+     * Standby (Marcus, 08/11): between encounters the phone keeps listening, offline, for a question to the
+     * memory ("o que eu fiz hoje?") or a call to the assistant ("assistente, …"). Nothing else is kept.
+     */
+    var standby = false
+        set(v) { field = v; if (v && startedAt == 0L && !paused) start() else if (!v && startedAt == 0L) stopRec() }
+    private val inEncounter get() = startedAt > 0L
     private val main = Handler(Looper.getMainLooper())
     private var rec: SpeechRecognizer? = null
     private var on = false
@@ -42,14 +49,14 @@ class Ears(private val ctx: Context, private val onName: (String) -> Unit, priva
 
     /** The assistant takes the microphone. */
     fun pause() { paused = true; stopRec() }
-    fun resume() { paused = false; if (startedAt > 0 && System.currentTimeMillis() - lastFaceAt < 60_000) start() }
+    fun resume() { paused = false; if ((startedAt > 0 && System.currentTimeMillis() - lastFaceAt < 60_000) || standby) start() }
 
     /** ✕ during the countdown: the whole buffer goes. */
-    fun discard() { text.setLength(0); startedAt = 0; who = null; stopRec() }
+    fun discard() { text.setLength(0); startedAt = 0; who = null; if (!standby) stopRec() }
 
-    fun finish() { main.removeCallbacks(endCheck); save(); stopRec() }
+    fun finish() { main.removeCallbacks(endCheck); save(); if (!standby) stopRec() }
 
-    private val endCheck = Runnable { if (System.currentTimeMillis() - lastFaceAt >= 59_000) { save(); stopRec() } }
+    private val endCheck = Runnable { if (System.currentTimeMillis() - lastFaceAt >= 59_000) { save(); if (!standby) stopRec() } }
 
     private fun start() {
         if (!SpeechRecognizer.isRecognitionAvailable(ctx)) return
@@ -92,7 +99,13 @@ class Ears(private val ctx: Context, private val onName: (String) -> Unit, priva
             val now = System.currentTimeMillis()
             if (!(n.equals(lastName, true) && now - lastNameAt < 20_000)) { lastName = n; lastNameAt = now; onName(n) }
         }
+        if (!inEncounter) { if (final && standby && QUESTION.containsMatchIn(s.lowercase())) onQuestion(s.trim()); return } // standby keeps nothing
         if (final) text.append(s.trim()).append('\n')
+    }
+
+    companion object {
+        /** What counts as talking to the glasses while nobody is in front. */
+        val QUESTION = Regex("""^(ei|ô|oi|olha|escuta)?[,\s]*(assistente|visual\s?context|visualcontext|óculos)\b|\b(o que (eu )?(fiz|anotei|combinei|guardei)|quem (eu )?(encontrei|vi)|quando (foi que )?(eu )?(vi|encontrei|falei)|onde (eu )?deixei|cad[eê] (meu|minha|o|a|as|os)\b|última vez que|que horas são|que dia é hoje|que música)""")
     }
 
     private fun save() {

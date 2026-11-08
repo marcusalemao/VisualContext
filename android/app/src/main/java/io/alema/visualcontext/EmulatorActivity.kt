@@ -147,7 +147,9 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         ears = Ears(this, onName = { n -> work.execute {
                 val r = faces.name(n)
                 if (r.optBoolean("guardado")) main.post { onNamed(r.optString("nome", n)) }
-            } }, onState = { h -> val was = hearing; hearing = h; main.post { paintToggles(); if (speaks && h != was) { if (h) voice.recStart() else voice.recEnd() } } })
+            } }, onState = { h -> val was = hearing; hearing = h; main.post { paintToggles(); if (speaks && h != was) { if (h) voice.recStart() else voice.recEnd() } } },
+            onQuestion = { q -> standbyQuestion(q) })
+        ears.standby = Backend.standby(this) // off by default (Marcus, 08/11: "aperto o Falar"); a setting for who wants it
         applyOutput()
         paintToggles()
         val need = listOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO, Manifest.permission.ACCESS_FINE_LOCATION)
@@ -406,6 +408,41 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         if (!liveOn && Backend.offlineOnly(this)) { toast("O Live está desligado em Ajustes → Assistente (\"Desligar o Live\"). Ligue lá para falar com o assistente."); return }
         if (liveOn) { if (live.speaking) live.interrupt() else { live.stop(); liveOn = false; ears.resume() } }
         else { liveOn = true; ears.pause(); live.start() }
+    }
+
+    /**
+     * A question heard between encounters (standby): memory questions are answered offline-first (one text call
+     * to Gemini, phone voice, HUD card); anything else addressed to the assistant opens the Live with that sentence.
+     */
+    private fun standbyQuestion(q: String) {
+        if (liveOn) return
+        val low = q.lowercase()
+        val addressed = Regex("""^(ei|ô|oi|olha|escuta)?[,\s]*(assistente|visual\s?context|visualcontext|óculos)\b""").find(low)
+        val body = if (addressed != null) q.substring(addressed.range.last + 1).trim().trimStart(',', ' ') else q
+        val lb = body.lowercase()
+        val memory = Regex("""o que (eu )?(fiz|anotei|combinei|guardei)|quem (eu )?(encontrei|vi)|quando (foi que )?(eu )?(vi|encontrei|falei)|última vez que""").containsMatchIn(lb)
+        val thing = Regex("""onde (eu )?deixei (o |a |as |os |meu |minha )?(.+)|cad[eê] (meu |minha |o |a |as |os )?(.+)""").find(lb)
+        when {
+            Regex("que horas são").containsMatchIn(lb) -> { val t = java.text.SimpleDateFormat("HH:mm", java.util.Locale("pt", "BR")).format(System.currentTimeMillis()); say("São $t.", "✦ Agora", listOf(t)) }
+            thing != null -> work.execute {
+                val name = (thing.groupValues[3].ifEmpty { thing.groupValues[5] }).trim().trimEnd('?', '.')
+                val f = Things.find(this, name)
+                main.post { if (f.isEmpty()) say("Não tenho registro de onde você deixou $name.", "⌖ $name", listOf("sem registro")) else { val t = f[0]; val w = runCatching { java.text.SimpleDateFormat("EEE HH:mm", java.util.Locale("pt", "BR")).format(java.time.OffsetDateTime.parse(t.at).toInstant().toEpochMilli()) }.getOrDefault(""); say("Você deixou ${t.name}" + (t.where?.let { " em $it" } ?: "") + (if (w.isNotEmpty()) ", $w" else "") + ".", "⌖ ${t.name}", listOf(t.where ?: "lugar não anotado", w)) } }
+            }
+            memory -> {
+                main.post { hud.cardTitle = "✦ Lembrando…"; hud.cardLines = listOf(body.take(38)); hud.invalidate() }
+                val days = when { Regex("hoje").containsMatchIn(lb) -> 1; Regex("ontem").containsMatchIn(lb) -> 2; Regex("semana").containsMatchIn(lb) -> 7; Regex("m[eê]s").containsMatchIn(lb) -> 31; else -> 30 }
+                work.execute { val a = Recall.ask(this, body, days); main.post { if (a == null) say("Não consegui consultar a memória agora.", "✦ Memória", listOf("sem resposta")) else say(a.say, a.title, a.lines) } }
+            }
+            addressed != null && body.length > 3 -> { live.context(body); toggleLive() } // "assistente, …": the Live opens and answers that sentence
+        }
+    }
+    private var cardClear: Runnable? = null
+    private fun say(text: String, title: String, lines: List<String>) {
+        hud.cardTitle = title; hud.cardLines = lines; hud.invalidate()
+        if (speaks || Voice.output(this) != "tela") voice.say(text, interrupt = true)
+        cardClear?.let { main.removeCallbacks(it) }
+        cardClear = Runnable { if (hud.cardTitle == title) hud.clearCard() }.also { main.postDelayed(it, 25_000) }
     }
 
     override fun placeName(): String? = Where.location(this)?.let { Where.placeLabel(this, it) }

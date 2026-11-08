@@ -39,6 +39,9 @@ object Backend {
     /** Only the phone: no Gemini Live at all (recognise, transcribe and warn offline). */
     fun offlineOnly(ctx: Context) = prefs(ctx).getBoolean("offline_only", false)
     fun setOfflineOnly(ctx: Context, on: Boolean) { prefs(ctx).edit().putBoolean("offline_only", on).apply() }
+    /** Standby: between encounters, listen (offline) for questions to the memory and calls to the assistant. */
+    fun standby(ctx: Context) = prefs(ctx).getBoolean("standby", false)
+    fun setStandby(ctx: Context, on: Boolean) { prefs(ctx).edit().putBoolean("standby", on).apply() }
     fun saveVoice(ctx: Context, voice: String) { prefs(ctx).edit().putString("voice", voice).apply() }
     fun prefsText(ctx: Context): String? = prefs(ctx).getString("text_model", null)
     fun saveTextModel(ctx: Context, m: String?) { prefs(ctx).edit().putString("text_model", m).apply() }
