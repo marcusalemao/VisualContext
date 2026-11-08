@@ -137,6 +137,15 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         outBtn = btn("") { setOutput(when (output) { "tela" -> "tela_voz"; "tela_voz" -> "voz"; else -> "tela" }) }; bar.addView(outBtn)
         bar.addView(btn("⟲ Câmera") { front = !front; startCamera() })
         bar.addView(btn("✕ Fechar") { finish() })
+        // The temple, simulated (Marcus, 08/11: as in the old emulator). Same actions as the glasses' touchpad.
+        val temple = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; setBackgroundColor(Color.argb(200, 0, 0, 0)); setPadding(4, 2, 4, 2) }
+        fun tb(t: String, desc: String, cb: () -> Unit) = btn(t, cb).apply { textSize = 14f; contentDescription = desc; minHeight = (48 * resources.displayMetrics.density).toInt() }
+        temple.addView(tb("◀ haste", "Haste para trás") { templeKey(android.view.KeyEvent.KEYCODE_DPAD_LEFT) })
+        temple.addView(tb("● toque", "Toque: escolher. Toque longo: falar com o assistente") { templeKey(android.view.KeyEvent.KEYCODE_DPAD_CENTER) }.apply {
+            setOnLongClickListener { performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS); toggleLive(); true } })
+        temple.addView(tb("●● voltar", "Dois toques: voltar ou cancelar") { templeBack() })
+        temple.addView(tb("haste ▶", "Haste para frente") { templeKey(android.view.KeyEvent.KEYCODE_DPAD_RIGHT) })
+        root.addView(temple, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         root.addView(bar, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         // Android 15+ draws apps under the system bars: the whole screen steps in by the bars' size.
         // Fallback to the system's own navigation-bar height if the insets come back empty.
@@ -367,10 +376,29 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         }
     }
 
+    private var longFired = false
+    private fun templeKey(code: Int) {
+        if (code == android.view.KeyEvent.KEYCODE_DPAD_CENTER) dispatchKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, code))
+        dispatchKeyEvent(android.view.KeyEvent(if (code == android.view.KeyEvent.KEYCODE_DPAD_CENTER) android.view.KeyEvent.ACTION_UP else android.view.KeyEvent.ACTION_DOWN, code))
+    }
+    /** Two taps: cancel the countdown, close the card, let go of the pin — never leaves the screen. */
+    private fun templeBack() {
+        when {
+            countdownId != null -> cancelCountdown()
+            hud.cardTitle != null -> { if (qr.offer != null) qr.dismiss(SystemClock.elapsedRealtime()); closeCard() }
+            hud.pinFocus >= 0 -> { hud.pinFocus = -1; hud.invalidate() }
+            qrOn -> setQr(false)
+        }
+    }
+
     /** The temple (D-pad on the glasses, arrows on a keyboard): moves between pins or card buttons; centre = choose. */
     override fun dispatchKeyEvent(e: android.view.KeyEvent): Boolean {
-        if (e.action != android.view.KeyEvent.ACTION_DOWN) return super.dispatchKeyEvent(e)
         val code = e.keyCode
+        // Centre of the temple: a tap chooses (on release), a long press opens the assistant (Marcus, 08/11).
+        if (code == android.view.KeyEvent.KEYCODE_DPAD_CENTER || code == android.view.KeyEvent.KEYCODE_ENTER) {
+            if (e.action == android.view.KeyEvent.ACTION_DOWN) { if (e.repeatCount >= 1 && !longFired) { longFired = true; toggleLive() }; return true }
+            if (longFired) { longFired = false; return true }
+        } else if (e.action != android.view.KeyEvent.ACTION_DOWN) return super.dispatchKeyEvent(e)
         val prev = code == android.view.KeyEvent.KEYCODE_DPAD_UP || code == android.view.KeyEvent.KEYCODE_DPAD_LEFT
         val next = code == android.view.KeyEvent.KEYCODE_DPAD_DOWN || code == android.view.KeyEvent.KEYCODE_DPAD_RIGHT
         val ok = code == android.view.KeyEvent.KEYCODE_DPAD_CENTER || code == android.view.KeyEvent.KEYCODE_ENTER
