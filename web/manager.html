@@ -99,7 +99,10 @@ header .sp{flex:1}
 .day .stops span{font-family:var(--mono);color:var(--m);margin-right:6px}
 .day .stop{display:flex;gap:8px;align-items:flex-start;margin-top:4px}.day .stop>span{flex:0 0 auto;padding-top:2px}.day .stopb{min-width:0;flex:1}
 .day .who{display:flex;flex-wrap:wrap;gap:6px;margin-top:5px}.day .whoa{display:inline-flex;align-items:center;gap:6px;padding:3px 10px 3px 3px;border-radius:99px;background:var(--s2);border:1px solid var(--line);font-size:13px;color:var(--g1)}
-.day .whoa .av{width:26px;height:26px;font-size:10px;border-radius:50%;overflow:hidden;flex:0 0 auto}.day .whoa .av img{width:100%;height:100%;object-fit:cover}
+.day .whoa .av{width:56px;height:56px;font-size:16px;border-radius:50%;overflow:hidden;flex:0 0 auto}.day .whoa .av img{width:100%;height:100%;object-fit:cover}
+.day .whoa{padding:4px 14px 4px 4px;font-size:15px;font-weight:600;color:var(--g0,#fff);gap:10px;font-family:inherit}.day .stopn{font-size:16px;font-weight:600;color:var(--g0,#fff)}
+.day .how{font-family:var(--mono);font-size:12px;color:var(--m);padding:6px 0 2px 14px;border-left:2px dashed var(--line);margin:2px 0 2px 28px}
+.row .av{width:56px;height:56px}.row .t1{font-size:16px}
 .day .foot{display:flex;justify-content:space-between;margin-top:10px;font:12px var(--mono);color:var(--m)}
 .day .foot button{color:var(--g)}
 
@@ -298,7 +301,7 @@ const CATS = [["all", "Todos"], ["person", "Pessoas"], ["place", "Lugares"], ["t
 function matches(it, q) { if (!q) return true; const n = norm(q); return norm(it.title + " " + it.sub + " " + (it.ref.notes || "") + " " + (it.ref.source || "") + " " + (it.ref.tags || []).join(" ")).includes(n); }
 // "Marcus Magalhães" and "Marcus de Magalhães" are the same person: particles and accents do not count.
 const nameKey = n => norm(n).split(" ").filter(w => w && !["de", "da", "do", "dos", "das", "e"].includes(w)).join(" ");
-const isMe = n => !!n && !!(S.me && S.me.me_name) && nameKey(n) === nameKey(S.me.me_name);
+const isMe = n => !!n && (norm(n) === "voce" || (!!(S.me && S.me.me_name) && nameKey(n) === nameKey(S.me.me_name)));
 const faceOk = it => it.kind !== "person" || S.face === "all" || (S.face === "yes" ? it.ref.faces > 0 : !it.ref.faces);
 
 /* ---------- duplicates ---------- */
@@ -378,24 +381,34 @@ function myDay() {
   const enc = S.enc.filter(e => today(e.at)).sort((a, b) => new Date(a.at) - new Date(b.at));
   const th = S.things.filter(t => today(t.seen_at)), no = S.notes.filter(n => today(n.at));
   if (!enc.length && !th.length && !no.length) return "";
-  const people = [...new Set(enc.map(e => e.person_name).filter(n => n && !isMe(n)))], places = [...new Set(enc.map(e => e.place).filter(Boolean))];
+  const people = [...new Set(enc.map(e => e.person_name).filter(n => n && !isMe(n)))];
+  let places = []; // filled from the grouped stops below (one name per place, "Pop Vegan" rather than its address)
   const follow = enc.reduce((n, e) => n + ((e.follow_ups || []).length || 0), 0);
+  // Stops grouped by place (Marcus, 07/11: the same address five times says nothing): one line per place,
+  // the time span, and the faces of who was there.
+  const byPlace = [];
+  const dist = (a, b) => { if (!a || !b || a.lat == null || b.lat == null) return Infinity; const R = 6371000, p = Math.PI / 180, dl = (b.lat - a.lat) * p, dg = (b.lng - a.lng) * p, x = Math.sin(dl / 2) ** 2 + Math.cos(a.lat * p) * Math.cos(b.lat * p) * Math.sin(dg / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); };
+  const stem = k => k.split(" · ")[0].replace(/,\s*\d+[^·]*$/, ""); // "Rua X, 830" and "Rua X, 844" are the same street
+  for (const e of enc.filter(e => !isMe(e.person_name))) {
+    const key = e.place || "—"; const last = byPlace.at(-1);
+    const who = e.person_name ? { name: e.person_name, p: S.people.find(x => nameKey(x.name) === nameKey(e.person_name)) } : e.capture_mode === "live" ? { name: "assistente" } : null;
+    const same = last && (last.key === key || dist(last, e) < 150 || (stem(last.key) === stem(key) && dist(last, e) < 400));
+    if (same) { last.to = e.at; if (who && !last.who.some(w => w.name === who.name)) last.who.push(who); if (key.includes(" · ") && !last.key.includes(" · ")) last.key = key; }
+    else byPlace.push({ key, from: e.at, to: e.at, lat: e.lat, lng: e.lng, who: who ? [who] : [] });
+  }
+  // How you got from one stop to the next: distance over time (Marcus, 07/11: "fomos de carro, depois a pé").
+  for (let i = 1; i < byPlace.length; i++) {
+    const a = byPlace[i - 1], b = byPlace[i], d = dist(a, b), h = (new Date(b.from) - new Date(a.to)) / 3.6e6;
+    b.how = d === Infinity || d < 250 ? null : h <= 0 ? null : (d / 1000 / h > 11 ? "🚗 de carro" : "🚶 a pé") + " · " + (d < 950 ? Math.round(d / 50) * 50 + " m" : (d / 1000).toFixed(1) + " km");
+  }
+  places = [...new Set(byPlace.map(b => b.key.split(" · ")[0]).filter(k => k && k !== "—"))];
   const bits = [];
   if (people.length) bits.push("encontrou " + listPt(people) + (places.length ? " (" + listPt(places.slice(0, 2)) + ")" : ""));
   if (enc.some(e => e.capture_mode === "live")) bits.push("conversou com o assistente");
   if (th.length) bits.push("guardou onde deixou " + listPt(th.map(t => t.name.toLowerCase())));
   if (no.length) bits.push("anotou " + no.length + (no.length === 1 ? " lembrete" : " lembretes"));
-  // Stops grouped by place (Marcus, 07/11: the same address five times says nothing): one line per place,
-  // the time span, and the faces of who was there.
-  const byPlace = [];
-  for (const e of enc.filter(e => !isMe(e.person_name))) {
-    const key = e.place || "—"; const last = byPlace.at(-1);
-    const who = e.person_name ? { name: e.person_name, p: S.people.find(x => nameKey(x.name) === nameKey(e.person_name)) } : e.capture_mode === "live" ? { name: "assistente" } : null;
-    if (last && last.key === key) { last.to = e.at; if (who && !last.who.some(w => w.name === who.name)) last.who.push(who); }
-    else byPlace.push({ key, from: e.at, to: e.at, who: who ? [who] : [] });
-  }
   const tm = d => new Date(d).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-  const stopsHtml = byPlace.map(b => `<div class="stop"><span>${esc(tm(b.from))}${b.to !== b.from ? "–" + esc(tm(b.to)) : ""}</span><div class="stopb"><div>${esc(b.key)}</div><div class="who">${b.who.map(w => w.p ? `<button class="whoa" data-k="person" data-id="${w.p.id}">${avatar(w.p, "sm")}${esc(w.name.split(" ")[0])}</button>` : `<span class="whoa">${w.name === "assistente" ? "✦ " : ""}${esc(w.name)}</span>`).join("")}</div></div></div>`)
+  const stopsHtml = byPlace.map(b => (b.how ? `<div class="how">${esc(b.how)}</div>` : "") + `<div class="stop"><span>${esc(tm(b.from))}${b.to !== b.from ? "–" + esc(tm(b.to)) : ""}</span><div class="stopb"><div class="stopn">${esc(b.key.split(" · ")[0])}</div>${b.key.includes(" · ") ? `<div class="muted" style="font-size:12.5px">${esc(b.key.split(" · ").slice(1).join(" · "))}</div>` : ""}<div class="who">${b.who.map(w => w.p ? `<button class="whoa" data-k="person" data-id="${w.p.id}">${avatar(w.p, "sm")}<span>${esc(w.name)}</span></button>` : `<span class="whoa"><span class="av k" style="font-size:16px">✦</span><span>${esc(w.name)}</span></span>`).join("")}</div></div></div>`)
     .concat(th.map(t => `<div class="stop"><span>${esc(tm(t.seen_at))}</span><div class="stopb"><div>${esc(t.name)} → ${esc(t.location_description || "")}</div></div></div>`)).slice(0, 6).join("");
   return `<div class="day"><h4>✦ Meu dia · hoje</h4><p>Hoje você ${esc(listPt(bits))}.</p><div class="stops">${stopsHtml}</div>
   <div class="foot"><span>${people.length} ${people.length === 1 ? "pessoa" : "pessoas"} · ${places.length} ${places.length === 1 ? "lugar" : "lugares"} · ${no.length} ${no.length === 1 ? "nota" : "notas"} · ${follow} ${follow === 1 ? "pendência" : "pendências"}</span><button data-day="1">Ver o dia →</button></div></div>`;

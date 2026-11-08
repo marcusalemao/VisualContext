@@ -93,7 +93,7 @@ class FaceBrain(private val ctx: Context) {
             result
         }
         if (out.isNotEmpty()) { last = out; lastAt = System.currentTimeMillis() }
-        out.filter { it.known && it.sure }.forEach { recent[it.label] = now }
+        out.filter { it.known && it.sure && !it.isMe }.forEach { recent[it.label] = now }
         return out
     }
 

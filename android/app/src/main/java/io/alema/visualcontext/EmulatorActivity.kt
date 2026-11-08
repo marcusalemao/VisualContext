@@ -255,7 +255,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
                 clip.setPrimaryClip(android.content.ClipData.newPlainText("Pix copia e cola", raw))
                 val title = "Pix" + (r.merchantName?.let { ": $it" } ?: "") + (r.amount?.let { " · R$ " + it.replace('.', ',') } ?: "")
                 work.execute {
-                    val place = Where.location(this)?.let { Where.address(this, it) }
+                    val place = Where.location(this)?.let { Where.placeLabel(this, it) }
                     Moments.send(this, org.json.JSONObject().put("action", "note").put("kind", "pix").put("title", title).put("source", "qr")
                         .put("text", "Código Pix copiado" + (r.merchantName?.let { " (o código diz: $it${r.merchantCity?.let { c -> ", $c" } ?: ""})" } ?: "") + ".")
                         .put("fields", org.json.JSONObject().put("pix", org.json.JSONObject().put("nome", r.merchantName ?: "").put("cidade", r.merchantCity ?: "")
@@ -407,7 +407,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         else { liveOn = true; ears.pause(); live.start() }
     }
 
-    override fun placeName(): String? = Where.location(this)?.let { Where.address(this, it) }
+    override fun placeName(): String? = Where.location(this)?.let { Where.placeLabel(this, it) }
     override fun frame(): ByteArray? = lastJpeg
     override fun faces(): FaceBrain = faces
     override fun onState(state: String) {

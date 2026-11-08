@@ -103,7 +103,7 @@ class Ears(private val ctx: Context, private val onName: (String) -> Unit, priva
             val body = JSONObject().put("action", "moment").put("transcript", t).put("capture_mode", "encounter")
                 .put("at", java.time.Instant.ofEpochMilli(at).toString()).put("context", "encontro")
             if (person != null) body.put("person_name", person)
-            Where.location(ctx)?.let { loc -> body.put("lat", loc.latitude).put("lng", loc.longitude); Where.address(ctx, loc)?.let { body.put("place", it) } }
+            Where.location(ctx)?.let { loc -> body.put("lat", loc.latitude).put("lng", loc.longitude); Where.placeLabel(ctx, loc)?.let { body.put("place", it) } }
             Describe.memoryVersion(ctx, t)?.let { (sum, _) -> if (sum.isNotBlank()) body.put("summary", sum) }
             Moments.send(ctx, body)
         }.start()

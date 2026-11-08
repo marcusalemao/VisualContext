@@ -27,6 +27,20 @@ object Where {
             .maxByOrNull { it.time }
     }
 
+    private var lastLabel: Pair<Location, String>? = null
+    /**
+     * Where we are, the way a person says it (Marcus, 07/11: "Pop Vegan", not "Rua Avanhandava, 844"):
+     * the nearest named place within 60 m, then the street. Cached for 80 m. Blocking.
+     */
+    fun placeLabel(ctx: Context, loc: Location): String? {
+        lastLabel?.let { (l, s) -> if (l.distanceTo(loc) < 80f) return s }
+        val addr = address(ctx, loc)
+        val poi = try { nearby(loc, 60, 1).firstOrNull() } catch (_: Exception) { null }
+        val s = listOfNotNull(poi?.name, addr).distinct().joinToString(" · ").ifEmpty { null } ?: return null
+        lastLabel = loc to s
+        return s
+    }
+
     fun address(ctx: Context, loc: Location): String? = try {
         @Suppress("DEPRECATION")
         Geocoder(ctx, Locale("pt", "BR")).getFromLocation(loc.latitude, loc.longitude, 1)?.firstOrNull()?.let { a ->

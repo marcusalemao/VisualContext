@@ -177,7 +177,7 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
         val p = Papers.read(ctx, f)
         if (p == null) { if (fromSpeech) paperAt = 0; return JSONObject().put("papel", false).put("dica", "não vi papel com texto; se for outra coisa, use guardar_nota") }
         lastPaper = p.title
-        val place = Where.location(ctx)?.let { Where.address(ctx, it) }
+        val place = Where.location(ctx)?.let { Where.placeLabel(ctx, it) }
         Papers.save(ctx, p, place)
         main.post { host.onSaved(p.title) }
         if (fromSpeech && open) live.send(LiveProtocol.text("(o app já guardou na memória: ${p.title}. Confirme em poucas palavras, sem chamar ferramenta.)"))
