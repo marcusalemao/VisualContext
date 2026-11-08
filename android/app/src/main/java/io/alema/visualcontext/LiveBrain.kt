@@ -69,8 +69,9 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
             val model = Backend.liveModel(ctx) ?: (live.listModels(key)?.let { LiveProtocol.pickLiveModel(it) } ?: LiveProtocol.MODEL).also { Backend.saveLiveModel(ctx, it) }
             // Spec 1r: the learned skills become tools of this session.
             Skills.refresh(ctx)
-            live.extraTools = Skills.tools(ctx).put(Music.tool()).also { a -> Things.tools().forEach { a.put(it) } }
-            live.extraSystem = Skills.system(ctx) + " MÚSICA: se ele perguntar que música está tocando, chame identificar_musica e espere; não adivinhe." + Things.SYSTEM
+            live.extraTools = Skills.tools(ctx).put(Music.tool()).put(Recall.tool()).also { a -> Things.tools().forEach { a.put(it) } }
+            live.extraSystem = Skills.system(ctx) + " MÚSICA: se ele perguntar que música está tocando, chame identificar_musica e espere; não adivinhe." + Things.SYSTEM +
+                " MEMÓRIA: perguntas sobre o passado dele (o que fiz hoje, quem encontrei, quando vi fulano, o que combinei) vão para consultar_memoria; leia a resposta em voz alta como veio."
             main.post { live.connect(key, Backend.voiceName(ctx), resumeHandle, model) }
         }
     }
@@ -250,6 +251,13 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
                     else { main.post { host.onBrief(b.name, b.lines) }; JSONObject().put("pessoa", b.name).put("na_lente", JSONArray(b.lines)).put("diga", b.spoken) }
                 }
                 LiveProtocol.TOOL_WHERE -> Where.asJson(ctx)
+                Recall.TOOL -> {
+                    val q = call.args.optString("pergunta"); val days = call.args.optInt("dias", 30).let { if (it <= 0) 30 else it }
+                    main.post { host.onBrief("✦ Lembrando…", listOf(q.take(38))) }
+                    val a = Recall.ask(ctx, q, days)
+                    if (a == null) JSONObject().put("erro", "não consegui consultar a memória agora")
+                    else { main.post { host.onBrief(a.title.removePrefix("✦ "), a.lines) }; JSONObject().put("resposta", a.say).put("diga", a.say) }
+                }
                 Things.TOOL_KEEP -> {
                     val name = call.args.optString("nome").ifEmpty { "objeto" }; val where = call.args.optString("onde").ifEmpty { null }
                     val ok = Things.keep(ctx, name, where, host.frame(), host.placeName())
