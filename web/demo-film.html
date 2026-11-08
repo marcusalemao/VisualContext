@@ -1,5 +1,12 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta property="og:title" content="VisualContext — demo film">
+<meta property="og:description" content="A memory layer for smart glasses. Concept film: people, things, places, recall, privacy. EN / DE / PT.">
+<link rel="icon" type="image/png" href="/brand/visualcontext-icon-512.png">
 <title>VisualContext Demo Film</title>
-<meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
 /* Layout: one 16:9 "film" stage (the glasses view, green HUD over a dim world) with a caption band below; a thin control bar that hides while recording. */
@@ -86,6 +93,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
 @media (prefers-reduced-motion:reduce){.el{transition:none}}
 @media (max-width:700px){#cap{min-height:4.5em}}
 </style>
+</head>
+<body>
 <div id="wrap">
   <div id="film">
     <div id="stage">
@@ -324,3 +333,5 @@ document.getElementById('lang').textContent=L().toUpperCase();
 show(0);
 })();
 </script>
+</body>
+</html>

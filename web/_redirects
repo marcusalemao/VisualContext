@@ -1,7 +1,8 @@
-/webapp              /manager  301
-/webapp.html         /manager  301
-/emulator            /manager  301
-/emulator.html       /manager  301
-/emulator-standalone /manager  301
-/hud-editor          /manager  301
-/demo-film           /demo     301
+/webapp              /manager     301
+/webapp.html         /manager     301
+/emulator            /demo        301
+/emulator.html       /demo        301
+/emulator-standalone /demo        301
+/hud-editor          /manager     301
+/filme               /demo-film   301
+/film                /demo-film   301
