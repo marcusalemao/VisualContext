@@ -8,12 +8,12 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * The VisualContext backend (fcProxy on Base44). Every call carries the device token
+ * The VisualContext backend (the `vc` function on Supabase). Every call carries the device token
  * in the x-vc-token header; without it the backend answers 401.
  * The token lives only in this phone's private app storage, never in the code.
  */
 object Backend {
-    /** The VisualContext memory (Supabase, São Paulo). Base44 was the old one; saved Base44 addresses move here by themselves. */
+    /** The VisualContext memory (Supabase, São Paulo). Base44 (until 08/11/2026) is gone; an old saved address moves here by itself. */
     const val DEFAULT_URL = "https://vzqjwhlpwvqrosoiwiin.supabase.co/functions/v1/vc"
     private const val PREFS = "visualcontext"
 

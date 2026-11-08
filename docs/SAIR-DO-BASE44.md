@@ -33,7 +33,7 @@ The apps only talk to Base44 through **one door** (`fcProxy`), so the switch is 
 3. Server function `vc` with the same actions as `fcProxy` (`list`, `save`, `enroll_face`, `seen`, `ask`) + device tokens.
 4. App: switch the backend address (already a setting), keep Base44 as fallback for two weeks.
 5. New Manager on the site, against Supabase: Ask anything, catalog, My day, import contacts, merge duplicates (spec `SPEC-MANAGER-INICIO.md`).
-6. Two weeks side by side, then Base44 becomes read-only, then off. Beto: decide with Marcus what he keeps doing (WhatsApp assistant only?).
+6. ~~Two weeks side by side, then Base44 becomes read-only, then off.~~ **Done 08/11/2026** — Marcus approved removing Base44 ("tudo aprovado, pode tirar"): old `webapp`, web emulator and HUD editor left the site (redirect to `/manager`); the app no longer mentions it. The Base44 app itself can be paused in its dashboard; the data was migrated on 06/11 (95 people, 20 encounters, 3 things). Beto: decide with Marcus what he keeps doing (WhatsApp assistant only?).
 
 ---
 
@@ -68,4 +68,4 @@ Os apps só falam com o Base44 por **uma porta** (`fcProxy`), então a troca é 
 3. Função `vc` no servidor com as mesmas ações do `fcProxy` (`list`, `save`, `enroll_face`, `seen`, `ask`) + tokens de aparelho.
 4. App: trocar o endereço do backend (já é um ajuste), com o Base44 de reserva por duas semanas.
 5. Manager novo no site, ligado ao Supabase: Pergunte qualquer coisa, catálogo, Meu dia, importar contatos, mesclar duplicados (spec `SPEC-MANAGER-INICIO.md`).
-6. Duas semanas lado a lado, depois o Base44 fica só leitura, depois desliga. Beto: decidir com o Marcus o que ele continua fazendo (só assistente no WhatsApp?).
+6. ~~Duas semanas lado a lado, depois o Base44 fica só leitura, depois desliga.~~ **Feito em 08/11/2026** — Marcus aprovou tirar o Base44 ("tudo aprovado, pode tirar"): o `webapp` antigo, o emulador web e o editor de HUD saíram do site (redirecionam para `/manager`); o app não o menciona mais. O app no Base44 pode ser pausado no painel de lá; os dados foram migrados em 06/11 (95 pessoas, 20 encontros, 3 coisas). Beto: decidir com o Marcus o que ele continua fazendo (só assistente no WhatsApp?).

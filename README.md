@@ -14,7 +14,7 @@ A multimodal assistant for Rokid smart glasses: it sees what I see via streaming
 
 ### Links
 
-- **Live demo (web app):** https://visualcontext.base44.app — open access (no sign-up), early beta — feel free to try it; light anti-abuse protection on write actions.
+- **Manager (web):** https://web-visualcontext-site.visualcontext.pages.dev/manager — sign in with your e-mail; your memory, people and encounters. (The Base44 demo was retired on 08/11/2026.)
 - **Android APK (glasses app):** will be published in [GitHub Releases](https://github.com/marcusalemao/VisualContext/releases) when ready.
 - **License:** custom source-available (see [LICENSE](LICENSE)) — commercial use requires written permission.
 
