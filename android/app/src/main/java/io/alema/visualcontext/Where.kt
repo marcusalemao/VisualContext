@@ -34,6 +34,7 @@ object Where {
      */
     fun placeLabel(ctx: Context, loc: Location): String? {
         if (!keyLoaded) loadKey(ctx)
+        MyPlaces.at(loc)?.let { return it.name } // "Casa" beats "Rua Avanhandava, 844" (GPS drifts indoors)
         lastLabel?.let { (l, s) -> if (l.distanceTo(loc) < 80f) return s }
         val addr = address(ctx, loc)
         val poi = try { nearby(loc, 60, 1).firstOrNull() } catch (_: Exception) { null }

@@ -69,9 +69,13 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
             val model = Backend.liveModel(ctx) ?: (live.listModels(key)?.let { LiveProtocol.pickLiveModel(it) } ?: LiveProtocol.MODEL).also { Backend.saveLiveModel(ctx, it) }
             // Spec 1r: the learned skills become tools of this session.
             Skills.refresh(ctx)
-            live.extraTools = Skills.tools(ctx).put(Music.tool()).put(Recall.tool()).also { a -> Things.tools().forEach { a.put(it) } }
+            MyPlaces.refresh(ctx)
+            val placeHint = Where.location(ctx)?.let { loc -> MyPlaces.askHint(ctx, loc) } ?: ""
+            live.extraTools = Skills.tools(ctx).put(Music.tool()).put(Recall.tool()).put(MyPlaces.tool()).put(Agenda.tool()).also { a -> Things.tools().forEach { a.put(it) } }
             live.extraSystem = Skills.system(ctx) + " MÚSICA: se ele perguntar que música está tocando, chame identificar_musica e espere; não adivinhe." + Things.SYSTEM +
-                " MEMÓRIA: perguntas sobre o passado dele (o que fiz hoje, quem encontrei, quando vi fulano, o que combinei) vão para consultar_memoria; leia a resposta em voz alta como veio."
+                " MEMÓRIA: perguntas sobre o passado dele (o que fiz hoje, quem encontrei, quando vi fulano, o que combinei) vão para consultar_memoria; leia a resposta em voz alta como veio." +
+                " AGENDA: compromissos, \"o que eu tenho para hoje/amanhã\" → agenda (nunca diga que não tem acesso). PESSOAS: \"o que eu preciso lembrar sobre a Ana\", \"do que falamos nos últimos dias\" → consultar_memoria com dias (10 se ele não disser) e, se for alguém prestes a encontrar, também preparar_conversa." +
+                " LUGARES: \"aqui é minha casa\", \"estou no trabalho\", \"isso é o Pop Vegan\" → marcar_lugar. " + placeHint
             main.post { live.connect(key, Backend.voiceName(ctx), resumeHandle, model) }
         }
     }
@@ -147,12 +151,19 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
             val body = JSONObject().put("action", "moment").put("transcript", text)
                 .put("at", java.time.Instant.ofEpochMilli(at).toString()).put("capture_mode", "live")
                 .put("context", if (who.isEmpty()) "conversa com o assistente" else "conversa com o assistente, com " + who.joinToString(", "))
-            if (who.size == 1) body.put("person_name", who[0])
-            if (loc != null) body.put("lat", loc.latitude).put("lng", loc.longitude).put("place", Where.address(ctx, loc))
-            Describe.memoryVersion(ctx, text)?.let { (sum, conv) -> if (sum.isNotBlank()) body.put("summary", sum); body.put("transcript", conv) }
+            val me = Backend.meName(ctx)
+            if (who.size == 1 && !who[0].equals(me, true) && who[0] != "você") body.put("person_name", who[0])
+            if (loc != null) body.put("lat", loc.latitude).put("lng", loc.longitude).put("place", Where.placeLabel(ctx, loc) ?: Where.address(ctx, loc))
+            val mv = Describe.memoryVersion(ctx, text)
+            if (mv != null) { if (mv.first.isNotBlank()) body.put("summary", mv.first); body.put("transcript", mv.second) }
+            else firstQuestion(text)?.let { body.put("summary", it) } // never a conversation without what it was about
             Moments.send(ctx, body)
         }.start()
     }
+
+    /** The first real thing he asked (garbled recognizer lines in other alphabets are skipped). */
+    private fun firstQuestion(t: String): String? = t.lines().filter { it.startsWith("Você:") }.map { it.removePrefix("Você:").trim() }
+        .firstOrNull { l -> l.split(Regex("\\s+")).size >= 3 && l.all { c -> c.code < 0x250 || !c.isLetter() } }?.take(140)
 
     private var yesAt = 0L
     private fun spotYes() {
@@ -251,6 +262,21 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
                     else { main.post { host.onBrief(b.name, b.lines) }; JSONObject().put("pessoa", b.name).put("na_lente", JSONArray(b.lines)).put("diga", b.spoken) }
                 }
                 LiveProtocol.TOOL_WHERE -> Where.asJson(ctx)
+                Agenda.TOOL -> {
+                    val (res, lines) = Agenda.call(ctx, call.args)
+                    main.post { host.onBrief("▦ Agenda", lines) }
+                    res
+                }
+                MyPlaces.TOOL -> {
+                    val nome = call.args.optString("nome").trim().ifEmpty { "Casa" }; val tipo = call.args.optString("tipo").ifEmpty { "outro" }
+                    val loc = Where.location(ctx)
+                    if (loc == null) JSONObject().put("erro", "sem localização agora")
+                    else {
+                        val ok = MyPlaces.save(ctx, nome, tipo, loc, Where.address(ctx, loc))
+                        main.post { host.onBrief(when (tipo) { "casa" -> "⌂ $nome"; "trabalho" -> "▣ $nome"; else -> "★ $nome" }, listOf(if (ok) "lugar guardado" else "sem internet; tente de novo")) }
+                        JSONObject().put("ok", ok).put("diga", if (ok) "Anotado: aqui é $nome." else "Não consegui guardar agora.")
+                    }
+                }
                 Recall.TOOL -> {
                     val q = call.args.optString("pergunta"); val days = call.args.optInt("dias", 30).let { if (it <= 0) 30 else it }
                     main.post { host.onBrief("✦ Lembrando…", listOf(q.take(38))) }

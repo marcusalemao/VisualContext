@@ -30,6 +30,8 @@ class HudOverlay(ctx: Context) : View(ctx) {
 
     var labels: List<Label> = emptyList()
     var cardTitle: String? = null
+    /** Where the top card was drawn (to keep pins below it and to close it with a tap). */
+    var cardRect: RectF? = null; private set
     var cardLines: List<String> = emptyList()
     var transcript: List<String> = emptyList()
     var footer: String = ""
@@ -63,20 +65,27 @@ class HudOverlay(ctx: Context) : View(ctx) {
         // standby dot (top right)
         pFill.color = if (listening) soft else green
         c.drawCircle(w - dp(18f), dp(18f), dp(if (listening) 7f else 5f), pFill)
-        // place pins: cards pinned to a bearing inside a 24° window around the heading
-        pins.forEach { p ->
-            var d = (p.bearingDeg - heading + 540) % 360 - 180
-            if (kotlin.math.abs(d) > 13f) return@forEach
-            val cx = w / 2 + d / 12f * (w / 2)
-            val cw = dp(150f); val ch = dp(46f); val top = dp(60f)
-            val r = RectF(cx - cw / 2, top, cx + cw / 2, top + ch)
-            c.drawRoundRect(r, dp(10f), dp(10f), pShadow)
-            c.drawRoundRect(r, dp(10f), dp(10f), if (p.hidden) pDash else pStroke)
-            pTitle.textSize = sp(13f); pText.textSize = sp(10f)
-            c.drawText(p.title, r.left + dp(10f), r.top + dp(18f), pTitle)
-            c.drawText(p.sub, r.left + dp(10f), r.top + dp(36f), pText)
-            c.drawLine(cx, r.bottom, cx, r.bottom + dp(14f), if (p.hidden) pDash else pStroke)
-        }
+        // place pins: cards pinned to a bearing inside a ±30° window (Marcus, 08/11: one degree moved them a lot).
+        // They start below the top card and never sit on top of each other: an overlapping pin drops to the next row.
+        val pinTop = (cardRect?.bottom ?: 0f).coerceAtLeast(dp(44f)) + dp(14f)
+        val cw = dp(156f); val ch = dp(46f); val gap = dp(8f)
+        val rows = ArrayList<MutableList<RectF>>()
+        pins.map { p -> p to ((p.bearingDeg - heading + 540) % 360 - 180) }.filter { kotlin.math.abs(it.second) <= 30f }
+            .sortedBy { kotlin.math.abs(it.second) }.forEach { (p, d) ->
+                val cx = (w / 2 + d / 30f * (w / 2 - cw / 2)).coerceIn(cw / 2 + dp(6f), w - cw / 2 - dp(6f))
+                var row = 0
+                while (row < 3 && rows.getOrNull(row)?.any { it.left < cx + cw / 2 + gap && it.right > cx - cw / 2 - gap } == true) row++
+                if (row >= 3) return@forEach
+                while (rows.size <= row) rows.add(ArrayList())
+                val top = pinTop + row * (ch + gap + dp(10f))
+                val r = RectF(cx - cw / 2, top, cx + cw / 2, top + ch); rows[row].add(r)
+                c.drawRoundRect(r, dp(10f), dp(10f), pShadow)
+                c.drawRoundRect(r, dp(10f), dp(10f), if (p.hidden) pDash else pStroke)
+                pTitle.textSize = sp(13f); pText.textSize = sp(10f)
+                c.drawText(fit(p.title, pTitle, cw - dp(20f)), r.left + dp(10f), r.top + dp(18f), pTitle)
+                c.drawText(fit(p.sub, pText, cw - dp(20f)), r.left + dp(10f), r.top + dp(36f), pText)
+                c.drawLine(cx, r.bottom, cx, r.bottom + dp(10f), if (p.hidden) pDash else pStroke)
+            }
         // people: card beside the primary head, names beside the others
         drawFaces(c, w, useful)
         // labels beside heads (legacy, used by the Nexus plugin path)
@@ -89,12 +98,14 @@ class HudOverlay(ctx: Context) : View(ctx) {
             c.drawText(l.text, x, y, pTitle)
         }
         // card (top left, ≤ 70 % width)
+        if (cardTitle == null && cardRect != null) cardRect = null
         cardTitle?.let { t ->
             pTitle.textSize = sp(18f); pText.textSize = sp(13f)
             val cw = minOf(w * 0.7f, dp(340f)); val pad = dp(12f)
             val lines = cardLines.map { fit(it, pText, cw - 2 * pad) }
             val ch = pad + sp(20f) + dp(8f) + lines.size * sp(17f) + pad
             val r = RectF(dp(16f), dp(16f), dp(16f) + cw, dp(16f) + ch)
+            if (cardRect != r) { cardRect = r; post { invalidate() } } // pins are laid out from this
             c.drawRoundRect(r, dp(12f), dp(12f), pShadow)
             c.drawRoundRect(r, dp(12f), dp(12f), pStroke)
             c.drawText(fit(t.uppercase(), pTitle, cw - 2 * pad), r.left + pad, r.top + pad + sp(16f), pTitle)

@@ -30,7 +30,7 @@ object Describe {
                 setRequestProperty("Content-Type", "application/json"); setRequestProperty("x-goog-api-key", key)
             }
             c.outputStream.use { it.write(body.toString().toByteArray()) }
-            if (c.responseCode !in 200..299) return null
+            if (c.responseCode !in 200..299) { if (model != "models/gemini-2.5-flash") Backend.saveTextModel(ctx, "models/gemini-2.5-flash"); return null }
             val j = JSONObject(c.inputStream.bufferedReader().readText())
             val parts = j.optJSONArray("candidates")?.optJSONObject(0)?.optJSONObject("content")?.optJSONArray("parts") ?: return null
             (0 until parts.length()).mapNotNull { parts.optJSONObject(it) }
@@ -61,7 +61,10 @@ object Describe {
                 setRequestProperty("Content-Type", "application/json"); setRequestProperty("x-goog-api-key", key)
             }
             c.outputStream.use { it.write(body.toString().toByteArray()) }
-            if (c.responseCode !in 200..299) return null
+            if (c.responseCode !in 200..299) {
+                if (model != "models/gemini-2.5-flash") { Backend.saveTextModel(ctx, "models/gemini-2.5-flash"); return memoryVersion(ctx, conversation) }
+                return null
+            }
             val parts = JSONObject(c.inputStream.bufferedReader().readText()).optJSONArray("candidates")?.optJSONObject(0)?.optJSONObject("content")?.optJSONArray("parts") ?: return null
             val txt = (0 until parts.length()).mapNotNull { parts.optJSONObject(it) }.filter { !it.optBoolean("thought") }.joinToString("") { it.optString("text") }
             val j = JSONObject(txt.trim().removePrefix("```json").removeSuffix("```"))
@@ -82,7 +85,7 @@ object Describe {
             val m = models.optJSONObject(i) ?: return@mapNotNull null
             val methods = m.optJSONArray("supportedGenerationMethods") ?: return@mapNotNull null
             val n = m.optString("name")
-            if ((0 until methods.length()).any { methods.optString(it) == "generateContent" } && "flash" in n && "live" !in n && "image" !in n && "tts" !in n && "audio" !in n) n else null
+            if ((0 until methods.length()).any { methods.optString(it) == "generateContent" } && "flash" in n && listOf("live", "image", "tts", "audio", "think", "interaction", "robotics", "computer").none { it in n }) n else null
         }
         fun score(n: String) = (if ("lite" in n) -1 else 0) + (if ("preview" in n || "exp" in n) 0 else 1)
         val pick = ok.sortedWith(compareByDescending<String> { score(it) }.thenByDescending { it }).firstOrNull() ?: return null

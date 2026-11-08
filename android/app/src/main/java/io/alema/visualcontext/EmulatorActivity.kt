@@ -62,6 +62,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     private var placesOn = false
     private var placesAt = 0L
     private var heading = 0f
+    private var sx = 0f; private var sy = 1f
     private var liveOn = false
     private var lastDescribeAt = 0L
     private var front = false
@@ -100,6 +101,11 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         preview = PreviewView(this).apply { implementationMode = PreviewView.ImplementationMode.COMPATIBLE; scaleType = PreviewView.ScaleType.FILL_CENTER }
         val taps = android.view.GestureDetector(this, object : android.view.GestureDetector.SimpleOnGestureListener() {
             override fun onDoubleTap(e: MotionEvent): Boolean { if (countdownId != null) { cancelCountdown(); return true }; return false }
+            override fun onSingleTapConfirmed(e: MotionEvent): Boolean { // tap on the top card closes it
+                val r = hud.cardRect ?: return false
+                if (!r.contains(e.x, e.y)) return false
+                hud.cardTitle = null; hud.cardLines = emptyList(); hud.invalidate(); return true
+            }
         })
         hud = HudOverlay(this).apply {
             // Tap anywhere on the lens during the countdown = cancel (the swipe on the glasses).
@@ -402,7 +408,14 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
 
     override fun onNamed(name: String) { toast("guardado: $name"); if (speaks) { voice.tick(); voice.say(name) } }
     override fun onSaved(title: String) { toast("guardado: $title"); if (speaks) { voice.tick(); voice.say("Guardado: $title") } }
-    override fun onBrief(name: String, lines: List<String>) { hud.cardTitle = "✦ $name"; hud.cardLines = lines; hud.invalidate() }
+    override fun onBrief(name: String, lines: List<String>) {
+        val t = name.trim().let { if (it.firstOrNull()?.let { c -> !c.isLetterOrDigit() } == true) it else "✦ $it" }
+        hud.cardTitle = t; hud.cardLines = lines.filter { it.isNotBlank() }; hud.invalidate()
+        briefClear?.let { main.removeCallbacks(it) }
+        // "Lembrando…" waits for the answer; any card goes away by itself (Marcus, 08/11: it stayed forever).
+        briefClear = Runnable { if (hud.cardTitle == t) { hud.cardTitle = null; hud.cardLines = emptyList(); hud.invalidate() } }.also { main.postDelayed(it, if ("…" in t) 30_000L else 20_000L) }
+    }
+    private var briefClear: Runnable? = null
 
     private fun toggleLive() {
         if (!liveOn && Backend.offlineOnly(this)) { toast("O Live está desligado em Ajustes → Assistente (\"Desligar o Live\"). Ligue lá para falar com o assistente."); return }
@@ -509,8 +522,11 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         val r = FloatArray(9); SensorManager.getRotationMatrixFromVector(r, e.values)
         val east = -r[2]; val north = -r[5]
         if (east * east + north * north < 0.05f) return // phone lying flat: no direction
-        val h = ((Math.toDegrees(kotlin.math.atan2(east.toDouble(), north.toDouble())).toFloat()) + 360) % 360
-        if (kotlin.math.abs(h - heading) > 1f) { heading = h; hud.heading = h; if (placesOn) hud.invalidate() }
+        // Low-pass on the direction vector + a 2° dead band: pins stay put while the head barely moves (Marcus, 08/11).
+        val n = kotlin.math.sqrt(east * east + north * north); sx += 0.12f * (east / n - sx); sy += 0.12f * (north / n - sy)
+        val h = ((Math.toDegrees(kotlin.math.atan2(sx.toDouble(), sy.toDouble())).toFloat()) + 360) % 360
+        val diff = kotlin.math.abs((h - heading + 540) % 360 - 180)
+        if (diff > 2f) { heading = h; hud.heading = h; if (placesOn) hud.invalidate() }
     }
     override fun onAccuracyChanged(s: Sensor?, a: Int) = Unit
 

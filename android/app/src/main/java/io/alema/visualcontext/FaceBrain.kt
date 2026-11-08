@@ -44,7 +44,7 @@ class FaceBrain(private val ctx: Context) {
      */
     private class Track(val seen: Seen, var cx: Float, var cy: Float, var w: Float, var sureAt: Long, var lastAt: Long)
     private val tracks = java.util.concurrent.CopyOnWriteArrayList<Track>()
-    private val HOLD_MS = 12_000L
+    private val HOLD_MS = 6_000L // Marcus, 08/11: 12 s felt too long once the person had gone
 
     private fun near(t: Track, f: Face): Boolean {
         val cx = f.x + f.w / 2; val cy = f.y + f.h / 2
