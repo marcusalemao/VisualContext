@@ -95,11 +95,13 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     private val dim = Color.rgb(90, 120, 104)
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        glassesMode = getSharedPreferences("visualcontext", MODE_PRIVATE).getBoolean("emu_glasses", true)
         super.onCreate(savedInstanceState)
         Where.loadKey(this)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         preview = PreviewView(this).apply { implementationMode = PreviewView.ImplementationMode.COMPATIBLE; scaleType = PreviewView.ScaleType.FILL_CENTER }
         val taps = android.view.GestureDetector(this, object : android.view.GestureDetector.SimpleOnGestureListener() {
+            override fun onLongPress(e: MotionEvent) { hud.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS); toggleLive() }
             override fun onDoubleTap(e: MotionEvent): Boolean { if (countdownId != null) { cancelCountdown(); return true }; return false }
             override fun onSingleTapConfirmed(e: MotionEvent): Boolean { // tap on the top card closes it
                 val r = hud.cardRect ?: return false
@@ -110,7 +112,8 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         hud = HudOverlay(this).apply {
             // Tap anywhere on the lens during the countdown = cancel (the swipe on the glasses).
             setOnTouchListener { _, e ->
-                if (taps.onTouchEvent(e)) true
+                if (glassesMode) true // the glasses have no touch screen: use the temple strip below
+                else if (taps.onTouchEvent(e)) true
                 else if (e.action != MotionEvent.ACTION_UP) false
                 else if (hud.buttonRects.indexOfFirst { it.contains(e.x, e.y) }.let { it >= 0 && cardAction != null }) { cardAction?.invoke(hud.buttonRects.indexOfFirst { it.contains(e.x, e.y) }); true }
                 else if (hud.pinRects.entries.firstOrNull { it.value.contains(e.x, e.y) }?.key?.let { openPin(it); true } == true) true
@@ -135,6 +138,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         placesBtn = btn("") { placesOn = !placesOn; if (!placesOn) hud.pins = emptyList() else refreshPlaces(true); paintToggles() }; bar.addView(placesBtn)
         qrBtn = btn("▣ QR") { setQr(!qrOn) }; bar.addView(qrBtn)
         outBtn = btn("") { setOutput(when (output) { "tela" -> "tela_voz"; "tela_voz" -> "voz"; else -> "tela" }) }; bar.addView(outBtn)
+        modeBtn = btn("") { glassesMode = !glassesMode; getSharedPreferences("visualcontext", MODE_PRIVATE).edit().putBoolean("emu_glasses", glassesMode).apply(); paintMode() }; bar.addView(modeBtn)
         bar.addView(btn("⟲ Câmera") { front = !front; startCamera() })
         bar.addView(btn("✕ Fechar") { finish() })
         // The temple, simulated (Marcus, 08/11: as in the old emulator). Same actions as the glasses' touchpad.
@@ -145,6 +149,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
             setOnLongClickListener { performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS); toggleLive(); true } })
         temple.addView(tb("●● voltar", "Dois toques: voltar ou cancelar") { templeBack() })
         temple.addView(tb("haste ▶", "Haste para frente") { templeKey(android.view.KeyEvent.KEYCODE_DPAD_RIGHT) })
+        templeRow = temple
         root.addView(temple, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         root.addView(bar, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         // Android 15+ draws apps under the system bars: the whole screen steps in by the bars' size.
@@ -158,6 +163,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
             androidx.core.view.WindowInsetsCompat.CONSUMED
         }
         setContentView(root)
+        paintMode()
         voice = Voice(this)
         output = Voice.output(this)
         ears = Ears(this, onName = { n -> work.execute {
@@ -377,6 +383,17 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     }
 
     private var longFired = false
+    /**
+     * Two ways to use this screen (Marcus, 08/11): 👓 óculos = only the temple strip acts, as on the glasses (to rehearse and demo);
+     * 📱 celular = a phone product for who has no glasses: tap the lens (pills, pins, cards) and hold the lens to talk.
+     */
+    private var glassesMode = true
+    private lateinit var templeRow: LinearLayout
+    private lateinit var modeBtn: Button
+    private fun paintMode() {
+        templeRow.visibility = if (glassesMode) View.VISIBLE else View.GONE
+        modeBtn.text = if (glassesMode) "👓 Óculos" else "📱 Celular"
+    }
     private fun templeKey(code: Int) {
         if (code == android.view.KeyEvent.KEYCODE_DPAD_CENTER) dispatchKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, code))
         dispatchKeyEvent(android.view.KeyEvent(if (code == android.view.KeyEvent.KEYCODE_DPAD_CENTER) android.view.KeyEvent.ACTION_UP else android.view.KeyEvent.ACTION_DOWN, code))
