@@ -148,6 +148,42 @@ Deno.serve(async (req) => {
         if (error) throw error;
         return json(data);
       }
+      // ---- My places (Marcus, 08/11): "Casa", "Trabalho", "Pop Vegan" — names the user gave to spots, with a radius.
+      // GPS indoors is off by tens of metres (he lives at the back of a building and the phone says the next street).
+      case "places": {
+        const { data, error } = await mine(db.from("my_places").select("id, name, kind, lat, lng, radius_m, address"), w).order("created_at");
+        if (error) throw error;
+        return json(data);
+      }
+      case "save_place": {
+        const name = String(body.name ?? "").trim().slice(0, 60);
+        if (!name || typeof body.lat !== "number" || typeof body.lng !== "number") return json({ error: "name/lat/lng" }, 400);
+        const kind = ["casa", "trabalho", "frequente", "outro"].includes(body.kind) ? body.kind : "outro";
+        const rec = { ...stamp(w), name, kind, lat: body.lat, lng: body.lng, radius_m: Math.max(40, Math.min(500, Number(body.radius_m) || 120)), address: body.address ?? null, updated_at: new Date().toISOString() };
+        // Same name (or the one home / work) is updated, never duplicated.
+        let q = mine(db.from("my_places").select("id"), w);
+        q = kind === "casa" || kind === "trabalho" ? q.eq("kind", kind) : q.ilike("name", name);
+        const { data: ex } = await q.limit(1);
+        const { data, error } = ex?.length ? await db.from("my_places").update(rec).eq("id", ex[0].id).select("id").single() : await db.from("my_places").insert(rec).select("id").single();
+        if (error) throw error;
+        return json({ id: data.id, name });
+      }
+      case "delete_place": {
+        if (!body.id) return json({ error: "id" }, 400);
+        const { data, error } = await mine(db.from("my_places").delete(), w).eq("id", body.id).select("id");
+        if (error) throw error;
+        return json({ deleted: data?.length ?? 0 });
+      }
+      case "update_moment": { // the Manager fills a missing summary
+        if (!body.id) return json({ error: "id" }, 400);
+        const patch: Record<string, unknown> = {};
+        if (typeof body.summary === "string") patch.summary = body.summary.slice(0, 300);
+        if (typeof body.place === "string") patch.place = body.place.slice(0, 200);
+        if (!Object.keys(patch).length) return json({ error: "fields" }, 400);
+        const { data, error } = await mine(db.from("encounters").update(patch), w).eq("id", body.id).select("id");
+        if (error) throw error;
+        return json({ updated: data?.length ?? 0 });
+      }
       // ---- Skills (spec 1r): learned recipes, a closed menu of steps, never code ----
       case "skills": {
         const { data, error } = await mine(db.from("skills").select("*"), w).order("updated_at", { ascending: false });

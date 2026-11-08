@@ -159,6 +159,8 @@ header .sp{flex:1}
 .pv .st{margin-left:auto;font:11px var(--mono);color:var(--m);white-space:nowrap}
 .pv .st.new{color:var(--g)}
 .pick{max-height:40vh;overflow:auto;margin-top:10px}
+.chat{display:flex;flex-direction:column;gap:6px}.chat .msg{max-width:88%;padding:8px 12px;border-radius:14px;font-size:15px;line-height:1.4}
+.chat .me{align-self:flex-end;background:#0f2a1c;border:1px solid #1f6b44;color:var(--t)}.chat .ai{align-self:flex-start;background:var(--s2);border:1px solid var(--line);color:var(--t)}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--g);color:var(--bg);font-weight:600;padding:10px 16px;border-radius:12px;z-index:60;display:none;max-width:90vw}
 .toast.on{display:block}
 .gate{max-width:460px;margin:12vh auto 0;text-align:center}
@@ -258,6 +260,7 @@ function toast(t) { const el = $("#toast"); el.textContent = t; el.classList.add
 /* ---------- data ---------- */
 const S = { me: null, people: [], enc: [], things: [], notes: [], cat: "all", view: "time", order: "new", sel: null, filter: null, dayOnly: false, face: "all", pick: null };
 async function load() {
+  S.myPlaces = await call("places").catch(() => []);
   const [me, people, enc, things, notes] = await Promise.all([call("me"), call("list", { entity: "person", thumbs: true }), call("list", { entity: "encounter" }), call("list", { entity: "thing" }), call("list", { entity: "note" })]);
   Object.assign(S, { me, people, enc, things, notes });
   render();
@@ -286,21 +289,37 @@ function items() {
   for (const p of S.people) out.push({ kind: "person", id: p.id, title: isMe(p.name) ? p.name + " ★ você" : p.name, sub: isMe(p.name) ? "você mesmo · nunca vira encontro" : [p.relation, p.company, p.role].filter(Boolean).join(" · ") || (p.faces ? "rosto guardado" : "sem rosto ainda"), date: p.last_seen_date || p.created_at, ref: p, av: avatar(p) });
   for (const e of S.enc) {
     const live = e.capture_mode === "live";
-    out.push({ kind: "memory", id: e.id, title: live ? "✦ Conversa com o assistente" : isMe(e.person_name) ? "Você mesmo (teste ou espelho)" : e.person_name ? "Encontro com " + e.person_name : (e.context || "Momento"), sub: [e.place, e.summary].filter(Boolean).join(" · "), date: e.at, ref: e, sub2: "enc", av: (() => { const p = e.person_name && S.people.find(x => nameKey(x.name) === nameKey(e.person_name)); return p && photo(p) ? avatar(p) : `<span class="av k">${live ? "✦" : "◷"}</span>`; })() });
+    const what = said(e);
+    out.push({ kind: "memory", id: e.id, title: live ? "✦ " + (what || "Conversa com o assistente") : isMe(e.person_name) ? "Você mesmo (teste ou espelho)" : e.person_name ? "Encontro com " + e.person_name : (e.context || "Momento"), sub: [live ? "conversa com o assistente" : what, placeName(e)].filter(Boolean).join(" · "), date: e.at, ref: e, sub2: "enc", av: (() => { const p = e.person_name && S.people.find(x => nameKey(x.name) === nameKey(e.person_name)); return p && photo(p) ? avatar(p) : `<span class="av k">${live ? "✦" : "◷"}</span>`; })() });
   }
   const PK = { pix: ["◈", "Pix"], link: ["↗", "link"], cartao: ["☏", "cartão de visita"], cracha: ["☏", "crachá"], receita: ["✚", "receita"], formulario: ["▤", "formulário"], cardapio: ["▤", "cardápio"], musica: ["♪", "música"], outro: ["▤", "papel"] };
   for (const n of S.notes) { const k = PK[n.kind]; out.push({ kind: "memory", id: n.id, title: n.title || n.text, sub: k ? k[1] + (n.place ? " · " + n.place : "") : "nota" + (n.source === "voice" ? " por voz" : ""), date: n.at, ref: n, sub2: "note", av: `<span class="av k">${k ? k[0] : "✎"}</span>` }); }
   for (const t of S.things) out.push({ kind: "thing", id: t.id, title: t.name, sub: t.location_description || "", date: t.seen_at, ref: t, av: t.snapshot_url ? `<span class="av"><img src="${esc(t.snapshot_url)}" alt="" loading="lazy"></span>` : `<span class="av k">⌖</span>` });
   const places = new Map();
   const addPlace = (name, date, lat, lng) => { if (!name) return; const k = norm(name); const p = places.get(k) || { name, n: 0, date: null, lat, lng }; p.n++; if (!p.date || date > p.date) p.date = date; if (lat && !p.lat) { p.lat = lat; p.lng = lng; } places.set(k, p); };
-  S.enc.forEach(e => addPlace(e.place, e.at, e.lat, e.lng));
-  for (const [k, p] of places) out.push({ kind: "place", id: "pl:" + k, title: p.name, sub: p.n + (p.n === 1 ? " momento" : " momentos"), date: p.date, ref: p, av: `<span class="av k">◉</span>` });
+  S.enc.forEach(e => { const m = myPlaceAt(e.lat, e.lng); addPlace(m ? m.name : e.place, e.at, m ? m.lat : e.lat, m ? m.lng : e.lng); });
+  for (const [k, p] of places) { const mp = (S.myPlaces || []).find(x => norm(x.name) === k); out.push({ kind: "place", id: "pl:" + k, title: p.name, sub: (mp ? ({ casa: "sua casa", trabalho: "seu trabalho" }[mp.kind] || "seu lugar") + " · " : "") + p.n + (p.n === 1 ? " momento" : " momentos"), date: p.date, ref: p, av: `<span class="av k">${mp ? ({ casa: "⌂", trabalho: "▣" }[mp.kind] || "★") : "◉"}</span>` }); }
   return out;
 }
 const CATS = [["all", "Todos"], ["person", "Pessoas"], ["place", "Lugares"], ["thing", "Coisas"], ["memory", "Lembranças"]];
 function matches(it, q) { if (!q) return true; const n = norm(q); return norm(it.title + " " + it.sub + " " + (it.ref.notes || "") + " " + (it.ref.source || "") + " " + (it.ref.tags || []).join(" ")).includes(n); }
 // "Marcus Magalhães" and "Marcus de Magalhães" are the same person: particles and accents do not count.
 const nameKey = n => norm(n).split(" ").filter(w => w && !["de", "da", "do", "dos", "das", "e"].includes(w)).join(" ");
+// What a conversation was about (Marcus, 08/11: "me interessa o que eu conversei, não o endereço"):
+// the summary, or the first real question he asked. Lines the recognizer garbled (other alphabets, one word) are skipped.
+const said = e => {
+  if (e.summary) return e.summary;
+  const lines = String(e.transcript || "").split("\n").filter(l => /^Você:/.test(l)).map(l => l.replace(/^Você:\s*/, "").trim());
+  const ok = lines.find(l => l.split(/\s+/).length >= 3 && /^[\p{Script=Latin}\p{N}\p{P}\s]+$/u.test(l));
+  if (ok) return ok;
+  const a = String(e.transcript || "").split("\n").find(l => /^Assistente:/.test(l));
+  return a ? a.replace(/^Assistente:\s*/, "").slice(0, 90) : "";
+};
+const chat = t => String(t || "").split("\n").filter(Boolean).map(l => { const m = l.match(/^(Você|Assistente):\s*(.*)$/); return m ? `<div class="msg ${m[1] === "Você" ? "me" : "ai"}">${esc(m[2])}</div>` : `<div class="msg ai">${esc(l)}</div>`; }).join("");
+const geo = (a, b) => { const R = 6371000, p = Math.PI / 180, dl = (b.lat - a.lat) * p, dg = (b.lng - a.lng) * p, x = Math.sin(dl / 2) ** 2 + Math.cos(a.lat * p) * Math.cos(b.lat * p) * Math.sin(dg / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); };
+/** The saved place ("Casa", "Pop Vegan") this point falls in, with some slack because GPS indoors drifts. */
+const myPlaceAt = (lat, lng) => { if (lat == null) return null; let best = null, bd = 1e9; for (const p of S.myPlaces || []) { const d = geo(p, { lat, lng }); if (d < (p.radius_m || 120) + 40 && d < bd) { bd = d; best = p; } } return best; };
+const placeName = e => { const m = myPlaceAt(e.lat, e.lng); return m ? m.name : e.place; };
 const isMe = n => !!n && (norm(n) === "voce" || (!!(S.me && S.me.me_name) && nameKey(n) === nameKey(S.me.me_name)));
 const faceOk = it => it.kind !== "person" || S.face === "all" || (S.face === "yes" ? it.ref.faces > 0 : !it.ref.faces);
 
@@ -559,11 +578,11 @@ const encHtml = e => `<div class="enc"><div class="d">${esc(fmtFull(e.at))}${e.p
 function memHtml(r, it) {
   if (it.sub2 === "note") return noteHtml(r, it);
   const p = S.people.find(x => x.id === r.person_id) || (r.person_name ? S.people.find(x => nameKey(x.name) === nameKey(r.person_name)) : null);
-  return `<h2>${esc(it.title)}</h2><div class="hook">${esc(fmtFull(r.at))}${r.place ? " · " + esc(r.place) : ""}</div>
+  return `<h2>${esc(it.title)}</h2><div class="hook">${esc(fmtFull(r.at))}${placeName(r) ? " · " + esc(placeName(r)) : ""}</div>
   ${r.summary ? `<div class="sec"><h5>Resumo</h5><p>${esc(r.summary)}</p></div>` : ""}
   ${(r.follow_ups || []).length ? `<div class="sec"><h5>Pendências</h5><ul style="margin-left:18px">${r.follow_ups.map(f => `<li>${esc(typeof f === "string" ? f : f.text || "")}</li>`).join("")}</ul></div>` : ""}
   ${p ? `<div class="sec"><h5>Pessoa</h5><button class="row" data-k="person" data-id="${p.id}">${avatar(p)}<span class="tx"><span class="t1">${esc(p.name)}</span></span></button></div>` : ""}
-  ${r.transcript ? `<div class="sec"><h5>Transcrição</h5><div class="trans">${esc(r.transcript)}</div></div>` : ""}
+  ${r.transcript ? `<div class="sec"><h5>${r.capture_mode === "live" ? "A conversa" : "Transcrição"}</h5>${/^(Você|Assistente):/m.test(r.transcript) ? `<div class="chat">${chat(r.transcript)}</div>` : `<div class="trans">${esc(r.transcript)}</div>`}</div>` : ""}
   ${r.ocr ? `<div class="sec"><h5>Texto lido</h5><div class="trans">${esc(r.ocr)}</div></div>` : ""}
   <div class="btns">${r.lat ? `<a class="btn" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${r.lat},${r.lng}">Abrir no mapa</a>` : ""}<button class="btn dan" data-del-row="encounter:${r.id}">Apagar este momento</button></div>`;
 }
@@ -664,12 +683,24 @@ function thingHtml(t) {
   <div class="btns">${q ? `<a class="btn pri" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}">Abrir no mapa</a>` : ""}${t.lat ? `<a class="btn" target="_blank" rel="noopener" href="https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${t.lat},${t.lng}">Ver ao redor (Street View)</a><a class="btn" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${t.lat},${t.lng}&travelmode=walking">Como chegar</a>` : ""}<button class="btn dan" data-del-row="thing:${t.id}">Apagar</button></div>`;
 }
 function placeHtml(p) {
-  const k = norm(p.name), encs = S.enc.filter(e => norm(e.place) === k), th = S.things.filter(t => norm(t.location_description) === k);
-  const q = p.lat ? `${p.lat},${p.lng}` : p.name;
-  return `<div class="ph"><span class="av k" style="width:64px;height:64px;font-size:26px">◉</span><div><h2>${esc(p.name)}</h2><div class="hook">${p.n} ${p.n === 1 ? "momento" : "momentos"} · último ${esc(fmtWhen(p.date))}</div></div></div>
-  ${encs.length ? `<div class="sec"><h5>Momentos aqui</h5>${encs.map(e => `<div class="enc"><div class="d">${esc(fmtFull(e.at))}</div><div>${esc(e.person_name ? e.person_name + " · " : "")}${esc(e.summary || e.context || "")}</div></div>`).join("")}</div>` : ""}
-  ${th.length ? `<div class="sec"><h5>Coisas deixadas aqui</h5>${th.map(t => `<div class="enc"><div class="d">${esc(fmtFull(t.seen_at))}</div><div>${esc(t.name)}</div></div>`).join("")}</div>` : ""}
-  <div class="btns"><a class="btn pri" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}">Abrir no mapa</a></div>`;
+  const k = norm(p.name), mp = (S.myPlaces || []).find(x => norm(x.name) === k);
+  const encs = S.enc.filter(e => norm(placeName(e)) === k).sort((a, b) => b.at.localeCompare(a.at)), th = S.things.filter(t => norm(t.location_description) === k);
+  const q = mp ? `${mp.lat},${mp.lng}` : (/\d/.test(p.name) ? p.name.replace(" · ", ", ") + ", São Paulo" : p.lat ? `${p.lat},${p.lng}` : p.name);
+  const row = e => { const live = e.capture_mode === "live", w = said(e); return `<button class="row" data-k="memory" data-id="${esc(e.id)}"><span class="av k">${live ? "✦" : "◷"}</span><span class="tx"><span class="t1">${esc(live ? (w || "Conversa com o assistente") : (e.person_name && !isMe(e.person_name) ? "Encontro com " + e.person_name : w || e.context || "Momento"))}</span><span class="t2">${esc(fmtFull(e.at))}${live && w ? " · conversa com o assistente" : ""}</span></span></button>`; };
+  return `<div class="ph"><span class="av k" style="width:64px;height:64px;font-size:26px">${mp ? ({ casa: "⌂", trabalho: "▣" }[mp.kind] || "★") : "◉"}</span><div><h2>${esc(p.name)}</h2><div class="hook">${mp ? esc(({ casa: "Sua casa", trabalho: "Seu trabalho" }[mp.kind] || "Seu lugar")) + " · " : ""}${p.n} ${p.n === 1 ? "momento" : "momentos"} · último ${esc(fmtWhen(p.date))}</div></div></div>
+  ${mp ? "" : `<div class="sec"><h5>Que lugar é este?</h5><p class="muted" style="font-size:14px;margin:0 0 8px">O GPS dentro de casa erra algumas dezenas de metros. Dando um nome, todos os momentos por perto passam a aparecer com ele.</p><div class="btns" style="margin-top:0"><button class="btn" data-name-place="casa">⌂ É minha casa</button><button class="btn" data-name-place="trabalho">▣ É meu trabalho</button><button class="btn" data-name-place="outro">★ Dar um nome…</button></div></div>`}
+  ${encs.length ? `<div class="sec"><h5>O que aconteceu aqui</h5>${encs.map(row).join("")}</div>` : ""}
+  ${th.length ? `<div class="sec"><h5>Coisas deixadas aqui</h5>${th.map(t => `<button class="row" data-k="thing" data-id="${esc(t.id)}"><span class="av k">⌖</span><span class="tx"><span class="t1">${esc(t.name)}</span><span class="t2">${esc(fmtFull(t.seen_at))}</span></span></button>`).join("")}</div>` : ""}
+  <div class="btns"><a class="btn pri" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}">Abrir no mapa</a>${mp ? `<button class="btn" data-unname-place="${mp.id}">Tirar o nome</button>` : ""}</div>`;
+}
+async function namePlace(kind, placeTitle) {
+  const k = norm(placeTitle), encs = S.enc.filter(e => norm(placeName(e)) === k && e.lat != null);
+  if (!encs.length) return toast("Este lugar não tem coordenadas");
+  const lat = encs.reduce((a, e) => a + e.lat, 0) / encs.length, lng = encs.reduce((a, e) => a + e.lng, 0) / encs.length;
+  let name = kind === "casa" ? "Casa" : kind === "trabalho" ? "Trabalho" : prompt("Nome deste lugar (ex.: Pop Vegan, academia, casa da minha mãe):", "");
+  if (!name || !name.trim()) return;
+  try { await call("save_place", { name: name.trim(), kind, lat, lng, radius_m: 120, address: placeTitle }); S.myPlaces = await call("places"); render(); open("place", "pl:" + norm(name.trim())); toast("Pronto: " + name.trim()); }
+  catch (e) { toast("Não deu: " + e.message); }
 }
 
 /* ---------- edit / merge / delete (confirmations inside the page) ---------- */
@@ -863,6 +894,8 @@ document.addEventListener("click", e => {
   else if (d.closeAns) { $("#ans").classList.remove("on"); $("#q").value = ""; renderChips(); }
   else if (d.openSet) settings();
   else if (d.edit) editPerson(d.edit);
+  else if (d.namePlace) { const h = $("#detail h2"); namePlace(d.namePlace, h ? h.textContent : ""); }
+  else if (d.unnamePlace) { (async () => { await call("delete_place", { id: d.unnamePlace }); S.myPlaces = await call("places"); render(); toast("Nome tirado"); })(); }
   else if (d.me) { const p = S.people.find(x => x.id === d.me); (async () => { try { await call("set_me", { name: isMe(p.name) ? "" : p.name }); toast(isMe(p.name) ? "Desmarcado" : "Marcado como você"); await load(); open("person", p.id); } catch (e) { toast("Não deu: " + e.message); } })(); }
   else if (d.merge) mergePick(d.merge);
   else if (d.delPerson) { const p = S.people.find(x => x.id === d.delPerson); confirmDelete(p.name + " e os rostos guardados", () => call("delete_person", { id: p.id })); }
