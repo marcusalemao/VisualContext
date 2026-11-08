@@ -54,8 +54,20 @@ object Where {
 
     // Google Places (Marcus, 08/11: he has a Maps key; Google knows the Smart Fit and the Pop Vegan, OSM often does not).
     @Volatile var googleKey: String = ""
+    /** Package + signing SHA-1, so the key can be restricted to this app in Google Cloud ("Apps Android"). */
+    private var pkg = ""; private var sha1 = ""
+    private fun HttpURLConnection.androidId() { if (pkg.isNotEmpty()) { setRequestProperty("X-Android-Package", pkg); setRequestProperty("X-Android-Cert", sha1) } }
+    private fun appId(ctx: Context) {
+        if (pkg.isNotEmpty()) return
+        pkg = ctx.packageName
+        sha1 = try {
+            val info = if (android.os.Build.VERSION.SDK_INT >= 28) ctx.packageManager.getPackageInfo(pkg, android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES).signingInfo!!.apkContentsSigners[0].toByteArray()
+                else @Suppress("DEPRECATION") ctx.packageManager.getPackageInfo(pkg, android.content.pm.PackageManager.GET_SIGNATURES).signatures!![0].toByteArray()
+            java.security.MessageDigest.getInstance("SHA-1").digest(info).joinToString("") { "%02X".format(it) }
+        } catch (_: Exception) { "" }
+    }
     private var keyLoaded = false
-    fun loadKey(ctx: Context) { keyLoaded = true; googleKey = ctx.getSharedPreferences("visualcontext", Context.MODE_PRIVATE).getString("maps_key", "") ?: "" }
+    fun loadKey(ctx: Context) { appId(ctx); keyLoaded = true; googleKey = ctx.getSharedPreferences("visualcontext", Context.MODE_PRIVATE).getString("maps_key", "") ?: "" }
     fun setKey(ctx: Context, k: String) { ctx.getSharedPreferences("visualcontext", Context.MODE_PRIVATE).edit().putString("maps_key", k.trim()).apply(); googleKey = k.trim() }
 
     /** Named points of interest within [radius] m, nearest first: Google Places when there is a key, OpenStreetMap otherwise. Blocking. */
@@ -73,6 +85,7 @@ object Where {
             requestMethod = "POST"; connectTimeout = 6000; readTimeout = 8000; doOutput = true
             setRequestProperty("Content-Type", "application/json"); setRequestProperty("X-Goog-Api-Key", googleKey)
             setRequestProperty("X-Goog-FieldMask", "places.displayName,places.location,places.primaryTypeDisplayName,places.primaryType")
+            androidId()
         }
         c.outputStream.use { it.write(body.toString().toByteArray()) }
         if (c.responseCode !in 200..299) null else {
@@ -93,6 +106,7 @@ object Where {
         val c = (URL("https://places.googleapis.com/v1/places:searchNearby").openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"; connectTimeout = 6000; readTimeout = 8000; doOutput = true
             setRequestProperty("Content-Type", "application/json"); setRequestProperty("X-Goog-Api-Key", k); setRequestProperty("X-Goog-FieldMask", "places.displayName")
+            androidId()
         }
         c.outputStream.use { it.write("""{"maxResultCount":1,"locationRestriction":{"circle":{"center":{"latitude":-23.5614,"longitude":-46.6559},"radius":200.0}}}""".toByteArray()) }
         when (c.responseCode) { in 200..299 -> null; 403 -> "Chave recusada: confira se a Places API (New) está ativada e a restrição da chave."; 400 -> "Chave inválida."; else -> "Erro ${c.responseCode} do Google." }
