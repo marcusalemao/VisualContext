@@ -10,7 +10,7 @@ const TURNSTILE = Deno.env.get("TURNSTILE_SECRET") ?? "";
 const MODEL = Deno.env.get("DEMO_LIVE_MODEL") ?? "models/gemini-3.8-live";
 const TEXT_MODEL = Deno.env.get("DEMO_TEXT_MODEL") ?? "models/gemini-2.5-flash";
 const PER_IP = Number(Deno.env.get("DEMO_PER_IP_DAY") ?? 4);
-const PER_DAY = Number(Deno.env.get("DEMO_PER_DAY") ?? 150);
+const PER_DAY = Number(Deno.env.get("DEMO_PER_DAY") ?? 40);
 const ASKS = 25, MINUTES = 10;
 const ALLOWED = ["https://vc.alema.io", "https://visualcontext.alema.io", "https://web-visualcontext-site.visualcontext.pages.dev", "https://visualcontext.pages.dev"];
 
