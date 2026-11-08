@@ -32,6 +32,8 @@ class LiveSession(private val listener: Listener) {
     /** Tools and instructions the host adds (VisualContext's learned skills). */
     @Volatile var extraTools: org.json.JSONArray? = null
     @Volatile var extraSystem: String = ""
+    /** BCP-47 codes of the languages the user speaks; the transcription of his voice is held to these. Empty = auto. */
+    @Volatile var languages: List<String> = emptyList()
 
     fun connect(apiKey: String, voice: String, resumeHandle: String?, model: String = LiveProtocol.MODEL) {
         closingByUs = false
@@ -42,7 +44,7 @@ class LiveSession(private val listener: Listener) {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 if (!current(webSocket)) return
                 open = true
-                webSocket.send(LiveProtocol.setup(voice, resumeHandle, model, faceTools, locationTools, extraTools, extraSystem))
+                webSocket.send(LiveProtocol.setup(voice, resumeHandle, model, faceTools, locationTools, extraTools, extraSystem, languages))
             }
             override fun onMessage(webSocket: WebSocket, text: String) { if (current(webSocket)) listener.onEvents(LiveProtocol.parse(text)) }
             // The Live API sends its JSON in binary frames.

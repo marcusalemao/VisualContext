@@ -52,7 +52,10 @@ object Describe {
             "Regras da conversa condensada: mantenha as falas do usuário e tudo o que ele decidiu, pediu, comprou, combinou ou comeu. " +
             "Quando o assistente apenas leu algo para ele (cardápio, placa, bula, página, tela), troque a leitura por uma linha só, por exemplo \"[o assistente leu o cardápio]\". " +
             "Respostas curtas do assistente ficam. Mantenha o formato \"Você: …\" / \"Assistente: …\". " +
-            "Se houver algo íntimo ou sensível (nudez, sexo, saúde de alguém), o resumo é uma frase neutra, sem detalhes.\n\n" + conversation.take(12000)
+            "Se houver algo íntimo ou sensível (nudez, sexo, saúde de alguém), o resumo é uma frase neutra, sem detalhes.\n" +
+            "IDIOMAS: o usuário só fala " + Backend.languageNames(ctx).joinToString(", ") + ". A transcrição automática às vezes escreve a fala dele em outra língua ou em letras sem sentido: " +
+            "reescreva essas falas \"Você: …\" no que ele provavelmente disse, numa das línguas dele, usando a resposta do assistente como pista; se não der para saber, \"Você: [fala não entendida]\". " +
+            "Se for claramente outra pessoa falando outra língua (o assistente traduziu ou respondeu a ela), escreva \"Outra pessoa (língua): original — tradução: …\", guardando o original e a tradução em português.\n\n" + conversation.take(12000)
         val body = JSONObject().put("contents", JSONArray().put(JSONObject().put("parts", JSONArray().put(JSONObject().put("text", prompt)))))
             .put("generationConfig", JSONObject().put("maxOutputTokens", 6000).put("temperature", 0.2).put("responseMimeType", "application/json"))
         return try {

@@ -52,7 +52,7 @@ object LiveProtocol {
     """.trimIndent()
 
     fun setup(voice: String, resumeHandle: String?, model: String = MODEL, faces: Boolean = false, location: Boolean = false,
-              extraTools: JSONArray? = null, extraSystem: String = ""): String {
+              extraTools: JSONArray? = null, extraSystem: String = "", languages: List<String> = emptyList()): String {
         val gen = JSONObject()
             .put("responseModalities", JSONArray().put("AUDIO"))
             // No languageCode: native-audio models pick the language from the conversation; the system text asks for pt-BR.
@@ -81,7 +81,8 @@ object LiveProtocol {
             .put("generationConfig", gen)
             .put("systemInstruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", now() + "\n" + SYSTEM + (if (faces) "\n" + FACES else "") + (if (location) "\n" + PLACES else "") + (if (extraSystem.isNotEmpty()) "\n" + extraSystem else "")))))
             .put("tools", JSONArray().put(JSONObject().put("functionDeclarations", functions)).put(JSONObject().put("googleSearch", JSONObject())))
-            .put("inputAudioTranscription", JSONObject())
+            // Marcus, 08/11: his Portuguese was transcribed as other languages. The codes he speaks bias recognition.
+            .put("inputAudioTranscription", JSONObject().apply { if (languages.isNotEmpty()) put("languageCodes", JSONArray(languages)) })
             .put("outputAudioTranscription", JSONObject())
             .put("contextWindowCompression", JSONObject().put("slidingWindow", JSONObject()))
             .put("sessionResumption", JSONObject().apply { resumeHandle?.let { put("handle", it) } })

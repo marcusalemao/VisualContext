@@ -16,6 +16,7 @@ import java.net.URL
 object Music {
     const val TOOL = "identificar_musica"
     private const val SECONDS = 8
+    const val SECONDS_MS = SECONDS * 1000L
     @Volatile private var tap: ByteArrayOutputStream? = null
 
     /** The Live microphone feeds this while a song is being captured. */
@@ -28,7 +29,7 @@ object Music {
         .put("description", "Identifica a música que está tocando no ambiente (\"que música é essa\", \"quem canta isso\"). Chame assim que ele perguntar; os óculos escutam uns segundos. Nunca tente adivinhar a música sozinho.")
         .put("parameters", JSONObject().put("type", "OBJECT").put("properties", JSONObject()))
 
-    data class Song(val title: String, val artist: String, val album: String?, val link: String?)
+    data class Song(val title: String, val artist: String, val album: String?, val link: String?, val timecode: String? = null)
 
     /** Listens [SECONDS] s and asks AudD. Null = not found; throws with a message when the key or the network fails. */
     fun identify(ctx: Context): Song? {
@@ -51,7 +52,7 @@ object Music {
         val j = JSONObject(c.inputStream.bufferedReader().readText())
         if (j.optString("status") != "success") throw IllegalStateException(j.optJSONObject("error")?.optString("error_message") ?: "erro do AudD")
         val r = j.optJSONObject("result") ?: return null
-        return Song(r.optString("title"), r.optString("artist"), r.optString("album").ifEmpty { null }, r.optString("song_link").ifEmpty { null })
+        return Song(r.optString("title"), r.optString("artist"), r.optString("album").ifEmpty { null }, r.optString("song_link").ifEmpty { null }, r.optString("timecode").ifEmpty { null })
     }
 
     /** Google's sound search on the phone (the Google app's own intent; no result comes back to us). */

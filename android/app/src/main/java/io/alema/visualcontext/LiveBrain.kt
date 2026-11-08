@@ -34,6 +34,10 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
         fun onYes(): Boolean = false
         /** Where we are, in words, for memories made by tools (blocking, may be null). */
         fun placeName(): String? = null
+        /** A lyric line on the lens (replaces the card, no auto-close while it runs). */
+        fun onLyric(title: String, lines: List<String>) { onBrief(title, lines) }
+        /** Another app (the music player) took the screen: bring the glasses view back. */
+        fun comeBack() {}
     }
 
     private val main = Handler(Looper.getMainLooper())
@@ -64,6 +68,7 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
         val key = Backend.geminiKey(ctx)
         if (key.length < 20) { host.onState("error: falta a chave do Gemini (Ajustes)"); return }
         host.onState("connecting")
+        Player.duck(ctx, true) // music plays low while the assistant is open (Marcus, 08/11)
         speaker.start()
         io.execute {
             val model = Backend.liveModel(ctx) ?: (live.listModels(key)?.let { LiveProtocol.pickLiveModel(it) } ?: LiveProtocol.MODEL).also { Backend.saveLiveModel(ctx, it) }
@@ -71,16 +76,20 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
             Skills.refresh(ctx)
             MyPlaces.refresh(ctx)
             val placeHint = Where.location(ctx)?.let { loc -> MyPlaces.askHint(ctx, loc) } ?: ""
-            live.extraTools = Skills.tools(ctx).put(Music.tool()).put(Recall.tool()).put(MyPlaces.tool()).put(Agenda.tool()).also { a -> Things.tools().forEach { a.put(it) } }
-            live.extraSystem = Skills.system(ctx) + " MÚSICA: se ele perguntar que música está tocando, chame identificar_musica e espere; não adivinhe." + Things.SYSTEM +
+            live.extraTools = Skills.tools(ctx).put(Music.tool()).put(Recall.tool()).put(MyPlaces.tool()).put(Agenda.tool()).also { a -> Things.tools().forEach { a.put(it) }; Player.tools().forEach { a.put(it) } }
+            live.extraSystem = Skills.system(ctx) + " MÚSICA: se ele perguntar que música está tocando, chame identificar_musica e espere; não adivinhe. \"Toca…\" / \"quero ouvir…\" → tocar_musica; pausar, pular, voltar → controlar_musica; \"mostra a letra\" → mostrar_letra." + Things.SYSTEM +
                 " MEMÓRIA: perguntas sobre o passado dele (o que fiz hoje, quem encontrei, quando vi fulano, o que combinei) vão para consultar_memoria; leia a resposta em voz alta como veio." +
                 " AGENDA: compromissos, \"o que eu tenho para hoje/amanhã\" → agenda (nunca diga que não tem acesso). PESSOAS: \"o que eu preciso lembrar sobre a Ana\", \"do que falamos nos últimos dias\" → consultar_memoria com dias (10 se ele não disser) e, se for alguém prestes a encontrar, também preparar_conversa." +
-                " LUGARES: \"aqui é minha casa\", \"estou no trabalho\", \"isso é o Pop Vegan\" → marcar_lugar. " + placeHint
+                " LUGARES: \"aqui é minha casa\", \"estou no trabalho\", \"isso é o Pop Vegan\" → marcar_lugar." +
+                " IDIOMAS: ele fala " + Backend.languageNames(ctx).joinToString(", ") + "; entenda a fala dele sempre numa dessas línguas. INTÉRPRETE: se outra pessoa falar com ele numa língua que ele não fala, " +
+                "ou ele pedir \"traduz\", diga em português, curto, o que ela disse (\"Ela disse: …\"); se ele pedir para responder, diga a frase na língua dela para ele repetir ou para ela ouvir. " + placeHint
+            live.languages = Backend.languages(ctx)
             main.post { live.connect(key, Backend.voiceName(ctx), resumeHandle, model) }
         }
     }
 
     fun stop() {
+        Player.duck(ctx, false)
         saveConversation()
         open = false
         mic.stop(); speaker.stop(); live.close()
@@ -211,7 +220,7 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
     }
 
     override fun onClosed(reason: String, byUs: Boolean) {
-        main.post { saveConversation(); open = false; mic.stop(); if (!byUs) { Backend.saveLiveModel(ctx, null); host.onState("error: $reason") } }
+        main.post { saveConversation(); open = false; mic.stop(); Player.duck(ctx, false); if (!byUs) { Backend.saveLiveModel(ctx, null); host.onState("error: $reason") } }
     }
 
     private fun tool(call: LiveProtocol.Event.ToolCall) {
@@ -252,7 +261,9 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
                         File(dir, "notas.jsonl").appendText(JSONObject().put("quando", System.currentTimeMillis()).put("texto", texto).toString() + "\n")
                         Moments.send(ctx, JSONObject().put("action", "note").put("text", texto).put("source", "voice"))
                         main.post { host.onSaved(texto.take(40)) }
-                        JSONObject().put("guardado", true)
+                        // Keep has no API: the phone shows one notification and a tap puts the note there (spec 1n).
+                        NotesOut.offer(ctx, texto.take(40), texto, sensitive = false)
+                        JSONObject().put("guardado", true).put("diga_ao_usuario", "Guardei na sua memória. Se ele pediu o Keep: deixei um aviso no celular; um toque nele põe a nota no Keep (o Keep não deixa nenhum app gravar sozinho).")
                     }
                 }
                 LiveProtocol.TOOL_PAPER -> paperNow()
@@ -307,9 +318,11 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
                         if (song == null) { main.post { host.onBrief("♪", listOf("não reconheci essa música")) }; JSONObject().put("resultado", "não reconhecida").put("diga", "Não reconheci essa música. Quer que eu tente de novo?") }
                         else {
                             val line = "${song.title} — ${song.artist}" + (song.album?.let { " · $it" } ?: "")
+                            // The 8 s capture ended now: AudD's timecode is where the fragment started.
+                            Player.heard(song.title, song.artist, song.timecode); Player.lastPosMs.takeIf { it >= 0 }?.let { Player.lastPosMs = it + Music.SECONDS_MS }
                             main.post { host.onBrief("♪ " + song.title, listOf(song.artist, song.album ?: "")) }
                             Moments.send(ctx, JSONObject().put("action", "note").put("kind", "musica").put("title", line).put("text", "Ouviu $line").put("source", "glasses").put("place", host.placeName()))
-                            JSONObject().put("musica", song.title).put("artista", song.artist).put("album", song.album ?: "").put("diga", "É ${song.title}, de ${song.artist}.")
+                            JSONObject().put("musica", song.title).put("artista", song.artist).put("album", song.album ?: "").put("diga", "É ${song.title}, de ${song.artist}.").put("letra", "se ele quiser ver a letra na lente, chame mostrar_letra")
                         }
                     } catch (e: IllegalStateException) {
                         if (e.message == "sem chave") {
@@ -317,6 +330,30 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
                             JSONObject().put("resultado", if (ok) "abri a pesquisa por som do Google no celular; o resultado aparece lá" else "sem serviço de identificação de música; a chave do AudD pode ser configurada nos Ajustes")
                                 .put("diga", if (ok) "Abri a pesquisa por som do Google no seu celular." else "Ainda não tenho como identificar músicas; dá para ligar isso nos Ajustes.")
                         } else JSONObject().put("erro", e.message)
+                    }
+                }
+                Player.TOOL -> {
+                    val app = Player.play(ctx, call.args.optString("pedido"), call.args.optString("artista").ifBlank { null }, call.args.optString("musica").ifBlank { null })
+                    if (app == null) JSONObject().put("erro", "não achei um app de música no celular (Spotify, YouTube Music…)")
+                    else { main.postDelayed({ host.comeBack() }, 2500); main.post { host.onBrief("♪ Tocando", listOf(call.args.optString("pedido"))) }; JSONObject().put("tocando", call.args.optString("pedido")).put("app", app).put("diga", "Tocando.") }
+                }
+                Player.TOOL_CTRL -> JSONObject().put("ok", Player.control(ctx, call.args.optString("acao")))
+                Player.TOOL_LYRICS -> {
+                    if (call.args.optBoolean("parar")) { Player.stopLyrics(); main.post { host.onBrief("♪", listOf("letra fechada")) }; JSONObject().put("ok", true) }
+                    else {
+                        val last = Player.lastSong
+                        val t = call.args.optString("musica").ifBlank { last?.first ?: "" }; val a = call.args.optString("artista").ifBlank { last?.second ?: "" }
+                        if (t.isBlank()) JSONObject().put("erro", "não sei qual música; chame identificar_musica antes ou pergunte o nome")
+                        else {
+                            val l = Player.lyrics(t, a)
+                            if (l == null) JSONObject().put("erro", "não achei a letra dessa música")
+                            else {
+                                val same = last != null && last.first.equals(t, true)
+                                val pos = if (same) Player.lastPosMs else -1L
+                                main.post { Player.showLyrics(l, pos, Player.lastAt) { ti, li -> host.onLyric(ti, li) } }
+                                JSONObject().put("na_lente", if (l.synced.isNotEmpty() && pos >= 0) "letra sincronizada" else "começo da letra").put("diga", "Pronto, a letra está na lente.")
+                            }
+                        }
                     }
                 }
                 Skills.TOOL_LEARN -> {

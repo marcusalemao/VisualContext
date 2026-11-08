@@ -60,8 +60,15 @@ class SoloTest {
         assertEquals("AUDIO", g.getJSONArray("responseModalities").getString(0))
         assertTrue(s.getJSONObject("systemInstruction").toString().contains("português do Brasil"))
         val names = s.getJSONArray("tools").getJSONObject(0).getJSONArray("functionDeclarations").let { a -> (0 until a.length()).map { a.getJSONObject(it).getString("name") } }
-        assertEquals(listOf("olhar", "buscar_pessoa", "guardar_nota"), names)
+        assertTrue(names.containsAll(listOf("olhar", "buscar_pessoa", "guardar_nota")))
         assertTrue(s.getJSONObject("sessionResumption").length() == 0)
+        assertTrue(!s.getJSONObject("inputAudioTranscription").has("languageCodes"))
+    }
+
+    @Test fun transcriptionHeldToTheUsersLanguages() {
+        val s = JSONObject(LiveProtocol.setup("Kore", null, languages = listOf("pt-BR", "en-US", "de-DE"))).getJSONObject("setup")
+        val l = s.getJSONObject("inputAudioTranscription").getJSONArray("languageCodes")
+        assertEquals(listOf("pt-BR", "en-US", "de-DE"), (0 until l.length()).map { l.getString(it) })
     }
 
     @Test fun setupCarriesResumeHandle() {

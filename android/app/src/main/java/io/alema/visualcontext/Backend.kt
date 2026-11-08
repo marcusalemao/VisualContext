@@ -42,6 +42,12 @@ object Backend {
     /** Standby: between encounters, listen (offline) for questions to the memory and calls to the assistant. */
     fun standby(ctx: Context) = prefs(ctx).getBoolean("standby", false)
     fun setStandby(ctx: Context, on: Boolean) { prefs(ctx).edit().putBoolean("standby", on).apply() }
+
+    /** Languages the owner speaks (Marcus, 08/11: "só inglês, alemão e português"). His voice is never written as another. */
+    val LANGS = listOf("pt-BR" to "Português", "en-US" to "English", "de-DE" to "Deutsch", "es-ES" to "Español", "fr-FR" to "Français", "it-IT" to "Italiano")
+    fun languages(ctx: Context): List<String> = (prefs(ctx).getString("langs", null) ?: "pt-BR,en-US,de-DE").split(",").filter { it.isNotBlank() }
+    fun setLanguages(ctx: Context, l: List<String>) { prefs(ctx).edit().putString("langs", l.joinToString(",")).apply() }
+    fun languageNames(ctx: Context) = languages(ctx).mapNotNull { c -> LANGS.firstOrNull { it.first == c }?.second }
     fun saveVoice(ctx: Context, voice: String) { prefs(ctx).edit().putString("voice", voice).apply() }
     fun prefsText(ctx: Context): String? = prefs(ctx).getString("text_model", null)
     fun saveTextModel(ctx: Context, m: String?) { prefs(ctx).edit().putString("text_model", m).apply() }

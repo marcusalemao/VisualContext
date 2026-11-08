@@ -26,10 +26,11 @@ class HudOverlay(ctx: Context) : View(ctx) {
     var faces: List<FaceTag> = emptyList()
     /** Smoothed positions, so the card glides with the head instead of jumping every scan. */
     private val pos = HashMap<String, FloatArray>()
-    data class Pin(val title: String, val sub: String, val bearingDeg: Float, val hidden: Boolean)
+    data class Pin(val title: String, val sub: String, val bearingDeg: Float, val hidden: Boolean, val lat: Double = 0.0, val lon: Double = 0.0, val kind: String = "", val dist: Int = 0)
 
     var labels: List<Label> = emptyList()
     var cardTitle: String? = null
+        set(v) { if (v != field) { cardButtons = emptyList(); buttonFocus = 0 }; field = v }
     /** Where the top card was drawn (to keep pins below it and to close it with a tap). */
     var cardRect: RectF? = null; private set
     var cardLines: List<String> = emptyList()
@@ -38,6 +39,14 @@ class HudOverlay(ctx: Context) : View(ctx) {
     var arrow: String? = null
     var arrowText: String = ""
     var pins: List<Pin> = emptyList()
+    /** The pin chosen with the temple or a tap (Marcus, 08/11), drawn filled; -1 = none. Index into [pins]. */
+    var pinFocus = -1
+    /** Where each visible pin was drawn, by index in [pins] (for taps). */
+    val pinRects = HashMap<Int, RectF>()
+    /** On-screen buttons of the top card ("Sim", "Não"; "Ir a pé", "Detalhes"), and the one chosen with the temple. */
+    var cardButtons: List<String> = emptyList()
+    var buttonFocus = 0
+    val buttonRects = ArrayList<RectF>()
     var heading: Float = 0f
     /** QR mode: the camera's centre, shown inside a window in the middle of the lens so the code can be aimed (as on the glasses). */
     var qrWindow = false
@@ -70,20 +79,26 @@ class HudOverlay(ctx: Context) : View(ctx) {
         val pinTop = (cardRect?.bottom ?: 0f).coerceAtLeast(dp(44f)) + dp(14f)
         val cw = dp(156f); val ch = dp(46f); val gap = dp(8f)
         val rows = ArrayList<MutableList<RectF>>()
-        pins.map { p -> p to ((p.bearingDeg - heading + 540) % 360 - 180) }.filter { kotlin.math.abs(it.second) <= 30f }
-            .sortedBy { kotlin.math.abs(it.second) }.forEach { (p, d) ->
+        pinRects.clear()
+        // QR mode: the window is the only thing in the middle (pins sat on top of it).
+        if (!qrWindow) pins.mapIndexed { i, p -> Triple(i, p, (p.bearingDeg - heading + 540) % 360 - 180) }.filter { kotlin.math.abs(it.third) <= 30f || it.first == pinFocus }
+            .sortedBy { kotlin.math.abs(it.third) }.forEach { (idx, p, d0) -> val d = d0.coerceIn(-30f, 30f)
                 val cx = (w / 2 + d / 30f * (w / 2 - cw / 2)).coerceIn(cw / 2 + dp(6f), w - cw / 2 - dp(6f))
                 var row = 0
                 while (row < 3 && rows.getOrNull(row)?.any { it.left < cx + cw / 2 + gap && it.right > cx - cw / 2 - gap } == true) row++
                 if (row >= 3) return@forEach
                 while (rows.size <= row) rows.add(ArrayList())
                 val top = pinTop + row * (ch + gap + dp(10f))
-                val r = RectF(cx - cw / 2, top, cx + cw / 2, top + ch); rows[row].add(r)
+                val r = RectF(cx - cw / 2, top, cx + cw / 2, top + ch); rows[row].add(r); pinRects[idx] = r
+                val sel = idx == pinFocus
                 c.drawRoundRect(r, dp(10f), dp(10f), pShadow)
-                c.drawRoundRect(r, dp(10f), dp(10f), if (p.hidden) pDash else pStroke)
+                if (sel) { pFill.color = green; c.drawRoundRect(r, dp(10f), dp(10f), pFill) }
+                c.drawRoundRect(r, dp(10f), dp(10f), if (p.hidden && !sel) pDash else pStroke)
                 pTitle.textSize = sp(13f); pText.textSize = sp(10f)
+                if (sel) { pTitle.color = Color.BLACK; pText.color = Color.BLACK }
                 c.drawText(fit(p.title, pTitle, cw - dp(20f)), r.left + dp(10f), r.top + dp(18f), pTitle)
                 c.drawText(fit(p.sub, pText, cw - dp(20f)), r.left + dp(10f), r.top + dp(36f), pText)
+                pTitle.color = green; pText.color = soft
                 c.drawLine(cx, r.bottom, cx, r.bottom + dp(10f), if (p.hidden) pDash else pStroke)
             }
         // people: card beside the primary head, names beside the others
@@ -104,7 +119,8 @@ class HudOverlay(ctx: Context) : View(ctx) {
             val cw = minOf(w * 0.7f, dp(340f)); val pad = dp(12f)
             // Lines wrap instead of ending in "…" (Marcus, 08/11): up to 3 rows each, 8 in all.
             val lines = cardLines.flatMap { wrap(it, pText, cw - 2 * pad).let { w -> if (w.size > 3) w.take(2) + fit(w.drop(2).joinToString(" "), pText, cw - 2 * pad) else w } }.take(8)
-            val ch = pad + sp(20f) + dp(8f) + lines.size * sp(17f) + pad
+            val bh = if (cardButtons.isEmpty()) 0f else dp(48f) + dp(8f)
+            val ch = pad + sp(20f) + dp(8f) + lines.size * sp(17f) + pad + bh
             val r = RectF(dp(16f), dp(16f), dp(16f) + cw, dp(16f) + ch)
             if (cardRect != r) { cardRect = r; post { invalidate() } } // pins are laid out from this
             c.drawRoundRect(r, dp(12f), dp(12f), pShadow)
@@ -112,7 +128,24 @@ class HudOverlay(ctx: Context) : View(ctx) {
             c.drawText(fit(t.uppercase(), pTitle, cw - 2 * pad), r.left + pad, r.top + pad + sp(16f), pTitle)
             c.drawLine(r.left + pad, r.top + pad + sp(22f), r.right - pad, r.top + pad + sp(22f), pStroke)
             lines.forEachIndexed { i, s -> c.drawText(s, r.left + pad, r.top + pad + sp(22f) + dp(6f) + (i + 1) * sp(17f) - dp(3f), pText) }
+            // Buttons on the card itself (Marcus, 08/11: "toque ou diga sim" had no Yes on the screen). 48 dp to tap.
+            buttonRects.clear()
+            if (cardButtons.isNotEmpty()) {
+                val n = cardButtons.size; val g = dp(8f); val bw = (cw - 2 * pad - (n - 1) * g) / n
+                val top = r.bottom - pad - dp(48f)
+                pTitle.textSize = sp(15f)
+                cardButtons.forEachIndexed { i, label ->
+                    val b = RectF(r.left + pad + i * (bw + g), top, r.left + pad + i * (bw + g) + bw, top + dp(48f)); buttonRects.add(b)
+                    val sel = i == buttonFocus
+                    if (sel) { pFill.color = green; c.drawRoundRect(b, dp(10f), dp(10f), pFill) } else c.drawRoundRect(b, dp(10f), dp(10f), pShadow)
+                    c.drawRoundRect(b, dp(10f), dp(10f), pStroke)
+                    pTitle.color = if (sel) Color.BLACK else green
+                    val tx = fit(label, pTitle, bw - dp(12f)); c.drawText(tx, b.centerX() - pTitle.measureText(tx) / 2, b.centerY() + sp(5f), pTitle)
+                    pTitle.color = green
+                }
+            }
         }
+        if (cardTitle == null) buttonRects.clear()
         // arrow (walking guidance)
         arrow?.let { a ->
             pTitle.textSize = sp(56f)

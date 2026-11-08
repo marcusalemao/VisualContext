@@ -2,6 +2,7 @@ package io.alema.visualcontext
 
 import android.content.Context
 import android.content.Intent
+import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -47,6 +48,9 @@ class Ears(private val ctx: Context, private val onName: (String) -> Unit, priva
         main.removeCallbacks(endCheck); main.postDelayed(endCheck, 60_000)
     }
 
+    /** The screen goes away: stop listening and give back any muted sound. */
+    fun close() { standby = false; stopRec() }
+
     /** The assistant takes the microphone. */
     fun pause() { paused = true; stopRec() }
     fun resume() { paused = false; if ((startedAt > 0 && System.currentTimeMillis() - lastFaceAt < 60_000) || standby) start() }
@@ -64,7 +68,29 @@ class Ears(private val ctx: Context, private val onName: (String) -> Unit, priva
         listenOnce()
     }
 
-    private fun stopRec() { on = false; onState(false); try { rec?.cancel(); rec?.destroy() } catch (_: Exception) {}; rec = null }
+    private fun stopRec() { on = false; onState(false); try { rec?.cancel(); rec?.destroy() } catch (_: Exception) {}; rec = null; quiet(false); musicQuiet(false) }
+
+    /**
+     * Marcus, 08/11: with standby on it "fica o tempo todo fazendo bips". Android's recognizer plays an earcon at
+     * every start and stop, and listening restarts after each phrase or silence. While Ears listens, the system stream
+     * is muted (notifications keep their sound); the music stream only for the instant the recognizer starts, and only
+     * when nothing is playing (so the assistant's voice and music are never cut). Everything is restored on stop.
+     */
+    private val am by lazy { ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
+    private var muted = false
+    private var musicMuted = false
+    private fun quiet(on: Boolean) {
+        if (on == muted) return; muted = on
+        for (st in intArrayOf(AudioManager.STREAM_SYSTEM)) // notifications keep their sound (WhatsApp, calls)
+            try { am.adjustStreamVolume(st, if (on) AudioManager.ADJUST_MUTE else AudioManager.ADJUST_UNMUTE, 0) } catch (_: Exception) {}
+    }
+    private fun musicQuiet(on: Boolean) {
+        if (on == musicMuted) return
+        if (on && am.isMusicActive) return
+        musicMuted = on
+        try { am.adjustStreamVolume(AudioManager.STREAM_MUSIC, if (on) AudioManager.ADJUST_MUTE else AudioManager.ADJUST_UNMUTE, 0) } catch (_: Exception) {}
+    }
+    private val unmuteMusic = Runnable { musicQuiet(false) }
 
     private fun listenOnce() {
         if (!on || paused) return
@@ -76,6 +102,7 @@ class Ears(private val ctx: Context, private val onName: (String) -> Unit, priva
             .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             .putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
             .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 2500L)
+        quiet(true); musicQuiet(true); main.removeCallbacks(unmuteMusic); main.postDelayed(unmuteMusic, 700)
         try { r.startListening(i) } catch (_: Exception) { main.postDelayed(::listenOnce, 1500) }
     }
 
@@ -85,8 +112,11 @@ class Ears(private val ctx: Context, private val onName: (String) -> Unit, priva
             main.postDelayed(::listenOnce, 150)
         }
         override fun onPartialResults(b: Bundle?) { b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.let { heard(it, final = false) } }
-        override fun onError(error: Int) { main.postDelayed(::listenOnce, if (error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY) 1200 else 300) }
-        override fun onReadyForSpeech(p: Bundle?) {}
+        override fun onError(error: Int) { main.postDelayed(::listenOnce, when (error) {
+            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> 1200
+            SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> 600 // silence: restart a bit slower
+            else -> 300 }) }
+        override fun onReadyForSpeech(p: Bundle?) { main.removeCallbacks(unmuteMusic); main.postDelayed(unmuteMusic, 250) }
         override fun onBeginningOfSpeech() {}
         override fun onRmsChanged(v: Float) {}
         override fun onBufferReceived(b: ByteArray?) {}

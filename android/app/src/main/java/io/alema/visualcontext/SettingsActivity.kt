@@ -283,6 +283,18 @@ class SettingsActivity : Activity() {
             textSize = 13f; setTextColor(soft); buttonTintList = android.content.res.ColorStateList.valueOf(green); isChecked = Backend.standby(this@SettingsActivity)
             setOnCheckedChangeListener { _, on -> Backend.setStandby(this@SettingsActivity, on) }
         })
+        c7.p("Idiomas que eu falo: o que você diz só é escrito nestas línguas, nunca em outra.", 13f)
+        val langRow = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val chosen = Backend.languages(this).toMutableList()
+        for ((code, label) in Backend.LANGS) langRow.addView(android.widget.CheckBox(this).apply {
+            text = label; textSize = 14f; setTextColor(soft); buttonTintList = android.content.res.ColorStateList.valueOf(green); isChecked = code in chosen
+            setOnCheckedChangeListener { b, on ->
+                if (on) { if (code !in chosen) chosen.add(code) } else chosen.remove(code)
+                if (chosen.isEmpty()) { chosen.add(code); b.isChecked = true } // at least one
+                Backend.setLanguages(this@SettingsActivity, Backend.LANGS.map { it.first }.filter { it in chosen })
+            }
+        })
+        c7.addView(langRow)
         c7.p("Saída: como os óculos falam com você", 13f)
         val outs = listOf("tela" to "Só tela", "tela_voz" to "Tela + voz", "voz" to "Só voz (óculos sem tela)")
         c7.addView(android.widget.RadioGroup(this).apply {

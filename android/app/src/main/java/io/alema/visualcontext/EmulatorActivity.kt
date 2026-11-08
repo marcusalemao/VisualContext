@@ -59,7 +59,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     @Volatile private var facesOn = true
     @Volatile private var scanning = false
     private var lastFaceScan = 0L
-    private var placesOn = false
+    private var placesOn = true // Marcus, 08/11: "quero mostrar a experiência completa"
     private var placesAt = 0L
     private var heading = 0f
     private var sx = 0f; private var sy = 1f
@@ -103,7 +103,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
             override fun onDoubleTap(e: MotionEvent): Boolean { if (countdownId != null) { cancelCountdown(); return true }; return false }
             override fun onSingleTapConfirmed(e: MotionEvent): Boolean { // tap on the top card closes it
                 val r = hud.cardRect ?: return false
-                if (!r.contains(e.x, e.y)) return false
+                if (!r.contains(e.x, e.y) || hud.buttonRects.any { it.contains(e.x, e.y) }) return false
                 hud.cardTitle = null; hud.cardLines = emptyList(); hud.invalidate(); return true
             }
         })
@@ -112,8 +112,9 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
             setOnTouchListener { _, e ->
                 if (taps.onTouchEvent(e)) true
                 else if (e.action != MotionEvent.ACTION_UP) false
+                else if (hud.buttonRects.indexOfFirst { it.contains(e.x, e.y) }.let { it >= 0 && cardAction != null }) { cardAction?.invoke(hud.buttonRects.indexOfFirst { it.contains(e.x, e.y) }); true }
+                else if (hud.pinRects.entries.firstOrNull { it.value.contains(e.x, e.y) }?.key?.let { openPin(it); true } == true) true
                 else if (countdownId != null) { cancelCountdown(); true }
-                else if (qr.offer != null) { acceptQr(); true }
                 else if (hud.cardTitle != null && hud.cardTitle != "Câmera") { hud.cardTitle = null; hud.cardLines = emptyList(); hud.invalidate(); true } else false
             }
         }
@@ -250,8 +251,84 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     private fun paintQr() {
         val o = qr.offer
         if (o == null) { if (hud.cardTitle != null && hud.cardTitle != "Câmera") { hud.cardTitle = null; hud.cardLines = emptyList() } }
-        else { val (t, l) = QrLook.card(o); hud.cardTitle = t; hud.cardLines = l; hud.qrHint = "achei: $t"; if (speaks) voice.say("$t. " + l.joinToString(". "), interrupt = true) }
+        else {
+            val (t, l) = QrLook.card(o)
+            // One good read is enough (Marcus, 08/11): the window closes, the card stays with Sim / Não on screen.
+            if (qrOn) stopQrScan()
+            showCard(t, l.map { it.replace(Regex("""\s*toque ou diga "sim"""") , "") }, listOf("✓ Sim", "✕ Não")) { i -> if (i == 0) acceptQr() else { qr.dismiss(SystemClock.elapsedRealtime()); closeCard() } }
+            if (speaks) voice.say("$t. " + l.joinToString(". "), interrupt = true)
+        }
         hud.invalidate()
+    }
+
+    /** Stops looking for codes but keeps the one found (and its card). */
+    private fun stopQrScan() {
+        qrOn = false; hud.qrWindow = false; hud.qrView = null
+        qrBtn.setTextColor(dim); qrBtn.text = "▣ QR"
+    }
+
+    // ── Cards with buttons (QR, places) ──
+    private var cardAction: ((Int) -> Unit)? = null
+    private fun showCard(title: String, lines: List<String>, buttons: List<String>, action: (Int) -> Unit) {
+        hud.cardTitle = title; hud.cardLines = lines; hud.cardButtons = buttons; hud.buttonFocus = 0; cardAction = action; hud.invalidate()
+        briefClear?.let { main.removeCallbacks(it) }
+        briefClear = Runnable { if (hud.cardTitle == title) closeCard() }.also { main.postDelayed(it, 30_000L) }
+    }
+    private fun closeCard() { hud.cardTitle = null; hud.cardLines = emptyList(); cardAction = null; hud.pinFocus = -1; hud.invalidate() }
+
+    /** A place pin chosen (tap or temple): its card with what to do (Marcus, 08/11: "caminhar, navegar até lá, ou mais detalhes"). */
+    private fun openPin(i: Int) {
+        val p = hud.pins.getOrNull(i) ?: return
+        hud.pinFocus = i
+        showCard("⌖ " + p.title, listOf(listOf(p.kind, if (p.dist > 0) "${p.dist} m" else "").filter { it.isNotBlank() }.joinToString(" · ")), listOf("▶ Ir a pé", "ⓘ Detalhes", "✕")) { b ->
+            when (b) {
+                0 -> { closeCard(); goTo(p) }
+                1 -> pinDetails(p)
+                else -> closeCard()
+            }
+        }
+        hud.pinFocus = i; hud.invalidate()
+    }
+    private fun goTo(p: HudOverlay.Pin) {
+        val i = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("google.navigation:q=${p.lat},${p.lon}&mode=w")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (i.resolveActivity(packageManager) == null) i.data = android.net.Uri.parse("https://www.google.com/maps/dir/?api=1&travelmode=walking&destination=${p.lat},${p.lon}")
+        try { startActivity(i) } catch (_: Exception) { toast("não consegui abrir o mapa") }
+    }
+    private fun pinDetails(p: HudOverlay.Pin) {
+        if (liveOn) { live.context("Ele escolheu na lente o lugar \"${p.title}\" (${p.kind}, a ${p.dist} m, coordenadas ${p.lat},${p.lon}). Diga em duas frases o que é, se está aberto agora e o que vale saber; use a busca do Google."); closeCard() }
+        else {
+            val i = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("geo:${p.lat},${p.lon}?q=" + android.net.Uri.encode(p.title))).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            try { startActivity(i) } catch (_: Exception) { toast("sem app de mapas") }
+            closeCard()
+        }
+    }
+
+    /** The temple (D-pad on the glasses, arrows on a keyboard): moves between pins or card buttons; centre = choose. */
+    override fun dispatchKeyEvent(e: android.view.KeyEvent): Boolean {
+        if (e.action != android.view.KeyEvent.ACTION_DOWN) return super.dispatchKeyEvent(e)
+        val code = e.keyCode
+        val prev = code == android.view.KeyEvent.KEYCODE_DPAD_UP || code == android.view.KeyEvent.KEYCODE_DPAD_LEFT
+        val next = code == android.view.KeyEvent.KEYCODE_DPAD_DOWN || code == android.view.KeyEvent.KEYCODE_DPAD_RIGHT
+        val ok = code == android.view.KeyEvent.KEYCODE_DPAD_CENTER || code == android.view.KeyEvent.KEYCODE_ENTER
+        if (hud.cardButtons.isNotEmpty() && cardAction != null) {
+            when {
+                prev -> { hud.buttonFocus = (hud.buttonFocus - 1 + hud.cardButtons.size) % hud.cardButtons.size; hud.invalidate(); return true }
+                next -> { hud.buttonFocus = (hud.buttonFocus + 1) % hud.cardButtons.size; hud.invalidate(); return true }
+                ok -> { cardAction?.invoke(hud.buttonFocus); return true }
+                code == android.view.KeyEvent.KEYCODE_BACK -> { closeCard(); return true }
+            }
+        }
+        if ((prev || next) && hud.pins.isNotEmpty()) {
+            // Only the pins in view, nearest to the centre first, in left-to-right order.
+            val seen = hud.pins.indices.filter { kotlin.math.abs((hud.pins[it].bearingDeg - hud.heading + 540) % 360 - 180) <= 30f }
+                .sortedBy { (hud.pins[it].bearingDeg - hud.heading + 540) % 360 - 180 }
+            if (seen.isEmpty()) return super.dispatchKeyEvent(e)
+            val at = seen.indexOf(hud.pinFocus)
+            hud.pinFocus = seen[if (at < 0) (if (next) 0 else seen.size - 1) else (at + (if (next) 1 else -1) + seen.size) % seen.size]; hud.invalidate(); return true
+        }
+        if (ok && hud.pinFocus >= 0) { openPin(hud.pinFocus); return true }
+        if (code == android.view.KeyEvent.KEYCODE_BACK && hud.pinFocus >= 0) { hud.pinFocus = -1; hud.invalidate(); return true }
+        return super.dispatchKeyEvent(e)
     }
 
     /** The tap (or "sim") on a QR card. Pix: copy the code; the bank app (or the wallet) offers to pay. Never pays by itself. */
@@ -276,6 +353,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
             // Sites are not opened (no browser in the lens): a menu is read for you, any other link goes to the notes.
             is io.alema.qrcore.QrResult.Link -> if (MenuRead.looksLikeMenu(r.url)) openMenu(r.url) else {
                 work.execute { Moments.send(this, org.json.JSONObject().put("action", "note").put("kind", "link").put("title", "Link: " + r.host).put("text", r.url).put("source", "qr")) }
+                NotesOut.offer(this, "Link: " + r.host, r.url, sensitive = false)
                 toast("link guardado nas notas: ${r.host}")
             }
             is io.alema.qrcore.QrResult.Wifi -> {
@@ -290,7 +368,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
                     .put("name", name).put("company", r.org ?: "").put("role", r.title ?: "").put("contact_phone", r.phones.firstOrNull() ?: "").put("contact_email", r.emails.firstOrNull() ?: "").put("source", "qr")))) }
                     toast("guardado: $name") }
             }
-            is io.alema.qrcore.QrResult.Text -> { clip.setPrimaryClip(android.content.ClipData.newPlainText("QR", r.text)); toast("texto copiado") }
+            is io.alema.qrcore.QrResult.Text -> { clip.setPrimaryClip(android.content.ClipData.newPlainText("QR", r.text)); NotesOut.offer(this, "QR: " + r.text.take(30), r.text, sensitive = false); toast("texto copiado") }
             else -> Unit
         }
     }
@@ -417,6 +495,17 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     }
     private var briefClear: Runnable? = null
 
+    override fun onLyric(title: String, lines: List<String>) {
+        hud.cardTitle = title; hud.cardLines = lines; hud.invalidate()
+        briefClear?.let { main.removeCallbacks(it) }
+        briefClear = Runnable { if (hud.cardTitle == title) { hud.cardTitle = null; hud.cardLines = emptyList(); hud.invalidate() } }.also { main.postDelayed(it, 15_000L) }
+    }
+
+    /** The music app came to the front to start playing: back to the glasses view. */
+    override fun comeBack() {
+        try { startActivity(Intent(this, EmulatorActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (_: Exception) {}
+    }
+
     private fun toggleLive() {
         if (!liveOn && Backend.offlineOnly(this)) { toast("O Live está desligado em Ajustes → Assistente (\"Desligar o Live\"). Ligue lá para falar com o assistente."); return }
         if (liveOn) { if (live.speaking) live.interrupt() else { live.stop(); liveOn = false; ears.resume() } }
@@ -496,7 +585,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
             main.post {
                 if (near.isEmpty() && !addr.isNullOrBlank()) toast("📍 $addr")
                 // "hidden" = farther than 150 m (approximation of "behind a building" until we have building outlines).
-                hud.pins = near.map { HudOverlay.Pin(it.name, "${it.kind} · ${it.dist} m", it.bearing.toFloat(), hidden = it.dist > 150) }
+                hud.pins = near.map { HudOverlay.Pin(it.name, "${it.kind} · ${it.dist} m", it.bearing.toFloat(), hidden = it.dist > 150, lat = it.lat, lon = it.lon, kind = it.kind, dist = it.dist) }; hud.pinFocus = -1
                 hud.invalidate()
             }
         }
@@ -530,6 +619,6 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     }
     override fun onAccuracyChanged(s: Sensor?, a: Int) = Unit
 
-    override fun onDestroy() { ears.finish(); voice.close(); main.removeCallbacksAndMessages(null); live.destroy(); faces.close(); legacy?.destroy(); work.shutdownNow(); super.onDestroy() }
+    override fun onDestroy() { ears.finish(); ears.close(); voice.close(); main.removeCallbacksAndMessages(null); live.destroy(); faces.close(); legacy?.destroy(); work.shutdownNow(); super.onDestroy() }
     private fun toast(t: String) = Toast.makeText(this, t, Toast.LENGTH_SHORT).show()
 }
