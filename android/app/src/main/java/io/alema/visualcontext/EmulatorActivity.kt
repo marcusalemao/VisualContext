@@ -361,6 +361,8 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         lastSeen = seen; lastBw = bw; lastBh = bh
         val primary = seen.firstOrNull { it.label.isNotEmpty() }
         if (primary != null && !primary.isMe && ::ears.isInitialized && !liveOn) ears.faceSeen(if (primary.known) primary.label else null)
+        // It was me all along (the encounter had started while the face was still unknown): drop it.
+        if (primary != null && primary.isMe && ::ears.isInitialized && ears.who == null) ears.discard()
         if (primary != null && !primary.isMe && speaks) announce(primary)
         // Countdown: a new face that stays in front of you for 7 s; then 5…0 and it is kept.
         val pid = primary?.pendingId
@@ -374,7 +376,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         // Known person: records at once, no countdown (spec 10/10). New person: countdown, then recording.
         hud.faces = seen.filter { it.label.isNotEmpty() }.map {
             val cd = if (it.pendingId != null && it.pendingId == countdownId) maxOf(left, 1) else 0
-            toTag(it, bw, bh, it === primary, cd).copy(recording = it === primary && it.known && cd == 0)
+            toTag(it, bw, bh, it === primary, cd).copy(recording = it === primary && it.known && !it.isMe && cd == 0)
         }
         hud.invalidate()
     }

@@ -26,7 +26,7 @@ class Ears(private val ctx: Context, private val onName: (String) -> Unit, priva
     private val text = StringBuilder()
     private var startedAt = 0L
     private var lastFaceAt = 0L
-    private var who: String? = null
+    var who: String? = null; private set
     private var lastName = ""
     private var lastNameAt = 0L
 
