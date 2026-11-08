@@ -732,11 +732,11 @@ function dupReview() {
 
 /* ---------- import: LinkedIn CSV, phone vCard, spreadsheet CSV ---------- */
 function importSheet() {
-  sheet(`<h3>Importar contatos</h3><p class="sub">Quem chega sem rosto espera o primeiro encontro para ser reconhecido. Nada duplica: o mesmo nome só completa os campos que faltam.</p>
-  <button class="opt" data-imp="linkedin"><span class="ic">in</span><span><b>LinkedIn</b><small>Configurações → Privacidade → Obter uma cópia → Conexões. Chega por e-mail um arquivo Connections.csv.</small></span></button>
-  <button class="opt" data-imp="vcf"><span class="ic">☏</span><span><b>Contatos do celular</b><small>App Contatos → Exportar → arquivo .vcf (vCard).</small></span></button>
-  <button class="opt" data-imp="csv"><span class="ic">▦</span><span><b>Planilha</b><small>Google Planilhas ou Excel → Fazer download → CSV. Colunas: nome, empresa, cargo, e-mail, telefone.</small></span></button>
-  <button class="opt" disabled style="opacity:.55"><span class="ic">◐</span><span><b>Google Fotos</b><small>Rostos com nome, pelo app do celular. Em breve.</small></span></button>`);
+  sheet(`<h3>Importar</h3><p class="sub"><b>Rostos</b> se importam no app do celular (Ajustes → Importar rostos): Google Fotos, contatos com foto, prints do LinkedIn, Facebook e Instagram. Ele precisa da câmera e do reconhecimento, que só existem lá.</p>
+  <p class="sub"><b>Aqui</b> entram arquivos, que é mais fácil num computador. Quem chega sem rosto espera o primeiro encontro para ser reconhecido. Nada duplica: o mesmo nome só completa os campos que faltam.</p>
+  <button class="opt" data-imp="linkedin"><span class="ic">in</span><span><b>LinkedIn (dados, sem fotos)</b><small>Configurações → Privacidade → Obter uma cópia → Conexões. Chega por e-mail um arquivo Connections.csv com nome, empresa e cargo.</small></span></button>
+  <button class="opt" data-imp="vcf"><span class="ic">☏</span><span><b>Contatos exportados (.vcf)</b><small>Para contatos de outro celular ou do computador. Os do seu celular, com foto, o app já importa sozinho.</small></span></button>
+  <button class="opt" data-imp="csv"><span class="ic">▦</span><span><b>Planilha (CSV)</b><small>Google Planilhas ou Excel → Fazer download → CSV. Colunas: nome, empresa, cargo, e-mail, telefone.</small></span></button>`);
   $("#sbox").onclick = e => { const b = e.target.closest("[data-imp]"); if (b) { $("#file").dataset.kind = b.dataset.imp; $("#file").value = ""; $("#file").click(); } };
 }
 $("#file").addEventListener("change", async () => {
