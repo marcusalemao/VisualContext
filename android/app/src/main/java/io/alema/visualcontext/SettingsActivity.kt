@@ -42,6 +42,7 @@ class SettingsActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Where.loadKey(this)
         col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(48, 96, 48, 48) }
         setContentView(ScrollView(this).apply { addView(col); setBackgroundColor(Color.rgb(3, 12, 6)) })
         Look.insets(col)
@@ -303,6 +304,13 @@ class SettingsActivity : Activity() {
         ca.h("Outro assistente (opcional)")
         ca.p("Não é necessário: com a chave do Gemini acima tudo já funciona. Isto é só para quem também quer fazer perguntas ao Claude ou ao ChatGPT pelos óculos (\"pergunta pro Claude…\").", 13f)
         ca.p("Atenção: é uma chave de API, não a sua conta pessoal. O que você pergunta por aqui não vê nem entra no histórico das suas conversas no Claude ou no ChatGPT; é uma pergunta solta ao modelo, paga por uso. Chave do OpenRouter (sk-or-, qualquer modelo), da OpenAI (sk-) ou da Anthropic (sk-ant-). Fica só neste celular.", 13f)
+        // Places (Marcus, 08/11): Google knows the small places; OpenStreetMap is the free fallback.
+        val cg = card()
+        cg.h("Lugares (opcional)")
+        cg.p("Sem chave, os lugares vêm do OpenStreetMap (grátis, mas faltam muitos). Com uma chave do Google Maps (Places API New), os encontros ganham o nome do lugar como o Google conhece: \"Pop Vegan\", \"Smart Fit\".", 13f)
+        cg.btn("Chaves do Google Cloud ↗", false) { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://console.cloud.google.com/apis/credentials"))) }
+        cg.p("Na chave: restrinja a \"Places API (New)\". Ative essa API no projeto. Fica só neste celular.", 12f)
+        cg.keyRow(Where.googleKey, "AIza… (Google Maps)", save = { Where.setKey(this, it) }, test = { k -> Where.testGoogle(k) })
         // Music (Marcus, 07/11): AudD recognises what is playing; Google's sound search has no API.
         val cm = card()
         cm.h("Música (opcional)")

@@ -33,6 +33,7 @@ object Where {
      * the nearest named place within 60 m, then the street. Cached for 80 m. Blocking.
      */
     fun placeLabel(ctx: Context, loc: Location): String? {
+        if (!keyLoaded) loadKey(ctx)
         lastLabel?.let { (l, s) -> if (l.distanceTo(loc) < 80f) return s }
         val addr = address(ctx, loc)
         val poi = try { nearby(loc, 60, 1).firstOrNull() } catch (_: Exception) { null }
@@ -51,8 +52,53 @@ object Where {
 
     private val MIRRORS = listOf("https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter")
 
-    /** Named points of interest within [radius] m, nearest first. Blocking. */
+    // Google Places (Marcus, 08/11: he has a Maps key; Google knows the Smart Fit and the Pop Vegan, OSM often does not).
+    @Volatile var googleKey: String = ""
+    private var keyLoaded = false
+    fun loadKey(ctx: Context) { keyLoaded = true; googleKey = ctx.getSharedPreferences("visualcontext", Context.MODE_PRIVATE).getString("maps_key", "") ?: "" }
+    fun setKey(ctx: Context, k: String) { ctx.getSharedPreferences("visualcontext", Context.MODE_PRIVATE).edit().putString("maps_key", k.trim()).apply(); googleKey = k.trim() }
+
+    /** Named points of interest within [radius] m, nearest first: Google Places when there is a key, OpenStreetMap otherwise. Blocking. */
     fun nearby(loc: Location, radius: Int = 300, max: Int = 8): List<Place> {
+        if (googleKey.isNotEmpty()) { val g = google(loc, radius, max); if (g != null) return g }
+        return osm(loc, radius, max)
+    }
+
+    /** Places API (New), ranked by distance; null on any failure so OSM takes over. */
+    fun google(loc: Location, radius: Int, max: Int): List<Place>? = try {
+        val body = org.json.JSONObject().put("languageCode", "pt-BR").put("maxResultCount", max.coerceIn(1, 20)).put("rankPreference", "DISTANCE")
+            .put("locationRestriction", org.json.JSONObject().put("circle", org.json.JSONObject().put("radius", radius.toDouble()).put("center", org.json.JSONObject().put("latitude", loc.latitude).put("longitude", loc.longitude))))
+            .put("excludedTypes", org.json.JSONArray().put("parking").put("atm").put("bus_stop").put("transit_station"))
+        val c = (URL("https://places.googleapis.com/v1/places:searchNearby").openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"; connectTimeout = 6000; readTimeout = 8000; doOutput = true
+            setRequestProperty("Content-Type", "application/json"); setRequestProperty("X-Goog-Api-Key", googleKey)
+            setRequestProperty("X-Goog-FieldMask", "places.displayName,places.location,places.primaryTypeDisplayName,places.primaryType")
+        }
+        c.outputStream.use { it.write(body.toString().toByteArray()) }
+        if (c.responseCode !in 200..299) null else {
+            val arr = JSONObject(c.inputStream.bufferedReader().readText()).optJSONArray("places") ?: JSONArray()
+            (0 until arr.length()).mapNotNull { i ->
+                val e = arr.optJSONObject(i) ?: return@mapNotNull null
+                val name = e.optJSONObject("displayName")?.optString("text").orEmpty().ifEmpty { return@mapNotNull null }
+                val l = e.optJSONObject("location") ?: return@mapNotNull null
+                val kind = e.optJSONObject("primaryTypeDisplayName")?.optString("text").orEmpty().ifEmpty { e.optString("primaryType").replace('_', ' ') }
+                val r = FloatArray(2); Location.distanceBetween(loc.latitude, loc.longitude, l.optDouble("latitude"), l.optDouble("longitude"), r)
+                Place(name, kind.lowercase(), l.optDouble("latitude"), l.optDouble("longitude"), r[0].toInt(), ((r[1] + 360) % 360).toInt())
+            }.sortedBy { it.dist }.take(max)
+        }
+    } catch (_: Exception) { null }
+
+    /** Settings → Testar: null when the key works. */
+    fun testGoogle(k: String): String? = try {
+        val c = (URL("https://places.googleapis.com/v1/places:searchNearby").openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"; connectTimeout = 6000; readTimeout = 8000; doOutput = true
+            setRequestProperty("Content-Type", "application/json"); setRequestProperty("X-Goog-Api-Key", k); setRequestProperty("X-Goog-FieldMask", "places.displayName")
+        }
+        c.outputStream.use { it.write("""{"maxResultCount":1,"locationRestriction":{"circle":{"center":{"latitude":-23.5614,"longitude":-46.6559},"radius":200.0}}}""".toByteArray()) }
+        when (c.responseCode) { in 200..299 -> null; 403 -> "Chave recusada: confira se a Places API (New) está ativada e a restrição da chave."; 400 -> "Chave inválida."; else -> "Erro ${c.responseCode} do Google." }
+    } catch (_: Exception) { "Sem internet." }
+
+    private fun osm(loc: Location, radius: Int, max: Int): List<Place> {
         // Named places people talk about: food and drink first (Marcus, 07/11: Rua Avanhandava's famous restaurants were missed),
         // culture, landmarks, shops with a brand. Ask for many, keep the nearest; notable ones (Wikipedia/Wikidata) first.
         val a = "(around:$radius,${loc.latitude},${loc.longitude})"
