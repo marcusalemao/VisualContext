@@ -283,6 +283,11 @@ class SettingsActivity : Activity() {
             textSize = 13f; setTextColor(soft); buttonTintList = android.content.res.ColorStateList.valueOf(green); isChecked = Backend.standby(this@SettingsActivity)
             setOnCheckedChangeListener { _, on -> Backend.setStandby(this@SettingsActivity, on) }
         })
+        c7.addView(android.widget.CheckBox(this).apply {
+            text = "Dicas na lente: o que dá para dizer ao abrir o assistente e opções (Ler, Guardar, Keep, Agenda) quando você aponta para um texto."
+            textSize = 13f; setTextColor(soft); buttonTintList = android.content.res.ColorStateList.valueOf(green); isChecked = Backend.hints(this@SettingsActivity)
+            setOnCheckedChangeListener { _, on -> Backend.setHints(this@SettingsActivity, on) }
+        })
         c7.p("Idiomas que eu falo: o que você diz só é escrito nestas línguas, nunca em outra.", 13f)
         val langRow = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val chosen = Backend.languages(this).toMutableList()

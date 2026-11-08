@@ -44,5 +44,13 @@ object NotesOut {
         } catch (_: SecurityException) { }
     }
 
+    /** Straight to the notes app (the user tapped "Keep" on the lens, so no notification is needed). */
+    fun open(ctx: Context, title: String, text: String): Boolean {
+        val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_SUBJECT, title).putExtra(Intent.EXTRA_TITLE, title).putExtra(Intent.EXTRA_TEXT, text)
+        val pkg = when (target(ctx)) { "keep" -> KEEP; "samsung" -> SAMSUNG; else -> null }
+        val i = (if (pkg != null && installed(ctx, pkg)) send.setPackage(pkg) else Intent.createChooser(send, "Guardar a nota em…")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        return try { ctx.startActivity(i); true } catch (_: Exception) { false }
+    }
+
     private fun prefs(ctx: Context) = ctx.getSharedPreferences("visualcontext", Context.MODE_PRIVATE)
 }

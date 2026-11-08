@@ -183,6 +183,69 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         else { hud.cardTitle = "Câmera"; hud.cardLines = listOf("libere a câmera para o emulador"); hud.invalidate() }
     }
 
+    // ── Text in view → pills (Marcus, 08/11: "eu aponto uma coisa e … umas pílulas: salvar nas notas, ler em voz alta, Keep, agenda"). ──
+    // On-device ML Kit only checks that there is text in the middle of the view; the reading itself is the Gemini one, at full size.
+    private val ocr by lazy { com.google.mlkit.vision.text.TextRecognition.getClient(com.google.mlkit.vision.text.latin.TextRecognizerOptions.DEFAULT_OPTIONS) }
+    @Volatile private var textBusy = false
+    private var lastTextScan = 0L
+    private var textSeen = ""; private var textOfferAt = 0L; private val textNo = HashMap<String, Long>()
+    private fun textScan() {
+        if (hud.cardTitle != null || hud.faces.isNotEmpty() || countdownId != null) return
+        val j = lastJpeg ?: return
+        val b = Frames.bitmap(j, 960) ?: return
+        textBusy = true
+        ocr.process(com.google.mlkit.vision.common.InputImage.fromBitmap(b, 0)).addOnSuccessListener { t ->
+            val cx = b.width / 2f; val cy = b.height / 2f
+            val mid = t.textBlocks.filter { bl -> bl.boundingBox?.let { r -> r.left < cx + b.width / 6 && r.right > cx - b.width / 6 && r.top < cy + b.height / 4 && r.bottom > cy - b.height / 4 } == true }
+            val txt = mid.joinToString(" ") { it.text }.replace(Regex("\\s+"), " ").trim()
+            val key = txt.lowercase().filter { it.isLetter() }.take(24)
+            val now = SystemClock.elapsedRealtime()
+            if (txt.length < 20 || key.length < 10) { textSeen = ""; return@addOnSuccessListener }
+            // Two looks at the same text (held still), not a card already up, not something just dismissed.
+            if (key == textSeen && hud.cardTitle == null && now - textOfferAt > 20_000 && (textNo[key]?.let { now - it > 120_000 } != false)) { textOfferAt = now; offerText(key, txt) }
+            textSeen = key
+        }.addOnCompleteListener { textBusy = false }
+    }
+    private fun offerText(key: String, preview: String) {
+        showCard("▤ Texto à vista", listOf(preview.take(60) + if (preview.length > 60) "…" else "", "toque, use a haste ou diga \"lê isso\" / \"guarda isso\""), listOf("🔊 Ler", "✎ Guardar", "Keep", "✕")) { i ->
+            when (i) {
+                0 -> readPaper { p -> onPaper(p, saved = false); sayPaper(p) }
+                1 -> readPaper { p -> work.execute { Papers.save(this, p, Where.location(this)?.let { Where.placeLabel(this, it) }) }; onSaved(p.title); onPaper(p, saved = true) }
+                2 -> readPaper { p -> NotesOut.open(this, p.title, listOf(p.summary, p.text).filter { it.isNotBlank() }.joinToString("\n\n")); onPaper(p, saved = false) }
+                else -> { textNo[key] = SystemClock.elapsedRealtime(); closeCard() }
+            }
+        }
+    }
+    /** The full-size read (Gemini), then [then] on the main thread. */
+    private fun readPaper(then: (Papers.Paper) -> Unit) {
+        hud.cardTitle = "▤ Lendo…"; hud.cardLines = listOf("segure parado um instante"); cardAction = null; hud.invalidate()
+        work.execute {
+            val p = lastJpeg?.let { Frames.shrink(it, 1600) }?.let { Papers.read(this, it) }
+            main.post { if (p == null) { hud.cardTitle = "▤"; hud.cardLines = listOf("não consegui ler; aproxime e segure parado"); hud.invalidate() } else then(p) }
+        }
+    }
+    private fun sayPaper(p: Papers.Paper) {
+        val t = listOf(p.summary, p.text).filter { it.isNotBlank() }.joinToString(". ").take(900)
+        if (liveOn) live.context("(leia em voz alta para ele, devagar e claro: $t)") else voice.say(t, interrupt = true)
+    }
+
+    /** What was read, and what to do with it (tap, temple or voice). Agenda only when the text has a date. */
+    override fun onPaper(p: Papers.Paper, saved: Boolean) {
+        val all = listOf(p.summary, p.text).filter { it.isNotBlank() }.joinToString("\n\n")
+        val hasDate = Regex("""\b\d{1,2}/\d{1,2}(/\d{2,4})?\b|\b\d{1,2}h\d{0,2}\b|\b(segunda|terça|quarta|quinta|sexta|sábado|domingo)\b""", RegexOption.IGNORE_CASE).containsMatchIn(all)
+        val btns = listOf("🔊 Ler", if (saved) "✓ Guardado" else "✎ Guardar", "Keep") + (if (hasDate) listOf("▦ Agenda") else emptyList())
+        showCard("▤ " + p.title, listOf(p.summary.ifBlank { p.text }.take(220)), btns) { i ->
+            when (btns[i]) {
+                "🔊 Ler" -> sayPaper(p)
+                "✎ Guardar" -> { work.execute { Papers.save(this, p, Where.location(this)?.let { Where.placeLabel(this, it) }) }; onSaved(p.title); onPaper(p, saved = true) }
+                "Keep" -> NotesOut.open(this, p.title, all)
+                "▦ Agenda" -> try { startActivity(Intent(Intent.ACTION_INSERT, android.provider.CalendarContract.Events.CONTENT_URI)
+                    .putExtra(android.provider.CalendarContract.Events.TITLE, p.title).putExtra(android.provider.CalendarContract.Events.DESCRIPTION, all.take(2000)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (_: Exception) { toast("sem app de agenda") }
+                else -> Unit
+            }
+        }
+    }
+
     private fun startCamera() {
         val f = ProcessCameraProvider.getInstance(this)
         f.addListener({
@@ -197,6 +260,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
                         lastJpeg = Frames.jpeg(img, 80) ?: lastJpeg
                         if (facesOn && !scanning) { lastFaceScan = now; scan() }
                         if (qrOn && now - lastQrScan > 300 && !qrBusy) { lastQrScan = now; qrScan() }
+                        if (!qrOn && now - lastTextScan > 1500 && !textBusy && Backend.hints(this)) { lastTextScan = now; textScan() }
                     }
                 } finally { img.close() }
             }
@@ -485,7 +549,8 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     }
 
     override fun onNamed(name: String) { toast("guardado: $name"); if (speaks) { voice.tick(); voice.say(name) } }
-    override fun onSaved(title: String) { toast("guardado: $title"); if (speaks) { voice.tick(); voice.say("Guardado: $title") } }
+    // While the assistant is open it is the only voice (Marcus, 08/11: two voices answered the same label).
+    override fun onSaved(title: String) { toast("guardado: $title"); if (speaks) { voice.tick(); if (!liveOn) voice.say("Guardado: $title") } }
     override fun onBrief(name: String, lines: List<String>) {
         val t = name.trim().let { if (it.firstOrNull()?.let { c -> !c.isLetterOrDigit() } == true) it else "✦ $it" }
         hud.cardTitle = t; hud.cardLines = lines.filter { it.isNotBlank() }; hud.invalidate()
@@ -509,7 +574,19 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     private fun toggleLive() {
         if (!liveOn && Backend.offlineOnly(this)) { toast("O Live está desligado em Ajustes → Assistente (\"Desligar o Live\"). Ligue lá para falar com o assistente."); return }
         if (liveOn) { if (live.speaking) live.interrupt() else { live.stop(); liveOn = false; ears.resume() } }
-        else { liveOn = true; ears.pause(); live.start() }
+        else { liveOn = true; ears.pause(); live.start(); hintLive() }
+    }
+
+    /** The first times the assistant opens, the lens shows what can be said (rotating), until hints are turned off. */
+    private fun hintLive() {
+        if (!Backend.hints(this)) return
+        val n = Backend.hintRun(this); if (n >= 20) return
+        val sets = listOf(
+            listOf("\"quem é essa pessoa?\"", "\"essa é a Ana\" (guarda o rosto)", "\"o que está escrito aqui?\""),
+            listOf("\"guarda isso\" (papel, receita, cartão)", "\"onde deixei as chaves?\"", "\"o que eu fiz hoje?\""),
+            listOf("\"que música é essa?\"", "\"toca Caetano\"", "\"o que tem por perto?\""),
+            listOf("\"o que eu tenho amanhã?\"", "\"me prepara para falar com o Pedro\"", "\"traduz o que ela disse\""))
+        onBrief("Experimente dizer", sets[n % sets.size] + "dicas: Ajustes → Assistente")
     }
 
     /**

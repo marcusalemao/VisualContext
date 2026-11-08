@@ -43,6 +43,11 @@ object Backend {
     fun standby(ctx: Context) = prefs(ctx).getBoolean("standby", false)
     fun setStandby(ctx: Context, on: Boolean) { prefs(ctx).edit().putBoolean("standby", on).apply() }
 
+    /** Hints on the lens (Marcus, 08/11: "no começo precisa ter uns hints"): on until turned off; counts Live starts. */
+    fun hints(ctx: Context) = prefs(ctx).getBoolean("hints", true)
+    fun setHints(ctx: Context, on: Boolean) { prefs(ctx).edit().putBoolean("hints", on).apply() }
+    fun hintRun(ctx: Context): Int { val n = prefs(ctx).getInt("hint_runs", 0); prefs(ctx).edit().putInt("hint_runs", n + 1).apply(); return n }
+
     /** Languages the owner speaks (Marcus, 08/11: "só inglês, alemão e português"). His voice is never written as another. */
     val LANGS = listOf("pt-BR" to "Português", "en-US" to "English", "de-DE" to "Deutsch", "es-ES" to "Español", "fr-FR" to "Français", "it-IT" to "Italiano")
     fun languages(ctx: Context): List<String> = (prefs(ctx).getString("langs", null) ?: "pt-BR,en-US,de-DE").split(",").filter { it.isNotBlank() }

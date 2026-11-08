@@ -38,6 +38,8 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
         fun onLyric(title: String, lines: List<String>) { onBrief(title, lines) }
         /** Another app (the music player) took the screen: bring the glasses view back. */
         fun comeBack() {}
+        /** A paper or label was read: the lens offers what to do with it (pills). */
+        fun onPaper(p: Papers.Paper, saved: Boolean) {}
     }
 
     private val main = Handler(Looper.getMainLooper())
@@ -78,6 +80,7 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
             val placeHint = Where.location(ctx)?.let { loc -> MyPlaces.askHint(ctx, loc) } ?: ""
             live.extraTools = Skills.tools(ctx).put(Music.tool()).put(Recall.tool()).put(MyPlaces.tool()).put(Agenda.tool()).also { a -> Things.tools().forEach { a.put(it) }; Player.tools().forEach { a.put(it) } }
             live.extraSystem = Skills.system(ctx) + " MÚSICA: se ele perguntar que música está tocando, chame identificar_musica e espere; não adivinhe. \"Toca…\" / \"quero ouvir…\" → tocar_musica; pausar, pular, voltar → controlar_musica; \"mostra a letra\" → mostrar_letra." + Things.SYSTEM +
+                " LER: quando ele pedir para ler algo (\"o que está escrito\", etiqueta, bula, placa), diga só \"deixa eu ler\" e espere: o app lê em alta resolução e manda o texto; nunca diga que não consegue ler antes disso." +
                 " MEMÓRIA: perguntas sobre o passado dele (o que fiz hoje, quem encontrei, quando vi fulano, o que combinei) vão para consultar_memoria; leia a resposta em voz alta como veio." +
                 " AGENDA: compromissos, \"o que eu tenho para hoje/amanhã\" → agenda (nunca diga que não tem acesso). PESSOAS: \"o que eu preciso lembrar sobre a Ana\", \"do que falamos nos últimos dias\" → consultar_memoria com dias (10 se ele não disser) e, se for alguém prestes a encontrar, também preparar_conversa." +
                 " LUGARES: \"aqui é minha casa\", \"estou no trabalho\", \"isso é o Pop Vegan\" → marcar_lugar." +
@@ -121,7 +124,7 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
                 heardAt = lastActivity
                 heard.append(e.text); userTurn.append(e.text)
                 host.onTranscript(transcript.lines(), heard.toString().trim().takeLast(40))
-                spotName(); spotPaper(); spotYes()
+                spotName(); spotPaper(); spotRead(); spotYes()
             }
             is LiveProtocol.Event.ModelText -> {
                 lastActivity = SystemClock.elapsedRealtime()
@@ -192,6 +195,26 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
         io.execute { paperNow(fromSpeech = true) }
     }
 
+    /**
+     * Marcus, 08/11: "o que está escrito aqui?" on a tiny medicine label — the Live said it couldn't read while the
+     * phone's reader had read it. Small print is read here, at full resolution, and the text goes to the Live, which
+     * answers from it. Nothing is saved: the lens shows the options (Ler, Guardar, Keep, Agenda).
+     */
+    @Volatile private var readAt = 0L
+    private fun spotRead() {
+        if (!READ.containsMatchIn(heard)) return
+        val now = SystemClock.elapsedRealtime(); if (now - readAt < 15_000 || now - paperAt < 15_000) return
+        readAt = now
+        main.post { host.onBrief("▤ Lendo…", listOf("segure parado um instante")) }
+        io.execute {
+            val f = host.frame()?.let { Frames.shrink(it, 1600) }
+            val p = f?.let { Papers.read(ctx, it) }
+            if (p == null) { if (open) live.send(LiveProtocol.text("(o app tentou ler em alta resolução e não achou texto legível; peça para ele aproximar e segurar parado.)")); main.post { host.onBrief("▤", listOf("não consegui ler; aproxime e segure parado")) }; return@execute }
+            if (open) live.send(LiveProtocol.text("(o app leu pela câmera em alta resolução — ${p.title}: ${(p.summary + "\n" + p.text).take(3000)}\nResponda à pergunta dele a partir deste texto, curto. Não diga que não consegue ler e não chame ferramenta. Não guarde nada: a lente já mostra as opções.)"))
+            main.post { host.onPaper(p, saved = false) }
+        }
+    }
+
     private fun paperNow(fromSpeech: Boolean = false): JSONObject {
         paperAt = SystemClock.elapsedRealtime()
         val f = host.frame()?.let { Frames.shrink(it, 1600) } ?: return JSONObject().put("erro", "a câmera não respondeu")
@@ -200,7 +223,7 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
         lastPaper = p.title
         val place = Where.location(ctx)?.let { Where.placeLabel(ctx, it) }
         Papers.save(ctx, p, place)
-        main.post { host.onSaved(p.title) }
+        main.post { host.onSaved(p.title); host.onPaper(p, saved = true) }
         if (fromSpeech && open) live.send(LiveProtocol.text("(o app já guardou na memória: ${p.title}. Confirme em poucas palavras, sem chamar ferramenta.)"))
         return JSONObject().put("guardado", true).put("titulo", p.title).put("tipo", p.kind)
     }
@@ -228,7 +251,7 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
         io.execute {
             val r: JSONObject = when (call.name) {
                 LiveProtocol.TOOL_LOOK -> {
-                    val f = host.frame()?.let { Frames.shrink(it, 768) }
+                    val f = host.frame()?.let { Frames.shrink(it, 1280) } // small print needs the pixels
                     if (f != null) live.send(LiveProtocol.image(Base64.encodeToString(f, Base64.NO_WRAP)))
                     JSONObject().put("ok", f != null).apply { if (f == null) put("erro", "a câmera não respondeu") }
                 }
@@ -385,6 +408,7 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
 
     companion object {
         private val YES = Regex("""\b(sim|pode|copia|copiar|isso|ok|beleza|quero)\b""", RegexOption.IGNORE_CASE)
+        private val READ = Regex("""(o que (est[áa]|t[áa]) escrito|o que (diz|fala) (a|o|aqui|essa|esse|isso|nessa|nesse)|l[êe] (isso|pra mim|aqui|essa|esse|o que)|leia|consegue ler|qual [ée] o (nome|texto) (do|da|desse|dessa))""", RegexOption.IGNORE_CASE)
         private val REMEMBER = Regex("""\b(lembra (disso|isso|desse|dessa|deste|desta)|guarda (isso|esse papel|essa receita|esse cart[ãa]o)|anota (isso|esse|essa))\b""", RegexOption.IGNORE_CASE)
         private val FORGET = Regex("""(n[ãa]o (guarda|grava|salva|anota)|esquece (isso|o que eu (disse|falei))|apaga (isso|o que eu (disse|falei)))""", RegexOption.IGNORE_CASE)
     }
