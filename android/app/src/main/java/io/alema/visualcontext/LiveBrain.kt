@@ -45,7 +45,29 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
     private val main = Handler(Looper.getMainLooper())
     private val io = Executors.newSingleThreadExecutor()
     private val live = LiveSession(this).apply { faceTools = true; locationTools = true }
-    private val mic = MicIn { pcm -> Music.feed(pcm); if (open) live.send(LiveProtocol.audio(Base64.encodeToString(if (speaker.speaking) ByteArray(pcm.size) else pcm, Base64.NO_WRAP))) }
+    private val mic = MicIn { pcm -> Music.feed(pcm); if (open) onMic(pcm) }
+
+    /**
+     * Marcus, 08/11: "às vezes eu já perguntei duas, três coisas e ainda está respondendo a primeira". While the
+     * assistant talked, the mic sent silence (so it wouldn't hear itself) and he couldn't cut in. Now a clearly
+     * louder voice than the echo, held for 300 ms, stops the playback and goes to Gemini, which drops its answer.
+     */
+    private val held = ArrayDeque<ByteArray>()
+    private var loud = 0
+    private fun onMic(pcm: ByteArray) {
+        if (!speaker.speaking) { loud = 0; held.clear(); live.send(LiveProtocol.audio(Base64.encodeToString(pcm, Base64.NO_WRAP))); return }
+        if (rms(pcm) > BARGE_RMS) loud++ else loud = 0
+        held.addLast(pcm); while (held.size > 3) held.removeFirst()
+        if (loud >= 3) {
+            speaker.flush(); loud = 0
+            while (held.isNotEmpty()) live.send(LiveProtocol.audio(Base64.encodeToString(held.removeFirst(), Base64.NO_WRAP)))
+        } else live.send(LiveProtocol.audio(Base64.encodeToString(ByteArray(pcm.size), Base64.NO_WRAP)))
+    }
+    private fun rms(pcm: ByteArray): Double {
+        var sum = 0.0; var i = 0
+        while (i + 1 < pcm.size) { val v = ((pcm[i + 1].toInt() shl 8) or (pcm[i].toInt() and 0xff)).toShort().toDouble(); sum += v * v; i += 2 }
+        return kotlin.math.sqrt(sum / (pcm.size / 2).coerceAtLeast(1))
+    }
     private val speaker = SpeakerOut()
     private val transcript = Transcript(3, 34)
     private var turnDone = true
@@ -408,6 +430,7 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
 
     companion object {
         private val YES = Regex("""\b(sim|pode|copia|copiar|isso|ok|beleza|quero)\b""", RegexOption.IGNORE_CASE)
+        private const val BARGE_RMS = 2200.0 // a voice at the glasses' mic; the echo after the canceller stays well below
         private val READ = Regex("""(o que (est[áa]|t[áa]) escrito|o que (diz|fala) (a|o|aqui|essa|esse|isso|nessa|nesse)|l[êe] (isso|pra mim|aqui|essa|esse|o que)|leia|consegue ler|qual [ée] o (nome|texto) (do|da|desse|dessa))""", RegexOption.IGNORE_CASE)
         private val REMEMBER = Regex("""\b(lembra (disso|isso|desse|dessa|deste|desta)|guarda (isso|esse papel|essa receita|esse cart[ãa]o)|anota (isso|esse|essa))\b""", RegexOption.IGNORE_CASE)
         private val FORGET = Regex("""(n[ãa]o (guarda|grava|salva|anota)|esquece (isso|o que eu (disse|falei))|apaga (isso|o que eu (disse|falei)))""", RegexOption.IGNORE_CASE)

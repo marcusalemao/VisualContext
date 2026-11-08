@@ -84,6 +84,12 @@ object LiveProtocol {
             // Marcus, 08/11: his Portuguese was transcribed as other languages. The codes he speaks bias recognition.
             .put("inputAudioTranscription", JSONObject().apply { if (languages.isNotEmpty()) put("languageCodes", JSONArray(languages)) })
             .put("outputAudioTranscription", JSONObject())
+            // Faster turns (Marcus, 08/11: "bem lento para me entender e para responder"): the turn ends after half a
+            // second of silence instead of the default (longer), and speech starts are caught early.
+            .put("realtimeInputConfig", JSONObject().put("automaticActivityDetection", JSONObject()
+                .put("startOfSpeechSensitivity", "START_SENSITIVITY_HIGH").put("endOfSpeechSensitivity", "END_SENSITIVITY_HIGH")
+                .put("prefixPaddingMs", 100).put("silenceDurationMs", 500))
+                .put("activityHandling", "START_OF_ACTIVITY_INTERRUPTS"))
             .put("contextWindowCompression", JSONObject().put("slidingWindow", JSONObject()))
             .put("sessionResumption", JSONObject().apply { resumeHandle?.let { put("handle", it) } })
         return JSONObject().put("setup", setup).toString()
