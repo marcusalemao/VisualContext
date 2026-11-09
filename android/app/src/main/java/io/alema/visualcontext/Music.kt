@@ -37,7 +37,10 @@ object Music {
     fun acrSecret(ctx: Context) = p(ctx).getString("acr_secret", "") ?: ""
     fun setAcr(ctx: Context, host: String? = null, key: String? = null, secret: String? = null) = p(ctx).edit().apply {
         host?.let { putString("acr_host", it.trim().removePrefix("https://").removePrefix("http://").trimEnd('/')) }; key?.let { putString("acr_key", it.trim()) }; secret?.let { putString("acr_secret", it.trim()) } }.apply()
-    fun hasAcr(ctx: Context) = acrHost(ctx).isNotBlank() && acrKey(ctx).isNotBlank() && acrSecret(ctx).isNotBlank()
+    /** His own ACRCloud keys on this phone (optional). */
+    fun ownAcr(ctx: Context) = acrHost(ctx).isNotBlank() && acrKey(ctx).isNotBlank() && acrSecret(ctx).isNotBlank()
+    /** ACRCloud is available: his own keys, or the app's (asked through our server, Marcus 09/11: "faz pra mim"). */
+    fun hasAcr(ctx: Context) = ownAcr(ctx) || Backend.token(ctx).isNotEmpty()
     fun any(ctx: Context) = key(ctx).isNotEmpty() || hasAcr(ctx)
 
     /** Who found what, kept on the phone: "audd", "acr", "ambos" (agreed), "divergiram", "nenhum". */
@@ -96,7 +99,12 @@ object Music {
     }
 
     /** ACRCloud identify (v1, HMAC-SHA1 signature). Returns null on "no result" (code 1001). */
-    private fun acr(ctx: Context, sample: ByteArray) = acrCall(sample, acrHost(ctx), acrKey(ctx), acrSecret(ctx))
+    private fun acr(ctx: Context, sample: ByteArray): Song? {
+        if (ownAcr(ctx)) return acrCall(sample, acrHost(ctx), acrKey(ctx), acrSecret(ctx))
+        val r = Backend.post(ctx, JSONObject().put("action", "identify_music").put("audio", android.util.Base64.encodeToString(sample, android.util.Base64.NO_WRAP)))
+            ?: throw IllegalStateException("ACRCloud do app não respondeu")
+        return parseAcr(JSONObject(r))
+    }
     private fun acrCall(sample: ByteArray, host: String, key: String, secret: String): Song? {
         val ts = (System.currentTimeMillis() / 1000).toString()
         val toSign = "POST\n/v1/identify\n$key\naudio\n1\n$ts"
@@ -113,7 +121,9 @@ object Music {
             o.write("--$boundary\r\nContent-Disposition: form-data; name=\"sample\"; filename=\"a.wav\"\r\nContent-Type: audio/wav\r\n\r\n".toByteArray()); o.write(sample); o.write("\r\n--$boundary--\r\n".toByteArray())
         }
         if (c.responseCode !in 200..299) throw IllegalStateException("ACRCloud respondeu ${c.responseCode}")
-        val j = JSONObject(c.inputStream.bufferedReader().readText())
+        return parseAcr(JSONObject(c.inputStream.bufferedReader().readText()))
+    }
+    private fun parseAcr(j: JSONObject): Song? {
         val code = j.optJSONObject("status")?.optInt("code", -1) ?: -1
         if (code == 1001 || code == 2004) return null // no result / no fingerprint (silence): the keys worked
         if (code != 0) throw IllegalStateException("ACRCloud: " + (j.optJSONObject("status")?.optString("msg") ?: "erro $code"))

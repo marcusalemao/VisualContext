@@ -136,6 +136,22 @@ Deno.serve(async (req) => {
         if (error) throw error;
         return json(data ?? []);
       }
+      case "identify_music": { // ACRCloud on the server (Marcus, 09/11): nobody has to make an ACRCloud account; the keys live here
+        const host = Deno.env.get("ACR_HOST"), key = Deno.env.get("ACR_KEY"), secret = Deno.env.get("ACR_SECRET");
+        if (!host || !key || !secret) return json({ error: "acr not configured" }, 503);
+        const b64 = String(body.audio ?? "");
+        if (b64.length < 1000 || b64.length > 2_000_000) return json({ error: "audio" }, 400);
+        const sample = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+        const ts = Math.floor(Date.now() / 1000).toString();
+        const k = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-1" }, false, ["sign"]);
+        const sig = btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.sign("HMAC", k, new TextEncoder().encode(`POST\n/v1/identify\n${key}\naudio\n1\n${ts}`)))));
+        const f = new FormData();
+        f.append("access_key", key); f.append("data_type", "audio"); f.append("signature_version", "1"); f.append("signature", sig); f.append("timestamp", ts);
+        f.append("sample_bytes", String(sample.length)); f.append("sample", new Blob([sample], { type: "audio/wav" }), "a.wav");
+        const r = await fetch(`https://${host}/v1/identify`, { method: "POST", body: f });
+        const j = await r.json().catch(() => ({}));
+        return json(j); // the phone reads status.code and metadata.music[0], as if it had asked ACRCloud itself
+      }
       case "update_note": { // the state of a commitment or a task (sugerido → na_agenda / ignorado), from the Manager or the glasses
         if (!body.id || typeof body.fields !== "object" || !body.fields) return json({ error: "id/fields" }, 400);
         const { data: cur } = await mine(db.from("notes").select("fields"), w).eq("id", body.id).maybeSingle();

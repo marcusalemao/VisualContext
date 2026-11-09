@@ -372,15 +372,15 @@ class SettingsActivity : Activity() {
                 if (j.optString("status") == "success") null else (j.optJSONObject("error")?.optString("error_message") ?: "Chave recusada pelo AudD.")
             } catch (_: Exception) { "Sem internet." } })
         // ACRCloud (Marcus, 09/11): asked together with AudD; the scoreboard shows who gets it right.
-        cm.p("ACRCloud: crie um projeto \"Audio & Video Recognition\" no console e copie Host, Access Key e Access Secret.", 12f)
+        cm.p("ACRCloud já vem incluído no app: não precisa de conta. Só preencha abaixo se quiser usar a sua própria conta do ACRCloud.", 12f)
         cm.btn("Abrir o console do ACRCloud ↗", false) { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://console.acrcloud.com/"))) }
-        val acrState = TextView(this).apply { textSize = 13f; setTextColor(if (Music.hasAcr(this@SettingsActivity)) soft else Color.rgb(255, 170, 90))
-            text = if (Music.hasAcr(this@SettingsActivity)) "ACRCloud salvo: ${Music.acrHost(this@SettingsActivity)} · ${mask(Music.acrKey(this@SettingsActivity))}" else "ACRCloud não configurado." }
+        val acrState = TextView(this).apply { textSize = 13f; setTextColor(if (Music.ownAcr(this@SettingsActivity)) soft else green)
+            text = if (Music.ownAcr(this@SettingsActivity)) "ACRCloud próprio salvo: ${Music.acrHost(this@SettingsActivity)} · ${mask(Music.acrKey(this@SettingsActivity))}" else "✓ ACRCloud do app" }
         cm.addView(acrState)
         val fh = field(Music.acrHost(this), false).apply { hint = "Host (identify-…acrcloud.com)" }; cm.addView(fh)
         val fk = field("", true).apply { hint = if (Music.acrKey(this@SettingsActivity).isEmpty()) "Access Key" else "colar outra Access Key…" }; cm.addView(fk)
         val fs = field("", true).apply { hint = if (Music.acrSecret(this@SettingsActivity).isEmpty()) "Access Secret" else "colar outro Access Secret…" }; cm.addView(fs)
-        cm.btn("Salvar e testar ACRCloud", true) {
+        cm.btn("Salvar e testar ACRCloud", false) {
             val h = fh.text.toString().trim(); val k = fk.text.toString().trim().ifEmpty { Music.acrKey(this) }; val sct = fs.text.toString().trim().ifEmpty { Music.acrSecret(this) }
             if (h.isEmpty() || k.isEmpty() || sct.isEmpty()) { Toast.makeText(this, "Preencha host, key e secret", Toast.LENGTH_SHORT).show(); return@btn }
             Music.setAcr(this, h, k, sct); fk.setText(""); fs.setText(""); acrState.setTextColor(soft); acrState.text = "Testando ACRCloud…"
