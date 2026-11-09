@@ -269,7 +269,7 @@ header .sp{flex:1}
     <div class="detail idle" id="detail" data-clarity-mask="true">Escolha algo na lista</div>
   </div>
   <button class="fab" data-fb="1" aria-label="Enviar feedback"><span id="fabic"></span>Feedback</button>
-  <div class="ver"><span id="ver">VisualContext · Manager v0.19.0</span></div>
+  <div class="ver"><span id="ver">VisualContext · Manager v0.19.4</span></div>
 </div>
 
 <div class="sheet" id="sheet"><div class="box" id="sbox"></div></div>
@@ -1379,14 +1379,18 @@ async function admin() {
           <input name="live_min_day" type="number" min="0" placeholder="min de assistente/dia"><input name="budget_usd" type="number" min="0" step="0.5" placeholder="crédito total (US$)"></div></details>
       <input name="note" placeholder="nota (de onde veio, por que convidar)">
       <div class="btns" style="margin-top:0"><button class="btn pri" data-invsave="1">Convidar</button><button class="btn" type="button" data-x="1">Fechar</button></div></form>
+    ${(d.requests || []).length ? `<div class="sec"><h5>${d.requests.length} ${d.requests.length === 1 ? "pedido" : "pedidos"} pelo site</h5>${d.requests.map(r => `<div class="feat" style="grid-template-columns:1fr auto">
+      <b>${esc(r.name)}</b><span class="n">NOVO</span>
+      <span class="hint" style="word-break:break-all">${esc(r.email)} · ${esc(new Date(r.created_at).toLocaleDateString("pt-BR"))}${r.phone ? "<br>Celular: " + esc(r.phone) : ""}${r.glasses ? "<br>Óculos: " + esc(r.glasses) : ""}${r.why ? "<br>" + esc(r.why) : ""}</span>
+      <span class="hint" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><button class="btn pri" data-reqok="${esc(r.email)}" data-tier="beta">Aprovar Beta</button><button class="btn" data-reqok="${esc(r.email)}" data-tier="super">Aprovar Super</button><button class="btn dan" data-reqno="${esc(r.email)}">Recusar</button></span></div>`).join("")}</div>` : `<p class="muted" style="font-size:13px">Pedidos de quem se inscreve em <a href="/convite" target="_blank">${esc(location.host)}/convite</a> aparecem aqui para você aprovar.</p>`}
     <div class="sec"><h5>${d.invites.length} convidados</h5>${d.invites.map(i => `<div class="feat" style="grid-template-columns:1fr auto">
       <b style="word-break:break-all">${esc(i.email)}</b><span class="n ${i.active ? "" : "no"}">${i.tier === "super" ? "SUPER" : "BETA"}</span>
       <span class="hint">${esc(st(i))} · gastou US$ ${Number(i.spent).toFixed(2)} · ${i.calls} pedidos · ${i.live_min} min${i.last_day ? " · último uso " + esc(i.last_day.split("-").reverse().join("/")) : ""}<br>${esc(lim(i))}${i.note ? "<br>" + esc(i.note) : ""}</span>
       <span class="hint" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><button class="btn" data-invedit="${esc(i.email)}">Editar</button><button class="btn" data-invcopy="${esc(i.email)}">Copiar convite</button>${i.active ? `<button class="btn dan" data-invoff="${esc(i.email)}">Desativar</button>` : `<button class="btn" data-invon="${esc(i.email)}">Reativar</button>`}</span></div>`).join("") || `<p class="muted">Ninguém ainda.</p>`}</div>`);
   admin.list = d.invites;
 }
-function inviteText(email) {
-  return `Oi! Você foi convidado(a) para testar o VisualContext, a memória para óculos inteligentes.\n\n1. Instale o app no celular Android: ${BETA_APK}\n2. Entre com este e-mail (${email}): chega um código, é só digitar. Não precisa de senha nem de chave nenhuma.\n3. O Manager, para ver tudo no navegador: ${location.origin}/manager\n\nNo app tem um botão de Feedback: conte tudo, bom e ruim. Obrigado!\nMarcus`;
+function inviteText(email, name) {
+  return `Oi${name ? ", " + name.split(" ")[0] : ""}! Você foi convidado(a) para testar o VisualContext, a memória para óculos inteligentes.\n\n1. Instale o app no celular Android: ${BETA_APK}\n2. Entre com este e-mail (${email}): chega um código, é só digitar. Não precisa de senha nem de chave nenhuma.\n3. O Manager, para ver tudo no navegador: ${location.origin}/manager\n\nNo app tem um botão de Feedback: conte tudo, bom e ruim. Obrigado!\nMarcus`;
 }
 async function inviteSave() {
   const f = new FormData($("#invf")), email = String(f.get("email") || "").trim();
@@ -1476,6 +1480,8 @@ document.addEventListener("click", e => {
   else if (d.fb) feedbackSheet();
   else if (d.admin) admin();
   else if (d.invsave) inviteSave();
+  else if (d.reqok) call("request_decide", { email: d.reqok, decision: d.tier }).then(r => { navigator.clipboard?.writeText(inviteText(d.reqok, r.name)).catch(() => {}); toast((d.tier === "super" ? "Super tester" : "Beta tester") + " aprovado · convite copiado para mandar"); admin(); }, e => toast("Não deu: " + e.message));
+  else if (d.reqno) { if (confirm("Recusar o pedido de " + d.reqno + "?")) call("request_decide", { email: d.reqno, decision: "no" }).then(admin); }
   else if (d.invedit) inviteEdit(d.invedit);
   else if (d.invcopy) navigator.clipboard?.writeText(inviteText(d.invcopy)).then(() => toast("Convite copiado"), () => toast("Não deu para copiar"));
   else if (d.invoff) { if (confirm("Desativar " + d.invoff + "? Ele sai do app e do Manager na hora.")) call("invite_remove", { email: d.invoff }).then(admin); }

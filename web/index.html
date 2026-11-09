@@ -149,7 +149,7 @@ footer button{background:none;border:0;color:var(--g2);text-decoration:underline
   <h2 data-i18n="h_dl"></h2>
   <div class="dl">
     <div class="tile"><div class="ic">▶</div><h3 data-i18n="d1"></h3><p data-i18n="d1p"></p><a class="btn pri" href="/demo" data-i18n="cta_demo" data-ev="dl_demo"></a></div>
-    <div class="tile"><div class="ic">⬇</div><h3 data-i18n="d2"></h3><p data-i18n="d2p"></p><a class="btn" id="beta" href="mailto:marcus@alema.io" data-i18n="d2b" data-ev="dl_beta"></a></div>
+    <div class="tile"><div class="ic">⬇</div><h3 data-i18n="d2"></h3><p data-i18n="d2p"></p><a class="btn" id="beta" href="/convite" data-i18n="d2b" data-ev="dl_beta"></a></div>
     <div class="tile"><div class="ic">📱</div><h3 data-i18n="d3"></h3><p data-i18n="d3p"></p></div>
   </div>
 </div></section>
@@ -227,7 +227,7 @@ function paint(){
   document.querySelectorAll("[data-i18n-aria]").forEach(e => e.setAttribute("aria-label", VC_I18N.t(e.dataset.i18nAria)));
   document.querySelectorAll("#lang button").forEach(b => b.classList.toggle("on", b.dataset.l === VC_I18N.lang));
   const pt = VC_I18N.lang === "pt";
-  document.getElementById("beta").href = "mailto:marcus@alema.io?subject=" + encodeURIComponent(pt ? "Convite para o beta do VisualContext" : "VisualContext beta invite") + "&body=" + encodeURIComponent(pt ? "Oi! Quero testar o VisualContext.\nCelular: \nÓculos: " : "Hi! I'd like to try VisualContext.\nPhone: \nGlasses: ");
+  document.getElementById("beta").href = "/convite"; // the request form (Marcus, 09/11), approved in the Manager
   document.title = pt ? "VisualContext — memória para óculos inteligentes" : "VisualContext — memory for smart glasses";
 }
 document.getElementById("lang").onclick = e => { const l = e.target.dataset.l; if (l) VC_I18N.set(l); };

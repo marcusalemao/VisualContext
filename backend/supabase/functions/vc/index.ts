@@ -97,6 +97,25 @@ Deno.serve(async (req) => {
     if (!acc) await db.from("accounts").insert({ owner_email: email, owner: u.user.id, ...(who && who.role !== "founder" ? { plan: who.role } : {}) }); else await db.from("accounts").update({ owner: u.user.id }).eq("owner_email", email);
     return json({ token: tok, email });
   }
+  // Public door (Marcus, 09/11): the /convite page asks to join the beta. No token; the request waits for his approval.
+  if (!req.headers.get("x-vc-token") && !bearer) {
+    let b: any = {};
+    try { b = await req.json(); } catch { /* empty */ }
+    if (b.action !== "beta_request") return json({ error: "token" }, 401);
+    if (b.site) return json({ ok: true }); // the hidden field only robots fill
+    const name = String(b.name ?? "").trim().slice(0, 120), email = String(b.email ?? "").trim().toLowerCase().slice(0, 200);
+    if (name.length < 2 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json({ error: "Escreva seu nome e um e-mail válido." }, 400);
+    const { data: had } = await db.from("beta_requests").select("status").eq("email", email).maybeSingle();
+    if (had) return json({ ok: true, again: true, status: had.status });
+    const rec = { name, email, phone: String(b.phone ?? "").slice(0, 80) || null, glasses: String(b.glasses ?? "").slice(0, 80) || null, why: String(b.why ?? "").slice(0, 1000) || null, lang: String(b.lang ?? "pt").slice(0, 5) };
+    const { error } = await db.from("beta_requests").insert(rec);
+    if (error) return json({ error: "Não deu para enviar agora. Tente de novo em instantes." }, 500);
+    const rk = Deno.env.get("RESEND_API_KEY"), to = Deno.env.get("FEEDBACK_TO");
+    if (rk && to) await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${rk}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: Deno.env.get("FEEDBACK_FROM") ?? "VisualContext <feedback@alema.io>", to: [to], reply_to: email,
+        subject: `[VisualContext] Pedido de beta: ${name}`, text: `${name} <${email}>\nCelular: ${rec.phone ?? "-"}\nÓculos: ${rec.glasses ?? "-"}\n\n${rec.why ?? ""}\n\nAprovar: Manager → Ajustes → Testadores` }) }).catch(() => {});
+    return json({ ok: true });
+  }
   const token = req.headers.get("x-vc-token") ?? "";
   if (!/^vc_[A-Za-z0-9]{16,128}$/.test(token)) return json({ error: "token" }, 401);
   const { data: dev } = await db.from("devices").select("id, owner, owner_email, revoked_at").eq("token_hash", await sha256(token)).maybeSingle();
@@ -229,7 +248,8 @@ Deno.serve(async (req) => {
           return { ...i, defaults: TIERS[i.tier] ?? TIERS.beta, spent: Math.round(u.reduce((a: number, x: any) => a + Number(x.cost_usd), 0) * 100) / 100,
             calls: u.reduce((a: number, x: any) => a + x.calls, 0), live_min: Math.round(u.reduce((a: number, x: any) => a + x.live_seconds, 0) / 60), last_day: u.map((x: any) => x.day).sort().pop() ?? null };
         });
-        return json({ invites: out, tiers: TIERS });
+        const { data: reqs } = await db.from("beta_requests").select("*").eq("status", "pending").order("created_at", { ascending: true });
+        return json({ invites: out, tiers: TIERS, requests: reqs ?? [] });
       }
       case "invite_save": {
         if (w.email !== FOUNDER) return json({ error: "forbidden" }, 403);
@@ -241,6 +261,18 @@ Deno.serve(async (req) => {
         const { error } = await db.from("invites").upsert({ email, tier, limits, note: body.note ?? null, active: body.active !== false }, { onConflict: "email" });
         if (error) throw error;
         return json({ ok: true, email });
+      }
+      case "request_decide": { // approve as beta / super, or decline, a request from /convite
+        if (w.email !== FOUNDER) return json({ error: "forbidden" }, 403);
+        const email = String(body.email ?? "").toLowerCase();
+        const { data: r } = await db.from("beta_requests").select("*").eq("email", email).maybeSingle();
+        if (!r) return json({ error: "not found" }, 404);
+        if (body.decision === "beta" || body.decision === "super") {
+          const { error } = await db.from("invites").upsert({ email, tier: body.decision, limits: {}, note: `pedido pelo site: ${r.name}${r.glasses ? " · " + r.glasses : ""}`, active: true }, { onConflict: "email" });
+          if (error) throw error;
+          await db.from("beta_requests").update({ status: "approved", tier: body.decision, decided_at: new Date().toISOString() }).eq("email", email);
+        } else await db.from("beta_requests").update({ status: "declined", decided_at: new Date().toISOString() }).eq("email", email);
+        return json({ ok: true, name: r.name });
       }
       case "invite_remove": {
         if (w.email !== FOUNDER) return json({ error: "forbidden" }, 403);
