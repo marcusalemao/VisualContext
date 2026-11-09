@@ -37,6 +37,8 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
         /** The lyrics card on the lens: cover, title, previous / current / next line. */
         fun onLyric(title: String, artist: String, prev: String?, cur: String?, next: String?, cover: android.graphics.Bitmap?) { onBrief("♪ $title", listOfNotNull(cur)) }
         fun onLyricEnd() {}
+        /** A text in view translated: original and translation side by side on the lens. */
+        fun onTranslation(title: String, original: String, translation: String, lang: String) { onBrief("⇄ $title", listOf(translation.take(300))) }
         /** Nothing said for a while after an answer: the assistant should close (the host stops it). */
         fun onIdle() {}
         /** Where an object was last seen, with its photo when there is one. */
@@ -110,9 +112,11 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
             Skills.refresh(ctx)
             MyPlaces.refresh(ctx)
             val placeHint = Where.location(ctx)?.let { loc -> MyPlaces.askHint(ctx, loc) } ?: ""
-            live.extraTools = Skills.tools(ctx).put(Music.tool()).put(Recall.tool()).put(MyPlaces.tool()).put(Agenda.tool()).also { a -> Things.tools().forEach { a.put(it) }; Player.tools().forEach { a.put(it) }; if (Claude.provider(Claude.key(ctx)).isNotEmpty()) a.put(Claude.tool(ctx)); Things.names(ctx).takeIf { it.isNotEmpty() }?.let { n -> a.put(Things.seenTool(n)) } }
+            live.extraTools = Skills.tools(ctx).put(Music.tool()).put(Recall.tool()).put(MyPlaces.tool()).put(Agenda.tool()).also { a -> Things.tools().forEach { a.put(it) }; Player.tools().forEach { a.put(it) }; a.put(Zap.tool()); if (Claude.provider(Claude.key(ctx)).isNotEmpty()) a.put(Claude.tool(ctx)); Things.names(ctx).takeIf { it.isNotEmpty() }?.let { n -> a.put(Things.seenTool(n)) } }
             live.extraSystem = Skills.system(ctx) + " ENCERRAMENTO: depois de responder, fique em silêncio; nunca pergunte \"mais alguma coisa?\" nem se despeça. Se ele não falar mais, o app fecha sozinho; se falar, continue." + " MÚSICA: se ele perguntar que música está tocando, chame identificar_musica e espere; não adivinhe. \"Toca…\" / \"quero ouvir…\" → tocar_musica; pausar, pular, voltar → controlar_musica; \"mostra a letra\" → mostrar_letra." + Things.SYSTEM +
                 (if (Claude.provider(Claude.key(ctx)).isNotEmpty()) " OUTRO ASSISTENTE: ele configurou o ${Claude.friendlyName(ctx)}. \"Quero falar com o ${Claude.friendlyName(ctx)}\" (ou com o nome parecido que a transcrição escrever, ex. Groc) → chame outro_assistente com cada fala dele, sem criar habilidade e sem julgar o tom (o estilo é escolha dele e quem responde é o outro), até ele dizer \"volta\"." else "") +
+                " CONVERSAR: \"manda mensagem pro Bruno\", \"abre a conversa com a Ana\", \"fala com o Pedro\" → conversar_com (o app abre o Zap ou o WhatsApp na pessoa; você não escreve a mensagem)." +
+                " TRADUZIR: \"traduz isso\" (placa, cardápio, texto) → diga só \"deixa eu ver\" e espere: o app lê, traduz e manda a tradução; não traduza pela imagem pequena." +
                 " LER: quando ele pedir para ler algo (\"o que está escrito\", etiqueta, bula, placa), diga só \"deixa eu ler\" e espere: o app lê em alta resolução e manda o texto; nunca diga que não consegue ler antes disso." +
                 " MEMÓRIA: perguntas sobre o passado dele (o que fiz hoje, quem encontrei, quando vi fulano, o que combinei) vão para consultar_memoria; leia a resposta em voz alta como veio." +
                 " AGENDA: compromissos, \"o que eu tenho para hoje/amanhã\" → agenda (nunca diga que não tem acesso). PESSOAS: \"o que eu preciso lembrar sobre a Ana\", \"do que falamos nos últimos dias\" → consultar_memoria com dias (10 se ele não disser) e, se for alguém prestes a encontrar, também preparar_conversa." +
@@ -259,13 +263,27 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
      */
     @Volatile private var readAt = 0L
     private fun spotRead() {
-        if (!READ.containsMatchIn(heard)) return
+        val translate = TRANSLATE.find(heard)
+        if (translate == null && !READ.containsMatchIn(heard)) return
         val now = SystemClock.elapsedRealtime(); if (now - readAt < 15_000 || now - paperAt < 15_000) return
         readAt = now
-        main.post { host.onBrief("▤ Lendo…", listOf("segure parado um instante")) }
+        main.post { host.onBrief(if (translate != null) "⇄ Traduzindo…" else "▤ Lendo…", listOf("segure parado um instante")) }
         io.execute {
             val f = host.frame()?.let { Frames.shrink(it, 1600) }
             val p = f?.let { Papers.read(ctx, it) }
+            if (p != null && translate != null) {
+                // "Traduz isso (para o inglês)": the text is read, translated here, shown with the original and kept as a note
+                // the Manager can translate again into any language (Marcus, 09/11).
+                val target = translate.groupValues.getOrNull(2)?.trim()?.ifBlank { null } ?: Backend.languageNames(ctx).firstOrNull() ?: "português"
+                val src = listOf(p.summary, p.text).filter { it.isNotBlank() }.joinToString("\n")
+                val tr = Describe.translate(ctx, src, target)
+                if (tr == null) { if (open) live.send(LiveProtocol.text("(o app não conseguiu traduzir agora; diga isso a ele.)")); return@execute }
+                val fields = JSONObject().put("original", src.take(6000)).put("traducao", tr.second.take(6000)).put("idioma", target).put("idioma_original", tr.first)
+                Moments.send(ctx, JSONObject().put("action", "note").put("kind", "traducao").put("title", "Tradução: " + p.title).put("text", tr.second.take(6000)).put("fields", fields).put("source", "paper").put("place", host.placeName()))
+                if (open) live.send(LiveProtocol.text("(o app leu e traduziu para $target; a tradução já está na lente e guardada. Leia em voz alta só a tradução, sem comentar: ${tr.second.take(2500)})"))
+                main.post { host.onTranslation(p.title, src, tr.second, target) }
+                return@execute
+            }
             if (p == null) { if (open) live.send(LiveProtocol.text("(o app tentou ler em alta resolução e não achou texto legível; peça para ele aproximar e segurar parado.)")); main.post { host.onBrief("▤", listOf("não consegui ler; aproxime e segure parado")) }; return@execute }
             if (open) live.send(LiveProtocol.text("(o app leu pela câmera em alta resolução — ${p.title}: ${(p.summary + "\n" + p.text).take(3000)}\nResponda à pergunta dele a partir deste texto, curto. Não diga que não consegue ler e não chame ferramenta. Não guarde nada: a lente já mostra as opções.)"))
             main.post { host.onPaper(p, saved = false) }
@@ -425,6 +443,15 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
                         } else JSONObject().put("erro", e.message)
                     }
                 }
+                Zap.TOOL -> {
+                    val who = call.args.optString("nome")
+                    val r = Zap.open(ctx, who)
+                    main.post { host.comeBack() }
+                    when (r) { "zap" -> JSONObject().put("ok", true).put("diga", "Abri a conversa com $who no Zap."); "whatsapp" -> JSONObject().put("ok", true).put("diga", "Abri a conversa com $who no WhatsApp.")
+                        "sem_numero" -> JSONObject().put("erro", "não tenho o telefone de $who na memória").put("diga", "Não tenho o número de $who. Dá para pôr no Manager.")
+                        "sem_pessoa" -> JSONObject().put("erro", "não achei $who na memória")
+                        else -> JSONObject().put("erro", "nem o Zap nem o WhatsApp estão no celular").put("diga", "Para conversar pelos óculos é preciso o Zap. Deixei o link para instalar no celular.") }
+                }
                 Claude.TOOL -> {
                     val who = Claude.friendlyName(ctx)
                     main.post { host.onBrief("◆ $who", listOf("pensando…")) }
@@ -493,6 +520,7 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
         private const val IDLE_MS = 12_000L
         private const val VOICE_RMS = 900.0 // someone speaking near the glasses
         private const val BARGE_RMS = 2200.0 // a voice at the glasses' mic; the echo after the canceller stays well below
+        private val TRANSLATE = Regex("""\b(traduz|traduza|tradução|o que significa isso|o que quer dizer isso)\b(?:.*?\bpara (?:o |a )?(inglês|alemão|português|espanhol|francês|italiano|chinês|mandarim|japonês|coreano|tailandês|árabe|russo))?""", RegexOption.IGNORE_CASE)
         private val READ = Regex("""(o que (est[áa]|t[áa]) escrito|o que (diz|fala) (a|o|aqui|essa|esse|isso|nessa|nesse)|l[êe] (isso|pra mim|aqui|essa|esse|o que)|leia|consegue ler|qual [ée] o (nome|texto) (do|da|desse|dessa))""", RegexOption.IGNORE_CASE)
         private val REMEMBER = Regex("""\b(lembra (disso|isso|desse|dessa|deste|desta)|guarda (isso|esse papel|essa receita|esse cart[ãa]o)|anota (isso|esse|essa))\b""", RegexOption.IGNORE_CASE)
         private val FORGET = Regex("""(n[ãa]o (guarda|grava|salva|anota)|esquece (isso|o que eu (disse|falei))|apaga (isso|o que eu (disse|falei)))""", RegexOption.IGNORE_CASE)

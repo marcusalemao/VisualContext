@@ -84,6 +84,26 @@ object Describe {
         } catch (_: Exception) { emptyMap() }
     }
 
+    /** Translation of a text the glasses read (Marcus, 09/11). Returns (source language, translation); null on failure. */
+    fun translate(ctx: Context, text: String, target: String): Pair<String, String>? {
+        val key = Backend.geminiKey(ctx); if (key.length < 20) return null
+        val model = textModel(ctx, key) ?: return null
+        val prompt = "Traduza para $target o texto abaixo, fiel e natural, mantendo as quebras de linha. Responda só JSON: {\"idioma_original\": \"<língua do texto, em português>\", \"traducao\": \"...\"}.\n\n" + text.take(6000)
+        val body = JSONObject().put("contents", JSONArray().put(JSONObject().put("parts", JSONArray().put(JSONObject().put("text", prompt)))))
+            .put("generationConfig", JSONObject().put("maxOutputTokens", 4000).put("temperature", 0.2).put("responseMimeType", "application/json"))
+        return try {
+            val c = (URL("https://generativelanguage.googleapis.com/v1beta/$model:generateContent").openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"; connectTimeout = 10_000; readTimeout = 45_000; doOutput = true
+                setRequestProperty("Content-Type", "application/json"); setRequestProperty("x-goog-api-key", key)
+            }
+            c.outputStream.use { it.write(body.toString().toByteArray()) }
+            if (c.responseCode !in 200..299) { if (c.responseCode in listOf(400, 403, 404)) Backend.markBadModel(ctx, model); return null }
+            val parts = JSONObject(c.inputStream.bufferedReader().readText()).optJSONArray("candidates")?.optJSONObject(0)?.optJSONObject("content")?.optJSONArray("parts") ?: return null
+            val j = JSONObject((0 until parts.length()).mapNotNull { parts.optJSONObject(it) }.filter { !it.optBoolean("thought") }.joinToString("") { it.optString("text") }.trim().removePrefix("```json").removeSuffix("```"))
+            val t = j.optString("traducao").trim(); if (t.isBlank()) null else j.optString("idioma_original") to t
+        } catch (_: Exception) { null }
+    }
+
     /**
      * The memory version of a conversation with the assistant (07/11): reading for the user is help, not memory.
      * Keeps the user's words and decisions; long readings (menu, sign, leaflet, book page) become one line.

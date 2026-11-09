@@ -294,7 +294,7 @@ function items() {
     const what = said(e);
     out.push({ kind: "memory", id: e.id, title: live ? "✦ " + (what || "Conversa com o assistente") : isMe(e.person_name) ? "Você mesmo (teste ou espelho)" : e.person_name ? "Encontro com " + e.person_name : (e.context || "Momento"), sub: [live ? "conversa com o assistente" : what, placeName(e)].filter(Boolean).join(" · "), date: e.at, ref: e, sub2: "enc", av: (() => { const p = e.person_name && S.people.find(x => nameKey(x.name) === nameKey(e.person_name)); return p && photo(p) ? avatar(p) : `<span class="av k">${live ? "✦" : "◷"}</span>`; })() });
   }
-  const PK = { pix: ["◈", "Pix"], link: ["↗", "link"], cartao: ["☏", "cartão de visita"], cracha: ["☏", "crachá"], receita: ["✚", "receita"], formulario: ["▤", "formulário"], cardapio: ["▤", "cardápio"], musica: ["♪", "música"], ouvir_depois: ["♫", "ouvir depois"], outro: ["▤", "papel"] };
+  const PK = { pix: ["◈", "Pix"], link: ["↗", "link"], cartao: ["☏", "cartão de visita"], cracha: ["☏", "crachá"], receita: ["✚", "receita"], formulario: ["▤", "formulário"], cardapio: ["▤", "cardápio"], musica: ["♪", "música"], ouvir_depois: ["♫", "ouvir depois"], traducao: ["⇄", "tradução"], outro: ["▤", "papel"] };
   for (const n of S.notes) { const k = PK[n.kind]; out.push({ kind: "memory", id: n.id, title: n.title || n.text, sub: k ? k[1] + (n.place ? " · " + n.place : "") : "nota" + (n.source === "voice" ? " por voz" : ""), date: n.at, ref: n, sub2: "note", av: `<span class="av k">${k ? k[0] : "✎"}</span>` }); }
   for (const t of S.things) out.push({ kind: "thing", id: t.id, title: t.name, sub: t.location_description || "", date: t.seen_at, ref: t, av: t.snapshot_url ? `<span class="av"><img src="${esc(t.snapshot_url)}" alt="" loading="lazy"></span>` : `<span class="av k">⌖</span>` });
   const places = new Map();
@@ -568,8 +568,9 @@ function action(a) {
 /* ---------- detail ---------- */
 function open(kind, id) {
   S.sel = id;
-  const d = $("#detail"); d.classList.remove("idle"); d.classList.add("open");
+  const d = $("#detail"); const wasOpen = d.classList.contains("open"); d.classList.remove("idle"); d.classList.add("open");
   const it = items().find(i => i.kind === kind && i.id === id); if (!it) return;
+  if (!d.classList.contains("open") || innerWidth < 920) { if (!wasOpen) pushNav("detail"); }
   d.innerHTML = `<button class="back" data-back="1">← Voltar</button>` + ({ person: personHtml, memory: memHtml, thing: thingHtml, place: placeHtml })[kind](it.ref, it);
   document.querySelectorAll(".row.sel,.card.sel").forEach(e => e.classList.remove("sel"));
   document.querySelectorAll(`[data-id="${CSS.escape(id)}"]`).forEach(e => { if (e.closest("#list")) e.classList.add("sel"); });
@@ -587,7 +588,7 @@ function personHtml(p) {
     ["WhatsApp", p.contact_whatsapp && link("https://wa.me/" + String(p.contact_whatsapp).replace(/\D/g, ""), p.contact_whatsapp), 1], ["LinkedIn", p.contact_linkedin && link(p.contact_linkedin, "perfil"), 1], ["Notas", p.notes], ["Origem", { base44: "app antigo", import: "importado", glasses: "óculos", teste: "teste" }[p.source] || p.source]])}</div>
   <div class="sec"><h5>Encontros (${encs.length})</h5>${encs.length ? encs.map(encHtml).join("") : `<p class="muted">Nenhum encontro gravado ainda.</p>`}</div>
   <div id="prep"></div>
-  <div class="btns"><button class="btn pri" data-prep="${p.id}">✦ Preparar conversa</button><button class="btn" data-edit="${p.id}">Editar</button><button class="btn" data-me="${p.id}">${isMe(p.name) ? "★ Sou eu (desmarcar)" : "Sou eu"}</button><button class="btn" data-merge="${p.id}">Juntar com outra pessoa</button><button class="btn dan" data-del-person="${p.id}">Apagar</button></div>`;
+  <div class="btns">${chatBtn(p)}<button class="btn pri" data-prep="${p.id}">✦ Preparar conversa</button><button class="btn" data-edit="${p.id}">Editar</button><button class="btn" data-me="${p.id}">${isMe(p.name) ? "★ Sou eu (desmarcar)" : "Sou eu"}</button><button class="btn" data-merge="${p.id}">Juntar com outra pessoa</button><button class="btn dan" data-del-person="${p.id}">Apagar</button></div>`;
 }
 const encHtml = e => `<div class="enc"><div class="d">${esc(fmtFull(e.at))}${e.place ? " · " + esc(e.place) : ""}</div><div>${esc(e.summary || e.context || "")}</div>${(e.follow_ups || []).length ? `<ul>${e.follow_ups.map(f => `<li>${esc(typeof f === "string" ? f : f.text || JSON.stringify(f))}</li>`).join("")}</ul>` : ""}</div>`;
 function memHtml(r, it) {
@@ -608,9 +609,40 @@ function noteHtml(r, it) {
   ${pe ? `<div class="sec"><h5>${r.kind === "cracha" ? "Crachá" : "Cartão de visita"}</h5>${kv([["Nome", pe.nome], ["Empresa", pe.empresa], ["Cargo", pe.cargo], ["Telefone", pe.telefone], ["E-mail", pe.email], ["Site", pe.site]])}${person ? `<button class="row" style="margin-top:10px" data-k="person" data-id="${person.id}">${avatar(person)}<span class="tx"><span class="t1">Ver ${esc(person.name)}</span></span></button>` : ""}</div>` : ""}
   ${rx ? `<div class="sec"><h5>Receita</h5>${kv([["Médico", rx.medico], ["Data", rx.data]])}<ul style="margin:10px 0 0 18px">${(rx.itens || []).map(i => `<li>${esc([i.remedio, i.dose, i.quando].filter(Boolean).join(" · "))}</li>`).join("")}</ul></div>` : ""}
   ${r.kind === "musica" ? musicBtns(r) : ""}
-  <div class="sec"><h5>${r.kind ? "Texto" : "Nota"}</h5><div class="trans" style="color:var(--t);font-size:15px;max-height:none">${esc(r.text)}</div></div>
+  ${r.kind === "traducao" && r.fields?.original ? `<div class="sec"><h5>Original${r.fields.idioma_original ? " (" + esc(r.fields.idioma_original) + ")" : ""}</h5><div class="trans" style="max-height:none">${esc(r.fields.original)}</div></div>
+  <div class="sec"><h5>Tradução${r.fields.idioma ? " (" + esc(r.fields.idioma) + ")" : ""}</h5><div class="trans" style="color:var(--t);font-size:15px;max-height:none">${esc(r.fields.traducao || r.text)}</div></div>`
+  : `<div class="sec"><h5>${r.kind ? "Texto" : "Nota"}</h5><div class="trans" style="color:var(--t);font-size:15px;max-height:none">${esc(r.text)}</div></div>`}
+  ${(r.text || r.fields?.original) && r.kind !== "musica" && r.kind !== "ouvir_depois" ? translateBox(r.id) : ""}
   <div class="btns"><button class="btn pri" data-share="${r.id}">Enviar para Notas</button><button class="btn dan" data-del-row="note:${r.id}">Apagar</button></div>`;
 }
+/* Talk to the person (Marcus, 09/11): on the phone the Zap opens the conversation (zap://chat); without it, WhatsApp;
+   without a number, nothing to offer. The Zap link is the contract the Zap app answers from 0.16 on. */
+function chatBtn(p) {
+  const n = String(p.contact_whatsapp || p.contact_phone || "").replace(/\D/g, "");
+  if (!n) return "";
+  const android = /Android/i.test(navigator.userAgent);
+  const zap = `intent://chat?phone=${n}&name=${encodeURIComponent(p.name)}#Intent;scheme=zap;package=io.alema.zap;S.browser_fallback_url=${encodeURIComponent("https://wa.me/" + n)};end`;
+  return `<a class="btn pri" href="${android ? zap : "https://wa.me/" + n}" ${android ? "" : 'target="_blank" rel="noopener"'}>💬 Conversar${android ? " no Zap" : ""}</a>`;
+}
+/* Translate any text the glasses read (Marcus, 09/11): the original stays; the translation is asked to Gemini here. */
+const LANGS = [["pt", "português"], ["en", "inglês"], ["de", "alemão"], ["es", "espanhol"], ["fr", "francês"], ["it", "italiano"], ["zh", "chinês"], ["ja", "japonês"], ["ko", "coreano"], ["th", "tailandês"], ["ar", "árabe"], ["ru", "russo"]];
+function translateBox(id) {
+  return `<div class="sec"><h5>Traduzir</h5><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <select id="tr-lang" style="min-height:40px;border-radius:10px;background:var(--s1);color:var(--t);border:1px solid var(--line);padding:0 10px">${LANGS.map(([c, n]) => `<option value="${c}">${n}</option>`).join("")}</select>
+    <button class="btn" data-translate="${id}">Traduzir</button></div><div id="tr-out" class="trans" style="display:none;margin-top:10px;color:var(--t);font-size:15px;max-height:none"></div></div>`;
+}
+async function translateNote(id) {
+  const n = S.notes.find(x => x.id === id); if (!n) return;
+  const key = store.get("vc_gemini"); if (!key) { toast("Falta a chave do Gemini em Ajustes"); return; }
+  const lang = $("#tr-lang").value, name = (LANGS.find(l => l[0] === lang) || [])[1] || lang, out = $("#tr-out");
+  out.style.display = "block"; out.textContent = "Traduzindo…";
+  try {
+    const src = n.fields?.original || n.text || "";
+    const j = await gemini(key, { contents: [{ parts: [{ text: `Traduza para ${name} o texto abaixo, fiel e natural, mantendo quebras de linha. Responda só com a tradução.\n\n${src.slice(0, 6000)}` }] }], generationConfig: { temperature: 0.2, maxOutputTokens: 4000 } });
+    out.textContent = (j.candidates?.[0]?.content?.parts || []).filter(p => p.text && !p.thought).map(p => p.text).join("").trim() || "Sem resposta.";
+  } catch (e) { out.textContent = "Não deu: " + (e.message || e); }
+}
+
 /* A song the glasses heard (Marcus, 09/11): open it where he listens, or keep it for later. */
 function songOf(r) { const m = String(r.title || "").split(" · ")[0].split(" — "); return { title: m[0] || "", artist: m[1] || "" }; }
 function musicBtns(r) {
@@ -736,8 +768,23 @@ async function namePlace(kind, placeTitle) {
 }
 
 /* ---------- edit / merge / delete (confirmations inside the page) ---------- */
-function sheet(html) { $("#sbox").innerHTML = html; $("#sheet").classList.add("on"); }
-function closeSheet() { $("#sheet").classList.remove("on"); }
+function sheet(html) { $("#sbox").innerHTML = html; $("#sheet").classList.add("on"); pushNav("sheet"); }
+function hideSheet() { $("#sheet").classList.remove("on"); }
+/** Closing from our own buttons goes through the history too, so the phone's Back stays in step. */
+function closeSheet() { if (!navPopping && navDepth > 0 && $("#sheet").classList.contains("on")) history.back(); else hideSheet(); }
+
+/* The phone's Back button (Marcus, 09/11): closes the sheet or the open page instead of leaving the Manager.
+   Every open page / sheet pushes one history entry; Back pops it and we close what it opened. */
+let navDepth = 0, navPopping = false;
+function pushNav(what) { if (navPopping) return; navDepth++; try { history.pushState({ vc: what, n: navDepth }, ""); } catch {} }
+window.addEventListener("popstate", () => {
+  navPopping = true;
+  try {
+    if ($("#sheet").classList.contains("on")) hideSheet();
+    else if ($("#detail").classList.contains("open") && innerWidth < 920) closeDetail();
+    navDepth = Math.max(0, navDepth - 1);
+  } finally { navPopping = false; }
+});
 $("#sheet").addEventListener("click", e => { if (e.target.id === "sheet" || e.target.closest("[data-x]")) closeSheet(); });
 const F = [["name", "Nome"], ["nickname", "Apelido"], ["relation", "Relação (amigo, cliente, vizinha…)"], ["company", "Empresa"], ["role", "Cargo"], ["contact_phone", "Telefone"], ["contact_whatsapp", "WhatsApp"], ["contact_email", "E-mail"], ["contact_linkedin", "LinkedIn (link)"]];
 function editPerson(id) {
@@ -922,7 +969,7 @@ document.addEventListener("click", e => {
   else if (d.ask) { $("#q").value = d.ask; renderChips(); ask(d.ask); }
   else if (d.scope) { S.cat = d.scope; S.filter = $("#q").value.trim(); $("#scope").classList.remove("on"); $("#q").value = ""; render(); }
   else if (d.k && d.id) open(d.k, d.id);
-  else if (d.back) closeDetail();
+  else if (d.back) { if (navDepth > 0 && innerWidth < 920) history.back(); else closeDetail(); }
   else if (d.closeAns) { $("#ans").classList.remove("on"); $("#q").value = ""; renderChips(); }
   else if (d.openSet) settings();
   else if (d.edit) editPerson(d.edit);
@@ -935,6 +982,7 @@ document.addEventListener("click", e => {
   else if (d.dups) dupReview();
   else if (d.share) shareNote(d.share);
   else if (d.later) listenLater(d.later);
+  else if (d.translate) translateNote(d.translate);
   else if (d.prep) prepForm(d.prep);
   else if (d.prepnew) prepNew();
 });

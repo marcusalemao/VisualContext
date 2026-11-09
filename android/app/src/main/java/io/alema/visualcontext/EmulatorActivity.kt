@@ -648,6 +648,9 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         briefClear = Runnable { onLyricEnd() }.also { main.postDelayed(it, 20_000L) } // a stalled card leaves by itself
     }
     override fun onLyricEnd() { hud.lyric = null; hud.invalidate() }
+    override fun onTranslation(title: String, original: String, translation: String, lang: String) {
+        showCard("⇄ $title → $lang", listOf(translation.take(400), "— original: " + original.take(160)), listOf("🔊 Ler", "✕")) { i -> if (i == 0) { if (liveOn) live.context("(leia em voz alta: $translation)") else voice.say(translation, interrupt = true) } else closeCard() }
+    }
     override fun onIdle() { if (liveOn) { toggleLive(); toast("assistente em espera") } }
 
     // ── Picture-in-picture (Marcus, 09/11): leaving to another app keeps the glasses running in a small window, like Maps and
