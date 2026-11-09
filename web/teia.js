@@ -84,8 +84,10 @@
     const trail = T.trail.length ? `<button class="pill" data-tback="1">← ${esc(T.trail[T.trail.length - 1].label)}</button>` : "";
     return `<div class="teia-top">${trail}<span class="muted" style="font-size:12px;align-self:center">${T.trail.map(x => esc(x.label) + " › ").join("")}<b style="color:var(--t)">${esc(T.center.label)}</b></span></div>
       <div class="teia-top" style="margin-top:6px">${chips}</div>
+      <div class="muted" style="display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;margin-top:8px">
+        <span>○ pessoa</span><span>⬡ lugar</span><span>⬢ coisa</span><span>◇ música</span><span>✦ lembrança</span><span>▬ dia</span></div>
       <div id="teia" class="teia" role="application" aria-label="Teia da memória"></div>
-      <p class="muted" style="font-size:12px;margin:8px 0 0">Toque: pessoa, lugar ou dia vem para o meio; lembrança ou coisa abre. Segure: abre a página. Perto = recente; linha grossa = aparecem juntos muitas vezes.</p>`;
+      <p class="muted" style="font-size:12px;margin:8px 0 0">Toque: pessoa, lugar ou dia vem para o meio; lembrança, coisa ou música abre. Segure: ações ali mesmo. Perto = recente; linha grossa = sempre juntos; pontilhada = uma vez só.</p>`;
   };
 
   window.teiaMount = function () {
@@ -112,13 +114,21 @@
     let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="display:block">
       <ellipse cx="${cx}" cy="${cy}" rx="${maxRx * inner}" ry="${maxRy * inner}" fill="none" stroke="rgba(255,255,255,.06)"/>
       <ellipse cx="${cx}" cy="${cy}" rx="${maxRx}" ry="${maxRy}" fill="none" stroke="rgba(255,255,255,.05)" stroke-dasharray="6 6"/>`;
-    for (const p of pos) svg += `<line class="syn" x1="${cx}" y1="${cy}" x2="${cx}" y2="${cy}" data-x2="${p.x.toFixed(1)}" data-y2="${p.y.toFixed(1)}" stroke="${col(p.e.node.kind)}" stroke-opacity="${(0.25 + 0.7 * (1 - p.e.recency)).toFixed(2)}" stroke-width="${(1 + p.e.weight * 5).toFixed(1)}" stroke-linecap="round"/>`;
+    // Recurring links are solid, thick and glow; a single meeting is a thin dotted line.
+    svg += `<defs><filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.5"/></filter></defs>`;
+    for (const p of pos) {
+      const once = p.e.n < 2, op = (0.3 + 0.65 * (1 - p.e.recency)).toFixed(2), sw = once ? 1.4 : (1.5 + p.e.weight * 5).toFixed(1);
+      const attrs = `x1="${cx}" y1="${cy}" x2="${cx}" y2="${cy}" data-x2="${p.x.toFixed(1)}" data-y2="${p.y.toFixed(1)}" stroke="${col(p.e.node.kind)}" stroke-linecap="round"`;
+      if (!once) svg += `<line class="syn" ${attrs} stroke-opacity=".35" stroke-width="${(+sw + 4).toFixed(1)}" filter="url(#glow)"/>`;
+      svg += `<line class="syn" ${attrs} stroke-opacity="${op}" stroke-width="${sw}" ${once ? 'stroke-dasharray="3 5"' : ""}/>`;
+    }
     pos.forEach((p, i) => {
       const k = p.e.node.kind, w = NW, h = p.e.node.sub || p.e.n > 1 ? NH : 32;
       svg += `<g class="node" role="button" tabindex="0" data-ti="${i}" style="transform:translate(${cx}px,${cy}px)" aria-label="${esc(p.e.node.label)}${p.e.n > 1 ? ", " + p.e.n + " vezes" : ""}">
-        <rect x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" rx="12" fill="#0f1519" stroke="${col(k)}" stroke-opacity=".85" stroke-width="${k === "day" ? 1.5 : 1.5}"/>
-        <text x="${-w / 2 + 8}" y="${p.e.node.sub || p.e.n > 1 ? -5 : 4}" fill="#fff" font-size="11" font-weight="600">${esc(ICON[k] + " " + label(p.e.node.label, 12))}</text>
-        ${p.e.node.sub || p.e.n > 1 ? `<text x="${-w / 2 + 8}" y="11" fill="rgba(255,255,255,.6)" font-size="9.5">${esc(label(p.e.n > 1 ? p.e.n + "× " + (p.e.node.sub || "") : p.e.node.sub, 16))}</text>` : ""}
+        <rect x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" rx="${k === "day" ? h / 2 : 12}" fill="#0f1519" stroke="${col(k)}" stroke-opacity=".85" stroke-width="1.5"/>
+        ${shape(k, -w / 2 + 13, 0, col(k))}
+        <text x="${-w / 2 + 24}" y="${p.e.node.sub || p.e.n > 1 ? -5 : 4}" fill="#fff" font-size="11" font-weight="600">${esc(label(p.e.node.label, 11))}</text>
+        ${p.e.node.sub || p.e.n > 1 ? `<text x="${-w / 2 + 24}" y="11" fill="rgba(255,255,255,.6)" font-size="9.5">${esc(label(p.e.n > 1 ? p.e.n + "× " + (p.e.node.sub || "") : p.e.node.sub, 14))}</text>` : ""}
       </g>`;
     });
     const ck = T.center.kind;
@@ -137,12 +147,13 @@
     // Tap / hold / keyboard.
     let hold = null, held = false;
     const act = (g, long) => {
-      if (g.dataset.tc) { openDetail(T.center); return; }
-      const node = pos[+g.dataset.ti].e.node;
-      if (long) openDetail(node);
+      if (g.dataset.tc) { if (long) showActions(box, { e: { node: T.center }, x: cx, y: cy - 1 }, cx, cy + 1); else openDetail(T.center); return; }
+      const p = pos[+g.dataset.ti], node = p.e.node;
+      if (long) showActions(box, p, cx, cy);
       else if (node.kind === "person" || node.kind === "place" || node.kind === "day") pivot(node);
       else openDetail(node);
     };
+    box.addEventListener("pointerdown", e => { if (!e.target.closest("g[role=button]") && !e.target.closest(".dact")) box.querySelectorAll(".dend").forEach(x => x.remove()); });
     box.querySelectorAll("g[role=button]").forEach(g => {
       g.addEventListener("pointerdown", () => { held = false; hold = setTimeout(() => { held = true; act(g, true); }, 550); });
       g.addEventListener("pointerup", () => { clearTimeout(hold); if (!held) act(g, false); });
@@ -150,6 +161,72 @@
       g.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); act(g, e.shiftKey); } });
     });
   };
+  /** Form tells the kind at a glance: person ○, place / thing ⬡, music ◇, moment ✦, day ▬. */
+  function shape(k, x, y, c) {
+    const hex = r => [0, 1, 2, 3, 4, 5].map(i => { const a = Math.PI / 3 * i; return (x + r * Math.cos(a)).toFixed(1) + "," + (y + r * Math.sin(a)).toFixed(1); }).join(" ");
+    if (k === "person") return `<circle cx="${x}" cy="${y}" r="6" fill="none" stroke="${c}" stroke-width="1.8"/>`;
+    if (k === "place") return `<polygon points="${hex(6.5)}" fill="none" stroke="${c}" stroke-width="1.8"/>`;
+    if (k === "thing") return `<polygon points="${hex(6.5)}" fill="${c}" fill-opacity=".35" stroke="${c}" stroke-width="1.8"/>`;
+    if (k === "music") return `<polygon points="${x},${y - 7} ${x + 6},${y} ${x},${y + 7} ${x - 6},${y}" fill="none" stroke="${c}" stroke-width="1.8"/>`;
+    if (k === "day") return `<rect x="${x - 7}" y="${y - 3.5}" width="14" height="7" rx="3.5" fill="none" stroke="${c}" stroke-width="1.8"/>`;
+    return `<text x="${x}" y="${y + 4}" text-anchor="middle" fill="${c}" font-size="11">✦</text>`;
+  }
+
+  /** Long press: short branches out of the node with what can be done right there (the "dendrites"). */
+  function actionsFor(node) {
+    const out = [];
+    if (node.kind === "person") {
+      const p = node.ref || S.people.find(x => x.id === node.id);
+      const n = p && String(p.contact_whatsapp || p.contact_phone || "").replace(/\D/g, "");
+      if (n) out.push(["💬", "Conversar", () => { location.href = /Android/i.test(navigator.userAgent) ? `intent://chat?phone=${n}&name=${encodeURIComponent(p.name)}#Intent;scheme=zap;package=io.alema.zap;S.browser_fallback_url=${encodeURIComponent("https://wa.me/" + n)};end` : "https://wa.me/" + n; }]);
+      if (p) out.push(["✦", "Preparar", () => prepForm(p.id)]);
+      out.push(["◉", "Centro", () => pivot(node)]);
+      if (p) out.push(["≡", "Página", () => open("person", p.id)]);
+    } else if (node.kind === "music") {
+      const t = String(node.label).split(" · ")[0].replace(" — ", " ");
+      out.push(["▶", "Spotify", () => window.open("https://open.spotify.com/search/" + encodeURIComponent(t), "_blank")]);
+      out.push(["+", "Ouvir depois", () => listenLater(node.id)]);
+      out.push(["≡", "Página", () => open("memory", node.id)]);
+    } else if (node.kind === "thing") {
+      out.push(["📸", "Foto", () => open("thing", node.id)]);
+      const t = node.ref || S.things.find(x => x.id === node.id);
+      if (t && t.lat) out.push(["📍", "Mapa", () => window.open(`https://www.google.com/maps/search/?api=1&query=${t.lat},${t.lng}`, "_blank")]);
+    } else if (node.kind === "place") {
+      out.push(["◉", "Centro", () => pivot(node)]);
+      out.push(["≡", "Página", () => open("place", node.id)]);
+    } else if (node.kind === "day") {
+      out.push(["◉", "Centro", () => pivot(node)]);
+    } else out.push(["≡", "Abrir", () => open("memory", node.id)]);
+    return out;
+  }
+  function showActions(box, p, cx, cy) {
+    box.querySelectorAll(".dend").forEach(x => x.remove());
+    const acts = actionsFor(p.e.node); if (!acts.length) return;
+    const svg = box.querySelector("svg"), NS = "http://www.w3.org/2000/svg";
+    const W = svg.viewBox.baseVal.width, H = svg.viewBox.baseVal.height, spread = 0.95, R = 70;
+    // Branches grow away from the centre; a node near the edge has no room there, so they grow back inwards.
+    let out = Math.atan2(p.y - cy, p.x - cx);
+    const fits = a => [-1, 0, 1].every(t => { const b = a + t * spread, x = p.x + Math.cos(b) * R, y = p.y + Math.sin(b) * R; return x > 28 && x < W - 28 && y > 24 && y < H - 34; });
+    if (!fits(out)) out = [out + Math.PI / 2, out - Math.PI / 2, out + Math.PI].find(fits) ?? out + Math.PI;
+    const g = document.createElementNS(NS, "g"); g.setAttribute("class", "dend");
+    let html = "";
+    acts.forEach(([ic, lb], i) => {
+      const a = out + (acts.length === 1 ? 0 : (i / (acts.length - 1) - 0.5) * 2 * spread);
+      const x = Math.min(W - 30, Math.max(30, p.x + Math.cos(a) * R)), y = Math.min(H - 30, Math.max(22, p.y + Math.sin(a) * R));
+      const d = Math.hypot(x - p.x, y - p.y) || 1, sx = p.x + (x - p.x) / d * 28, sy = p.y + (y - p.y) / d * 24; // from the node's rim, not across its text
+      html += `<line x1="${sx}" y1="${sy}" x2="${x}" y2="${y}" stroke="var(--g)" stroke-opacity=".6" stroke-width="1.5"/>
+        <g class="dact" role="button" tabindex="0" data-ai="${i}" aria-label="${esc(lb)}" style="cursor:pointer"><circle cx="${x}" cy="${y}" r="17" fill="#0f291e" stroke="var(--g)" stroke-width="1.8"/>
+        <text x="${x}" y="${y + 4.5}" text-anchor="middle" font-size="13" fill="#fff">${esc(ic)}</text>
+        <text x="${x}" y="${y + 29}" text-anchor="middle" font-size="9.5" fill="var(--g)" paint-order="stroke" stroke="#0b0f12" stroke-width="3">${esc(lb)}</text></g>`;
+    });
+    g.innerHTML = html; svg.appendChild(g);
+    g.querySelectorAll(".dact").forEach(b => {
+      const run = e => { e.stopPropagation(); acts[+b.dataset.ai][2](); g.remove(); };
+      b.addEventListener("click", run); b.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") run(e); });
+    });
+    g.querySelector(".dact").focus();
+  }
+
   function pivot(node) { T.trail = [...T.trail, T.center].slice(-8); T.center = node; render(); }
   function openDetail(node) {
     if (node.kind === "person") { const p = node.ref || S.people.find(x => x.id === node.id); if (p) open("person", p.id); else pivot(node); }
