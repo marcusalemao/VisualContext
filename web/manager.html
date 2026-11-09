@@ -213,7 +213,7 @@ header .sp{flex:1}
     <div class="pills" id="pills"></div>
     <div class="pills hide" id="pills2" style="flex:1 1 100%"></div>
     <div class="tools">
-      <div class="seg" id="views"><button data-v="time" class="on">Linha do tempo</button><button data-v="grid">Grade</button><button data-v="az">A–Z</button></div>
+      <div class="seg" id="views"><button data-v="teia">◉ Teia</button><button data-v="time" class="on">Linha do tempo</button><button data-v="grid">Grade</button><button data-v="az">A–Z</button></div>
       <div class="seg" id="order"><button data-o="new" class="on" title="Mais novos primeiro">↓</button><button data-o="old" title="Mais antigos primeiro">↑</button></div>
     </div>
   </div>
@@ -349,7 +349,7 @@ function render() {
   const all = items(), q = S.filter;
   const counts = Object.fromEntries(CATS.map(([k]) => [k, all.filter(i => (k === "all" || i.kind === k) && matches(i, q)).length]));
   $("#pills").innerHTML = CATS.map(([k, l]) => `<button class="pill ${S.cat === k ? "on" : ""}" data-c="${k}">${l}<b>${counts[k]}</b></button>`).join("") + (q ? `<button class="pill" data-clear="1">✕ “${esc(q)}”</button>` : "") + (S.dayOnly ? `<button class="pill" data-clearday="1">✕ Hoje</button>` : "");
-  $("#order").classList.toggle("hide", S.view === "az");
+  $("#order").classList.toggle("hide", S.view === "az" || S.view === "teia");
   document.querySelectorAll("#views button").forEach(b => b.classList.toggle("on", b.dataset.v === S.view));
   document.querySelectorAll("#order button").forEach(b => b.classList.toggle("on", b.dataset.o === S.order));
   renderChips();
@@ -368,6 +368,7 @@ function render() {
   const dir = S.order === "new" ? -1 : 1;
   let html = "";
   if (S.cat === "person" || S.cat === "all") { const d = dupPairs(); if (d.length && !q) html += `<button class="dup" data-dups="1">⚠ ${d.length} ${d.length === 1 ? "possível pessoa repetida" : "possíveis pessoas repetidas"} · revisar</button>`; }
+  if (S.view === "teia") { $("#list").innerHTML = html + teiaHtml(); teiaMount(); return; }
   if (!list.length) html += `<div class="empty">${q ? "Nada encontrado para “" + esc(q) + "”." : "Ainda não há nada aqui. Use os óculos ou o emulador no celular."}</div>`;
   else if (S.view === "az") {
     list.sort((a, b) => norm(a.title).localeCompare(norm(b.title)));
@@ -588,7 +589,7 @@ function personHtml(p) {
     ["WhatsApp", p.contact_whatsapp && link("https://wa.me/" + String(p.contact_whatsapp).replace(/\D/g, ""), p.contact_whatsapp), 1], ["LinkedIn", p.contact_linkedin && link(p.contact_linkedin, "perfil"), 1], ["Notas", p.notes], ["Origem", { base44: "app antigo", import: "importado", glasses: "óculos", teste: "teste" }[p.source] || p.source]])}</div>
   <div class="sec"><h5>Encontros (${encs.length})</h5>${encs.length ? encs.map(encHtml).join("") : `<p class="muted">Nenhum encontro gravado ainda.</p>`}</div>
   <div id="prep"></div>
-  <div class="btns">${chatBtn(p)}<button class="btn pri" data-prep="${p.id}">✦ Preparar conversa</button><button class="btn" data-edit="${p.id}">Editar</button><button class="btn" data-me="${p.id}">${isMe(p.name) ? "★ Sou eu (desmarcar)" : "Sou eu"}</button><button class="btn" data-merge="${p.id}">Juntar com outra pessoa</button><button class="btn dan" data-del-person="${p.id}">Apagar</button></div>`;
+  <div class="btns">${chatBtn(p)}<button class="btn pri" data-prep="${p.id}">✦ Preparar conversa</button><button class="btn" data-teia="person:${p.id}">◉ Teia</button><button class="btn" data-edit="${p.id}">Editar</button><button class="btn" data-me="${p.id}">${isMe(p.name) ? "★ Sou eu (desmarcar)" : "Sou eu"}</button><button class="btn" data-merge="${p.id}">Juntar com outra pessoa</button><button class="btn dan" data-del-person="${p.id}">Apagar</button></div>`;
 }
 const encHtml = e => `<div class="enc"><div class="d">${esc(fmtFull(e.at))}${e.place ? " · " + esc(e.place) : ""}</div><div>${esc(e.summary || e.context || "")}</div>${(e.follow_ups || []).length ? `<ul>${e.follow_ups.map(f => `<li>${esc(typeof f === "string" ? f : f.text || JSON.stringify(f))}</li>`).join("")}</ul>` : ""}</div>`;
 function memHtml(r, it) {
@@ -755,7 +756,7 @@ function placeHtml(p) {
   ${mp ? "" : `<div class="sec"><h5>Que lugar é este?</h5><p class="muted" style="font-size:14px;margin:0 0 8px">O GPS dentro de casa erra algumas dezenas de metros. Dando um nome, todos os momentos por perto passam a aparecer com ele.</p><div class="btns" style="margin-top:0"><button class="btn" data-name-place="casa">⌂ É minha casa</button><button class="btn" data-name-place="trabalho">▣ É meu trabalho</button><button class="btn" data-name-place="outro">★ Dar um nome…</button></div></div>`}
   ${encs.length ? `<div class="sec"><h5>O que aconteceu aqui</h5>${encs.map(row).join("")}</div>` : ""}
   ${th.length ? `<div class="sec"><h5>Coisas deixadas aqui</h5>${th.map(t => `<button class="row" data-k="thing" data-id="${esc(t.id)}"><span class="av k">⌖</span><span class="tx"><span class="t1">${esc(t.name)}</span><span class="t2">${esc(fmtFull(t.seen_at))}</span></span></button>`).join("")}</div>` : ""}
-  <div class="btns"><a class="btn pri" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}">Abrir no mapa</a>${mp ? `<button class="btn" data-unname-place="${mp.id}">Tirar o nome</button>` : ""}</div>`;
+  <div class="btns"><button class="btn" data-teia="place:${p.id}">◉ Teia</button><a class="btn pri" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}">Abrir no mapa</a>${mp ? `<button class="btn" data-unname-place="${mp.id}">Tirar o nome</button>` : ""}</div>`;
 }
 async function namePlace(kind, placeTitle) {
   const k = norm(placeTitle), encs = S.enc.filter(e => norm(placeName(e)) === k && e.lat != null);
@@ -965,6 +966,8 @@ document.addEventListener("click", e => {
   else if (d.clearday) { S.dayOnly = false; render(); }
   else if (d.day) { S.dayOnly = true; S.cat = "all"; render(); }
   else if (d.v) { S.view = d.v; render(); }
+  else if (d.teia) { const [k, id] = d.teia.split(/:(.+)/); const it = items().find(i => i.kind === k && i.id === id); if (it) { closeDetail(); teiaFocus(k, id, it.ref && it.ref.name || it.title.replace(/ ★ você$/, "")); } }
+  else if (window.teiaClick && teiaClick(d)) {}
   else if (d.o) { S.order = d.o; render(); }
   else if (d.ask) { $("#q").value = d.ask; renderChips(); ask(d.ask); }
   else if (d.scope) { S.cat = d.scope; S.filter = $("#q").value.trim(); $("#scope").classList.remove("on"); $("#q").value = ""; render(); }
@@ -1043,5 +1046,6 @@ if (LINK) { /* the link handler above takes over */ }
 else if (!TOKEN) showGate();
 else { $("#app").classList.remove("hide"); renderChips(); load().catch(e => { if (e.message !== "token") $("#list").innerHTML = `<div class="empty">Não consegui carregar a memória (${esc(e.message)}). <button class="btn" onclick="location.reload()">Tentar de novo</button></div>`; }); }
 </script>
+<script src="/teia.js" defer></script>
 </body>
 </html>
