@@ -7,6 +7,7 @@
 <meta name="robots" content="noindex">
 <title>VisualContext Manager</title>
 <link rel="icon" href="/brand/visualcontext-icon-512.png">
+<script src="/icons.js"></script>
 <style>
 :root{--bg:#07090c;--s1:#0d1217;--s2:#121a20;--line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.16);--g:#00ff88;--g2:#8fdfb5;--gdim:rgba(0,255,136,.12);
 --t:#e8f0ec;--m:#7f8c86;--red:#ff6b6b;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--r:14px}
@@ -225,8 +226,8 @@ header .sp{flex:1}
     <img src="/brand/visualcontext-logo-transparent.png" alt="VisualContext">
     <span class="sp"></span>
     <span id="plan" class="badge"></span>
-    <button class="icon lbl" id="bImport" title="Importar pessoas e contatos" aria-label="Importar pessoas e contatos"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 10.5v7"/><path d="m9 14.5 3 3 3-3"/></svg><span>Importar</span></button>
-    <button class="icon" data-usage="1" title="Meu uso" aria-label="Meu uso"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 16a8 8 0 0 1 16 0"/><path d="M12 16l4-5"/><circle cx="12" cy="16" r="1.4" fill="currentColor"/></svg></button>
+    <button class="icon lbl" id="bImport" title="Importar pessoas e contatos" aria-label="Importar pessoas e contatos"><svg viewBox="0 -960 960 960" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg><span>Importar</span></button>
+    <button class="icon" data-usage="1" title="Meu uso" aria-label="Meu uso"><svg viewBox="0 -960 960 960" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M418-340q24 24 62 23.5t56-27.5l224-336-336 224q-27 18-28.5 55t22.5 61Zm62-460q59 0 113.5 16.5T696-734l-76 48q-33-17-68.5-25.5T480-720q-133 0-226.5 93.5T160-400q0 42 11.5 83t32.5 77h552q23-38 33.5-79t10.5-85q0-36-8.5-70T766-540l48-76q30 47 47.5 100T880-406q1 57-13 109t-41 99q-11 18-30 28t-40 10H204q-21 0-40-10t-30-28q-26-45-40-95.5T80-400q0-83 31.5-155.5t86-127Q252-737 325-768.5T480-800Zm7 313Z"/></svg></button>
     <button class="icon" id="bSet" title="Ajustes" aria-label="Ajustes"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
   </header>
 
@@ -242,7 +243,7 @@ header .sp{flex:1}
     <div class="pills" id="pills"></div>
     <div class="pills hide" id="pills2" style="flex:1 1 100%"></div>
     <div class="tools">
-      <div class="seg" id="views"><button data-v="teia">◉ Teia</button><button data-v="time" class="on">Linha do tempo</button><button data-v="grid">Grade</button><button data-v="az">A–Z</button></div>
+      <div class="seg" id="views"><button data-v="teia"><svg viewBox="0 -960 960 960" width="15" height="15" style="vertical-align:-3px" aria-hidden="true"><path fill="currentColor" d="M240-40q-50 0-85-35t-35-85q0-50 35-85t85-35q14 0 26 3t23 8l57-71q-28-31-39-70t-5-78l-81-27q-17 25-43 40t-58 15q-50 0-85-35T0-580q0-50 35-85t85-35q50 0 85 35t35 85v8l81 28q20-36 53.5-61t75.5-32v-87q-39-11-64.5-42.5T360-840q0-50 35-85t85-35q50 0 85 35t35 85q0 42-26 73.5T510-724v87q42 7 75.5 32t53.5 61l81-28v-8q0-50 35-85t85-35q50 0 85 35t35 85q0 50-35 85t-85 35q-32 0-58.5-15T739-515l-81 27q6 39-5 77.5T614-340l57 70q11-5 23-7.5t26-2.5q50 0 85 35t35 85q0 50-35 85t-85 35q-50 0-85-35t-35-85q0-20 6.5-38.5T624-232l-57-71q-41 23-87.5 23T392-303l-56 71q11 15 17.5 33.5T360-160q0 50-35 85t-85 35ZM120-540q17 0 28.5-11.5T160-580q0-17-11.5-28.5T120-620q-17 0-28.5 11.5T80-580q0 17 11.5 28.5T120-540Zm120 420q17 0 28.5-11.5T280-160q0-17-11.5-28.5T240-200q-17 0-28.5 11.5T200-160q0 17 11.5 28.5T240-120Zm240-680q17 0 28.5-11.5T520-840q0-17-11.5-28.5T480-880q-17 0-28.5 11.5T440-840q0 17 11.5 28.5T480-800Zm0 440q42 0 71-29t29-71q0-42-29-71t-71-29q-42 0-71 29t-29 71q0 42 29 71t71 29Zm240 240q17 0 28.5-11.5T760-160q0-17-11.5-28.5T720-200q-17 0-28.5 11.5T680-160q0 17 11.5 28.5T720-120Zm120-420q17 0 28.5-11.5T880-580q0-17-11.5-28.5T840-620q-17 0-28.5 11.5T800-580q0 17 11.5 28.5T840-540ZM480-840ZM120-580Zm360 120Zm360-120ZM240-160Zm480 0Z"/></svg> Teia</button><button data-v="time" class="on">Linha do tempo</button><button data-v="grid">Grade</button><button data-v="az">A–Z</button></div>
       <div class="seg" id="order"><button data-o="new" class="on" title="Mais novos primeiro">↓</button><button data-o="old" title="Mais antigos primeiro">↑</button></div>
     </div>
   </div>
@@ -251,7 +252,7 @@ header .sp{flex:1}
     <div class="list" id="list"></div>
     <div class="detail idle" id="detail">Escolha algo na lista</div>
   </div>
-  <div class="ver"><span id="ver">VisualContext · Manager v0.18.17</span></div>
+  <div class="ver"><span id="ver">VisualContext · Manager v0.18.18</span></div>
 </div>
 
 <div class="sheet" id="sheet"><div class="box" id="sbox"></div></div>
@@ -317,7 +318,9 @@ const photo = p => p && p.photo_url && !/ui-avatars\.com/.test(p.photo_url) ? p.
 const avatar = (p, cls = "") => { const u = photo(p); return `<span class="av ${cls}">${u ? `<img src="${esc(u)}" alt="" loading="lazy" onerror="this.remove()">` : esc(initials(p.name))}</span>`; };
 /** You, as a circle: the photo of the person marked "Sou eu", or your initials. */
 const meAv = () => { const p = S.people.find(x => isMe(x.name)); return p ? avatar(p) : `<span class="av">${esc(initials((S.me && S.me.me_name) || "Eu"))}</span>`; };
-const sym = (c, title = "") => `<span class="av sym" title="${esc(title)}">${c}</span>`;
+const sym = (c, title = "") => `<span class="av sym" title="${esc(title)}">${I(c) || esc(c)}</span>`;
+/** An icon in a rounded square (lists, detail headers). */
+const icAv = (n, style = "") => `<span class="av k" ${style ? `style="${style}"` : ""}>${I(n) || esc(n)}</span>`;
 const imgAv = u => `<span class="av"><img src="${esc(u)}" alt="" loading="lazy" onerror="this.remove()"></span>`;
 /** Who took part, side by side; past three they overlap more (Marcus, 09/11). */
 const stack = parts => `<span class="stk ${parts.length > 2 ? "n3" : ""}">${parts.join("")}</span>`;
@@ -374,7 +377,7 @@ function coverFor(t, a, cb) {
 function hydrateCovers(root = document) {
   root.querySelectorAll("[data-cover]").forEach(el => { const [t, a] = el.dataset.cover.split("\u0001"); el.removeAttribute("data-cover"); coverFor(t, a, u => { if (u) el.innerHTML = `<img src="${esc(u)}" alt="">`; }); });
 }
-const coverAv = (r, big) => { const s = songOf(r); return `<span class="av k cov" ${big ? 'style="width:96px;height:96px;font-size:40px"' : ""} data-cover="${esc(s.title + "\u0001" + s.artist)}">♪</span>`; };
+const coverAv = (r, big) => { const s = songOf(r); return `<span class="av k cov" ${big ? 'style="width:96px;height:96px"' : ""} data-cover="${esc(s.title + "\u0001" + s.artist)}">${I("music_note")}</span>`; };
 
 /** Conversations that were only about a song, and the song note each belongs to (identified within 15 min). */
 function musicChats() {
@@ -399,28 +402,28 @@ function items() {
     if (live) {
       const tp = topicOf(e);
       out.push({ kind: "memory", id: e.id, title: tp.t, sub: placeName(e) || "", date: e.at, ref: e, sub2: "enc", mini: tp.k === "consulta",
-        av: stack([meAv(), sym("✦", "assistente"), ...(p ? [avatar(p)] : [])]) });
+        av: stack([meAv(), sym(tp.k === "musica" ? "music_off" : "auto_awesome", tp.k === "musica" ? "música não reconhecida" : "assistente"), ...(p ? [avatar(p)] : [])]) });
       continue;
     }
     const what = said(e);
     out.push({ kind: "memory", id: e.id, title: isMe(e.person_name) ? "Você mesmo (teste ou espelho)" : e.person_name ? e.person_name : (e.context || "Momento"), sub: [what, placeName(e)].filter(Boolean).join(" · "), date: e.at, ref: e, sub2: "enc",
-      av: stack([meAv(), p ? avatar(p) : e.person_name ? `<span class="av">${esc(initials(e.person_name))}</span>` : sym("◷")]) });
+      av: stack([meAv(), p && photo(p) ? avatar(p) : e.person_name ? sym("handshake", e.person_name) : sym("help", "não sei o que é")]) });
   }
-  const PK = { pix: ["◈", "Pix"], link: ["↗", "link"], cartao: ["☏", "cartão de visita"], cracha: ["☏", "crachá"], receita: ["✚", "receita"], formulario: ["▤", "formulário"], cardapio: ["▤", "cardápio"], musica: ["♪", "música"], ouvir_depois: ["♫", "ouvir depois"], traducao: ["⇄", "tradução"], evento: ["🗓", "compromisso"], outro: ["▤", "papel"] };
+  const PK = { pix: ["qr_code", "Pix"], link: ["link", "link"], cartao: ["contact_page", "cartão de visita"], cracha: ["badge", "crachá"], receita: ["medication", "receita"], formulario: ["list_alt", "formulário"], cardapio: ["restaurant_menu", "cardápio"], musica: ["music_note", "música"], ouvir_depois: ["playlist_add_check", "ouvir depois"], traducao: ["translate", "tradução"], evento: ["calendar_month", "compromisso"], outro: ["description", "papel"] };
   // To-dos (Marcus, 09/11): their own category; done ones (a "tarefa_feita" note points to them) and the "feita" markers stay out.
   const doneT = tasksDone();
-  for (const n of S.notes) if (n.kind === "tarefa" && !doneT.has(n.id)) { const f = n.fields || {}; out.push({ kind: "task", id: n.id, title: n.title || n.text, sub: [TACT[f.acao]?.[1], f.pessoa, f.quando && "até " + fmtShort(f.quando)].filter(Boolean).join(" · ") || "tarefa", date: f.quando || n.at, ref: n, av: `<span class="av k">${TACT[f.acao]?.[0] || "✓"}</span>` }); }
+  for (const n of S.notes) if (n.kind === "tarefa" && !doneT.has(n.id)) { const f = n.fields || {}; out.push({ kind: "task", id: n.id, title: n.title || n.text, sub: [TACT[f.acao]?.[1], f.pessoa, f.quando && "até " + fmtShort(f.quando)].filter(Boolean).join(" · ") || "tarefa", date: f.quando || n.at, ref: n, av: icAv(TACT[f.acao]?.[0] || "check") }); }
   for (const n of S.notes) {
     if (["tarefa", "tarefa_feita", "ligacao"].includes(n.kind)) continue;
     const k = PK[n.kind];
     if (n.kind === "musica" || n.kind === "ouvir_depois") { const sg = songOf(n); out.push({ kind: "memory", id: n.id, title: sg.title || n.title, sub: [n.kind === "ouvir_depois" ? "ouvir depois" : "", sg.artist, n.place].filter(Boolean).join(" · "), date: n.at, ref: n, sub2: "note", av: coverAv(n) }); continue; }
-    out.push({ kind: "memory", id: n.id, title: n.title || n.text, sub: k ? k[1] + (n.place ? " · " + n.place : "") : "nota" + (n.source === "voice" ? " por voz" : ""), date: n.at, ref: n, sub2: "note", av: stack([meAv(), sym(k ? k[0] : "✎")]) });
+    out.push({ kind: "memory", id: n.id, title: n.title || n.text, sub: k ? k[1] + (n.place ? " · " + n.place : "") : "nota" + (n.source === "voice" ? " por voz" : ""), date: n.at, ref: n, sub2: "note", av: stack([meAv(), sym(k ? k[0] : "edit_note")]) });
   }
-  for (const t of S.things) out.push({ kind: "thing", id: t.id, title: t.name, sub: t.location_description || "", date: t.seen_at, ref: t, av: stack([meAv(), t.snapshot_url ? imgAv(t.snapshot_url) : sym("⌖")]) });
+  for (const t of S.things) out.push({ kind: "thing", id: t.id, title: t.name, sub: t.location_description || "", date: t.seen_at, ref: t, av: stack([meAv(), t.snapshot_url ? imgAv(t.snapshot_url) : sym(/chave/i.test(t.name) ? "key" : "category")]) });
   const places = new Map();
   const addPlace = (name, date, lat, lng) => { if (!name) return; const k = norm(name); const p = places.get(k) || { name, n: 0, date: null, lat, lng }; p.n++; if (!p.date || date > p.date) p.date = date; if (lat && !p.lat) { p.lat = lat; p.lng = lng; } places.set(k, p); };
   S.enc.forEach(e => { const m = myPlaceAt(e.lat, e.lng); addPlace(m ? m.name : e.place, e.at, m ? m.lat : e.lat, m ? m.lng : e.lng); });
-  for (const [k, p] of places) { const mp = (S.myPlaces || []).find(x => norm(x.name) === k); out.push({ kind: "place", id: "pl:" + k, title: p.name, sub: (mp ? ({ casa: "sua casa", trabalho: "seu trabalho" }[mp.kind] || "seu lugar") + " · " : "") + p.n + (p.n === 1 ? " momento" : " momentos"), date: p.date, ref: p, av: `<span class="av k">${mp ? ({ casa: "⌂", trabalho: "▣" }[mp.kind] || "★") : "◉"}</span>` }); }
+  for (const [k, p] of places) { const mp = (S.myPlaces || []).find(x => norm(x.name) === k); out.push({ kind: "place", id: "pl:" + k, title: p.name, sub: (mp ? ({ casa: "sua casa", trabalho: "seu trabalho" }[mp.kind] || "seu lugar") + " · " : "") + p.n + (p.n === 1 ? " momento" : " momentos"), date: p.date, ref: p, av: icAv(mp ? ({ casa: "home", trabalho: "work" }[mp.kind] || "star") : "location_on") }); }
   return out;
 }
 const CATS = [["all", "Todos"], ["task", "Tarefas"], ["person", "Pessoas"], ["place", "Lugares"], ["thing", "Coisas"], ["memory", "Lembranças"]];
@@ -488,7 +491,7 @@ function render() {
   if (S.dayOnly) list = list.filter(i => i.date && sameDay(new Date(i.date), new Date()));
   const dir = S.order === "new" ? -1 : 1;
   let html = "";
-  if (S.cat === "person" || S.cat === "all") { const d = dupPairs(); if (d.length && !q) html += `<button class="dup" data-dups="1">⚠ ${d.length} ${d.length === 1 ? "possível pessoa repetida" : "possíveis pessoas repetidas"} · revisar</button>`; }
+  if (S.cat === "person" || S.cat === "all") { const d = dupPairs(); if (d.length && !q) html += `<button class="dup" data-dups="1">${I("warning")} ${d.length} ${d.length === 1 ? "possível pessoa repetida" : "possíveis pessoas repetidas"} · revisar</button>`; }
   if (S.view === "teia") { if (render.lastView !== "teia") bump("teia"); render.lastView = "teia"; $("#list").innerHTML = html + teiaHtml(); teiaMount(); return; }
   render.lastView = S.view;
   if (!list.length) html += `<div class="empty">${q ? "Nada encontrado para “" + esc(q) + "”." : "Ainda não há nada aqui. Use os óculos ou o emulador no celular."}</div>`;
@@ -545,7 +548,7 @@ function myDay() {
   // How you got from one stop to the next: distance over time (Marcus, 07/11: "fomos de carro, depois a pé").
   for (let i = 1; i < byPlace.length; i++) {
     const a = byPlace[i - 1], b = byPlace[i], d = dist(a, b), h = (new Date(b.from) - new Date(a.to)) / 3.6e6;
-    b.how = d === Infinity || d < 250 ? null : h <= 0 ? null : (d / 1000 / h > 11 ? "🚗 de carro" : "🚶 a pé") + " · " + (d < 950 ? Math.round(d / 50) * 50 + " m" : (d / 1000).toFixed(1) + " km");
+    b.how = d === Infinity || d < 250 ? null : h <= 0 ? null : (d / 1000 / h > 11 ? "de carro" : "a pé") + " · " + (d < 950 ? Math.round(d / 50) * 50 + " m" : (d / 1000).toFixed(1) + " km");
   }
   places = [...new Set(byPlace.map(b => b.key.split(" · ")[0]).filter(k => k && k !== "—"))];
   const bits = [];
@@ -554,16 +557,16 @@ function myDay() {
   if (th.length) bits.push("guardou onde deixou " + listPt(th.map(t => t.name.toLowerCase())));
   if (no.length) bits.push("anotou " + no.length + (no.length === 1 ? " lembrete" : " lembretes"));
   const tm = d => new Date(d).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-  const stopsHtml = byPlace.map(b => (b.how ? `<div class="how">${esc(b.how)}</div>` : "") + `<div class="stop"><span>${esc(tm(b.from))}${b.to !== b.from ? "–" + esc(tm(b.to)) : ""}</span><div class="stopb"><div class="stopn">${esc(b.key.split(" · ")[0])}</div>${b.key.includes(" · ") ? `<div class="muted" style="font-size:12.5px">${esc(b.key.split(" · ").slice(1).join(" · "))}</div>` : ""}${b.who.length ? `<div class="whom">${stack([meAv(), ...b.who.map(w => w.p ? avatar(w.p) : w.name === "assistente" ? sym("✦") : `<span class="av">${esc(initials(w.name))}</span>`)])}<span class="names">${esc(listPt(b.who.map(w => w.name === "assistente" ? "assistente" : w.name.split(" ")[0])))}</span></div>` : ""}</div></div>`)
+  const stopsHtml = byPlace.map(b => (b.how ? `<div class="how">${esc(b.how)}</div>` : "") + `<div class="stop"><span>${esc(tm(b.from))}${b.to !== b.from ? "–" + esc(tm(b.to)) : ""}</span><div class="stopb"><div class="stopn">${esc(b.key.split(" · ")[0])}</div>${b.key.includes(" · ") ? `<div class="muted" style="font-size:12.5px">${esc(b.key.split(" · ").slice(1).join(" · "))}</div>` : ""}${b.who.length ? `<div class="whom">${stack([meAv(), ...b.who.map(w => w.p ? avatar(w.p) : w.name === "assistente" ? sym("auto_awesome") : `<span class="av">${esc(initials(w.name))}</span>`)])}<span class="names">${esc(listPt(b.who.map(w => w.name === "assistente" ? "assistente" : w.name.split(" ")[0])))}</span></div>` : ""}</div></div>`)
     .concat(th.map(t => `<div class="stop"><span>${esc(tm(t.seen_at))}</span><div class="stopb"><div>${esc(t.name)} → ${esc(t.location_description || "")}</div></div></div>`)).slice(0, 6).join("");
-  return `<div class="day"><h4 style="display:flex;justify-content:space-between;align-items:center;gap:8px">✦ Meu dia · hoje<button class="btn pri" data-reviver="1" style="min-height:36px;padding:0 14px;font-size:13px">▶ Reviver</button></h4><p>Hoje você ${esc(listPt(bits))}.</p><div class="stops">${stopsHtml}</div>${tasksBlock()}${pendingPlans()}
+  return `<div class="day"><h4 style="display:flex;justify-content:space-between;align-items:center;gap:8px">✦ Meu dia · hoje<button class="btn pri" data-reviver="1" style="min-height:36px;padding:0 14px;font-size:13px">${I("play_arrow")} Reviver</button></h4><p>Hoje você ${esc(listPt(bits))}.</p><div class="stops">${stopsHtml}</div>${tasksBlock()}${pendingPlans()}
   <div class="foot"><span>${[[people.length, "pessoa", "pessoas"], [places.length, "lugar", "lugares"], [no.length, "nota", "notas"], [follow, "pendência", "pendências"]].filter(x => x[0]).map(([n, a, b]) => n + " " + (n === 1 ? a : b)).join(" · ")}</span><button data-day="1">Ver o dia →</button></div></div>`;
 }
 /** Suggestions still waiting (any day): one tap opens each. */
 function pendingPlans() {
   const done = evDone(), ps = S.notes.filter(n => n.kind === "evento" && (n.fields || {}).status === "sugerido" && !done[n.id] && (!n.fields.inicio || new Date(n.fields.inicio) > Date.now() - 864e5));
   if (!ps.length) return "";
-  return `<div class="sec" style="margin-top:10px"><h5>🗓 ${ps.length === 1 ? "1 compromisso para confirmar" : ps.length + " compromissos para confirmar"}</h5>${ps.slice(0, 4).map(n => planCard(n)).join("")}</div>`;
+  return `<div class="sec" style="margin-top:10px"><h5>${I("calendar_month")} ${ps.length === 1 ? "1 compromisso para confirmar" : ps.length + " compromissos para confirmar"}</h5>${ps.slice(0, 4).map(n => planCard(n)).join("")}</div>`;
 }
 const listPt = a => a.length <= 1 ? (a[0] || "") : a.slice(0, -1).join(", ") + " e " + a.at(-1);
 
@@ -606,7 +609,7 @@ $("#q").addEventListener("input", () => {
   const all = items();
   const n = k => all.filter(i => i.kind === k && matches(i, v)).length;
   sc.innerHTML = `<button data-ask="${esc(v)}"><span class="q">✦</span><span>Pergunte à sua memória: “${esc(v)}”</span></button>` +
-    [["person", "pessoas"], ["place", "lugares"], ["thing", "coisas"], ["memory", "lembranças"]].map(([k, l]) => `<button data-scope="${k}"><span>⌕</span><span>Buscar em ${l}</span><span class="n">${n(k)}</span></button>`).join("");
+    [["person", "pessoas"], ["place", "lugares"], ["thing", "coisas"], ["memory", "lembranças"]].map(([k, l]) => `<button data-scope="${k}"><span>${I("search")}</span><span>Buscar em ${l}</span><span class="n">${n(k)}</span></button>`).join("");
   sc.classList.add("on");
 });
 $("#q").addEventListener("keydown", e => { if (e.key === "Enter" && $("#q").value.trim()) { e.preventDefault(); ask($("#q").value.trim()); } if (e.key === "Escape") $("#scope").classList.remove("on"); });
@@ -749,7 +752,7 @@ function personHtml(p) {
     ["WhatsApp", p.contact_whatsapp && link("https://wa.me/" + String(p.contact_whatsapp).replace(/\D/g, ""), p.contact_whatsapp), 1], ["LinkedIn", p.contact_linkedin && link(p.contact_linkedin, "perfil"), 1], ["Notas", p.notes], ["Origem", { base44: "app antigo", import: "importado", glasses: "óculos", teste: "teste" }[p.source] || p.source]])}</div>
   <div class="sec"><h5>Encontros (${encs.length})</h5>${encs.length ? encs.map(encHtml).join("") : `<p class="muted">Nenhum encontro gravado ainda.</p>`}</div>
   <div id="prep"></div>
-  <div class="btns">${chatBtn(p)}<button class="btn pri" data-prep="${p.id}">✦ Preparar conversa</button><button class="btn" data-teia="person:${p.id}">◉ Teia</button><button class="btn" data-edit="${p.id}">Editar</button><button class="btn" data-me="${p.id}">${isMe(p.name) ? "★ Sou eu (desmarcar)" : "Sou eu"}</button><button class="btn" data-merge="${p.id}">Juntar com outra pessoa</button><button class="btn dan" data-del-person="${p.id}">Apagar</button></div>`;
+  <div class="btns">${chatBtn(p)}<button class="btn pri" data-prep="${p.id}">✦ Preparar conversa</button><button class="btn" data-teia="person:${p.id}">${I("hub")} Teia</button><button class="btn" data-edit="${p.id}">Editar</button><button class="btn" data-me="${p.id}">${isMe(p.name) ? "★ Sou eu (desmarcar)" : "Sou eu"}</button><button class="btn" data-merge="${p.id}">Juntar com outra pessoa</button><button class="btn dan" data-del-person="${p.id}">Apagar</button></div>`;
 }
 const encHtml = e => `<div class="enc"><div class="d">${esc(fmtFull(e.at))}${e.place ? " · " + esc(e.place) : ""}</div><div>${esc(e.summary || e.context || "")}</div>${(e.follow_ups || []).length ? `<ul>${e.follow_ups.map(f => `<li>${esc(typeof f === "string" ? f : f.text || JSON.stringify(f))}</li>`).join("")}</ul>` : ""}</div>`;
 function memHtml(r, it) {
@@ -766,7 +769,7 @@ function memHtml(r, it) {
   <div class="btns">${r.lat ? `<a class="btn" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${r.lat},${r.lng}">Abrir no mapa</a>` : ""}<button class="btn dan" data-del-row="encounter:${r.id}">Apagar este momento</button></div>`;
 }
 function noteHtml(r, it) {
-  if (r.kind === "evento") return `<h2>🗓 ${esc(r.title || "Compromisso")}</h2><div class="hook">${esc(evWhen(r.fields || {}))}</div>${planCard(r, true)}`;
+  if (r.kind === "evento") return `<h2>${I("calendar_month")} ${esc(r.title || "Compromisso")}</h2><div class="hook">${esc(evWhen(r.fields || {}))}</div>${planCard(r, true)}`;
   const f = r.fields || {}, pe = f.pessoa, rx = f.receita;
   const person = pe && pe.nome ? S.people.find(p => norm(p.name) === norm(pe.nome)) : null;
   if (r.kind === "musica" || r.kind === "ouvir_depois") {
@@ -804,10 +807,10 @@ function gcalUrl(title, f) {
 }
 function planCard(n, big) {
   const f = n.fields || {}, done = f.status === "na_agenda" || evDone()[n.id];
-  return `<div class="plan${done ? " done" : ""}"><b>🗓 ${esc(n.title || "Compromisso")}</b><span>${esc(evWhen(f))}</span>
+  return `<div class="plan${done ? " done" : ""}"><b>${I("calendar_month")} ${esc(n.title || "Compromisso")}</b><span>${esc(evWhen(f))}</span>
     ${f.com ? `<span>com ${esc(f.com)}</span>` : ""}${f.local ? `<span>⌖ ${esc(f.local)}</span>` : ""}${f.notas ? `<span class="muted">${esc(f.notas)}</span>` : ""}
     <div class="btns" style="margin-top:6px">${done ? `<span class="btn" style="opacity:.75">✓ ${f.status === "na_agenda" ? "posto na agenda pelos óculos" : "criado na agenda"}</span>`
-      : `<a class="btn pri" target="_blank" rel="noopener" href="${esc(gcalUrl(n.title || "Compromisso", f))}" data-evmark="${n.id}">🗓 Criar na agenda</a><button class="btn" data-evskip="${n.id}">Ignorar</button>`}</div></div>`;
+      : `<a class="btn pri" target="_blank" rel="noopener" href="${esc(gcalUrl(n.title || "Compromisso", f))}" data-evmark="${n.id}">${I("calendar_month")} Criar na agenda</a><button class="btn" data-evskip="${n.id}">Ignorar</button>`}</div></div>`;
 }
 /** The commitments that came out of this conversation (notes of kind "evento" saved right after it, same person). */
 function plansOf(r) {
@@ -818,7 +821,7 @@ function plansBlock(r) {
   if (!r.transcript) return "";
   const ps = plansOf(r);
   return `<div class="sec"><h5>Compromissos combinados</h5>${ps.map(n => planCard(n)).join("") || `<p class="muted" style="margin:0 0 8px">Nenhum encontrado ainda.</p>`}
-    <button class="btn" data-evfind="${r.id}">🗓 Procurar compromissos nesta conversa</button></div>`;
+    <button class="btn" data-evfind="${r.id}">${I("calendar_month")} Procurar compromissos nesta conversa</button></div>`;
 }
 async function findPlans(id) {
   const r = S.enc.find(x => x.id === id); if (!r) return;
@@ -844,7 +847,7 @@ async function findPlans(id) {
 
 /* ---------- Tarefas (Marcus, 09/11): "o que eu tenho para fazer?" — what was agreed and not done, what someone
    asked, "me lembra de…". Each one comes with the action that does it. ---------- */
-const TACT = { whatsapp: ["💬", "WhatsApp"], email: ["✉", "e-mail"], ligar: ["☏", "ligar"], agenda: ["🗓", "agenda"], comprar: ["🛒", "comprar"], lembrete: ["⏰", "lembrete"], outro: ["✓", "tarefa"] };
+const TACT = { whatsapp: ["chat", "WhatsApp"], email: ["mail", "e-mail"], ligar: ["call", "ligar"], agenda: ["calendar_month", "agenda"], comprar: ["shopping_cart", "comprar"], lembrete: ["alarm", "lembrete"], outro: ["check", "tarefa"] };
 const fmtShort = d => { const t = new Date(d); return isNaN(t) ? "" : t.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" }) + (/T\d/.test(d) ? " " + t.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : ""); };
 const tasksDone = () => new Set(S.notes.filter(n => n.kind === "tarefa_feita").map(n => (n.fields || {}).ref).filter(Boolean));
 const openTasks = () => { const d = tasksDone(); return S.notes.filter(n => n.kind === "tarefa" && !d.has(n.id)).sort((a, b) => new Date((a.fields || {}).quando || "9999") - new Date((b.fields || {}).quando || "9999")); };
@@ -854,23 +857,23 @@ function taskActions(n) {
   const body = [n.title, f.detalhes].filter(Boolean).join("\n\n");
   const b = [];
   if (f.acao === "whatsapp" || (phone && f.acao !== "email")) b.push(phone ? `<a class="btn pri" href="${/Android/i.test(navigator.userAgent) ? `intent://chat?phone=${phone}&name=${encodeURIComponent(p.name)}#Intent;scheme=zap;package=io.alema.zap;S.browser_fallback_url=${encodeURIComponent("https://wa.me/" + phone)};end` : "https://wa.me/" + phone + "?text=" + encodeURIComponent(f.detalhes || "")}" target="_blank" rel="noopener">💬 WhatsApp${p ? " para " + esc(p.name.split(" ")[0]) : ""}</a>` : `<span class="btn" style="opacity:.6">💬 sem número de ${esc(f.pessoa || "?")}</span>`);
-  if (f.acao === "email") b.push(`<a class="btn pri" href="mailto:${esc(mail || "")}?subject=${encodeURIComponent(n.title)}&body=${encodeURIComponent(f.detalhes || "")}">✉ Escrever e-mail${p ? " para " + esc(p.name.split(" ")[0]) : ""}</a>`);
-  if (f.acao === "ligar" && phone) b.push(`<a class="btn pri" href="tel:+${phone}">☏ Ligar${p ? " para " + esc(p.name.split(" ")[0]) : ""}</a>`);
-  if (f.acao === "agenda" || f.quando) b.push(`<a class="btn" target="_blank" rel="noopener" href="${esc(gcalUrl(n.title, { inicio: f.quando || new Date(Date.now() + 864e5).toISOString().slice(0, 10) + "T09:00", duracao_min: 30, dia_inteiro: !f.quando, notas: f.detalhes, com: f.pessoa }))}">🗓 Pôr na agenda</a>`);
-  if (f.acao === "comprar") b.push(`<a class="btn" target="_blank" rel="noopener" href="https://www.google.com/search?tbm=shop&q=${encodeURIComponent(n.title.replace(/^comprar\s+/i, ""))}">🛒 Procurar</a>`);
+  if (f.acao === "email") b.push(`<a class="btn pri" href="mailto:${esc(mail || "")}?subject=${encodeURIComponent(n.title)}&body=${encodeURIComponent(f.detalhes || "")}">${I("mail")} Escrever e-mail${p ? " para " + esc(p.name.split(" ")[0]) : ""}</a>`);
+  if (f.acao === "ligar" && phone) b.push(`<a class="btn pri" href="tel:+${phone}">${I("call")} Ligar${p ? " para " + esc(p.name.split(" ")[0]) : ""}</a>`);
+  if (f.acao === "agenda" || f.quando) b.push(`<a class="btn" target="_blank" rel="noopener" href="${esc(gcalUrl(n.title, { inicio: f.quando || new Date(Date.now() + 864e5).toISOString().slice(0, 10) + "T09:00", duracao_min: 30, dia_inteiro: !f.quando, notas: f.detalhes, com: f.pessoa }))}">${I("calendar_month")} Pôr na agenda</a>`);
+  if (f.acao === "comprar") b.push(`<a class="btn" target="_blank" rel="noopener" href="https://www.google.com/search?tbm=shop&q=${encodeURIComponent(n.title.replace(/^comprar\s+/i, ""))}">${I("shopping_cart")} Procurar</a>`);
   b.push(`<button class="btn" data-taskdone="${n.id}">✓ Feito</button>`);
   return b.join("");
 }
 function taskHtml(n) {
   const f = n.fields || {};
-  return `<h2>${TACT[f.acao]?.[0] || "✓"} ${esc(n.title || n.text)}</h2><div class="hook">${[f.quando && "até " + esc(fmtShort(f.quando)), f.pessoa && "com " + esc(f.pessoa), f.de && "de uma conversa" + (f.de !== "conversa" ? " com " + esc(f.de) : "")].filter(Boolean).join(" · ") || "tarefa"}</div>
+  return `<h2>${I(TACT[f.acao]?.[0] || "check")} ${esc(n.title || n.text)}</h2><div class="hook">${[f.quando && "até " + esc(fmtShort(f.quando)), f.pessoa && "com " + esc(f.pessoa), f.de && "de uma conversa" + (f.de !== "conversa" ? " com " + esc(f.de) : "")].filter(Boolean).join(" · ") || "tarefa"}</div>
     ${f.detalhes ? `<div class="sec"><h5>Detalhes</h5><p>${esc(f.detalhes)}</p></div>` : ""}<div class="btns">${taskActions(n)}</div>`;
 }
 function tasksBlock() {
   const ts = openTasks(); if (!ts.length) return "";
   const late = ts.filter(n => (n.fields || {}).quando && new Date(n.fields.quando) < Date.now()).length;
   return `<div class="sec" style="margin-top:10px"><h5>✓ ${ts.length === 1 ? "1 coisa para fazer" : ts.length + " coisas para fazer"}${late ? ` · <span style="color:var(--danger,#ff7a6a)">${late} atrasada${late > 1 ? "s" : ""}</span>` : ""}</h5>
-    ${ts.slice(0, 4).map(n => `<button class="row" data-k="task" data-id="${n.id}"><span class="av k">${TACT[(n.fields || {}).acao]?.[0] || "✓"}</span><span class="tx"><span class="t1">${esc(n.title)}</span><span class="t2">${esc([(n.fields || {}).pessoa, (n.fields || {}).quando && "até " + fmtShort(n.fields.quando)].filter(Boolean).join(" · "))}</span></span></button>`).join("")}
+    ${ts.slice(0, 4).map(n => `<button class="row" data-k="task" data-id="${n.id}">${icAv(TACT[(n.fields || {}).acao]?.[0] || "check")}<span class="tx"><span class="t1">${esc(n.title)}</span><span class="t2">${esc([(n.fields || {}).pessoa, (n.fields || {}).quando && "até " + fmtShort(n.fields.quando)].filter(Boolean).join(" · "))}</span></span></button>`).join("")}
     ${ts.length > 4 ? `<button class="pill" data-c="task">ver as ${ts.length}</button>` : ""}</div>`;
 }
 async function taskDone(id) {
@@ -886,7 +889,7 @@ function chatBtn(p) {
   if (!n) return "";
   const android = /Android/i.test(navigator.userAgent);
   const zap = `intent://chat?phone=${n}&name=${encodeURIComponent(p.name)}#Intent;scheme=zap;package=io.alema.zap;S.browser_fallback_url=${encodeURIComponent("https://wa.me/" + n)};end`;
-  return `<a class="btn pri" href="${android ? zap : "https://wa.me/" + n}" ${android ? "" : 'target="_blank" rel="noopener"'}>💬 Conversar${android ? " no Zap" : ""}</a>`;
+  return `<a class="btn pri" href="${android ? zap : "https://wa.me/" + n}" ${android ? "" : 'target="_blank" rel="noopener"'}>${I("chat")} Conversar${android ? " no Zap" : ""}</a>`;
 }
 /* Translate any text the glasses read (Marcus, 09/11): the original stays; the translation is asked to Gemini here. */
 const LANGS = [["pt", "português"], ["en", "inglês"], ["de", "alemão"], ["es", "espanhol"], ["fr", "francês"], ["it", "italiano"], ["zh", "chinês"], ["ja", "japonês"], ["ko", "coreano"], ["th", "tailandês"], ["ar", "árabe"], ["ru", "russo"]];
@@ -917,7 +920,7 @@ function musicBtns(r) {
   const s = songOf(r), q = encodeURIComponent([s.title, s.artist].filter(Boolean).join(" "));
   const later = S.notes.some(n => n.kind === "ouvir_depois" && n.title === r.title);
   return `<div class="btns" style="margin-top:4px">
-    <a class="btn pri" target="_blank" rel="noopener" href="https://open.spotify.com/search/${q}">▶ Abrir no Spotify</a>
+    <a class="btn pri" target="_blank" rel="noopener" href="https://open.spotify.com/search/${q}">${I("play_arrow")} Abrir no Spotify</a>
     <a class="btn" target="_blank" rel="noopener" href="https://music.youtube.com/search?q=${q}">YouTube Music</a>
     ${later ? `<button class="btn on" data-unlater="${r.id}" aria-label="Tirar da lista Ouvir depois">✓ Em Ouvir depois <span class="minus">−</span></button>` : `<button class="btn" data-later="${r.id}">+ Ouvir depois</button>`}
   </div>`;
@@ -1030,11 +1033,11 @@ function placeHtml(p) {
   const encs = S.enc.filter(e => norm(placeName(e)) === k).sort((a, b) => b.at.localeCompare(a.at)), th = S.things.filter(t => norm(t.location_description) === k);
   const q = mp ? `${mp.lat},${mp.lng}` : (/\d/.test(p.name) ? p.name.replace(" · ", ", ") + ", São Paulo" : p.lat ? `${p.lat},${p.lng}` : p.name);
   const row = e => { const live = e.capture_mode === "live", w = said(e); return `<button class="row" data-k="memory" data-id="${esc(e.id)}"><span class="av k">${live ? "✦" : "◷"}</span><span class="tx"><span class="t1">${esc(live ? (w || "Conversa com o assistente") : (e.person_name && !isMe(e.person_name) ? "Encontro com " + e.person_name : w || e.context || "Momento"))}</span><span class="t2">${esc(fmtFull(e.at))}${live && w ? " · conversa com o assistente" : ""}</span></span></button>`; };
-  return `<div class="ph"><span class="av k" style="width:64px;height:64px;font-size:26px">${mp ? ({ casa: "⌂", trabalho: "▣" }[mp.kind] || "★") : "◉"}</span><div><h2>${esc(p.name)}</h2><div class="hook">${mp ? esc(({ casa: "Sua casa", trabalho: "Seu trabalho" }[mp.kind] || "Seu lugar")) + " · " : ""}${p.n} ${p.n === 1 ? "momento" : "momentos"} · último ${esc(fmtWhen(p.date))}</div></div></div>
+  return `<div class="ph">${icAv(mp ? ({ casa: "home", trabalho: "work" }[mp.kind] || "star") : "location_on", "width:64px;height:64px")}<div><h2>${esc(p.name)}</h2><div class="hook">${mp ? esc(({ casa: "Sua casa", trabalho: "Seu trabalho" }[mp.kind] || "Seu lugar")) + " · " : ""}${p.n} ${p.n === 1 ? "momento" : "momentos"} · último ${esc(fmtWhen(p.date))}</div></div></div>
   ${mp ? "" : `<div class="sec"><h5>Que lugar é este?</h5><p class="muted" style="font-size:14px;margin:0 0 8px">O GPS dentro de casa erra algumas dezenas de metros. Dando um nome, todos os momentos por perto passam a aparecer com ele.</p><div class="btns" style="margin-top:0"><button class="btn" data-name-place="casa">⌂ É minha casa</button><button class="btn" data-name-place="trabalho">▣ É meu trabalho</button><button class="btn" data-name-place="outro">★ Dar um nome…</button></div></div>`}
   ${encs.length ? `<div class="sec"><h5>O que aconteceu aqui</h5>${encs.map(row).join("")}</div>` : ""}
   ${th.length ? `<div class="sec"><h5>Coisas deixadas aqui</h5>${th.map(t => `<button class="row" data-k="thing" data-id="${esc(t.id)}"><span class="av k">⌖</span><span class="tx"><span class="t1">${esc(t.name)}</span><span class="t2">${esc(fmtFull(t.seen_at))}</span></span></button>`).join("")}</div>` : ""}
-  <div class="btns"><button class="btn" data-teia="place:${p.id}">◉ Teia</button><a class="btn pri" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}">Abrir no mapa</a>${mp ? `<button class="btn" data-unname-place="${mp.id}">Tirar o nome</button>` : ""}</div>`;
+  <div class="btns"><button class="btn" data-teia="place:${p.id}">${I("hub")} Teia</button><a class="btn pri" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}">Abrir no mapa</a>${mp ? `<button class="btn" data-unname-place="${mp.id}">Tirar o nome</button>` : ""}</div>`;
 }
 async function namePlace(kind, placeTitle) {
   const k = norm(placeTitle), encs = S.enc.filter(e => norm(placeName(e)) === k && e.lat != null);
@@ -1125,8 +1128,8 @@ function importSheet() {
   sheet(`<h3>Importar</h3><p class="sub"><b>Rostos</b> se importam no app do celular (Ajustes → Importar rostos): Google Fotos, contatos com foto, prints do LinkedIn, Facebook e Instagram. Ele precisa da câmera e do reconhecimento, que só existem lá.</p>
   <p class="sub"><b>Aqui</b> entram arquivos, que é mais fácil num computador. Quem chega sem rosto espera o primeiro encontro para ser reconhecido. Nada duplica: o mesmo nome só completa os campos que faltam.</p>
   <button class="opt" data-imp="linkedin"><span class="ic">in</span><span><b>LinkedIn: preparar o terreno</b><small><b>Não vem foto</b>: o LinkedIn não exporta fotos de conexões. Vem nome, empresa e cargo. Serve para chegar numa feira ou evento com as pessoas já na memória: quando você encontra alguém e diz o nome, os óculos guardam o rosto nessa pessoa, com a empresa e o cargo que vieram daqui.<br>Como pegar: LinkedIn → Configurações → Privacidade → Obter uma cópia dos seus dados → Conexões. Chega por e-mail um Connections.csv.</small></span></button>
-  <button class="opt" data-imp="vcf"><span class="ic">☏</span><span><b>Contatos exportados (.vcf)</b><small>Para contatos de outro celular ou do computador. Os do seu celular, com foto, o app já importa sozinho.</small></span></button>
-  <button class="opt" data-imp="csv"><span class="ic">▦</span><span><b>Planilha (CSV)</b><small>Google Planilhas ou Excel → Fazer download → CSV. Colunas: nome, empresa, cargo, e-mail, telefone.</small></span></button>`);
+  <button class="opt" data-imp="vcf"><span class="ic">${I("contact_page")}</span><span><b>Contatos exportados (.vcf)</b><small>Para contatos de outro celular ou do computador. Os do seu celular, com foto, o app já importa sozinho.</small></span></button>
+  <button class="opt" data-imp="csv"><span class="ic">${I("list_alt")}</span><span><b>Planilha (CSV)</b><small>Google Planilhas ou Excel → Fazer download → CSV. Colunas: nome, empresa, cargo, e-mail, telefone.</small></span></button>`);
   $("#sbox").onclick = e => { const b = e.target.closest("[data-imp]"); if (b) { $("#file").dataset.kind = b.dataset.imp; $("#file").value = ""; $("#file").click(); } };
 }
 $("#file").addEventListener("change", async () => {

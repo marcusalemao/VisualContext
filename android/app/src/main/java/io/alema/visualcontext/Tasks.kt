@@ -39,7 +39,8 @@ object Tasks {
             "ligar" -> "ligar" + (person?.let { " para $it" } ?: ""); "agenda" -> "pôr na agenda"; "comprar" -> "comprar"; else -> "fazer"
         }
     }
-    fun icon(a: String) = when (a) { "whatsapp" -> "💬"; "email" -> "✉"; "ligar" -> "☏"; "agenda" -> "🗓"; "comprar" -> "🛒"; "lembrete" -> "⏰"; else -> "✓" }
+    // Lens icons are monochrome text glyphs, never colour emoji (Marcus, 09/11); \uFE0E asks for the text form.
+    fun icon(a: String) = when (a) { "whatsapp" -> "»"; "email" -> "@"; "ligar" -> "☏\uFE0E"; "agenda" -> "▦"; "comprar" -> "⊕"; "lembrete" -> "◷"; else -> "✓" }
 
     fun add(ctx: Context, text: String, action: String?, person: String?, due: String?, details: String?, from: String?) {
         val a = action?.takeIf { it in ACTIONS } ?: "outro"

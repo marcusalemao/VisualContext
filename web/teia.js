@@ -292,28 +292,28 @@
     if (node.kind === "person") {
       const p = node.ref || S.people.find(x => x.id === node.id);
       const n = p && String(p.contact_whatsapp || p.contact_phone || "").replace(/\D/g, "");
-      if (n) out.push(["💬", "Conversar", () => { location.href = /Android/i.test(navigator.userAgent) ? `intent://chat?phone=${n}&name=${encodeURIComponent(p.name)}#Intent;scheme=zap;package=io.alema.zap;S.browser_fallback_url=${encodeURIComponent("https://wa.me/" + n)};end` : "https://wa.me/" + n; }]);
-      if (p) out.push(["✦", "Preparar", () => prepForm(p.id)]);
-      out.push(["◉", "Centro", () => pivot(node)]);
-      if (p) out.push(["≡", "Página", () => open("person", p.id)]);
+      if (n) out.push(["chat", "Conversar", () => { location.href = /Android/i.test(navigator.userAgent) ? `intent://chat?phone=${n}&name=${encodeURIComponent(p.name)}#Intent;scheme=zap;package=io.alema.zap;S.browser_fallback_url=${encodeURIComponent("https://wa.me/" + n)};end` : "https://wa.me/" + n; }]);
+      if (p) out.push(["auto_awesome", "Preparar", () => prepForm(p.id)]);
+      out.push(["hub", "Centro", () => pivot(node)]);
+      if (p) out.push(["open_in_new", "Página", () => open("person", p.id)]);
     } else if (node.kind === "music") {
       const t = String(node.label).split(" · ")[0].replace(" — ", " ");
-      out.push(["▶", "Spotify", () => window.open("https://open.spotify.com/search/" + encodeURIComponent(t), "_blank")]);
+      out.push(["play_arrow", "Spotify", () => window.open("https://open.spotify.com/search/" + encodeURIComponent(t), "_blank")]);
       const note = node.ref || S.notes.find(x => x.kind === "musica" && songKey(x.title) === String(node.id).replace(/^song:/, ""));
-      if (note) out.push(["+", "Ouvir depois", () => listenLater(note.id)]);
-      out.push(["◉", "Centro", () => pivot(node)]);
-      if (note) out.push(["≡", "Página", () => open("memory", note.id)]);
+      if (note) out.push(["playlist_add", "Ouvir depois", () => listenLater(note.id)]);
+      out.push(["hub", "Centro", () => pivot(node)]);
+      if (note) out.push(["open_in_new", "Página", () => open("memory", note.id)]);
     } else if (node.kind === "thing") {
       const t = S.things.filter(x => norm(x.name) === norm(node.label)).sort((a, b) => new Date(b.seen_at) - new Date(a.seen_at))[0];
-      if (t) out.push(["📸", "Foto", () => open("thing", t.id)]);
-      out.push(["◉", "Centro", () => pivot(node)]);
-      if (t && t.lat) out.push(["📍", "Mapa", () => window.open(`https://www.google.com/maps/search/?api=1&query=${t.lat},${t.lng}`, "_blank")]);
+      if (t) out.push(["photo_camera", "Foto", () => open("thing", t.id)]);
+      out.push(["hub", "Centro", () => pivot(node)]);
+      if (t && t.lat) out.push(["map", "Mapa", () => window.open(`https://www.google.com/maps/search/?api=1&query=${t.lat},${t.lng}`, "_blank")]);
     } else if (node.kind === "place") {
-      out.push(["◉", "Centro", () => pivot(node)]);
-      out.push(["≡", "Página", () => open("place", node.id)]);
+      out.push(["hub", "Centro", () => pivot(node)]);
+      out.push(["open_in_new", "Página", () => open("place", node.id)]);
     } else if (node.kind === "day") {
-      out.push(["◉", "Centro", () => pivot(node)]);
-    } else out.push(["≡", "Abrir", () => open("memory", node.id)]);
+      out.push(["hub", "Centro", () => pivot(node)]);
+    } else out.push(["open_in_new", "Abrir", () => open("memory", node.id)]);
     return out;
   }
   function showActions(box, p, cx, cy) {
@@ -333,7 +333,7 @@
       const d = Math.hypot(x - p.x, y - p.y) || 1, sx = p.x + (x - p.x) / d * 28, sy = p.y + (y - p.y) / d * 24; // from the node's rim, not across its text
       html += `<line x1="${sx}" y1="${sy}" x2="${x}" y2="${y}" stroke="var(--g)" stroke-opacity=".6" stroke-width="1.5"/>
         <g class="dact" role="button" tabindex="0" data-ai="${i}" aria-label="${esc(lb)}" style="cursor:pointer"><circle cx="${x}" cy="${y}" r="17" fill="#0f291e" stroke="var(--g)" stroke-width="1.8"/>
-        <text x="${x}" y="${y + 4.5}" text-anchor="middle" font-size="13" fill="#fff">${esc(ic)}</text>
+        ${IP(ic, x, y, 18, "#00ff88") || `<text x="${x}" y="${y + 4.5}" text-anchor="middle" font-size="13" fill="#fff">${esc(ic)}</text>`}
         <text x="${x}" y="${y + 29}" text-anchor="middle" font-size="9.5" fill="var(--g)" paint-order="stroke" stroke="#0b0f12" stroke-width="3">${esc(lb)}</text></g>`;
     });
     g.innerHTML = html; svg.appendChild(g);

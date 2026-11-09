@@ -141,7 +141,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
             text = t; textSize = 12f; isAllCaps = false; setTextColor(green); setBackgroundColor(Color.TRANSPARENT); setOnClickListener { cb() }
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         }
-        talk = btn("🎙 Falar") { toggleLive() } // not in the bar any more (Marcus, 09/11): the temple's long press opens, two taps close
+        talk = btn("● Falar") { toggleLive() } // not in the bar any more (Marcus, 09/11): the temple's long press opens, two taps close
         facesBtn = btn("") { facesOn = !facesOn; if (!facesOn) { hud.faces = emptyList(); cancelCountdown() }; paintToggles() }; bar.addView(facesBtn)
         placesBtn = btn("") { placesOn = !placesOn; if (!placesOn) hud.pins = emptyList() else refreshPlaces(true); paintToggles() }; bar.addView(placesBtn)
         qrBtn = btn("▣ QR") { setQr(!qrOn) }; bar.addView(qrBtn)
@@ -205,7 +205,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         facesBtn.setTextColor(if (facesOn) green else dim)
         placesBtn.text = if (placesOn) "● Lugares" else "○ Lugares"
         placesBtn.setTextColor(if (placesOn) green else dim)
-        hud.footer = listOfNotNull(if (liveOn) liveState else null, if (facesOn) "pessoas: ligado" else "pessoas: desligado", if (placesOn) "lugares: ligado" else "lugares: desligado", if (::ears.isInitialized && hearing && !liveOn) "🎙 ouvindo a conversa" else null).joinToString(" · ")
+        hud.footer = listOfNotNull(if (liveOn) liveState else null, if (facesOn) "pessoas: ligado" else "pessoas: desligado", if (placesOn) "lugares: ligado" else "lugares: desligado", if (::ears.isInitialized && hearing && !liveOn) "● ouvindo a conversa" else null).joinToString(" · ")
         hud.invalidate()
     }
 
@@ -240,7 +240,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         }.addOnCompleteListener { textBusy = false }
     }
     private fun offerText(key: String, preview: String) {
-        showCard("▤ Texto à vista", listOf(preview.take(60) + if (preview.length > 60) "…" else "", "toque, use a haste ou diga \"lê isso\" / \"guarda isso\""), listOf("🔊 Ler", "✎ Guardar", "Keep", "✕")) { i ->
+        showCard("▤ Texto à vista", listOf(preview.take(60) + if (preview.length > 60) "…" else "", "toque, use a haste ou diga \"lê isso\" / \"guarda isso\""), listOf("▷ Ler", "✎ Guardar", "Keep", "✕")) { i ->
             when (i) {
                 0 -> readPaper { p -> onPaper(p, saved = false); sayPaper(p) }
                 1 -> readPaper { p -> work.execute { Papers.save(this, p, Where.location(this)?.let { Where.placeLabel(this, it) }) }; onSaved(p.title); onPaper(p, saved = true) }
@@ -266,10 +266,10 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     override fun onPaper(p: Papers.Paper, saved: Boolean) {
         val all = listOf(p.summary, p.text).filter { it.isNotBlank() }.joinToString("\n\n")
         val hasDate = Regex("""\b\d{1,2}/\d{1,2}(/\d{2,4})?\b|\b\d{1,2}h\d{0,2}\b|\b(segunda|terça|quarta|quinta|sexta|sábado|domingo)\b""", RegexOption.IGNORE_CASE).containsMatchIn(all)
-        val btns = listOf("🔊 Ler", if (saved) "✓ Guardado" else "✎ Guardar", "Keep") + (if (hasDate) listOf("▦ Agenda") else emptyList())
+        val btns = listOf("▷ Ler", if (saved) "✓ Guardado" else "✎ Guardar", "Keep") + (if (hasDate) listOf("▦ Agenda") else emptyList())
         showCard("▤ " + p.title, listOf(p.summary.ifBlank { p.text }.take(220)), btns) { i ->
             when (btns[i]) {
-                "🔊 Ler" -> sayPaper(p)
+                "▷ Ler" -> sayPaper(p)
                 "✎ Guardar" -> { work.execute { Papers.save(this, p, Where.location(this)?.let { Where.placeLabel(this, it) }) }; onSaved(p.title); onPaper(p, saved = true) }
                 "Keep" -> NotesOut.open(this, p.title, all)
                 "▦ Agenda" -> try { startActivity(Intent(Intent.ACTION_INSERT, android.provider.CalendarContract.Events.CONTENT_URI)
@@ -679,7 +679,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     private fun storyMove(d: Int): Boolean { val s = story ?: return false; storyAt = (storyAt + d).coerceIn(0, s.size - 1); paintStory(); return true }
     private fun storyEnd(): Boolean { if (story == null) return false; story = null; closeCard(); return true }
     override fun onTranslation(title: String, original: String, translation: String, lang: String) {
-        showCard("⇄ $title → $lang", listOf(translation.take(400), "— original: " + original.take(160)), listOf("🔊 Ler", "✕")) { i -> if (i == 0) { if (liveOn) live.context("(leia em voz alta: $translation)") else voice.say(translation, interrupt = true) } else closeCard() }
+        showCard("⇄ $title → $lang", listOf(translation.take(400), "— original: " + original.take(160)), listOf("▷ Ler", "✕")) { i -> if (i == 0) { if (liveOn) live.context("(leia em voz alta: $translation)") else voice.say(translation, interrupt = true) } else closeCard() }
     }
     override fun onIdle() { if (liveOn) { toggleLive(); toast("assistente em espera") } }
 
@@ -799,12 +799,12 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     override fun faces(): FaceBrain = faces
     override fun onState(state: String) {
         hud.listening = state == "listening"; hud.speaking = state == "speaking"
-        talk.text = when { state == "connecting" -> "… conectando"; state == "speaking" -> "■ Interromper"; state == "listening" -> "■ Encerrar"; else -> "🎙 Falar" }
+        talk.text = when { state == "connecting" -> "… conectando"; state == "speaking" -> "■ Interromper"; state == "listening" -> "■ Encerrar"; else -> "● Falar" }
         // The state lives in the footer now (Marcus, 09/11): no "Encerrar" button; two taps on the temple stop it.
         liveState = when (state) { "connecting" -> "✦ conectando…"; "speaking" -> "✦ assistente falando"; "listening" -> "✦ assistente ouvindo (●● para parar)"; else -> "" }.ifEmpty { null }
         paintToggles()
         if (state.startsWith("error")) {
-            val why = state.removePrefix("error: "); toast(why); liveOn = false; talk.text = "🎙 Falar"; ears.resume()
+            val why = state.removePrefix("error: "); toast(why); liveOn = false; talk.text = "● Falar"; ears.resume()
             val now = android.os.SystemClock.elapsedRealtime()
             val cm = getSystemService(CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
             val offline = cm.activeNetwork == null
@@ -813,7 +813,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         hud.invalidate()
     }
     override fun onTranscript(lines: List<String>, userLine: String?) {
-        hud.transcript = if (userLine != null && lines.isEmpty()) listOf("🎙 " + userLine.takeLast(34)) else lines
+        hud.transcript = if (userLine != null && lines.isEmpty()) listOf("● " + userLine.takeLast(34)) else lines
         hud.invalidate()
         // The answer leaves the lens by itself (Marcus, 07/11: it stayed fixed on screen).
         main.removeCallbacks(clearTranscript); main.postDelayed(clearTranscript, 9000)
@@ -833,7 +833,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
             // Nothing named around (or Overpass down): at least say where we are (Marcus, 07/11).
             val addr = if (near.isEmpty()) Where.address(this, loc) else null
             main.post {
-                if (near.isEmpty() && !addr.isNullOrBlank()) toast("📍 $addr")
+                if (near.isEmpty() && !addr.isNullOrBlank()) toast("⌖ $addr")
                 // "hidden" = farther than 150 m (approximation of "behind a building" until we have building outlines).
                 hud.pins = near.map { HudOverlay.Pin(it.name, "${it.kind} · ${it.dist} m", it.bearing.toFloat(), hidden = it.dist > 150, lat = it.lat, lon = it.lon, kind = it.kind, dist = it.dist) }; hud.pinFocus = -1
                 hud.invalidate()
