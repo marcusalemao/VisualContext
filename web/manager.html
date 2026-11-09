@@ -23,10 +23,10 @@ html,body{overflow-x:hidden}
 header .sp{flex:1}
 .badge{font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--g);border:1.5px solid var(--g);border-radius:99px;padding:4px 10px;white-space:nowrap}
 .badge.warn{color:#ffd166;border-color:#ffd166}
-.icon{width:40px;height:40px;border-radius:12px;border:1.5px solid var(--line2);display:grid;place-items:center;font-size:18px}
+.icon{width:40px;height:40px;border-radius:12px;border:1.5px solid var(--line2);display:grid;place-items:center;font-size:18px;color:var(--g)}
 .icon:hover{border-color:var(--g)}
-.icon.lbl{width:auto;padding:0 12px;display:flex;gap:7px;align-items:center;font-size:14px;font-weight:600}
-@media (max-width:360px){.icon.lbl{width:40px;padding:0}.icon.lbl span{display:none}}
+.icon.lbl{width:auto;padding:0 12px;display:flex;gap:7px;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--t)}.icon.lbl svg{color:var(--g)}
+@media (max-width:360px){.icon.lbl{width:40px;padding:0;justify-content:center}.icon.lbl span{display:none}}
 
 /* ask */
 .ask{position:relative;margin:18px auto 0;max-width:760px}
