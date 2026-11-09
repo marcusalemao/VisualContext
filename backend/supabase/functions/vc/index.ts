@@ -123,6 +123,19 @@ Deno.serve(async (req) => {
         if (error) throw error;
         return json({ ok: true });
       }
+      case "feedback": { // a message to the maker, from the Manager's "Meu uso" page (Marcus, 09/11): no e-mail client opens
+        const text = String(body.text ?? "").trim();
+        if (text.length < 2) return json({ error: "text" }, 400);
+        const { error } = await db.from("feedback").insert({ owner: w.owner, owner_email: w.email, text: text.slice(0, 5000), app: String(body.app ?? "").slice(0, 40), usage: body.usage ?? null });
+        if (error) throw error;
+        return json({ ok: true });
+      }
+      case "feedback_list": { // only the maker reads them
+        if (w.email !== "marcusdemagalhaes@gmail.com") return json({ error: "forbidden" }, 403);
+        const { data, error } = await db.from("feedback").select("id, owner_email, text, app, at").order("at", { ascending: false }).limit(200);
+        if (error) throw error;
+        return json(data ?? []);
+      }
       case "update_note": { // the state of a commitment or a task (sugerido → na_agenda / ignorado), from the Manager or the glasses
         if (!body.id || typeof body.fields !== "object" || !body.fields) return json({ error: "id/fields" }, 400);
         const { data: cur } = await mine(db.from("notes").select("fields"), w).eq("id", body.id).maybeSingle();
