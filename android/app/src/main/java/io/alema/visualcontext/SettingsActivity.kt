@@ -342,7 +342,7 @@ class SettingsActivity : Activity() {
         val ck = card()
         ck.h("Habilidades")
         val skills = Skills.all(this)
-        ck.p(if (skills.isEmpty()) "O assistente aprende com você: peça algo duas vezes, ou diga \"aprende isso\", e ele oferece criar uma habilidade (sua carteira de ações, notícias de um assunto, falar com o Claude). Da próxima vez é só pedir." else "${skills.size} ${if (skills.size == 1) "habilidade" else "habilidades"}. Segure uma para apagar.", 13f)
+        ck.p(if (skills.isEmpty()) "O assistente aprende com você: peça algo duas vezes, ou diga \"aprende isso\", e ele oferece criar uma habilidade (sua carteira de ações, notícias de um assunto). Da próxima vez é só pedir." else "${skills.size} ${if (skills.size == 1) "habilidade" else "habilidades"}. Segure uma para apagar.", 13f)
         for (sk in skills) ck.addView(LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setPadding(0, dp(8), 0, dp(8))
             addView(TextView(context).apply { text = "✦ " + sk.name; textSize = 16f; setTextColor(green) })
@@ -352,11 +352,7 @@ class SettingsActivity : Activity() {
             }
         })
         ck.p("As habilidades usam a chave do Gemini acima. Não precisa de outra.", 12f)
-        // Optional, its own card (Marcus, 07/11: inside Habilidades it read as a requirement).
-        val ca = card()
-        ca.h("Outro assistente (opcional)")
-        ca.p("Não é necessário: com a chave do Gemini acima tudo já funciona. Isto é só para quem também quer fazer perguntas ao Claude ou ao ChatGPT pelos óculos (\"pergunta pro Claude…\").", 13f)
-        ca.p("Atenção: é uma chave de API, não a sua conta pessoal. O que você pergunta por aqui não vê nem entra no histórico das suas conversas no Claude ou no ChatGPT; é uma pergunta solta ao modelo, paga por uso. Chave do OpenRouter (sk-or-, qualquer modelo), da OpenAI (sk-) ou da Anthropic (sk-ant-). Fica só neste celular.", 13f)
+        // "Outro assistente" (Claude / ChatGPT / Grok by API key) retired, Marcus 09/11: little use; the Gemini key does everything.
         // Places (Marcus, 08/11): Google knows the small places; OpenStreetMap is the free fallback.
         val cg = card()
         cg.h("Lugares (opcional)")
@@ -394,15 +390,6 @@ class SettingsActivity : Activity() {
         }
         val sc = Music.score(this)
         if (sc.values.sum() > 0) cm.p("Placar até agora: as duas acertaram juntas ${sc["ambos"]}× · só AudD ${sc["audd"]}× · só ACRCloud ${sc["acr"]}× · discordaram ${sc["divergiram"]}× · nenhuma ${sc["nenhum"]}×", 12f)
-        lateinit var mdl: EditText
-        ca.keyRow(Claude.key(this), "sk-or-… / sk-… / sk-ant-…",
-            save = { Claude.setKey(this, it); mdl.hint = Claude.defaultModel(it) },
-            test = { _ -> Claude.test(this) })
-        ca.p("Modelo (vazio = o padrão da chave). No OpenRouter pode ser qualquer um: anthropic/claude-sonnet-5.5, openai/gpt-5, google/gemini-2.5-pro…", 12f)
-        mdl = field(getSharedPreferences("visualcontext", MODE_PRIVATE).getString("claude_model", "") ?: "", false).apply { hint = Claude.defaultModel(Claude.key(this@SettingsActivity)) }
-        ca.addView(mdl)
-        mdl.setOnFocusChangeListener { _, has -> if (!has) Claude.setModel(this, mdl.text.toString()) }
-        mdl.setOnEditorActionListener { _, _, _ -> Claude.setModel(this, mdl.text.toString()); Toast.makeText(this, "✓ Modelo salvo", Toast.LENGTH_SHORT).show(); false }
 
         if (Backend.token(this).isNotEmpty()) {
             val c8 = card()

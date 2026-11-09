@@ -172,6 +172,8 @@ object Gemini {
  * Blocking. No project memory travels with it: it is a plain question to that model.
  */
 object Claude {
+    /** "Outro assistente" retired (Marcus, 09/11): not offered in Settings nor to the Live. */
+    const val RETIRED_OFF = false
     private fun prefs(ctx: Context) = ctx.getSharedPreferences("visualcontext", Context.MODE_PRIVATE)
     fun key(ctx: Context) = prefs(ctx).getString("claude_key", "") ?: ""
     fun setKey(ctx: Context, k: String) { prefs(ctx).edit().putString("claude_key", k.trim()).apply() }
