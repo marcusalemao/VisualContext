@@ -37,7 +37,9 @@ class LiveSession(private val listener: Listener) {
 
     fun connect(apiKey: String, voice: String, resumeHandle: String?, model: String = LiveProtocol.MODEL) {
         closingByUs = false
-        val req = Request.Builder().url("${LiveProtocol.URL}?key=$apiKey").build()
+        // A one-use token from the app's server (beta testers) goes to the "Constrained" endpoint as access_token.
+        val url = if (apiKey.startsWith("auth_tokens/")) "${LiveProtocol.URL}Constrained?access_token=$apiKey" else "${LiveProtocol.URL}?key=$apiKey"
+        val req = Request.Builder().url(url).build()
         ws = http.newWebSocket(req, object : WebSocketListener() {
             // After a resume, the old socket may still report late; only the current one counts.
             private fun current(s: WebSocket) = s === ws

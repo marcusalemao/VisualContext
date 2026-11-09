@@ -44,6 +44,29 @@ async function listPeople(w: Who, limit = 1000, thumbs = false) {
   }));
 }
 
+// ---- Beta testers (Marcus, 09/11): only invited e-mails get in; the founder's keys work for them through the server,
+// within limits per tier that he can change per person in the Manager.
+const FOUNDER = "marcusdemagalhaes@gmail.com";
+const TIERS: Record<string, { days: number; calls_day: number; live_min_day: number; budget_usd: number; own_keys: boolean }> = {
+  beta: { days: 5, calls_day: 150, live_min_day: 20, budget_usd: 3, own_keys: false },
+  super: { days: 30, calls_day: 1000, live_min_day: 90, budget_usd: 25, own_keys: true },
+};
+const LIVE_USD_PER_MIN = 0.03;
+const today = () => new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10);
+async function roleOf(email: string | null) {
+  if (!email) return null;
+  const { data: acc } = await db.from("accounts").select("plan").eq("owner_email", email).maybeSingle();
+  if (acc?.plan === "founder") return { role: "founder" as const };
+  const { data: inv } = await db.from("invites").select("*").eq("email", email).maybeSingle();
+  if (!inv || !inv.active) return null;
+  const limits = { ...(TIERS[inv.tier] ?? TIERS.beta), ...(inv.limits ?? {}) };
+  const { data: rows } = await db.from("usage").select("day, calls, live_seconds, cost_usd").eq("owner_email", email);
+  const t = (rows ?? []).find((r: any) => r.day === today()) ?? { calls: 0, live_seconds: 0, cost_usd: 0 };
+  const spent = (rows ?? []).reduce((a: number, r: any) => a + Number(r.cost_usd), 0);
+  const daysLeft = inv.accepted_at ? Math.max(0, Math.ceil(limits.days - (Date.now() - new Date(inv.accepted_at).getTime()) / 86400_000)) : limits.days;
+  return { role: inv.tier as "beta" | "super", limits, today: t, spent: Math.round(spent * 100) / 100, days_left: daysLeft, accepted_at: inv.accepted_at };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "use POST" }, 405);
@@ -60,13 +83,18 @@ Deno.serve(async (req) => {
     const abc = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     const tok = "vc_" + [...raw].map((x) => abc[x % abc.length]).join("");
     const email = u.user.email.toLowerCase();
+    const who = await roleOf(email);
+    if (!who && email !== FOUNDER) return json({ error: "convite", message: "O VisualContext está em teste fechado: só entra quem foi convidado." }, 403);
+    if (who && who.role !== "founder") {
+      await db.from("invites").update({ accepted_at: new Date().toISOString() }).eq("email", email).is("accepted_at", null);
+    }
     const { error: de } = await db.from("devices").insert({ owner: u.user.id, owner_email: email, name: String(b.name ?? "aparelho").slice(0, 60), token_hash: await sha256(tok) });
     if (de) return json({ error: String(de.message ?? de) }, 500);
     // Rows saved before this login (by e-mail) become this account's.
     for (const t of ["people", "faces", "encounters", "things", "notes", "skills"]) await db.from(t).update({ owner: u.user.id }).is("owner", null).eq("owner_email", email);
     await db.from("devices").update({ owner: u.user.id }).is("owner", null).eq("owner_email", email);
     const { data: acc } = await db.from("accounts").select("owner_email").eq("owner_email", email).maybeSingle();
-    if (!acc) await db.from("accounts").insert({ owner_email: email, owner: u.user.id }); else await db.from("accounts").update({ owner: u.user.id }).eq("owner_email", email);
+    if (!acc) await db.from("accounts").insert({ owner_email: email, owner: u.user.id, ...(who && who.role !== "founder" ? { plan: who.role } : {}) }); else await db.from("accounts").update({ owner: u.user.id }).eq("owner_email", email);
     return json({ token: tok, email });
   }
   const token = req.headers.get("x-vc-token") ?? "";
@@ -159,6 +187,66 @@ Deno.serve(async (req) => {
         const r = await fetch(`https://${host}/v1/identify`, { method: "POST", body: f });
         const j = await r.json().catch(() => ({}));
         return json(j); // the phone reads status.code and metadata.music[0], as if it had asked ACRCloud itself
+      }
+      case "live_token": { // a one-use Gemini Live token for a tester (the key stays here)
+        const who = await roleOf(w.email); const key = Deno.env.get("GEMINI_KEY");
+        if (!who) return json({ error: "convite" }, 403);
+        if (!key) return json({ error: "Gemini do app ainda não configurado" }, 503);
+        if (who.role !== "founder") {
+          const l: any = who.limits, t: any = who.today;
+          if (who.days_left <= 0) return json({ error: `Seu período de teste (${l.days} dias) terminou.` }, 429);
+          if (t.live_seconds >= l.live_min_day * 60) return json({ error: `Você já usou os ${l.live_min_day} min de assistente de hoje.` }, 429);
+          if (who.spent >= l.budget_usd) return json({ error: "O crédito do seu teste acabou. Fale com o Marcus." }, 429);
+        }
+        const model = String(body.model ?? Deno.env.get("LIVE_MODEL") ?? "models/gemini-3.8-live");
+        const now = Date.now();
+        const r = await fetch("https://generativelanguage.googleapis.com/v1beta/auth_tokens", { method: "POST", headers: { "x-goog-api-key": key, "Content-Type": "application/json" },
+          body: JSON.stringify({ uses: 1, expireTime: new Date(now + 30 * 60_000).toISOString(), newSessionExpireTime: new Date(now + 2 * 60_000).toISOString() }) });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || !j.name) return json({ error: "não consegui abrir o assistente", detail: j?.error?.message ?? r.status }, 502);
+        return json({ token: j.name, model, minutes_left: who.role === "founder" ? null : Math.max(0, Math.floor(((who.limits as any).live_min_day * 60 - (who.today as any).live_seconds) / 60)) });
+      }
+      case "live_used": { // the app reports how long the assistant was open
+        const sec = Math.max(0, Math.min(4 * 3600, Math.round(Number(body.seconds) || 0)));
+        if (sec && w.email) await db.rpc("usage_add", { p_email: w.email, p_calls: 0, p_in: 0, p_out: 0, p_live: sec, p_cost: sec / 60 * LIVE_USD_PER_MIN });
+        return json({ ok: true });
+      }
+      case "identify_audd": { // AudD with the app's key (testers have none)
+        const k = Deno.env.get("AUDD_KEY"); if (!k) return json({ error: "audd not configured" }, 503);
+        const b64 = String(body.audio ?? ""); if (b64.length < 1000 || b64.length > 2_000_000) return json({ error: "audio" }, 400);
+        const f = new FormData(); f.append("api_token", k); f.append("return", "spotify,apple_music");
+        f.append("file", new Blob([Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))], { type: "audio/wav" }), "a.wav");
+        const r = await fetch("https://api.audd.io/", { method: "POST", body: f });
+        return json(await r.json().catch(() => ({ status: "error" })));
+      }
+      // ---- Admin (founder only): invitations and limits per person
+      case "invite_list": {
+        if (w.email !== FOUNDER) return json({ error: "forbidden" }, 403);
+        const { data: inv } = await db.from("invites").select("*").order("invited_at", { ascending: false });
+        const { data: use } = await db.from("usage").select("owner_email, day, calls, live_seconds, cost_usd");
+        const out = (inv ?? []).map((i: any) => {
+          const u = (use ?? []).filter((x: any) => x.owner_email === i.email);
+          return { ...i, defaults: TIERS[i.tier] ?? TIERS.beta, spent: Math.round(u.reduce((a: number, x: any) => a + Number(x.cost_usd), 0) * 100) / 100,
+            calls: u.reduce((a: number, x: any) => a + x.calls, 0), live_min: Math.round(u.reduce((a: number, x: any) => a + x.live_seconds, 0) / 60), last_day: u.map((x: any) => x.day).sort().pop() ?? null };
+        });
+        return json({ invites: out, tiers: TIERS });
+      }
+      case "invite_save": {
+        if (w.email !== FOUNDER) return json({ error: "forbidden" }, 403);
+        const email = String(body.email ?? "").trim().toLowerCase();
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json({ error: "email" }, 400);
+        const tier = body.tier === "super" ? "super" : "beta";
+        const limits: Record<string, number> = {};
+        for (const k of ["days", "calls_day", "live_min_day", "budget_usd"]) if (body.limits && body.limits[k] !== undefined && body.limits[k] !== "" && body.limits[k] !== null) limits[k] = Number(body.limits[k]);
+        const { error } = await db.from("invites").upsert({ email, tier, limits, note: body.note ?? null, active: body.active !== false }, { onConflict: "email" });
+        if (error) throw error;
+        return json({ ok: true, email });
+      }
+      case "invite_remove": {
+        if (w.email !== FOUNDER) return json({ error: "forbidden" }, 403);
+        await db.from("invites").update({ active: false }).eq("email", String(body.email ?? "").toLowerCase());
+        await db.from("devices").update({ revoked_at: new Date().toISOString() }).eq("owner_email", String(body.email ?? "").toLowerCase());
+        return json({ ok: true });
       }
       case "update_note": { // the state of a commitment or a task (sugerido → na_agenda / ignorado), from the Manager or the glasses
         if (!body.id || typeof body.fields !== "object" || !body.fields) return json({ error: "id/fields" }, 400);
@@ -258,7 +346,8 @@ Deno.serve(async (req) => {
         let { data: acc } = await db.from("accounts").select("*").eq("owner_email", email).maybeSingle();
         if (!acc) ({ data: acc } = await db.from("accounts").insert({ owner_email: email }).select("*").single());
         const count = async (t: string) => (await mine(db.from(t).select("id", { count: "exact", head: true }), w)).count ?? 0;
-        return json({ email, plan: acc?.plan, trial_ends_at: acc?.trial_ends_at, me_name: acc?.me_name ?? null, counts: { people: await count("people"), encounters: await count("encounters"), things: await count("things"), notes: await count("notes"), faces: await count("faces") } });
+        const who = await roleOf(email);
+        return json({ email, plan: acc?.plan, role: who?.role ?? null, tester: who && who.role !== "founder" ? who : null, trial_ends_at: acc?.trial_ends_at, me_name: acc?.me_name ?? null, counts: { people: await count("people"), encounters: await count("encounters"), things: await count("things"), notes: await count("notes"), faces: await count("faces") } });
       }
       case "set_me": { // the wearer's own name (Marcus, 07/11): never an encounter, marked "você" everywhere
         const name = String(body.name ?? "").trim().slice(0, 120);

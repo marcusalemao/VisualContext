@@ -27,9 +27,9 @@ object VoicePreview {
             .put("contents", JSONArray().put(JSONObject().put("parts", JSONArray().put(JSONObject().put("text", "Oi. Eu sou a voz $voice. É assim que eu vou falar com você pelos óculos.")))))
             .put("generationConfig", JSONObject().put("responseModalities", JSONArray().put("AUDIO"))
                 .put("speechConfig", JSONObject().put("voiceConfig", JSONObject().put("prebuiltVoiceConfig", JSONObject().put("voiceName", voice)))))
-        val c = (URL("https://generativelanguage.googleapis.com/v1beta/models/$MODEL:generateContent").openConnection() as HttpURLConnection).apply {
+        val c = (Gem.url(key, "models/$MODEL:generateContent").openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"; connectTimeout = 10_000; readTimeout = 30_000; doOutput = true
-            setRequestProperty("Content-Type", "application/json"); setRequestProperty("x-goog-api-key", key)
+            setRequestProperty("Content-Type", "application/json"); Gem.auth(this, key)
         }
         c.outputStream.use { it.write(body.toString().toByteArray()) }
         if (c.responseCode !in 200..299) null

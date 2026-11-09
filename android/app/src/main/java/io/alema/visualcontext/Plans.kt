@@ -63,9 +63,9 @@ object Plans {
         val body = JSONObject().put("contents", JSONArray().put(JSONObject().put("parts", JSONArray().put(JSONObject().put("text", prompt)))))
             .put("generationConfig", JSONObject().put("temperature", 0.1).put("maxOutputTokens", 1500).put("responseMimeType", "application/json"))
         return try {
-            val c = (URL("https://generativelanguage.googleapis.com/v1beta/$model:generateContent").openConnection() as HttpURLConnection).apply {
+            val c = (Gem.url(key, "$model:generateContent").openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"; connectTimeout = 10_000; readTimeout = 40_000; doOutput = true
-                setRequestProperty("Content-Type", "application/json"); setRequestProperty("x-goog-api-key", key)
+                setRequestProperty("Content-Type", "application/json"); Gem.auth(this, key)
             }
             c.outputStream.use { it.write(body.toString().toByteArray()) }
             if (c.responseCode !in 200..299) { if (c.responseCode in listOf(400, 403, 404)) Backend.markBadModel(ctx, model); return emptyList() }

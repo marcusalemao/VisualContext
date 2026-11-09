@@ -21,7 +21,15 @@ object Backend {
     /** Face engine: "arc" (ArcFace, default from 0.3) or "faceapi" (old, compatible with the 7 stored faces). */
     fun engine(ctx: Context): String = prefs(ctx).getString("face_engine", "arc") ?: "arc"
     fun setEngine(ctx: Context, e: String) { prefs(ctx).edit().putString("face_engine", e).apply() }
-    fun geminiKey(ctx: Context): String = prefs(ctx).getString("gemini_key", "") ?: ""
+    /** His own key, if he pasted one; a tester without one gets the app's Gemini through the server (Marcus, 09/11). */
+    fun geminiKey(ctx: Context): String = (prefs(ctx).getString("gemini_key", "") ?: "").ifEmpty { if (role(ctx) != "founder" && token(ctx).isNotEmpty()) Gem.PROXY + token(ctx) else "" }
+    fun ownGeminiKey(ctx: Context): String = prefs(ctx).getString("gemini_key", "") ?: ""
+    fun clearGemini(ctx: Context) { prefs(ctx).edit().remove("gemini_key").remove("live_model").remove("text_model").apply() }
+    /** "founder", "beta" or "super" (from the server); a tester's app never shows keys, a super tester may use his own. */
+    fun role(ctx: Context): String = prefs(ctx).getString("role", "founder") ?: "founder"
+    fun canOwnKeys(ctx: Context) = role(ctx) != "beta"
+    /** What the tester has left (calls today, assistant minutes, days), as the server sent it. */
+    fun tester(ctx: Context): org.json.JSONObject? = prefs(ctx).getString("tester", null)?.let { runCatching { org.json.JSONObject(it) }.getOrNull() }
     fun voiceName(ctx: Context): String = prefs(ctx).getString("voice", "Kore") ?: "Kore"
     fun saveGemini(ctx: Context, key: String, voice: String) { prefs(ctx).edit().putString("gemini_key", key.trim()).putString("voice", voice).remove("live_model").remove("text_model").apply() }
     /** The wearer's own name in the faces list (Marcus, 07/11): that face is never an encounter, even in a mirror or on a friend's phone. */
@@ -33,8 +41,12 @@ object Backend {
     /** Pull the account's "me" (set in the Manager, or on another phone). Blocking. */
     fun syncMe(ctx: Context) {
         val r = post(ctx, org.json.JSONObject().put("action", "me")) ?: return
-        val n = runCatching { org.json.JSONObject(r).optString("me_name") }.getOrDefault("")
+        val j = runCatching { org.json.JSONObject(r) }.getOrNull() ?: return
+        val n = j.optString("me_name")
         if (n != "null") prefs(ctx).edit().putString("me_name", n).apply()
+        val role = j.optString("role").takeIf { it in listOf("founder", "beta", "super") } ?: "founder"
+        prefs(ctx).edit().putString("role", role).putString("tester", j.optJSONObject("tester")?.toString()).apply()
+        if (role == "beta") prefs(ctx).edit().remove("gemini_key").putBoolean("heat_on", true).apply() // beta: the app's keys only; heatmap on (testers agreed on invite)
     }
     /** Only the phone: no Gemini Live at all (recognise, transcribe and warn offline). */
     fun offlineOnly(ctx: Context) = prefs(ctx).getBoolean("offline_only", false)

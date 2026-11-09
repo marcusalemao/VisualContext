@@ -111,7 +111,15 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
         Player.duck(ctx, true) // music plays low while the assistant is open (Marcus, 08/11)
         speaker.start()
         io.execute {
-            val model = Backend.liveModel(ctx) ?: (live.listModels(key)?.let { LiveProtocol.pickLiveModel(it) } ?: LiveProtocol.MODEL).also { Backend.saveLiveModel(ctx, it) }
+            // Tester without a key: the server hands a one-use token (and counts the minutes, Marcus 09/11).
+            var connectKey = key
+            var model: String
+            if (Gem.proxied(key)) {
+                val r = Backend.post(ctx, JSONObject().put("action", "live_token"))?.let { runCatching { JSONObject(it) }.getOrNull() }
+                if (r == null || !r.has("token")) { main.post { Player.duck(ctx, false); speaker.stop(); host.onState("error: " + (r?.optString("error")?.ifEmpty { null } ?: "o assistente não abriu agora")) }; return@execute }
+                connectKey = r.getString("token"); model = r.optString("model", LiveProtocol.MODEL)
+            } else model = Backend.liveModel(ctx) ?: (live.listModels(key)?.let { LiveProtocol.pickLiveModel(it) } ?: LiveProtocol.MODEL).also { Backend.saveLiveModel(ctx, it) }
+            liveOpenedAt = SystemClock.elapsedRealtime()
             // Spec 1r: the learned skills become tools of this session.
             Skills.refresh(ctx)
             MyPlaces.refresh(ctx)
@@ -130,7 +138,7 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
                 " IDIOMAS: ele fala " + Backend.languageNames(ctx).joinToString(", ") + "; entenda a fala dele sempre numa dessas línguas. INTÉRPRETE: se outra pessoa falar com ele numa língua que ele não fala, " +
                 "ou ele pedir \"traduz\", diga em português, curto, o que ela disse (\"Ela disse: …\"); se ele pedir para responder, diga a frase na língua dela para ele repetir ou para ela ouvir. " + placeHint
             live.languages = Backend.languages(ctx)
-            main.post { live.connect(key, Backend.voiceName(ctx), resumeHandle, model) }
+            main.post { live.connect(connectKey, Backend.voiceName(ctx), if (Gem.proxied(key)) null else resumeHandle, model) }
         }
     }
 
@@ -149,8 +157,11 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
     private var closedAt = 0L
     private var lastTurns = ""
 
+    private var liveOpenedAt = 0L
     fun stop() {
         main.removeCallbacks(idleCheck)
+        if (liveOpenedAt > 0 && Gem.proxied(Backend.geminiKey(ctx))) { val sec = (SystemClock.elapsedRealtime() - liveOpenedAt) / 1000; io.execute { Backend.post(ctx, JSONObject().put("action", "live_used").put("seconds", sec)) } }
+        liveOpenedAt = 0
         Player.duck(ctx, false); Claude.reset()
         lastTurns = (turns.takeLast(3)).joinToString(" | ") { (u, m) -> listOfNotNull(u.takeIf { it.isNotEmpty() }?.let { "Você: ${it.take(160)}" }, m.takeIf { it.isNotEmpty() }?.let { "Assistente: ${it.take(160)}" }).joinToString(" / ") }
         closedAt = SystemClock.elapsedRealtime()

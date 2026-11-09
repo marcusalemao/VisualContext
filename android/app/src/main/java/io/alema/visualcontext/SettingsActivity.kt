@@ -187,10 +187,15 @@ class SettingsActivity : Activity() {
                 }
             }
         } else {
-            if (Backend.token(this).isNotEmpty()) io.execute { Backend.syncMe(this) }
+            if (Backend.token(this).isNotEmpty()) io.execute { val before = Backend.role(this) + Backend.tester(this); Backend.syncMe(this); if (Backend.role(this) + Backend.tester(this) != before) runOnUiThread { render() } }
         val status = TextView(this).apply { text = "verificando…"; textSize = 16f; setTextColor(green) }
             c1.addView(status); check(status)
             Backend.email(this).takeIf { it.isNotEmpty() }?.let { c1.p("Conta: $it", 13f) }
+            // Testers (Marcus, 09/11): what is left of the test, in one line.
+            Backend.tester(this)?.let { t ->
+                val l = t.optJSONObject("limits") ?: org.json.JSONObject(); val d = t.optJSONObject("today") ?: org.json.JSONObject()
+                c1.p((if (Backend.role(this) == "super") "Super tester" else "Beta tester") + " · faltam ${t.optInt("days_left")} dias · hoje ${d.optInt("calls")} de ${l.optInt("calls_day")} pedidos · ${d.optInt("live_seconds") / 60} de ${l.optInt("live_min_day")} min de assistente", 13f).setTextColor(green)
+            }
             c1.btn("Abrir o Manager", false) { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(Backend.managerLink(this)))) }
             c1.p("Sua memória no navegador: pergunte qualquer coisa, prepare conversas, edite pessoas, importe contatos.", 13f)
         }
@@ -263,16 +268,25 @@ class SettingsActivity : Activity() {
         // 7. Assistant
         val c7 = card()
         c7.h("Assistente (Gemini)")
+        if (Backend.role(this) != "beta") {
         c7.p("Chave do Google AI Studio: é ela que faz o Live, a leitura de papéis, a preparação e as habilidades funcionarem. É grátis para começar. Fica só neste celular; não cole em nenhum chat.", 13f)
         c7.btn("Pegar a chave no Google AI Studio ↗", false) { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://aistudio.google.com/apikey"))) }
         c7.p("Lá: entre com sua conta Google → \"Create API key\" → copie e cole aqui.", 12f)
-        val gk = c7.keyRow(Backend.geminiKey(this), "AIza…",
+        }
+        if (Backend.role(this) == "beta") c7.p("✓ Incluído pelo app: você não precisa de chave.", 14f).setTextColor(green)
+        else {
+        if (Backend.role(this) == "super") {
+            c7.p(if (Backend.ownGeminiKey(this).isEmpty()) "✓ Usando a chave do app. Se quiser, teste com a sua:" else "Usando a SUA chave.", 13f).setTextColor(green)
+            if (Backend.ownGeminiKey(this).isNotEmpty()) c7.btn("Voltar para a chave do app", false) { Backend.clearGemini(this); render() }
+        }
+        c7.keyRow(Backend.ownGeminiKey(this), "AIza…",
             save = { Backend.saveGemini(this, it, Backend.voiceName(this)) },
             test = { k -> // a real call, never the cached model name
                 try {
                     val c = (java.net.URL(LiveProtocol.MODELS_URL).openConnection() as java.net.HttpURLConnection).apply { setRequestProperty("x-goog-api-key", k); connectTimeout = 10_000 }
                     when (c.responseCode) { in 200..299 -> null; 400, 401, 403 -> "Chave recusada pelo Google."; 429 -> "Limite de uso do Google atingido."; else -> "Erro ${c.responseCode} do Google." }
                 } catch (e: Exception) { "Sem internet." } })
+        }
         val voices = listOf("Kore", "Aoede", "Puck", "Charon")
         c7.p("Voz de quem fala com você no Live. Toque em ▶ para ouvir antes de escolher.", 13f)
         val vg = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -320,7 +334,7 @@ class SettingsActivity : Activity() {
             textSize = 13f; setTextColor(soft); buttonTintList = android.content.res.ColorStateList.valueOf(green); isChecked = Plans.auto(this@SettingsActivity)
             setOnCheckedChangeListener { _, on -> Plans.setAuto(this@SettingsActivity, on); if (on) requestPermissions(arrayOf(android.Manifest.permission.READ_CALENDAR, android.Manifest.permission.WRITE_CALENDAR), 12) }
         })
-        c7.addView(sw().apply {
+        if (Backend.role(this) != "beta") c7.addView(sw().apply {
             text = "Mapa de calor (Microsoft Clarity): grava onde você toca nas telas do app, para melhorar o desenho. O vídeo da câmera, a lente e as chaves nunca são gravados. Vale a partir da próxima abertura do app."
             textSize = 13f; setTextColor(soft); isChecked = Heat.on(this@SettingsActivity)
             setOnCheckedChangeListener { _, on -> Heat.set(this@SettingsActivity, on); if (on) Heat.start(this@SettingsActivity) }
@@ -370,6 +384,8 @@ class SettingsActivity : Activity() {
         val cm = card()
         cm.h("Música (opcional)")
         cm.p("\"Que música é essa?\" nos óculos. Sem chave, o celular abre a pesquisa por som do Google (o resultado fica lá). Com uma chave do AudD (audd.io) ou do ACRCloud (acrcloud.com), o nome aparece na lente e vira lembrança. Com as duas, o app pergunta às duas ao mesmo tempo e mostra a melhor resposta (o ACRCloud costuma conhecer mais música brasileira).", 13f)
+        if (Backend.role(this) == "beta") { cm.p("✓ Incluído pelo app: AudD e ACRCloud já funcionam.", 14f).setTextColor(green) } else {
+        if (Backend.role(this) == "super" && (Music.key(this).isNotEmpty() || Music.ownAcr(this))) cm.btn("Voltar para as chaves do app", false) { Music.setKey(this, ""); Music.setAcr(this, "", "", ""); render() }
         cm.btn("Pegar a chave no AudD ↗", false) { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://dashboard.audd.io/"))) }
         cm.keyRow(Music.key(this), "chave do AudD", save = { Music.setKey(this, it) }, test = { k ->
             try {
@@ -393,6 +409,7 @@ class SettingsActivity : Activity() {
             io.execute { val why = Music.testAcr(Music.acrHost(this), k, sct); runOnUiThread {
                 if (why == null) { acrState.setTextColor(green); acrState.text = "✓ ACRCloud funciona (${Music.acrHost(this)} · ${mask(k)})" }
                 else { acrState.setTextColor(Color.rgb(255, 120, 100)); acrState.text = "✗ ACRCloud: $why" } } }
+        }
         }
         val sc = Music.score(this)
         if (sc.values.sum() > 0) cm.p("Placar até agora: as duas acertaram juntas ${sc["ambos"]}× · só AudD ${sc["audd"]}× · só ACRCloud ${sc["acr"]}× · discordaram ${sc["divergiram"]}× · nenhuma ${sc["nenhum"]}×", 12f)

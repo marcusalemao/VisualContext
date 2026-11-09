@@ -269,7 +269,7 @@ header .sp{flex:1}
     <div class="detail idle" id="detail" data-clarity-mask="true">Escolha algo na lista</div>
   </div>
   <button class="fab" data-fb="1" aria-label="Enviar feedback"><span id="fabic"></span>Feedback</button>
-  <div class="ver"><span id="ver">VisualContext · Manager v0.18.24</span></div>
+  <div class="ver"><span id="ver">VisualContext · Manager v0.19.0</span></div>
 </div>
 
 <div class="sheet" id="sheet"><div class="box" id="sbox"></div></div>
@@ -365,7 +365,7 @@ function guessKind(e) {
 const topicOf = e => TOP[e.id] || { t: cleanSaid(said(e)) || "Conversa com o assistente", k: guessKind(e) };
 const dayPt = d => new Date(d).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" }).replace(".", "");
 async function refreshTopics() {
-  const key = store.get("vc_gemini"); if (!key) return;
+  const key = gkey(); if (!key) return;
   const todo = S.enc.filter(e => e.capture_mode === "live" && !TOP[e.id] && e.transcript).slice(0, 30);
   if (!todo.length) return;
   const items = todo.map(e => ({ id: e.id, quando: new Date(e.at).toLocaleString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }), conversa: String(e.transcript).slice(0, 900) }));
@@ -643,13 +643,20 @@ document.addEventListener("click", e => { if (!e.target.closest(".ask")) $("#sco
  * "gemini-2.5-flash is no longer available to new users"), so a model that refuses goes on a skip list and the
  * next one from the key's own list is tried — never a fixed name.
  */
+/** His own key, or — for a tester — the app's Gemini through our server (Marcus, 09/11). */
+const GEM = API.replace(/\/vc$/, "/gem/v1beta/");
+const tester = () => !!(S.me && S.me.role && S.me.role !== "founder");
+const gkey = () => store.get("vc_gemini") || (tester() ? "vcproxy" : null);
+const gfetch = (key, path, init = {}) => key === "vcproxy"
+  ? fetch(GEM + path, { ...init, headers: { ...(init.headers || {}), "x-vc-token": TOKEN } })
+  : fetch("https://generativelanguage.googleapis.com/v1beta/" + path, { ...init, headers: { ...(init.headers || {}), "x-goog-api-key": key } });
 async function gemini(key, body) {
   const bad = store.get("vc_gbad") ? JSON.parse(store.get("vc_gbad")) : [];
   let last = "";
   for (let i = 0; i < 4; i++) {
     const model = await geminiModel(key, bad);
     if (!model) break;
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/${model}:generateContent`, { method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": key }, body: JSON.stringify(body) });
+    const r = await gfetch(key, `${model}:generateContent`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
     const j = await r.json().catch(() => ({}));
     if (r.ok) return j;
     last = j.error?.message || String(r.status);
@@ -663,7 +670,7 @@ async function gemini(key, body) {
 async function geminiModel(key, bad = []) {
   const c = store.get("vc_gmodel"); if (c && !bad.includes(c)) return c;
   try {
-    const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200", { headers: { "x-goog-api-key": key } });
+    const r = await gfetch(key, "models?pageSize=200");
     const j = await r.json();
     const ok = (j.models || []).filter(m => (m.supportedGenerationMethods || []).includes("generateContent")).map(m => m.name)
       .filter(n => /flash/.test(n) && !/live|image|tts|audio|lite|think|interaction|robotics|computer/.test(n) && !bad.includes(n));
@@ -703,7 +710,7 @@ function progress(el, steps) {
 async function ask(question) {
   bump("ask");
   $("#scope").classList.remove("on"); $("#q").blur();
-  const box = $("#ans"), key = store.get("vc_gemini");
+  const box = $("#ans"), key = gkey();
   box.classList.add("on");
   if (!key) { box.innerHTML = `<h3>✦ Resposta</h3><p>Para perguntar, falta a chave do Gemini. Abra o Manager pelo app (ele traz a chave junto) ou cole a chave em Ajustes.</p><div class="acts"><button class="act" data-open-set="1">Abrir Ajustes</button></div>`; return; }
   box.innerHTML = `<h3>✦ ${esc(question)}</h3><div id="ansp"></div>`;
@@ -847,7 +854,7 @@ function plansBlock(r) {
 }
 async function findPlans(id) {
   const r = S.enc.find(x => x.id === id); if (!r) return;
-  const key = store.get("vc_gemini"); if (!key) { toast("Falta a chave do Gemini em Ajustes"); return; }
+  const key = gkey(); if (!key) { toast("Falta a chave do Gemini em Ajustes"); return; }
   const btn = document.querySelector(`[data-evfind="${CSS.escape(id)}"]`), slot = document.createElement("div");
   if (btn) btn.replaceWith(slot);
   const pr = progress(slot, [["Lendo a conversa", 25, 800], ["Procurando compromissos", 96, 6000]]); setTimeout(() => pr.next(), 900);
@@ -944,7 +951,7 @@ function translateBox(id) {
 }
 async function translateNote(id) {
   const n = S.notes.find(x => x.id === id); if (!n) return;
-  const key = store.get("vc_gemini"); if (!key) { toast("Falta a chave do Gemini em Ajustes"); return; }
+  const key = gkey(); if (!key) { toast("Falta a chave do Gemini em Ajustes"); return; }
   const lang = $("#tr-lang").value, name = (LANGS.find(l => l[0] === lang) || [])[1] || lang, out = $("#tr-out");
   out.style.display = "block"; const pr = progress(out, [["Traduzindo para " + name, 96, 5000]]);
   try {
@@ -1020,7 +1027,7 @@ function prepForm(id) {
 async function prep(id, opt = {}) {
   bump("prep");
   const p = S.people.find(x => x.id === id); if (!p) return;
-  const box = $("#prep"), key = store.get("vc_gemini");
+  const box = $("#prep"), key = gkey();
   if (!box) return;
   box.innerHTML = `<div class="sec"><h5>✦ Preparação</h5><div id="prepp"></div></div>`;
   const ppr = progress($("#prepp"), [["Juntando o que você sabe", 30, 1200], ["Procurando na web", 96, 14000]]); setTimeout(() => ppr.next(), 1500);
@@ -1347,6 +1354,54 @@ async function feedbackList() {
   catch (e) { toast("Não deu: " + e.message); }
 }
 
+/* ---------- testers (Marcus, 09/11): invite-only beta, limits per person ---------- */
+function testerBox(m) {
+  const t = m.tester, l = t.limits || {}, d = t.today || {};
+  const bar = (v, max) => `<span class="bar" style="display:block;height:4px;border-radius:9px;background:var(--s2);margin-top:4px"><i style="display:block;height:100%;width:${Math.min(100, max ? v / max * 100 : 0).toFixed(0)}%;background:var(--g);border-radius:9px"></i></span>`;
+  return `<div class="sec"><h5>${m.role === "super" ? "Super tester" : "Beta tester"}</h5>
+    <div class="feat"><b>Dias de teste</b><span class="n">faltam ${t.days_left} de ${l.days}</span></div>
+    <div class="feat"><b>Pedidos hoje</b><span class="n">${d.calls || 0} de ${l.calls_day}</span>${bar(d.calls || 0, l.calls_day)}</div>
+    <div class="feat"><b>Assistente hoje</b><span class="n">${Math.round((d.live_seconds || 0) / 60)} de ${l.live_min_day} min</span>${bar((d.live_seconds || 0) / 60, l.live_min_day)}</div>
+    <div class="feat"><b>Crédito do teste</b><span class="n">US$ ${Number(t.spent || 0).toFixed(2)} de ${Number(l.budget_usd).toFixed(2)}</span>${bar(t.spent || 0, l.budget_usd)}</div></div>`;
+}
+const BETA_APK = "https://visualcontext.alema.io/beta";
+async function admin() {
+  let d; try { d = await call("invite_list"); } catch (e) { return toast("Não deu: " + e.message); }
+  const T = d.tiers || {}, st = i => !i.active ? "desativado" : i.accepted_at ? "ativo" : "aguardando o primeiro acesso";
+  const lim = i => { const l = { ...(T[i.tier] || {}), ...(i.limits || {}) }; return `${l.days} dias · ${l.calls_day} pedidos/dia · ${l.live_min_day} min/dia · US$ ${l.budget_usd}`; };
+  sheet(`<h3>Testadores</h3><p class="sub">Só quem está nesta lista consegue entrar no app e no Manager. O resto vê "teste fechado".</p>
+    <form class="f" id="invf" onsubmit="return false" style="margin-top:4px">
+      <input name="email" type="email" placeholder="e-mail do testador" required autocomplete="off">
+      <select name="tier"><option value="beta">Beta tester — ${T.beta ? `${T.beta.days} dias, ${T.beta.live_min_day} min/dia, US$ ${T.beta.budget_usd}` : ""}</option><option value="super">Super tester — ${T.super ? `${T.super.days} dias, ${T.super.live_min_day} min/dia, US$ ${T.super.budget_usd}, pode usar as próprias chaves` : ""}</option></select>
+      <details><summary class="muted" style="cursor:pointer;font-size:13px">Limites só desta pessoa (vazio = padrão do tipo)</summary>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+          <input name="days" type="number" min="1" placeholder="dias de teste"><input name="calls_day" type="number" min="1" placeholder="pedidos por dia">
+          <input name="live_min_day" type="number" min="0" placeholder="min de assistente/dia"><input name="budget_usd" type="number" min="0" step="0.5" placeholder="crédito total (US$)"></div></details>
+      <input name="note" placeholder="nota (de onde veio, por que convidar)">
+      <div class="btns" style="margin-top:0"><button class="btn pri" data-invsave="1">Convidar</button><button class="btn" type="button" data-x="1">Fechar</button></div></form>
+    <div class="sec"><h5>${d.invites.length} convidados</h5>${d.invites.map(i => `<div class="feat" style="grid-template-columns:1fr auto">
+      <b style="word-break:break-all">${esc(i.email)}</b><span class="n ${i.active ? "" : "no"}">${i.tier === "super" ? "SUPER" : "BETA"}</span>
+      <span class="hint">${esc(st(i))} · gastou US$ ${Number(i.spent).toFixed(2)} · ${i.calls} pedidos · ${i.live_min} min${i.last_day ? " · último uso " + esc(i.last_day.split("-").reverse().join("/")) : ""}<br>${esc(lim(i))}${i.note ? "<br>" + esc(i.note) : ""}</span>
+      <span class="hint" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><button class="btn" data-invedit="${esc(i.email)}">Editar</button><button class="btn" data-invcopy="${esc(i.email)}">Copiar convite</button>${i.active ? `<button class="btn dan" data-invoff="${esc(i.email)}">Desativar</button>` : `<button class="btn" data-invon="${esc(i.email)}">Reativar</button>`}</span></div>`).join("") || `<p class="muted">Ninguém ainda.</p>`}</div>`);
+  admin.list = d.invites;
+}
+function inviteText(email) {
+  return `Oi! Você foi convidado(a) para testar o VisualContext, a memória para óculos inteligentes.\n\n1. Instale o app no celular Android: ${BETA_APK}\n2. Entre com este e-mail (${email}): chega um código, é só digitar. Não precisa de senha nem de chave nenhuma.\n3. O Manager, para ver tudo no navegador: ${location.origin}/manager\n\nNo app tem um botão de Feedback: conte tudo, bom e ruim. Obrigado!\nMarcus`;
+}
+async function inviteSave() {
+  const f = new FormData($("#invf")), email = String(f.get("email") || "").trim();
+  if (!email.includes("@")) return toast("Escreva o e-mail");
+  const limits = {}; for (const k of ["days", "calls_day", "live_min_day", "budget_usd"]) if (f.get(k)) limits[k] = Number(f.get(k));
+  try { await call("invite_save", { email, tier: f.get("tier"), limits, note: f.get("note") || null }); await navigator.clipboard?.writeText(inviteText(email)).catch(() => {}); toast("Convidado · convite copiado para colar no WhatsApp ou e-mail"); admin(); }
+  catch (e) { toast("Não deu: " + e.message); }
+}
+function inviteEdit(email) {
+  const i = (admin.list || []).find(x => x.email === email); if (!i) return;
+  const f = $("#invf"); f.elements.email.value = i.email; f.elements.tier.value = i.tier; f.elements.note.value = i.note || "";
+  for (const k of ["days", "calls_day", "live_min_day", "budget_usd"]) f.elements[k].value = i.limits?.[k] ?? "";
+  f.querySelector("details").open = true; f.querySelector("[data-invsave]").textContent = "Salvar"; f.scrollIntoView({ behavior: "smooth" });
+}
+
 /* ---------- settings ---------- */
 function settings() {
   const m = S.me || {}, key = store.get("vc_gemini");
@@ -1354,14 +1409,16 @@ function settings() {
   <div class="sec"><h5>Sua memória</h5>${kv([["Pessoas", String(Math.max(S.people?.length || 0, m.counts?.people ?? 0))], ["Rostos", String(Math.max((S.people || []).reduce((n, p) => n + (p.faces || 0), 0), m.counts?.faces ?? 0))], ["Momentos", String(Math.max(S.enc?.length || 0, m.counts?.encounters ?? 0))], ["Coisas", String(Math.max(S.things?.length || 0, m.counts?.things ?? 0))], ["Notas", String(Math.max(S.notes?.length || 0, m.counts?.notes ?? 0))], ["Plano", $("#plan").textContent]])}
   <p class="muted" style="font-size:13px;margin-top:10px">A memória é para a vida toda: nada é apagado por tempo, e você pode exportar tudo quando quiser.</p>
   <div class="btns"><button class="btn" id="exp">Exportar tudo (arquivo)</button></div></div>
-  <div class="sec"><h5>Chave do Gemini</h5><p class="muted" style="font-size:13px">Fica só neste navegador. O app do celular já traz a sua quando abre o Manager.</p>
+  ${m.tester ? testerBox(m) : ""}
+  ${m.role === "founder" ? `<div class="sec"><h5>Testadores</h5><p class="muted" style="font-size:13px">Convide por e-mail, escolha Beta ou Super tester e ajuste os limites de cada um.</p><div class="btns" style="margin-top:6px"><button class="btn pri" data-admin="1">Abrir a lista de testadores</button></div></div>` : ""}
+  ${m.role === "beta" ? `<div class="sec"><h5>Assistente (Gemini)</h5><p style="color:var(--g1);font-size:14px">✓ Incluído pelo app: você não precisa de chave.</p></div>` : `<div class="sec"><h5>Chave do Gemini</h5>${m.role === "super" ? `<p class="muted" style="font-size:13px">${key ? "Usando a SUA chave." : "✓ Usando a chave do app. Se quiser, teste com a sua."}</p>` : ""}<p class="muted" style="font-size:13px">Fica só neste navegador. O app do celular já traz a sua quando abre o Manager.</p>
   <p id="kst" style="font-size:14px;margin:6px 0 8px;color:${key ? "var(--g1)" : "#ffaa5a"}">${key ? "Chave salva: " + esc(key.slice(0, 6) + "…" + key.slice(-4)) : "Nenhuma chave salva."}</p>
-  <form class="f" id="kf"><input name="k" type="password" placeholder="${key ? "colar outra chave…" : "AIza…"}" autocomplete="off"><div class="btns" style="margin-top:0"><button class="btn pri">Salvar</button><button class="btn" type="button" id="ktest">Testar</button>${key ? `<button class="btn" type="button" id="kdel" style="margin-left:auto;font-size:12px;opacity:.7">tirar a chave</button>` : ""}</div></form></div>
+  <form class="f" id="kf"><input name="k" type="password" placeholder="${key ? "colar outra chave…" : "AIza…"}" autocomplete="off"><div class="btns" style="margin-top:0"><button class="btn pri">Salvar</button><button class="btn" type="button" id="ktest">Testar</button>${key ? `<button class="btn" type="button" id="kdel" style="margin-left:auto;font-size:12px;opacity:.7">${m.role === "super" ? "voltar para a chave do app" : "tirar a chave"}</button>` : ""}</div></form></div>`}
   <div class="sec"><h5>Este navegador</h5><div class="btns" style="margin-top:0"><button class="btn dan" id="out">Sair deste navegador</button></div></div>
   <div class="btns"><button class="btn" data-x="1">Fechar</button></div>`);
   const kst = $("#kst"), mask = k => k.slice(0, 6) + "…" + k.slice(-4);
-  $("#kf").onsubmit = e => { e.preventDefault(); const v = new FormData(e.target).get("k").trim(); if (v.length < 20) return toast("Cole a chave primeiro"); store.set("vc_gemini", v); store.set("vc_gmodel", null); e.target.reset(); kst.style.color = "var(--g1)"; kst.textContent = "Chave salva: " + mask(v) + " (ainda não testada)"; toast("Chave salva"); };
-  $("#ktest").onclick = async () => {
+  if ($("#kf")) $("#kf").onsubmit = e => { e.preventDefault(); const v = new FormData(e.target).get("k").trim(); if (v.length < 20) return toast("Cole a chave primeiro"); store.set("vc_gemini", v); store.set("vc_gmodel", null); e.target.reset(); kst.style.color = "var(--g1)"; kst.textContent = "Chave salva: " + mask(v) + " (ainda não testada)"; toast("Chave salva"); };
+  if ($("#ktest")) $("#ktest").onclick = async () => {
     const pending = $("#kf").elements.k.value.trim(), cur = store.get("vc_gemini");
     if (pending.length >= 20 && pending !== cur) return toast("Salve a chave colada antes de testar");
     if (!cur) return toast("Nenhuma chave salva");
@@ -1417,6 +1474,12 @@ document.addEventListener("click", e => {
   else if (d.rate) sendRate(t.closest("[data-rate]"));
   else if (d.ratewhy) sendWhy(t.closest("[data-ratewhy]"));
   else if (d.fb) feedbackSheet();
+  else if (d.admin) admin();
+  else if (d.invsave) inviteSave();
+  else if (d.invedit) inviteEdit(d.invedit);
+  else if (d.invcopy) navigator.clipboard?.writeText(inviteText(d.invcopy)).then(() => toast("Convite copiado"), () => toast("Não deu para copiar"));
+  else if (d.invoff) { if (confirm("Desativar " + d.invoff + "? Ele sai do app e do Manager na hora.")) call("invite_remove", { email: d.invoff }).then(admin); }
+  else if (d.invon) { const i = (admin.list || []).find(x => x.email === d.invon); call("invite_save", { email: i.email, tier: i.tier, limits: i.limits, note: i.note, active: true }).then(admin); }
   else if (d.copy) { navigator.clipboard?.writeText(d.copy).then(() => toast("Número copiado"), () => toast(d.copy)); }
   else if (d.face5) { document.querySelectorAll("#sbox .faces button").forEach(b => { b.classList.toggle("on", b === t); b.setAttribute("aria-checked", b === t); }); }
   else if (d.viewpref) setViewPref(d.viewpref);
@@ -1458,6 +1521,7 @@ const AUTH = "https://vzqjwhlpwvqrosoiwiin.supabase.co/auth/v1", PUB = "sb_publi
         const s = await r.json();
         const d = await post(API, { action: "register_device", name: "navegador " + (navigator.userAgentData?.platform || navigator.platform || "") }, s.access_token);
         const j = await d.json().catch(() => ({}));
+        if (d.status === 403 && j.error === "convite") throw new Error("O VisualContext está em teste fechado: só entra quem foi convidado. Peça um convite em visualcontext.alema.io.");
         if (!d.ok || !j.token) throw new Error("Entrou, mas não deu para registrar este navegador.");
         store.set("vc_token", j.token); location.reload();
       }
@@ -1468,6 +1532,7 @@ const AUTH = "https://vzqjwhlpwvqrosoiwiin.supabase.co/auth/v1", PUB = "sb_publi
 async function register(at, name) {
   const d = await fetch(API, { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + at }, body: JSON.stringify({ action: "register_device", name }) });
   const j = await d.json().catch(() => ({}));
+  if (d.status === 403 && j.error === "convite") throw new Error("O VisualContext está em teste fechado: só entra quem foi convidado.");
   if (!d.ok || !j.token) throw new Error("Não deu para registrar este aparelho.");
   return j.token;
 }

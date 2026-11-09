@@ -31,9 +31,9 @@ Se não houver papel com texto legível, responda {"papel": false}."""
             .put(JSONObject().put("inlineData", JSONObject().put("mimeType", "image/jpeg").put("data", Base64.encodeToString(jpeg, Base64.NO_WRAP)))))))
             .put("generationConfig", JSONObject().put("maxOutputTokens", 4096).put("temperature", 0.1).put("responseMimeType", "application/json"))
         return try {
-            val c = (URL("https://generativelanguage.googleapis.com/v1beta/$model:generateContent").openConnection() as HttpURLConnection).apply {
+            val c = (Gem.url(key, "$model:generateContent").openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"; connectTimeout = 10_000; readTimeout = 45_000; doOutput = true
-                setRequestProperty("Content-Type", "application/json"); setRequestProperty("x-goog-api-key", key)
+                setRequestProperty("Content-Type", "application/json"); Gem.auth(this, key)
             }
             c.outputStream.use { it.write(body.toString().toByteArray()) }
             if (c.responseCode !in 200..299) return null

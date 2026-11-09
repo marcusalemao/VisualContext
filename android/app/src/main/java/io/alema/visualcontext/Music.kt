@@ -42,6 +42,8 @@ object Music {
     /** ACRCloud is available: his own keys, or the app's (asked through our server, Marcus 09/11: "faz pra mim"). */
     fun hasAcr(ctx: Context) = ownAcr(ctx) || Backend.token(ctx).isNotEmpty()
     fun any(ctx: Context) = key(ctx).isNotEmpty() || hasAcr(ctx)
+    /** AudD with the app's key, through the server, for testers who have none. */
+    private fun auddServer(ctx: Context) = key(ctx).isEmpty() && Backend.role(ctx) != "founder" && Backend.token(ctx).isNotEmpty()
 
     /** Who found what, kept on the phone: "audd", "acr", "ambos" (agreed), "divergiram", "nenhum". */
     fun score(ctx: Context): Map<String, Int> = listOf("audd", "acr", "ambos", "divergiram", "nenhum").associateWith { p(ctx).getInt("mscore_$it", 0) }
@@ -61,7 +63,7 @@ object Music {
         val pcm = buf.toByteArray(); if (pcm.size < 16_000 * 2 * 3) throw IllegalStateException("não ouvi quase nada")
         val wav = wav(pcm, 16_000)
         val pool = java.util.concurrent.Executors.newFixedThreadPool(2)
-        val fa = if (key(ctx).isNotEmpty()) pool.submit<Result<Song?>> { runCatching { audd(ctx, wav) } } else null
+        val fa = if (key(ctx).isNotEmpty() || auddServer(ctx)) pool.submit<Result<Song?>> { runCatching { audd(ctx, wav) } } else null
         val fb = if (hasAcr(ctx)) pool.submit<Result<Song?>> { runCatching { acr(ctx, wav) } } else null
         val a = fa?.let { runCatching { it.get(30, java.util.concurrent.TimeUnit.SECONDS) }.getOrElse { Result.failure(it) } }
         val b = fb?.let { runCatching { it.get(30, java.util.concurrent.TimeUnit.SECONDS) }.getOrElse { Result.failure(it) } }
@@ -81,6 +83,10 @@ object Music {
     private fun norm(t: String) = java.text.Normalizer.normalize(t.lowercase(), java.text.Normalizer.Form.NFD).replace(Regex("\\p{M}+"), "").replace(Regex("\\(.*?\\)|\\[.*?]|feat\\..*|[^a-z0-9 ]"), "").trim()
 
     private fun audd(ctx: Context, wav: ByteArray): Song? {
+        if (auddServer(ctx)) {
+            val r = Backend.post(ctx, JSONObject().put("action", "identify_audd").put("audio", android.util.Base64.encodeToString(wav, android.util.Base64.NO_WRAP))) ?: throw IllegalStateException("AudD do app não respondeu")
+            return parseAudd(JSONObject(r))
+        }
         val boundary = "----vc" + System.nanoTime()
         val c = (URL("https://api.audd.io/").openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"; connectTimeout = 10_000; readTimeout = 25_000; doOutput = true
@@ -92,7 +98,9 @@ object Music {
             o.write("--$boundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"a.wav\"\r\nContent-Type: audio/wav\r\n\r\n".toByteArray()); o.write(wav); o.write("\r\n--$boundary--\r\n".toByteArray())
         }
         if (c.responseCode !in 200..299) throw IllegalStateException("AudD respondeu ${c.responseCode}")
-        val j = JSONObject(c.inputStream.bufferedReader().readText())
+        return parseAudd(JSONObject(c.inputStream.bufferedReader().readText()))
+    }
+    private fun parseAudd(j: JSONObject): Song? {
         if (j.optString("status") != "success") throw IllegalStateException(j.optJSONObject("error")?.optString("error_message") ?: "erro do AudD")
         val r = j.optJSONObject("result") ?: return null
         return Song(r.optString("title"), r.optString("artist"), r.optString("album").ifEmpty { null }, r.optString("song_link").ifEmpty { null }, r.optString("timecode").ifEmpty { null }, "audd", 80)
