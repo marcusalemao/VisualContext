@@ -139,7 +139,7 @@ class Ears(private val ctx: Context, private val onName: (String) -> Unit, priva
 
     companion object {
         /** What counts as talking to the glasses while nobody is in front. */
-        val QUESTION = Regex("""^(ei|ô|oi|olha|escuta)?[,\s]*(assistente|visual\s?context|visualcontext|óculos)\b|\b(o que (eu )?(fiz|anotei|combinei|guardei)|quem (eu )?(encontrei|vi)|quando (foi que )?(eu )?(vi|encontrei|falei)|onde (eu )?deixei|cad[eê] (meu|minha|o|a|as|os)\b|última vez que|que horas são|que dia é hoje|que música)""")
+        val QUESTION = Regex("""^(ei|ô|oi|olha|escuta)?[,\s]*(assistente|visual\s?context|visualcontext|óculos)\b|\b(reviver (o )?(meu )?dia|reviver ontem|como foi (o )?meu dia|me conta (o )?meu dia|o que (eu )?(fiz|anotei|combinei|guardei)|quem (eu )?(encontrei|vi)|quando (foi que )?(eu )?(vi|encontrei|falei)|onde (eu )?deixei|cad[eê] (meu|minha|o|a|as|os)\b|última vez que|que horas são|que dia é hoje|que música)""")
     }
 
     private fun save() {

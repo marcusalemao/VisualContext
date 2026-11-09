@@ -87,7 +87,7 @@
     const kindChip = T.kind && T.mode !== "rede" ? `<button class="pill on" data-tkind="1">✕ só ${({ person: "pessoas", place: "lugares", day: "dias", memory: "lembranças", thing: "coisas", music: "músicas" })[T.kind]}</button>` : "";
     const trail = T.trail.length ? `<button class="pill" data-tback="1">← ${esc(T.trail[T.trail.length - 1].label)}</button>` : "";
     return `<div class="teia-top">${trail}<span class="muted" style="font-size:12px;align-self:center">${T.trail.map(x => esc(x.label) + " › ").join("")}<b style="color:var(--t)">${esc(T.center.label)}</b></span></div>
-      <div class="teia-top" style="margin-top:6px">${mode}${kindChip}</div>
+      <div class="teia-top" style="margin-top:6px">${mode}${kindChip}${T.center.kind === "day" && T.mode !== "rede" ? `<button class="pill on" data-reviver="${esc(T.center.id)}T12:00:00">▶ Reviver este dia</button>` : ""}</div>
       <div class="teia-top" style="margin-top:6px">${chips}</div>
       <div class="muted" style="display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;margin-top:8px">
         <span>○ pessoa</span><span>⬡ lugar</span><span>⬢ coisa</span><span>◇ música</span><span>✦ lembrança</span><span>▬ dia</span></div>

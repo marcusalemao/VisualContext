@@ -432,7 +432,7 @@ function myDay() {
   const tm = d => new Date(d).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   const stopsHtml = byPlace.map(b => (b.how ? `<div class="how">${esc(b.how)}</div>` : "") + `<div class="stop"><span>${esc(tm(b.from))}${b.to !== b.from ? "–" + esc(tm(b.to)) : ""}</span><div class="stopb"><div class="stopn">${esc(b.key.split(" · ")[0])}</div>${b.key.includes(" · ") ? `<div class="muted" style="font-size:12.5px">${esc(b.key.split(" · ").slice(1).join(" · "))}</div>` : ""}<div class="who">${b.who.map(w => w.p ? `<button class="whoa" data-k="person" data-id="${w.p.id}">${avatar(w.p, "sm")}<span>${esc(w.name)}</span></button>` : `<span class="whoa"><span class="av k" style="font-size:16px">✦</span><span>${esc(w.name)}</span></span>`).join("")}</div></div></div>`)
     .concat(th.map(t => `<div class="stop"><span>${esc(tm(t.seen_at))}</span><div class="stopb"><div>${esc(t.name)} → ${esc(t.location_description || "")}</div></div></div>`)).slice(0, 6).join("");
-  return `<div class="day"><h4>✦ Meu dia · hoje</h4><p>Hoje você ${esc(listPt(bits))}.</p><div class="stops">${stopsHtml}</div>
+  return `<div class="day"><h4 style="display:flex;justify-content:space-between;align-items:center;gap:8px">✦ Meu dia · hoje<button class="btn pri" data-reviver="1" style="min-height:36px;padding:0 14px;font-size:13px">▶ Reviver</button></h4><p>Hoje você ${esc(listPt(bits))}.</p><div class="stops">${stopsHtml}</div>
   <div class="foot"><span>${people.length} ${people.length === 1 ? "pessoa" : "pessoas"} · ${places.length} ${places.length === 1 ? "lugar" : "lugares"} · ${no.length} ${no.length === 1 ? "nota" : "notas"} · ${follow} ${follow === 1 ? "pendência" : "pendências"}</span><button data-day="1">Ver o dia →</button></div></div>`;
 }
 const listPt = a => a.length <= 1 ? (a[0] || "") : a.slice(0, -1).join(", ") + " e " + a.at(-1);
@@ -779,6 +779,7 @@ function closeSheet() { if (!navPopping && navDepth > 0 && $("#sheet").classList
 let navDepth = 0, navPopping = false;
 function pushNav(what) { if (navPopping) return; navDepth++; try { history.pushState({ vc: what, n: navDepth }, ""); } catch {} }
 window.addEventListener("popstate", () => {
+  if (document.querySelector(".rv")) return; // "Reviver o dia" handles its own Back
   navPopping = true;
   try {
     if ($("#sheet").classList.contains("on")) hideSheet();
@@ -986,6 +987,7 @@ document.addEventListener("click", e => {
   else if (d.share) shareNote(d.share);
   else if (d.later) listenLater(d.later);
   else if (d.translate) translateNote(d.translate);
+  else if (d.reviver) reviverDia(d.reviver === "1" ? null : d.reviver);
   else if (d.prep) prepForm(d.prep);
   else if (d.prepnew) prepNew();
 });
@@ -1046,6 +1048,7 @@ if (LINK) { /* the link handler above takes over */ }
 else if (!TOKEN) showGate();
 else { $("#app").classList.remove("hide"); renderChips(); load().catch(e => { if (e.message !== "token") $("#list").innerHTML = `<div class="empty">Não consegui carregar a memória (${esc(e.message)}). <button class="btn" onclick="location.reload()">Tentar de novo</button></div>`; }); }
 </script>
+<script src="/reviver.js" defer></script>
 <script src="/teia.js" defer></script>
 </body>
 </html>

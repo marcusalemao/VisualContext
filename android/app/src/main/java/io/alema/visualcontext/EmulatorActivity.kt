@@ -420,6 +420,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     /** Two taps: cancel the countdown, close the card, let go of the pin — never leaves the screen. */
     private fun templeBack() {
         when {
+            story != null -> storyEnd()
             countdownId != null -> cancelCountdown()
             hud.cardTitle != null || hud.lyric != null -> { if (qr.offer != null) qr.dismiss(SystemClock.elapsedRealtime()); closeCard() }
             hud.pinFocus >= 0 -> { hud.pinFocus = -1; hud.invalidate() }
@@ -439,6 +440,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         val prev = code == android.view.KeyEvent.KEYCODE_DPAD_UP || code == android.view.KeyEvent.KEYCODE_DPAD_LEFT
         val next = code == android.view.KeyEvent.KEYCODE_DPAD_DOWN || code == android.view.KeyEvent.KEYCODE_DPAD_RIGHT
         val ok = code == android.view.KeyEvent.KEYCODE_DPAD_CENTER || code == android.view.KeyEvent.KEYCODE_ENTER
+        if (story != null && (prev || next)) return storyMove(if (next) 1 else -1)
         if (hud.cardButtons.isNotEmpty() && cardAction != null) {
             when {
                 prev -> { hud.buttonFocus = (hud.buttonFocus - 1 + hud.cardButtons.size) % hud.cardButtons.size; hud.invalidate(); return true }
@@ -648,6 +650,19 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         briefClear = Runnable { onLyricEnd() }.also { main.postDelayed(it, 20_000L) } // a stalled card leaves by itself
     }
     override fun onLyricEnd() { hud.lyric = null; hud.invalidate() }
+
+    // ── "Reviver o dia" on the lens: ◀ ▶ walk the chapters, ●● leaves (Marcus, 09/11) ──
+    private var story: List<Story.Chapter>? = null
+    private var storyAt = 0
+    override fun onStory(chapters: List<Story.Chapter>) { story = chapters; storyAt = 0; paintStory() }
+    private fun paintStory() {
+        val ch = story?.getOrNull(storyAt) ?: return
+        briefClear?.let { main.removeCallbacks(it) } // stays until he leaves
+        hud.cardTitle = ch.title; hud.cardLines = ch.lines + "◀ ▶  ${storyAt + 1}/${story!!.size}  ·  ●● sair"; hud.invalidate()
+        if (output == "voz") voice.say(ch.title.drop(2) + ". " + ch.lines.joinToString(". "), interrupt = true)
+    }
+    private fun storyMove(d: Int): Boolean { val s = story ?: return false; storyAt = (storyAt + d).coerceIn(0, s.size - 1); paintStory(); return true }
+    private fun storyEnd(): Boolean { if (story == null) return false; story = null; closeCard(); return true }
     override fun onTranslation(title: String, original: String, translation: String, lang: String) {
         showCard("⇄ $title → $lang", listOf(translation.take(400), "— original: " + original.take(160)), listOf("🔊 Ler", "✕")) { i -> if (i == 0) { if (liveOn) live.context("(leia em voz alta: $translation)") else voice.say(translation, interrupt = true) } else closeCard() }
     }
@@ -735,7 +750,9 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         val lb = body.lowercase()
         val memory = Regex("""o que (eu )?(fiz|anotei|combinei|guardei)|quem (eu )?(encontrei|vi)|quando (foi que )?(eu )?(vi|encontrei|falei)|última vez que""").containsMatchIn(lb)
         val thing = Regex("""onde (eu )?deixei (o |a |as |os |meu |minha )?(.+)|cad[eê] (meu |minha |o |a |as |os )?(.+)""").find(lb)
+        val relive = Regex("""reviver (o )?(meu )?dia|como foi (o )?meu dia|me conta (o )?meu dia|reviver ontem""").find(lb)
         when {
+            relive != null -> work.execute { val ch = Story.build(this, if (lb.contains("ontem")) 1 else 0); main.post { if (ch.isEmpty()) say("Não tenho nada registrado nesse dia.", "✦ Reviver", listOf("sem registros")) else onStory(ch) } }
             Regex("que horas são").containsMatchIn(lb) -> { val t = java.text.SimpleDateFormat("HH:mm", java.util.Locale("pt", "BR")).format(System.currentTimeMillis()); say("São $t.", "✦ Agora", listOf(t)) }
             thing != null -> work.execute {
                 val name = (thing.groupValues[3].ifEmpty { thing.groupValues[5] }).trim().trimEnd('?', '.')

@@ -37,6 +37,8 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
         /** The lyrics card on the lens: cover, title, previous / current / next line. */
         fun onLyric(title: String, artist: String, prev: String?, cur: String?, next: String?, cover: android.graphics.Bitmap?) { onBrief("♪ $title", listOfNotNull(cur)) }
         fun onLyricEnd() {}
+        /** "Reviver o dia": chapters walked with the temple. */
+        fun onStory(chapters: List<Story.Chapter>) {}
         /** A text in view translated: original and translation side by side on the lens. */
         fun onTranslation(title: String, original: String, translation: String, lang: String) { onBrief("⇄ $title", listOf(translation.take(300))) }
         /** Nothing said for a while after an answer: the assistant should close (the host stops it). */
@@ -112,7 +114,7 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
             Skills.refresh(ctx)
             MyPlaces.refresh(ctx)
             val placeHint = Where.location(ctx)?.let { loc -> MyPlaces.askHint(ctx, loc) } ?: ""
-            live.extraTools = Skills.tools(ctx).put(Music.tool()).put(Recall.tool()).put(MyPlaces.tool()).put(Agenda.tool()).also { a -> Things.tools().forEach { a.put(it) }; Player.tools().forEach { a.put(it) }; a.put(Zap.tool()); if (Claude.provider(Claude.key(ctx)).isNotEmpty()) a.put(Claude.tool(ctx)); Things.names(ctx).takeIf { it.isNotEmpty() }?.let { n -> a.put(Things.seenTool(n)) } }
+            live.extraTools = Skills.tools(ctx).put(Music.tool()).put(Recall.tool()).put(MyPlaces.tool()).put(Agenda.tool()).also { a -> Things.tools().forEach { a.put(it) }; Player.tools().forEach { a.put(it) }; a.put(Zap.tool()); a.put(Story.tool()); if (Claude.provider(Claude.key(ctx)).isNotEmpty()) a.put(Claude.tool(ctx)); Things.names(ctx).takeIf { it.isNotEmpty() }?.let { n -> a.put(Things.seenTool(n)) } }
             live.extraSystem = Skills.system(ctx) + " ENCERRAMENTO: depois de responder, fique em silêncio; nunca pergunte \"mais alguma coisa?\" nem se despeça. Se ele não falar mais, o app fecha sozinho; se falar, continue." + " MÚSICA: se ele perguntar que música está tocando, chame identificar_musica e espere; não adivinhe. \"Toca…\" / \"quero ouvir…\" → tocar_musica; pausar, pular, voltar → controlar_musica; \"mostra a letra\" → mostrar_letra." + Things.SYSTEM +
                 (if (Claude.provider(Claude.key(ctx)).isNotEmpty()) " OUTRO ASSISTENTE: ele configurou o ${Claude.friendlyName(ctx)}. \"Quero falar com o ${Claude.friendlyName(ctx)}\" (ou com o nome parecido que a transcrição escrever, ex. Groc) → chame outro_assistente com cada fala dele, sem criar habilidade e sem julgar o tom (o estilo é escolha dele e quem responde é o outro), até ele dizer \"volta\"." else "") +
                 " CONVERSAR: \"manda mensagem pro Bruno\", \"abre a conversa com a Ana\", \"fala com o Pedro\" → conversar_com (o app abre o Zap ou o WhatsApp na pessoa; você não escreve a mensagem)." +
@@ -442,6 +444,12 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
                                 .put("diga", if (ok) "Abri a pesquisa por som do Google no seu celular." else "Ainda não tenho como identificar músicas; dá para ligar isso nos Ajustes.")
                         } else JSONObject().put("erro", e.message)
                     }
+                }
+                Story.TOOL -> {
+                    val days = call.args.optInt("dias_atras", 0).coerceIn(0, 30)
+                    val ch = Story.build(ctx, days)
+                    if (ch.isEmpty()) JSONObject().put("vazio", true).put("diga", "Não tenho nada registrado nesse dia.")
+                    else { main.post { host.onStory(ch) }; JSONObject().put("capitulos", ch.size).put("diga", "Está na lente: ${ch.size} partes. Haste para frente e para trás; dois toques saem. Diga só isso, curto.") }
                 }
                 Zap.TOOL -> {
                     val who = call.args.optString("nome")
