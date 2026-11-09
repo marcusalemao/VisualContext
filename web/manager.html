@@ -106,6 +106,7 @@ header .sp{flex:1}
 .ver{display:flex;justify-content:center;margin-top:28px}
 .ver span{font:600 11px var(--mono);color:var(--m);border:1px solid var(--line2);border-radius:99px;padding:3px 10px}
 .pill.off{opacity:.35;pointer-events:none}
+.lnk{color:var(--g);text-decoration:underline;text-underline-offset:3px;display:inline-flex;gap:6px;align-items:center;font:inherit}.lnk .ic{width:16px;height:16px;vertical-align:0}
 /* feedback (Marcus, 09/11): a thumb on everything the AI made, a floating button, one question about the views */
 .rate{display:inline-flex;gap:4px;align-items:center;margin-top:8px;color:var(--m);font-size:12px}
 .rate button{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;color:var(--m);border:1px solid transparent}
@@ -268,7 +269,7 @@ header .sp{flex:1}
     <div class="detail idle" id="detail" data-clarity-mask="true">Escolha algo na lista</div>
   </div>
   <button class="fab" data-fb="1" aria-label="Enviar feedback"><span id="fabic"></span>Feedback</button>
-  <div class="ver"><span id="ver">VisualContext · Manager v0.18.22</span></div>
+  <div class="ver"><span id="ver">VisualContext · Manager v0.18.24</span></div>
 </div>
 
 <div class="sheet" id="sheet"><div class="box" id="sbox"></div></div>
@@ -770,7 +771,7 @@ function personHtml(p) {
   ${(p.tags || []).length ? `<div class="tags">${p.tags.map(t => `<span class="tag">${esc(t)}</span>`).join("")}</div>` : ""}
   <div class="sec"><h5>Sobre</h5>${kv([["Última vez", p.last_seen_date ? fmtFull(p.last_seen_date) + (p.last_seen_context ? " · " + p.last_seen_context : "") : ""], ["Rosto", p.faces ? (p.faces === 1 ? "1 rosto guardado" : p.faces + " rostos guardados") : "Ainda sem rosto: será reconhecida no próximo encontro"],
     ["Apelido", p.nickname], ["E-mail", p.contact_email && link("mailto:" + p.contact_email, p.contact_email), 1], ["Telefone", p.contact_phone && link("tel:" + p.contact_phone, p.contact_phone), 1],
-    ["WhatsApp", p.contact_whatsapp && link("https://wa.me/" + String(p.contact_whatsapp).replace(/\D/g, ""), p.contact_whatsapp), 1], ["LinkedIn", p.contact_linkedin && link(p.contact_linkedin, "perfil"), 1], ["Notas", p.notes], ["Origem", { base44: "app antigo", import: "importado", glasses: "óculos", teste: "teste" }[p.source] || p.source]])}</div>
+    ["WhatsApp", p.contact_whatsapp && `<button class="lnk" data-copy="${esc(p.contact_whatsapp)}" title="Copiar o número">${esc(p.contact_whatsapp)} ${I("content_copy") || ""}</button>`, 1], ["LinkedIn", p.contact_linkedin && link(p.contact_linkedin, "perfil"), 1], ["Notas", p.notes], ["Origem", { base44: "app antigo", import: "importado", glasses: "óculos", teste: "teste" }[p.source] || p.source]])}</div>
   <div class="sec"><h5>Encontros (${encs.length})</h5>${encs.length ? encs.map(encHtml).join("") : `<p class="muted">Nenhum encontro gravado ainda.</p>`}</div>
   <div id="prep"></div>
   <div class="btns">${chatBtn(p)}<button class="btn pri" data-prep="${p.id}">✦ Preparar conversa</button><button class="btn" data-teia="person:${p.id}">${I("hub")} Teia</button><button class="btn" data-edit="${p.id}">Editar</button><button class="btn" data-me="${p.id}">${isMe(p.name) ? "★ Sou eu (desmarcar)" : "Sou eu"}</button><button class="btn" data-merge="${p.id}">Juntar com outra pessoa</button><button class="btn dan" data-del-person="${p.id}">Apagar</button></div>`;
@@ -874,10 +875,10 @@ const tasksDone = () => new Set(S.notes.filter(n => n.kind === "tarefa_feita").m
 const openTasks = () => { const d = tasksDone(); return S.notes.filter(n => n.kind === "tarefa" && !d.has(n.id)).sort((a, b) => new Date((a.fields || {}).quando || "9999") - new Date((b.fields || {}).quando || "9999")); };
 function taskActions(n) {
   const f = n.fields || {}, p = f.pessoa ? S.people.find(x => nameKey(x.name) === nameKey(f.pessoa) || nameKey(x.name).startsWith(nameKey(f.pessoa))) : null;
-  const phone = p && String(p.contact_whatsapp || p.contact_phone || "").replace(/\D/g, ""), mail = p && p.contact_email;
+  const phone = p && brPhone(p.contact_whatsapp || p.contact_phone), mail = p && p.contact_email;
   const body = [n.title, f.detalhes].filter(Boolean).join("\n\n");
   const b = [];
-  if (f.acao === "whatsapp" || (phone && f.acao !== "email")) b.push(phone ? `<a class="btn pri" href="${/Android/i.test(navigator.userAgent) ? `intent://chat?phone=${phone}&name=${encodeURIComponent(p.name)}#Intent;scheme=zap;package=io.alema.zap;S.browser_fallback_url=${encodeURIComponent("https://wa.me/" + phone)};end` : "https://wa.me/" + phone + "?text=" + encodeURIComponent(f.detalhes || "")}" target="_blank" rel="noopener">💬 WhatsApp${p ? " para " + esc(p.name.split(" ")[0]) : ""}</a>` : `<span class="btn" style="opacity:.6">💬 sem número de ${esc(f.pessoa || "?")}</span>`);
+  if (f.acao === "whatsapp" || (phone && f.acao !== "email")) b.push(phone ? `<a class="btn pri" href="${waHref(phone, f.detalhes || "")}" target="_blank" rel="noopener">💬 WhatsApp${p ? " para " + esc(p.name.split(" ")[0]) : ""}</a>` : `<span class="btn" style="opacity:.6">💬 sem número de ${esc(f.pessoa || "?")}</span>`);
   if (f.acao === "email") b.push(`<a class="btn pri" href="mailto:${esc(mail || "")}?subject=${encodeURIComponent(n.title)}&body=${encodeURIComponent(f.detalhes || "")}">${I("mail")} Escrever e-mail${p ? " para " + esc(p.name.split(" ")[0]) : ""}</a>`);
   if (f.acao === "ligar" && phone) b.push(`<a class="btn pri" href="tel:+${phone}">${I("call")} Ligar${p ? " para " + esc(p.name.split(" ")[0]) : ""}</a>`);
   if (f.acao === "agenda" || f.quando) b.push(`<a class="btn" target="_blank" rel="noopener" href="${esc(gcalUrl(n.title, { inicio: f.quando || new Date(Date.now() + 864e5).toISOString().slice(0, 10) + "T09:00", duracao_min: 30, dia_inteiro: !f.quando, notas: f.detalhes, com: f.pessoa }))}">${I("calendar_month")} Pôr na agenda</a>`);
@@ -903,14 +904,36 @@ async function taskDone(id) {
   S.notes = await call("list", { entity: "note" }); closeDetail(); render(); toast("Feito ✓");
 }
 
+/**
+ * A Brazilian number as WhatsApp wants it, 55 + DDD + number (Marcus, 09/11: "11977880888" went to +55 19 7788-0888).
+ * Drops 00/0/carrier prefixes, adds 55 to a DDD + number, and the 9 to an old 8-digit mobile. Anything else (abroad,
+ * no DDD) goes as typed — better than guessing.
+ */
+function brPhone(raw) {
+  let d = String(raw || "").replace(/\D/g, "");
+  if (!d) return "";
+  d = d.replace(/^00/, "");
+  if (/^0\d{12,13}$/.test(d)) d = d.slice(3);        // 0 + carrier (2) + DDD + number
+  else if (/^0\d{10,11}$/.test(d)) d = d.slice(1);   // 0 + DDD + number
+  if (/^55\d{10,11}$/.test(d)) d = d.slice(2);
+  if (!/^\d{10,11}$/.test(d)) return d;
+  const ddd = d.slice(0, 2); let n = d.slice(2);
+  if (n.length === 8 && /^[6-9]/.test(n)) n = "9" + n;
+  return "55" + ddd + n;
+}
+/** Opens the WhatsApp app itself on Android (wa.me opened the web version), the site elsewhere. */
+function waHref(num, text = "") {
+  const n = brPhone(num), web = "https://wa.me/" + n + (text ? "?text=" + encodeURIComponent(text) : "");
+  return /Android/i.test(navigator.userAgent) ? `intent://send?phone=${n}${text ? "&text=" + encodeURIComponent(text) : ""}#Intent;scheme=whatsapp;package=com.whatsapp;S.browser_fallback_url=${encodeURIComponent(web)};end` : web;
+}
+
 /* Talk to the person (Marcus, 09/11): on the phone the Zap opens the conversation (zap://chat); without it, WhatsApp;
    without a number, nothing to offer. The Zap link is the contract the Zap app answers from 0.16 on. */
 function chatBtn(p) {
-  const n = String(p.contact_whatsapp || p.contact_phone || "").replace(/\D/g, "");
-  if (!n) return "";
-  const android = /Android/i.test(navigator.userAgent);
-  const zap = `intent://chat?phone=${n}&name=${encodeURIComponent(p.name)}#Intent;scheme=zap;package=io.alema.zap;S.browser_fallback_url=${encodeURIComponent("https://wa.me/" + n)};end`;
-  return `<a class="btn pri" href="${android ? zap : "https://wa.me/" + n}" ${android ? "" : 'target="_blank" rel="noopener"'}>${I("chat")} Conversar${android ? " no Zap" : ""}</a>`;
+  const raw = p.contact_whatsapp || p.contact_phone;
+  if (!brPhone(raw)) return "";
+  // The Zap answers zap://chat only from its next version; until then the WhatsApp app opens straight away.
+  return `<a class="btn pri" href="${waHref(raw)}" ${/Android/i.test(navigator.userAgent) ? "" : 'target="_blank" rel="noopener"'}>${I("chat")} Conversar no WhatsApp</a>`;
 }
 /* Translate any text the glasses read (Marcus, 09/11): the original stays; the translation is asked to Gemini here. */
 const LANGS = [["pt", "português"], ["en", "inglês"], ["de", "alemão"], ["es", "espanhol"], ["fr", "francês"], ["it", "italiano"], ["zh", "chinês"], ["ja", "japonês"], ["ko", "coreano"], ["th", "tailandês"], ["ar", "árabe"], ["ru", "russo"]];
@@ -1225,12 +1248,18 @@ function parseVcf(text) {
 
 /* ---------- feedback everywhere ---------- */
 const appVer = () => "manager " + (($("#ver") || {}).textContent || "").split(" v")[1];
+/** Where he was when he wrote (Marcus, 09/11: the messages arrived with no reference to the page or the thing). */
+function where() {
+  const d = $("#detail"), h = d && !d.classList.contains("idle") && d.querySelector("h2");
+  if (h) return "detalhe: " + h.textContent.trim().slice(0, 80);
+  return "lista: " + ({ teia: "Teia", time: "Linha do tempo", grid: "Grade", az: "A–Z" })[S.view] + " · " + ((CATS.find(c => c[0] === S.cat) || [])[1] || S.cat);
+}
 /** Thumbs up / down under something the AI made; [what] says what was rated. */
 const rate = what => `<span class="rate" data-what="${esc(what)}"><span>Útil?</span><button data-rate="up" aria-label="Útil">${I("thumb_up")}</button><button data-rate="down" aria-label="Não ajudou">${I("thumb_down")}</button></span>`;
 async function sendRate(btn) {
   const box = btn.closest(".rate"), what = box.dataset.what, v = btn.dataset.rate;
   box.querySelectorAll("button").forEach(b => b.classList.toggle("on", b === btn));
-  call("feedback", { text: `[${v === "up" ? "útil" : "não ajudou"}] ${what}`, app: appVer(), usage: { kind: "rate", what, v } }).catch(() => {});
+  call("feedback", { text: `[${v === "up" ? "útil" : "não ajudou"}] ${what}`, app: appVer(), usage: { kind: "rate", what, v, where: where() } }).catch(() => {});
   if (v === "down" && !box.querySelector("input")) {
     box.insertAdjacentHTML("beforeend", `<input placeholder="O que faltou? (opcional)" data-clarity-mask="true"><button data-ratewhy="1" aria-label="Enviar">${I("check")}</button>`);
     box.querySelector("input").focus();
@@ -1238,16 +1267,17 @@ async function sendRate(btn) {
 }
 function sendWhy(btn) {
   const box = btn.closest(".rate"), t = box.querySelector("input").value.trim();
-  if (t) call("feedback", { text: `[não ajudou] ${box.dataset.what}: ${t}`, app: appVer(), usage: { kind: "rate_why", what: box.dataset.what } }).catch(() => {});
+  if (t) call("feedback", { text: `[não ajudou] ${box.dataset.what}: ${t}`, app: appVer(), usage: { kind: "rate_why", what: box.dataset.what, where: where() } }).catch(() => {});
   box.innerHTML = `<span>Obrigado!</span>`;
 }
 /** Google's five faces instead of NPS (Marcus, 09/11: "NPS é muito chato"). */
 const FACES = [["sentiment_very_dissatisfied", "Muito ruim"], ["sentiment_dissatisfied", "Ruim"], ["sentiment_neutral", "Mais ou menos"], ["sentiment_satisfied", "Bom"], ["sentiment_very_satisfied", "Muito bom"]];
 function feedbackSheet() {
+  feedbackSheet.where = where();
   sheet(`<h3>Como está sendo usar o VisualContext?</h3>
     <div class="faces" role="radiogroup" aria-label="Sua experiência">${FACES.map(([n, l], i) => `<button type="button" role="radio" aria-checked="false" data-face5="${i + 1}" title="${l}">${I(n)}<small>${l}</small></button>`).join("")}</div>
     <p class="sub" style="margin-top:12px">Quer contar mais? Ideia, problema, elogio: vai direto para quem faz o app, sem abrir e-mail.</p>
-    <form class="f" onsubmit="return false"><textarea id="fbt" data-clarity-mask="true" placeholder="O que você achou desta tela?"></textarea>
+    <form class="f" onsubmit="return false"><textarea id="fbt" data-clarity-mask="true" placeholder="O que você achou do app?"></textarea>
     <div class="btns" style="margin-top:0"><button class="btn pri" data-fbsend="1">Enviar</button><button class="btn" type="button" data-x="1">Fechar</button></div><p class="muted" id="fbm" style="font-size:13px"></p></form>`);
 }
 /** After using the web and then going to the timeline, once: which one makes more sense? */
@@ -1290,6 +1320,7 @@ function features() {
   ];
 }
 function usage() {
+  feedbackSheet.where = null;
   const fs = features(), done = fs.filter(f => f[1] > 0).length, max = Math.max(1, ...fs.map(f => f[1])), pct = done / fs.length;
   const R = 70, len = Math.PI * R, arc = `M ${90 - R} 86 A ${R} ${R} 0 0 1 ${90 + R} 86`;
   const admin = S.me && S.me.email === "marcusdemagalhaes@gmail.com";
@@ -1306,12 +1337,13 @@ async function sendFeedback() {
   let t = $("#fbt").value.trim(); const m = $("#fbm");
   if (t.length < 2 && !face) { m.textContent = "Escolha uma carinha ou escreva o recado."; return; }
   if (face) t = `[${face}/5 ${FACES[face - 1][1]}] ` + t;
+  const at = feedbackSheet.where || where();
   m.textContent = "Enviando…";
-  try { await call("feedback", { text: t, app: "manager " + ($("#ver")?.textContent.split(" v")[1] || ""), usage: Object.fromEntries(features().map(f => [f[0], f[1]])) }); $("#fbt").value = ""; m.textContent = "✓ Recebido. Obrigado!"; }
+  try { await call("feedback", { text: t, app: appVer(), usage: { where: typeof at === "string" ? at : where(), uso: Object.fromEntries(features().map(f => [f[0], f[1]])) } }); $("#fbt").value = ""; m.textContent = "✓ Recebido. Obrigado!"; }
   catch (e) { m.textContent = "Não deu: " + e.message; }
 }
 async function feedbackList() {
-  try { const l = await call("feedback_list"); sheet(`<h3>Recados recebidos</h3>${l.length ? l.map(f => `<div class="feat"><b>${esc(f.owner_email || "?")}</b><span class="n no">${esc(fmtWhen(f.at))}</span><span class="hint" style="color:var(--t);white-space:pre-wrap">${esc(f.text)}</span></div>`).join("") : `<p class="muted">Nenhum ainda.</p>`}<div class="btns"><button class="btn" data-x="1">Fechar</button></div>`); }
+  try { const l = await call("feedback_list"); sheet(`<h3>Recados recebidos</h3>${l.length ? l.map(f => `<div class="feat"><b>${esc(f.owner_email || "?")}</b><span class="n no">${esc(fmtWhen(f.at))}</span><span class="hint" style="color:var(--t);white-space:pre-wrap">${esc(f.text)}${f.usage && f.usage.where ? `<br><small class="muted">${esc(f.app || "")} · ${esc(f.usage.where)}</small>` : ""}</span></div>`).join("") : `<p class="muted">Nenhum ainda.</p>`}<div class="btns"><button class="btn" data-x="1">Fechar</button></div>`); }
   catch (e) { toast("Não deu: " + e.message); }
 }
 
@@ -1385,6 +1417,7 @@ document.addEventListener("click", e => {
   else if (d.rate) sendRate(t.closest("[data-rate]"));
   else if (d.ratewhy) sendWhy(t.closest("[data-ratewhy]"));
   else if (d.fb) feedbackSheet();
+  else if (d.copy) { navigator.clipboard?.writeText(d.copy).then(() => toast("Número copiado"), () => toast(d.copy)); }
   else if (d.face5) { document.querySelectorAll("#sbox .faces button").forEach(b => { b.classList.toggle("on", b === t); b.setAttribute("aria-checked", b === t); }); }
   else if (d.viewpref) setViewPref(d.viewpref);
   else if (d.fbsend) sendFeedback();

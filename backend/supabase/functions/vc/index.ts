@@ -128,11 +128,19 @@ Deno.serve(async (req) => {
         if (text.length < 2) return json({ error: "text" }, 400);
         const { error } = await db.from("feedback").insert({ owner: w.owner, owner_email: w.email, text: text.slice(0, 5000), app: String(body.app ?? "").slice(0, 40), usage: body.usage ?? null });
         if (error) throw error;
+        // Also to Marcus's work e-mail (09/11: "quem vai receber sou eu, no meu e-mail profissional"), once Resend is set.
+        const rk = Deno.env.get("RESEND_API_KEY"), to = Deno.env.get("FEEDBACK_TO");
+        if (rk && to) {
+          const where = body.usage?.where ? String(body.usage.where) : "";
+          await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${rk}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ from: Deno.env.get("FEEDBACK_FROM") ?? "VisualContext <feedback@alema.io>", to: [to], reply_to: w.email ?? undefined,
+              subject: `[VisualContext] ${text.slice(0, 70)}`, text: `${text}\n\nDe: ${w.email}\nApp: ${body.app ?? ""}\nOnde: ${where}` }) }).catch(() => {});
+        }
         return json({ ok: true });
       }
       case "feedback_list": { // only the maker reads them
         if (w.email !== "marcusdemagalhaes@gmail.com") return json({ error: "forbidden" }, 403);
-        const { data, error } = await db.from("feedback").select("id, owner_email, text, app, at").order("at", { ascending: false }).limit(200);
+        const { data, error } = await db.from("feedback").select("id, owner_email, text, app, usage, at").order("at", { ascending: false }).limit(200);
         if (error) throw error;
         return json(data ?? []);
       }

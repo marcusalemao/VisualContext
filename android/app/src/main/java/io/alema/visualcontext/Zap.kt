@@ -21,6 +21,17 @@ object Zap {
     fun installed(ctx: Context) = NotesOut.installed(ctx, PKG)
 
     /** "zap" | "whatsapp" | "sem_numero" | "sem_pessoa" | "sem_app". Blocking (reads the memory). */
+    /** 55 + DDD + number; an old 8-digit mobile gets its 9; foreign or incomplete numbers go as typed (same rule as the Manager). */
+    fun brPhone(raw: String): String {
+        var d = raw.filter { it.isDigit() }.removePrefix("00")
+        if (Regex("^0\\d{12,13}$").matches(d)) d = d.drop(3) else if (Regex("^0\\d{10,11}$").matches(d)) d = d.drop(1)
+        if (Regex("^55\\d{10,11}$").matches(d)) d = d.drop(2)
+        if (!Regex("^\\d{10,11}$").matches(d)) return d
+        var n = d.drop(2)
+        if (n.length == 8 && n[0] in "6789") n = "9$n"
+        return "55" + d.take(2) + n
+    }
+
     fun open(ctx: Context, name: String): String {
         val r = Backend.post(ctx, JSONObject().put("action", "list").put("entity", "person").put("limit", 1000)) ?: return "sem_pessoa"
         val a = runCatching { JSONArray(r) }.getOrNull() ?: return "sem_pessoa"
@@ -28,15 +39,18 @@ object Zap {
         val p = (0 until a.length()).mapNotNull { a.optJSONObject(it) }.firstOrNull { it.optString("name").lowercase() == key }
             ?: (0 until a.length()).mapNotNull { a.optJSONObject(it) }.firstOrNull { it.optString("name").lowercase().split(" ").contains(key) || it.optString("nickname").lowercase() == key }
             ?: return "sem_pessoa"
-        val phone = (p.optString("contact_whatsapp").ifBlank { p.optString("contact_phone") }).filter { it.isDigit() }
+        val phone = brPhone(p.optString("contact_whatsapp").ifBlank { p.optString("contact_phone") })
         if (phone.isEmpty()) return "sem_numero"
         val full = p.optString("name")
         if (installed(ctx)) {
             val i = Intent(Intent.ACTION_VIEW, Uri.parse("zap://chat?phone=$phone&name=" + Uri.encode(full))).setPackage(PKG).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             if (runCatching { ctx.startActivity(i); true }.getOrDefault(false)) return "zap"
         }
-        val wa = Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$phone")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        if (NotesOut.installed(ctx, "com.whatsapp") || NotesOut.installed(ctx, "com.whatsapp.w4b")) { if (runCatching { ctx.startActivity(wa); true }.getOrDefault(false)) return "whatsapp" }
+        // The WhatsApp app itself (a plain wa.me link can open the web version).
+        for (pkg in listOf("com.whatsapp", "com.whatsapp.w4b")) if (NotesOut.installed(ctx, pkg)) {
+            val wa = Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$phone")).setPackage(pkg).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            if (runCatching { ctx.startActivity(wa); true }.getOrDefault(false)) return "whatsapp"
+        }
         NotesOut.offer(ctx, "Instalar o Zap", "O VisualContext queria abrir a conversa com $full nos óculos. Isso precisa do Zap: $SITE", sensitive = false)
         return "sem_app"
     }
