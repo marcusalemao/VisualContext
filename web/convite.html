@@ -49,6 +49,15 @@ section{padding:40px 0;border-top:1px solid var(--line)}
 .how div{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:16px 18px}
 .how b{display:block;color:var(--g);font:700 13px var(--mono);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
 .how p{margin:0;color:var(--t)}
+.plan{list-style:none;padding:0;margin:20px 0 0;display:grid;grid-template-columns:1fr 1fr;gap:12px;counter-reset:r}
+@media (max-width:820px){.plan{grid-template-columns:1fr}}
+.plan li{counter-increment:r;display:grid;align-content:start;grid-auto-rows:min-content;grid-template-columns:44px 1fr;gap:4px 12px;background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:16px 18px}
+.plan li::before{content:counter(r);grid-row:1 / span 3;width:36px;height:36px;border-radius:50%;border:2px solid var(--g);color:var(--g);display:flex;align-items:center;justify-content:center;font:700 16px var(--mono)}
+.plan b{color:var(--t);font-size:17px}
+.plan p{margin:0;color:var(--g2)}
+.plan .say{margin-top:6px;font:13px/1.5 var(--mono);color:var(--m)}
+.g{color:var(--g)}
+.tip{margin:18px 0 0;color:var(--m);font-size:15px}
 .form{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start}
 @media (max-width:820px){.form{grid-template-columns:1fr}}
 form{background:var(--s1);border:1px solid var(--line2);border-radius:18px;padding:22px 20px;display:grid;gap:14px}
@@ -111,6 +120,23 @@ footer{border-top:1px solid var(--line);padding:22px 0 40px;color:var(--m);font-
   </div>
 </div></section>
 
+<section id="roteiro"><div class="wrap">
+  <p class="kicker" data-t="k_plan"></p>
+  <h2 data-t="h_plan"></h2>
+  <p data-t="p_plan"></p>
+  <ol class="plan">
+    <li><b data-t="r1"></b><p data-t="r1p"></p><p class="say" data-t="r1s"></p></li>
+    <li><b data-t="r2"></b><p data-t="r2p"></p><p class="say" data-t="r2s"></p></li>
+    <li><b data-t="r3"></b><p data-t="r3p"></p><p class="say" data-t="r3s"></p></li>
+    <li><b data-t="r4"></b><p data-t="r4p"></p><p class="say" data-t="r4s"></p></li>
+    <li><b data-t="r5"></b><p data-t="r5p"></p><p class="say" data-t="r5s"></p></li>
+    <li><b data-t="r6"></b><p data-t="r6p"></p><p class="say" data-t="r6s"></p></li>
+    <li><b data-t="r7"></b><p data-t="r7p"></p><p class="say" data-t="r7s"></p></li>
+    <li><b data-t="r8"></b><p data-t="r8p"></p><p class="say" data-t="r8s"></p></li>
+  </ol>
+  <p class="tip" data-t="tip"></p>
+</div></section>
+
 <section id="pedir"><div class="wrap form">
   <div>
     <p class="kicker" data-t="k_form"></p>
@@ -125,7 +151,6 @@ footer{border-top:1px solid var(--line);padding:22px 0 40px;color:var(--m);font-
       <label><span><span data-t="l_phone"></span> <small data-t="opt"></small></span><input name="phone" maxlength="80" data-ph="ph_phone"></label>
       <label><span data-t="l_glasses"></span>
         <select name="glasses"><option value="" data-t="g0"></option><option value="Rokid" data-t="g1"></option><option value="outros" data-t="g2"></option></select></label>
-      <label><span><span data-t="l_why"></span> <small data-t="opt"></small></span><textarea name="why" maxlength="1000" data-ph="ph_why"></textarea></label>
       <label class="chk"><input type="checkbox" name="android" required><span data-t="l_android"></span></label>
       <div class="hp" aria-hidden="true"><label>Site <input name="site" tabindex="-1" autocomplete="off"></label></div>
       <p class="msg err" id="err" role="alert" hidden></p>
@@ -157,16 +182,26 @@ const T = {
     f5: "Identifica a música que está tocando e guarda para ouvir depois.",
     mock: "conheceu no Café Pop, 12/10\nfalaram do projeto de mobilidade",
     cap: "O celular faz o papel dos óculos",
+    k_plan: "Roteiro do teste", h_plan: "O que testar, e como",
+    p_plan: "Uns 15 minutos por dia, em 5 dias. Segure o celular na altura dos olhos, com a câmera de trás para a frente: é a sua lente. Na barra da haste, <span class=g>●</span> escolhe, <span class=g>●●</span> volta, e o <b>toque longo no <span class=g>●</span></b> abre o assistente de voz.",
+    r1: "Entre e prepare", r1p: "Instale o app, entre com o seu e-mail (chega um código) e abra os Óculos. Libere câmera, microfone e localização.", r1s: "Dia 1 · 3 min",
+    r2: "Ensine um rosto", r2p: "Aponte para alguém que topa participar. Quando a lente perguntar \"Pessoa nova. Guardar?\", abra o assistente e diga o nome. Depois aponte de novo: o nome deve aparecer.", r2s: "Diga: \"essa é a Ana\"",
+    r3: "Converse e combine algo", r3p: "Com a pessoa na frente, converse um minuto e combine alguma coisa com dia e hora. Depois veja no Manager o resumo do encontro e o compromisso sugerido.", r3s: "Ex.: \"almoço quinta ao meio-dia?\"",
+    r4: "Guarde onde deixou", r4p: "Aponte para as chaves, a carteira ou os óculos de sol e diga o que é. Horas depois, pergunte onde deixou.", r4s: "\"essas são minhas chaves\" · \"onde deixei as chaves?\"",
+    r5: "Leia o mundo", r5p: "Aponte para um cardápio, placa, rótulo ou documento e peça para ler, resumir ou traduzir.", r5s: "\"o que está escrito aqui?\" · \"traduz isso\"",
+    r6: "Pergunte qualquer coisa", r6p: "Use o assistente para a agenda, uma música tocando ou algo da sua memória.", r6s: "\"o que eu tenho amanhã?\" · \"que música é essa?\" · \"quem eu encontrei hoje?\"",
+    r7: "Saia na rua", r7p: "Com Lugares ligado, ande um quarteirão: os lugares por perto aparecem como pinos na direção em que você olha.", r7s: "Dia 3 ou 4 · 10 min",
+    r8: "Veja tudo no Manager", r8p: "No navegador, abra o Manager: a teia de pessoas, lugares e coisas, a linha do tempo e o seu dia. Faça uma pergunta à sua memória.", r8s: "Último dia",
+    tip: "Ao fim de cada dia, toque no botão de feedback (o balão verde) e escolha uma carinha: conte o que funcionou, o que travou e onde. Erro também é resultado: é para isso que serve o teste.",
     k_how: "Como é o teste", h_how: "Você não precisa ter os óculos.",
     s1: "1 · No celular", s1p: "O app tem um emulador que transforma o seu celular Android nos óculos: a câmera de trás é a câmera dos óculos e a tela mostra a lente, com os cartões que apareceriam na sua frente.",
     s2: "2 · No dia a dia", s2p: "Use por alguns dias: aponte para pessoas, papéis e lugares, converse com o assistente pela voz e veja tudo organizado no Manager, pelo navegador.",
-    s3: "3 · Sua opinião", s3p: "Sem custo, sem chave de API, sem cartão. Em troca, conte o que funcionou e o que não funcionou pelo botão de feedback do app.",
+    s3: "3 · Sua opinião", s3p: "Sem custo, sem chave de API, sem cartão. Siga o roteiro abaixo e, em troca, conte o que funcionou e o que não funcionou pelo botão de feedback do app.",
     k_form: "Quero testar", h_form: "Peça o seu convite",
     p_form: "As vagas são poucas e eu aprovo cada pedido pessoalmente. Quando aprovar, você recebe neste e-mail o link do app e entra só com um código, sem senha.",
     privacy: "Seu nome e e-mail servem só para o convite e o login. O que você guardar no teste fica na sua conta, e você pode apagar tudo quando quiser.",
     l_name: "Nome", l_email: "E-mail", l_phone: "Modelo do celular", opt: "(opcional)", ph_phone: "ex.: Samsung Galaxy S23",
     l_glasses: "Você tem óculos inteligentes?", g0: "Ainda não", g1: "Sim, Rokid", g2: "Sim, de outra marca",
-    l_why: "O que você gostaria de testar?", ph_why: "Conte em uma ou duas frases",
     l_android: "Tenho um celular Android (versão 11 ou mais nova). No iPhone o teste ainda não funciona.",
     send: "Pedir o convite", sending: "Enviando…",
     e_fields: "Escreva seu nome e um e-mail válido.", e_android: "O teste por enquanto é só para Android: confirme que você tem um.", e_net: "Não deu para enviar. Confira a internet e tente de novo.",
@@ -184,16 +219,26 @@ const T = {
     f5: "Identifies the song that is playing and saves it for later.",
     mock: "met at Café Pop, Oct 12\ntalked about the mobility project",
     cap: "The phone plays the part of the glasses",
+    k_plan: "Test plan", h_plan: "What to test, and how",
+    p_plan: "About 15 minutes a day, over 5 days. Hold the phone at eye level with the back camera facing forward: it is your lens. On the temple bar, <span class=g>●</span> chooses, <span class=g>●●</span> goes back, and a <b>long press on <span class=g>●</span></b> opens the voice assistant.",
+    r1: "Sign in and set up", r1p: "Install the app, sign in with your e-mail (you get a code) and open the Glasses. Allow camera, microphone and location.", r1s: "Day 1 · 3 min",
+    r2: "Teach a face", r2p: "Point at someone who agrees to take part. When the lens asks \"New person. Save?\", open the assistant and say the name. Then point again: the name should appear.", r2s: "Say: \"this is Anna\"",
+    r3: "Talk and agree on something", r3p: "With the person in front of you, talk for a minute and agree on something with a day and time. Then see the summary and the suggested appointment in the Manager.", r3s: "E.g. \"lunch Thursday at noon?\"",
+    r4: "Remember where you left it", r4p: "Point at your keys, wallet or sunglasses and say what they are. Hours later, ask where you left them.", r4s: "\"these are my keys\" · \"where did I leave my keys?\"",
+    r5: "Read the world", r5p: "Point at a menu, sign, label or document and ask it to read, summarize or translate.", r5s: "\"what does this say?\" · \"translate this\"",
+    r6: "Ask anything", r6p: "Use the assistant for your calendar, a song that is playing or something from your memory.", r6s: "\"what do I have tomorrow?\" · \"what song is this?\" · \"who did I meet today?\"",
+    r7: "Go out", r7p: "With Places on, walk a block: nearby places show up as pins in the direction you are looking.", r7s: "Day 3 or 4 · 10 min",
+    r8: "See it all in the Manager", r8p: "In your browser, open the Manager: the web of people, places and things, the timeline and your day. Ask your memory a question.", r8s: "Last day",
+    tip: "At the end of each day, tap the feedback button (the green bubble) and pick a face: tell me what worked, what got stuck and where. Errors are results too: that is what the test is for.",
     k_how: "How the test works", h_how: "You don't need the glasses.",
     s1: "1 · On your phone", s1p: "The app has an emulator that turns your Android phone into the glasses: the back camera is the glasses' camera and the screen shows the lens, with the cards that would appear in front of you.",
     s2: "2 · In your day", s2p: "Use it for a few days: point at people, papers and places, talk to the assistant by voice, and see everything organized in the Manager, in your browser.",
-    s3: "3 · Your opinion", s3p: "No cost, no API key, no card. In return, tell me what worked and what didn't with the app's feedback button.",
+    s3: "3 · Your opinion", s3p: "No cost, no API key, no card. Follow the plan below and, in return, tell me what worked and what didn't with the app's feedback button.",
     k_form: "I want to try it", h_form: "Ask for your invite",
     p_form: "Spots are few and I approve each request myself. Once approved, you get the app link at this e-mail and sign in with a code, no password.",
     privacy: "Your name and e-mail are used only for the invite and sign-in. What you save during the test stays in your account, and you can delete everything at any time.",
     l_name: "Name", l_email: "E-mail", l_phone: "Phone model", opt: "(optional)", ph_phone: "e.g. Samsung Galaxy S23",
     l_glasses: "Do you have smart glasses?", g0: "Not yet", g1: "Yes, Rokid", g2: "Yes, another brand",
-    l_why: "What would you like to try?", ph_why: "One or two sentences",
     l_android: "I have an Android phone (version 11 or newer). The test does not work on iPhone yet.",
     send: "Ask for the invite", sending: "Sending…",
     e_fields: "Please write your name and a valid e-mail.", e_android: "For now the test is Android only: please confirm you have one.", e_net: "Couldn't send. Check your connection and try again.",
@@ -225,7 +270,7 @@ f.addEventListener("submit", async e => {
   const btn = f.querySelector(".send"); btn.disabled = true; btn.textContent = t.sending;
   try {
     const r = await fetch(API, { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "beta_request", name: d.name, email: d.email, phone: d.phone, glasses: d.glasses, why: d.why, lang: L, site: d.site }) });
+      body: JSON.stringify({ action: "beta_request", name: d.name, email: d.email, phone: d.phone, glasses: d.glasses, lang: L, site: d.site }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || t.e_net);
     const first = String(d.name).trim().split(/\s+/)[0];
