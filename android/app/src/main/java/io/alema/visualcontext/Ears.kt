@@ -49,6 +49,9 @@ class Ears(private val ctx: Context, private val onName: (String) -> Unit, priva
         main.removeCallbacks(endCheck); main.postDelayed(endCheck, 60_000)
     }
 
+    /** Plans found in a finished conversation (the host asks before writing them in the calendar). */
+    var onPlans: (List<Plans.Plan>) -> Unit = {}
+
     /** When someone last spoke near the glasses (a conversation, not a poster or a doll). */
     @Volatile var lastSpeechAt = 0L
 
@@ -153,6 +156,9 @@ class Ears(private val ctx: Context, private val onName: (String) -> Unit, priva
             Where.location(ctx)?.let { loc -> body.put("lat", loc.latitude).put("lng", loc.longitude); Where.placeLabel(ctx, loc)?.let { body.put("place", it) } }
             Describe.memoryVersion(ctx, t)?.let { (sum, _) -> if (sum.isNotBlank()) body.put("summary", sum) }
             Moments.send(ctx, body)
+            // Something agreed for a date? The lens asks whether it goes to the calendar.
+            val plans = Plans.extract(ctx, t, at, person)
+            if (plans.isNotEmpty()) main.post { onPlans(plans) }
         }.start()
     }
 }
