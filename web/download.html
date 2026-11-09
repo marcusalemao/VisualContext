@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<!-- Source of the beta download page. Published at vc.alema.io/test-download/ by the alema-site repo (copy it to vc-demo/test-download.html there). -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VisualContext · Instalar o beta</title>
+<meta name="description" content="Instale o beta do VisualContext no seu celular Android. Só para quem recebeu o convite.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="/brand/visualcontext-symbol.svg" type="image/svg+xml">
+<meta name="theme-color" content="#07090c">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<style>
+:root{--bg:#07090c;--s1:#0d1217;--line:rgba(255,255,255,.1);--line2:rgba(255,255,255,.2);--g:#00ff88;--g2:#8fdfb5;--t:#e8f0ec;--m:#9aaaa2;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--t);font:17px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:var(--g)}
+.wrap{max-width:860px;margin:0 auto;padding:0 16px}
+header{border-bottom:1px solid var(--line)}
+header .wrap{display:flex;align-items:center;gap:12px;min-height:64px}
+header .logo img{height:40px;width:auto;display:block}
+.lang{margin-left:auto;display:flex;gap:4px}
+.lang button{min-height:36px;min-width:40px;border-radius:10px;border:1px solid var(--line2);background:var(--s1);color:var(--t);font:600 13px system-ui;cursor:pointer}
+.lang button.on{border-color:var(--g);color:var(--g)}
+.kicker{font:600 12px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--g);margin:0 0 12px}
+h1{font-size:clamp(30px,5vw,46px);line-height:1.08;margin:0 0 14px;letter-spacing:-.02em}
+h2{font-size:22px;margin:0 0 10px}
+.lead{font-size:clamp(17px,2vw,19px);color:var(--g2);margin:0 0 22px}
+.top{padding:40px 16px 32px}
+.get{display:flex;gap:20px;align-items:center;flex-wrap:wrap;background:var(--s1);border:2px solid var(--g);border-radius:18px;padding:20px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:54px;padding:0 24px;border-radius:14px;border:2px solid var(--g);background:var(--g);color:var(--bg);font:700 17px system-ui;text-decoration:none}
+.btn .ic{width:22px;height:22px}
+.meta{color:var(--m);font-size:14px;margin:6px 0 0}
+.qr{display:none;align-items:center;gap:16px}
+.qr .box{background:#fff;padding:8px;border-radius:10px}
+.qr .box img{display:block;width:132px;height:132px;image-rendering:pixelated}
+.qr p{margin:0;color:var(--t);max-width:260px}
+.desk .qr{display:flex}
+section{padding:32px 0;border-top:1px solid var(--line)}
+ol.steps{list-style:none;padding:0;margin:16px 0 0;display:grid;gap:12px;counter-reset:s}
+ol.steps li{counter-increment:s;display:grid;grid-template-columns:44px 1fr;gap:4px 12px;align-content:start;background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:16px 18px}
+ol.steps li::before{content:counter(s);grid-row:1 / span 2;width:36px;height:36px;border-radius:50%;border:2px solid var(--g);color:var(--g);display:flex;align-items:center;justify-content:center;font:700 16px var(--mono)}
+ol.steps b{font-size:17px}
+ol.steps p{margin:0;color:var(--g2)}
+.box2{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:16px 18px;margin-top:12px}
+.box2 p{margin:0}
+.note{color:var(--m);font-size:15px}
+footer{border-top:1px solid var(--line);padding:22px 0 40px;color:var(--m);font-size:14px}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <a class="logo" href="/"><img src="/brand/visualcontext-logo-transparent.png" alt="VisualContext"></a>
+  <div class="lang" role="group" aria-label="Idioma / Language"><button type="button" data-l="pt">PT</button><button type="button" data-l="en">EN</button></div>
+</div></header>
+
+<main>
+<div class="wrap top">
+  <p class="kicker" data-t="kicker"></p>
+  <h1 data-t="h1"></h1>
+  <p class="lead" data-t="lead"></p>
+  <div class="get">
+    <div>
+      <a class="btn" id="dl" href="#"><span data-i="download"></span><span data-t="btn"></span></a>
+      <p class="meta" data-t="meta"></p>
+    </div>
+    <div class="qr"><div class="box"><img id="qr" alt=""></div><p data-t="qr"></p></div>
+  </div>
+</div>
+
+<section><div class="wrap">
+  <h2 data-t="h_steps"></h2>
+  <ol class="steps">
+    <li><b data-t="s1"></b><p data-t="s1p"></p></li>
+    <li><b data-t="s2"></b><p data-t="s2p"></p></li>
+    <li><b data-t="s3"></b><p data-t="s3p"></p></li>
+    <li><b data-t="s4"></b><p data-t="s4p"></p></li>
+    <li><b data-t="s5"></b><p data-t="s5p"></p></li>
+  </ol>
+</div></section>
+
+<section><div class="wrap">
+  <h2 data-t="h_more"></h2>
+  <div class="box2"><p data-t="m1"></p></div>
+  <div class="box2"><p data-t="m2"></p></div>
+  <div class="box2"><p data-t="m3"></p></div>
+</div></section>
+</main>
+
+<footer><div class="wrap">VisualContext · <a href="https://alema.io">Alema</a> · São Paulo · <a href="/" data-t="home"></a></div></footer>
+
+<script src="/icons.js"></script>
+<script>
+// The APK lives in a GitHub release with a fixed tag; a new version replaces the file, this page never changes.
+const APK = "https://github.com/marcusalemao/VisualContext/releases/download/vc-beta/VisualContext.apk";
+const MANAGER = "https://web-visualcontext-site.visualcontext.pages.dev/manager";
+const T = {
+  pt: {
+    kicker: "Beta fechado · Android", h1: "Instale o VisualContext",
+    lead: "Esta página é para quem recebeu o convite. Ainda não tem? <a href=\"/test-invite/\">Peça aqui</a>.",
+    btn: "Baixar o app", meta: "Android 11 ou mais novo · cerca de 90 MB · não funciona no iPhone",
+    qr: "Está no computador? Aponte a câmera do celular para o código e baixe por lá.",
+    h_steps: "Como instalar",
+    s1: "Baixe no celular", s1p: "Toque em Baixar o app. Se o navegador avisar que o arquivo pode ser perigoso, toque em Baixar mesmo assim: é o aviso padrão para apps que ainda não estão na Play Store.",
+    s2: "Permita a instalação", s2p: "Abra o arquivo baixado. O Android pede para permitir apps \"desta fonte\": toque em Configurações, ligue a permissão, volte e toque em Instalar. Se o Play Protect avisar, toque em Mais detalhes → Instalar mesmo assim.",
+    s3: "Entre com o e-mail do convite", s3p: "Abra o VisualContext e escreva o e-mail em que você recebeu o convite. Chega um código: digite e pronto. Não tem senha nem chave para configurar.",
+    s4: "Abra o emulador", s4p: "Toque em Abrir o emulador e libere câmera, microfone e localização. Segure o celular na altura dos olhos, com a câmera de trás para a frente: a tela é a sua lente.",
+    s5: "Siga o roteiro", s5p: "Uns 15 minutos por dia, durante 5 dias. O roteiro do que testar está <a href=\"/test-invite/#roteiro\">aqui</a>, e tudo o que você guardar aparece no <a id=\"mgr\" href=\"#\">Manager</a>, no navegador, com o mesmo e-mail.",
+    h_more: "Bom saber",
+    m1: "<b>Versão nova:</b> quando eu avisar, baixe de novo por esta mesma página e instale por cima. Suas memórias ficam na sua conta e não se perdem.",
+    m2: "<b>Feedback:</b> o balão verde no canto da tela abre as carinhas. Conte o que funcionou, o que travou e onde. Erro também é resultado.",
+    m3: "<b>Privacidade:</b> fotos e conversas ficam na sua conta. Você pode apagar qualquer coisa no Manager, ou tudo de uma vez, quando quiser.",
+    home: "Página inicial"
+  },
+  en: {
+    kicker: "Private beta · Android", h1: "Install VisualContext",
+    lead: "This page is for people who got an invite. Don't have one yet? <a href=\"/test-invite/\">Ask here</a>.",
+    btn: "Download the app", meta: "Android 11 or newer · about 90 MB · does not work on iPhone",
+    qr: "On a computer? Point your phone's camera at the code and download it there.",
+    h_steps: "How to install",
+    s1: "Download it on your phone", s1p: "Tap Download the app. If the browser warns that the file may be harmful, tap Download anyway: it is the standard warning for apps that are not on the Play Store yet.",
+    s2: "Allow the install", s2p: "Open the downloaded file. Android asks you to allow apps \"from this source\": tap Settings, turn it on, go back and tap Install. If Play Protect warns you, tap More details → Install anyway.",
+    s3: "Sign in with the invited e-mail", s3p: "Open VisualContext and type the e-mail the invite was sent to. A code arrives: type it and you're in. No password, no keys to set up.",
+    s4: "Open the emulator", s4p: "Tap Abrir o emulador (Open the emulator) and allow camera, microphone and location. Hold the phone at eye level with the back camera facing forward: the screen is your lens.",
+    s5: "Follow the plan", s5p: "About 15 minutes a day, for 5 days. The test plan is <a href=\"/test-invite/#roteiro\">here</a>, and everything you save shows up in the <a id=\"mgr\" href=\"#\">Manager</a>, in your browser, with the same e-mail.",
+    h_more: "Good to know",
+    m1: "<b>New version:</b> when I let you know, download again from this same page and install over it. Your memories stay in your account and are not lost.",
+    m2: "<b>Feedback:</b> the green bubble in the corner of the screen opens the faces. Tell me what worked, what got stuck and where. Errors are results too.",
+    m3: "<b>Privacy:</b> photos and conversations stay in your account. You can delete anything in the Manager, or everything at once, whenever you want.",
+    home: "Home"
+  }
+};
+let L = (() => { try { const s = localStorage.getItem("vc_lang"); if (s) return s; } catch (_) {} return /^pt/i.test(navigator.language) ? "pt" : "en"; })();
+const qs = new URLSearchParams(location.search).get("lang"); if (qs === "pt" || qs === "en") L = qs;
+function paint() {
+  const t = T[L]; document.documentElement.lang = L === "pt" ? "pt-BR" : "en";
+  document.querySelectorAll("[data-t]").forEach(el => { const v = t[el.dataset.t]; if (typeof v === "string") el.innerHTML = v; });
+  document.querySelectorAll(".lang button").forEach(b => b.classList.toggle("on", b.dataset.l === L));
+  const m = document.getElementById("mgr"); if (m) { m.href = MANAGER; m.target = "_blank"; m.rel = "noopener"; }
+}
+document.querySelectorAll("[data-i]").forEach(el => el.innerHTML = window.I ? I(el.dataset.i) : "");
+document.querySelectorAll(".lang button").forEach(b => b.onclick = () => { L = b.dataset.l; try { localStorage.setItem("vc_lang", L); } catch (_) {} paint(); });
+document.getElementById("dl").href = APK;
+// On a computer: a QR of this page, to open it on the phone.
+if (!/android|iphone|ipad|mobile/i.test(navigator.userAgent)) {
+  document.body.classList.add("desk");
+  try { const q = qrcode(0, "M"); q.addData(location.origin + location.pathname); q.make(); document.getElementById("qr").src = q.createDataURL(6, 2); } catch (_) {}
+}
+paint();
+</script>
+<script src="/consent.js" defer></script>
+</body>
+</html>

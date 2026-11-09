@@ -1364,7 +1364,7 @@ function testerBox(m) {
     <div class="feat"><b>Assistente hoje</b><span class="n">${Math.round((d.live_seconds || 0) / 60)} de ${l.live_min_day} min</span>${bar((d.live_seconds || 0) / 60, l.live_min_day)}</div>
     <div class="feat"><b>Crédito do teste</b><span class="n">US$ ${Number(t.spent || 0).toFixed(2)} de ${Number(l.budget_usd).toFixed(2)}</span>${bar(t.spent || 0, l.budget_usd)}</div></div>`;
 }
-const BETA_APK = "https://visualcontext.alema.io/beta";
+const BETA_APK = "https://vc.alema.io/test-download/";
 async function admin() {
   let d; try { d = await call("invite_list"); } catch (e) { return toast("Não deu: " + e.message); }
   const T = d.tiers || {}, st = i => !i.active ? "desativado" : i.accepted_at ? "ativo" : "aguardando o primeiro acesso";
