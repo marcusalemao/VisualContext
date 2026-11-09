@@ -143,7 +143,7 @@
       <div class="muted" style="display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;margin-top:8px">
         <span><i class="lg" style="background:${COLOR.person}"></i>pessoa</span><span><i class="lg" style="background:#00ff88"></i>lugar</span><span><i class="lg" style="background:${COLOR.thing}"></i>coisa</span><span><i class="lg" style="background:${COLOR.music}"></i>música</span><span><i class="lg" style="background:#8fdfb5"></i>lembrança</span><span><i class="lg" style="background:#fff"></i>dia</span></div>
       <div id="teia" class="teia" role="application" aria-label="Teia da memória"></div>
-      <p class="muted" style="font-size:12px;margin:8px 0 0">Toque num ponto: ele vai para o centro, com tudo o que aconteceu em volta (lembrança abre). Segure: ações. Arraste um ponto até outro: liga os dois.</p>`;
+      ${typeof rate === "function" ? rate("teia") : ""}<p class="muted" style="font-size:12px;margin:8px 0 0">Toque num ponto: ele vai para o centro, com tudo o que aconteceu em volta (lembrança abre). Segure: ações. Arraste um ponto até outro: liga os dois.</p>`;
   };
 
   window.teiaMount = function () {
@@ -259,6 +259,7 @@
         if (held) return;
         if (wasDrag) { if (target) linkAsk(nodeOf(g), nodeOf(target)); return; }
         const n = nodeOf(g); if (!n) return;
+        window.vcTeiaUsed = true;
         if (g.dataset.center || n.kind === "memory") openDetail(n); else pivot(n);
       });
       g.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); const n = nodeOf(g); if (!n) return; if (e.shiftKey) { const p = ptOf(g); showActions(box, { e: { node: n }, x: p.x, y: p.y }, cx, cy); } else if (g.dataset.center || n.kind === "memory") openDetail(n); else pivot(n); } });

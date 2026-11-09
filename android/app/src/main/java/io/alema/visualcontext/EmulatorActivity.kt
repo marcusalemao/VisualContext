@@ -131,6 +131,13 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
             setPadding((6 * dp).toInt(), (6 * dp).toInt(), (6 * dp).toInt(), (6 * dp).toInt()); setOnClickListener { front = !front; startCamera() }
             layoutParams = FrameLayout.LayoutParams((52 * dp).toInt(), (52 * dp).toInt(), Gravity.TOP or Gravity.END).apply { setMargins(0, (8 * dp).toInt(), (8 * dp).toInt(), 0) }
         })
+        // Feedback (Marcus, 09/11): a floating button, Google's five faces instead of NPS, and a line of text.
+        lens.addView(android.widget.ImageButton(this).apply {
+            setImageResource(R.drawable.ic_rate_review); contentDescription = "Enviar feedback"
+            background = android.graphics.drawable.GradientDrawable().apply { shape = android.graphics.drawable.GradientDrawable.OVAL; setColor(Color.argb(200, 8, 12, 14)); setStroke((1.5f * dp).toInt(), green) }
+            setOnClickListener { feedback() }
+            layoutParams = FrameLayout.LayoutParams((48 * dp).toInt(), (48 * dp).toInt(), Gravity.BOTTOM or Gravity.END).apply { setMargins(0, 0, (10 * dp).toInt(), (10 * dp).toInt()) }
+        })
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.BLACK) }
         root.addView(lens, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
         val bar = LinearLayout(this).apply {
@@ -185,7 +192,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         ears = Ears(this, onName = { n -> work.execute {
                 val r = faces.name(n)
                 if (r.optBoolean("guardado")) main.post { onNamed(r.optString("nome", n)) }
-            } }, onState = { h -> val was = hearing; hearing = h; main.post { paintToggles(); if (speaks && h != was) { if (h) voice.recStart() else voice.recEnd() } } },
+            } }, onState = { h -> val was = hearing; hearing = h; main.post { paintToggles(); paintMic() } }, // no beeps (Marcus, 09/11: "pique, pique")
             onQuestion = { q -> standbyQuestion(q) })
         ears.onPlan = { p, uri -> onPlan(p, uri) }
         ears.onTasks = { ts -> onBrief("✓ ${if (ts.size == 1) "Tarefa anotada" else ts.size.toString() + " tarefas anotadas"}", ts.take(3)) }
@@ -205,7 +212,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         facesBtn.setTextColor(if (facesOn) green else dim)
         placesBtn.text = if (placesOn) "● Lugares" else "○ Lugares"
         placesBtn.setTextColor(if (placesOn) green else dim)
-        hud.footer = listOfNotNull(if (liveOn) liveState else null, if (facesOn) "pessoas: ligado" else "pessoas: desligado", if (placesOn) "lugares: ligado" else "lugares: desligado", if (::ears.isInitialized && hearing && !liveOn) "● ouvindo a conversa" else null).joinToString(" · ")
+        hud.footer = listOfNotNull(if (liveOn) liveState else null, if (facesOn) "pessoas: ligado" else "pessoas: desligado", if (placesOn) "lugares: ligado" else "lugares: desligado").joinToString(" · ")
         hud.invalidate()
     }
 
@@ -410,10 +417,13 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         if (on) { getSharedPreferences("visualcontext", MODE_PRIVATE).edit().putBoolean("emu_help_seen", true).apply(); helpBox.announceForAccessibility(helpBox.text) }
     }
     private var pendingTap: Runnable? = null
+    private fun paintMic() { hud.mic = when { liveOn -> 2; ::ears.isInitialized && hearing -> 1; ::ears.isInitialized && (ears.asleep || ears.standby) -> 0; else -> -1 } }
     private fun centerTap() {
         val p = pendingTap
         if (p != null) { main.removeCallbacks(p); pendingTap = null; templeBack(); return } // second tap: back
-        pendingTap = Runnable { pendingTap = null; templeKey(android.view.KeyEvent.KEYCODE_DPAD_CENTER) }.also { main.postDelayed(it, 300) }
+        pendingTap = Runnable { pendingTap = null
+            if (::ears.isInitialized && ears.asleep && !liveOn) { ears.wake(); paintMic(); toast("Ouvindo"); return@Runnable } // ● wakes the microphone
+            templeKey(android.view.KeyEvent.KEYCODE_DPAD_CENTER) }.also { main.postDelayed(it, 300) }
     }
     private fun templeKey(code: Int) {
         if (code == android.view.KeyEvent.KEYCODE_DPAD_CENTER) dispatchKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, code))
@@ -845,6 +855,12 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         override fun run() {
             countdownTick()
             if (liveOn && live.open && !live.speaking && SystemClock.elapsedRealtime() - live.lastActivity > 40_000) { live.stop(); liveOn = false; ears.resume(); toast("Gemini Live encerrado: 40 s em silêncio") }
+            // 10 s of silence with nobody in front: the microphone turns off and says so (Marcus, 09/11).
+            if (::ears.isInitialized && hearing && !liveOn && !ears.inEncounter && SystemClock.elapsedRealtime() - maxOf(ears.lastSpeechAt, ears.listenSince) > 10_000) {
+                ears.sleep(); paintMic(); toast("Microfone desligado · toque ● para ouvir")
+                if (speaks) voice.say("Microfone desligado.", interrupt = false)
+            }
+            paintMic()
             refreshPlaces(false)
             main.postDelayed(this, 250)
         }
@@ -868,6 +884,31 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         if (diff > 2f) { heading = h; hud.heading = h; if (placesOn) hud.invalidate() }
     }
     override fun onAccuracyChanged(s: Sensor?, a: Int) = Unit
+
+    private fun feedback() {
+        val dp = resources.displayMetrics.density
+        val faces = listOf(R.drawable.ic_sentiment_very_dissatisfied to "Muito ruim", R.drawable.ic_sentiment_dissatisfied to "Ruim", R.drawable.ic_sentiment_neutral to "Mais ou menos", R.drawable.ic_sentiment_satisfied to "Bom", R.drawable.ic_sentiment_very_satisfied to "Muito bom")
+        var pick = 0
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding((20 * dp).toInt(), (8 * dp).toInt(), (20 * dp).toInt(), 0) }
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+        val btns = faces.mapIndexed { i, (res, label) -> android.widget.ImageButton(this).apply {
+            setImageResource(res); contentDescription = label; scaleType = android.widget.ImageView.ScaleType.FIT_CENTER; setPadding((4 * dp).toInt(), (4 * dp).toInt(), (4 * dp).toInt(), (4 * dp).toInt())
+            setBackgroundColor(Color.TRANSPARENT); alpha = 0.55f
+            layoutParams = LinearLayout.LayoutParams(0, (52 * dp).toInt(), 1f)
+        } }
+        btns.forEachIndexed { i, b -> b.setOnClickListener { pick = i + 1; btns.forEachIndexed { j, o -> o.alpha = if (j == i) 1f else 0.4f; o.background = if (j == i) android.graphics.drawable.GradientDrawable().apply { cornerRadius = 12 * dp; setStroke((1.5f * dp).toInt(), green) } else null } }; row.addView(b) }
+        col.addView(row)
+        val txt = android.widget.EditText(this).apply { hint = "Quer contar mais? (opcional)"; minLines = 2; setTextColor(Color.WHITE); setHintTextColor(Color.GRAY) }
+        col.addView(txt)
+        android.app.AlertDialog.Builder(this).setTitle("Como está sendo usar o emulador?").setView(col)
+            .setPositiveButton("Enviar") { _, _ ->
+                val t = txt.text.toString().trim()
+                if (pick == 0 && t.length < 2) return@setPositiveButton
+                val body = org.json.JSONObject().put("action", "feedback").put("text", (if (pick > 0) "[$pick/5 ${faces[pick - 1].second}] " else "") + t)
+                    .put("app", "emulador " + runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrDefault(""))
+                Thread { val ok = Backend.post(this, body) != null; runOnUiThread { Toast.makeText(this, if (ok) "Obrigado! Recebido." else "Sem rede: tente de novo depois.", Toast.LENGTH_SHORT).show() } }.start()
+            }.setNegativeButton("Fechar", null).show()
+    }
 
     override fun onDestroy() { ears.finish(); ears.close(); voice.close(); main.removeCallbacksAndMessages(null); live.destroy(); faces.close(); legacy?.destroy(); work.shutdownNow(); super.onDestroy() }
     private fun toast(t: String) = Toast.makeText(this, t, Toast.LENGTH_SHORT).show()

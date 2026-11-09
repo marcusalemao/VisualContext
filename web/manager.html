@@ -8,6 +8,7 @@
 <title>VisualContext Manager</title>
 <link rel="icon" href="/brand/visualcontext-icon-512.png">
 <script src="/icons.js"></script>
+<script src="/consent.js" defer></script>
 <style>
 :root{--bg:#07090c;--s1:#0d1217;--s2:#121a20;--line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.16);--g:#00ff88;--g2:#8fdfb5;--gdim:rgba(0,255,136,.12);
 --t:#e8f0ec;--m:#7f8c86;--red:#ff6b6b;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--r:14px}
@@ -105,6 +106,20 @@ header .sp{flex:1}
 .ver{display:flex;justify-content:center;margin-top:28px}
 .ver span{font:600 11px var(--mono);color:var(--m);border:1px solid var(--line2);border-radius:99px;padding:3px 10px}
 .pill.off{opacity:.35;pointer-events:none}
+/* feedback (Marcus, 09/11): a thumb on everything the AI made, a floating button, one question about the views */
+.rate{display:inline-flex;gap:4px;align-items:center;margin-top:8px;color:var(--m);font-size:12px}
+.rate button{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;color:var(--m);border:1px solid transparent}
+.rate button:hover{color:var(--g)}.rate button.on{color:var(--g);border-color:var(--g)}
+.rate .ic{width:18px;height:18px;vertical-align:0}
+.rate input{background:var(--s1);border:1px solid var(--line2);border-radius:9px;color:var(--t);padding:6px 9px;font:inherit;font-size:13px;min-width:0;flex:1}
+.faces{display:flex;justify-content:space-between;gap:4px;margin-top:14px}
+.faces button{flex:1;display:grid;justify-items:center;gap:4px;padding:8px 2px;border-radius:12px;color:var(--m);border:1.5px solid transparent}
+.faces button .ic{width:40px;height:40px;vertical-align:0}.faces button small{font-size:11px;line-height:1.2;text-align:center}
+.faces button:hover,.faces button.on{color:var(--g)}.faces button.on{border-color:var(--g)}
+.fab{position:fixed;right:16px;bottom:16px;z-index:40;display:flex;gap:7px;align-items:center;padding:10px 14px;border-radius:99px;background:var(--s1);border:1.5px solid var(--g);color:var(--g);font-weight:600;font-size:13.5px;box-shadow:0 6px 24px rgba(0,0,0,.5)}
+.fab .ic{width:18px;height:18px;vertical-align:0}
+.choice{display:grid;gap:10px;margin:12px 0}.choice button{display:flex;gap:12px;align-items:center;text-align:left;padding:14px;border:1.5px solid var(--line2);border-radius:14px}
+.choice button:hover{border-color:var(--g)}.choice .ic{width:30px;height:30px;color:var(--g)}.choice small{display:block;color:var(--m);font-size:13px}
 .row .when{color:var(--m);font:12px var(--mono);white-space:nowrap}
 .av{width:42px;height:42px;border-radius:50%;flex:none;display:grid;place-items:center;font:600 14px var(--mono);border:1.5px solid var(--line2);color:var(--g2);overflow:hidden;background:var(--s2)}
 .av img{width:100%;height:100%;object-fit:cover}
@@ -237,22 +252,23 @@ header .sp{flex:1}
     <div class="scope" id="scope"></div>
   </div>
   <div class="chips" id="chips"></div>
-  <div class="answer" id="ans"></div>
+  <div class="answer" id="ans" data-clarity-mask="true"></div>
 
   <div class="bar">
     <div class="pills" id="pills"></div>
     <div class="pills hide" id="pills2" style="flex:1 1 100%"></div>
     <div class="tools">
-      <div class="seg" id="views"><button data-v="teia"><svg viewBox="0 -960 960 960" width="15" height="15" style="vertical-align:-3px" aria-hidden="true"><path fill="currentColor" d="M240-40q-50 0-85-35t-35-85q0-50 35-85t85-35q14 0 26 3t23 8l57-71q-28-31-39-70t-5-78l-81-27q-17 25-43 40t-58 15q-50 0-85-35T0-580q0-50 35-85t85-35q50 0 85 35t35 85v8l81 28q20-36 53.5-61t75.5-32v-87q-39-11-64.5-42.5T360-840q0-50 35-85t85-35q50 0 85 35t35 85q0 42-26 73.5T510-724v87q42 7 75.5 32t53.5 61l81-28v-8q0-50 35-85t85-35q50 0 85 35t35 85q0 50-35 85t-85 35q-32 0-58.5-15T739-515l-81 27q6 39-5 77.5T614-340l57 70q11-5 23-7.5t26-2.5q50 0 85 35t35 85q0 50-35 85t-85 35q-50 0-85-35t-35-85q0-20 6.5-38.5T624-232l-57-71q-41 23-87.5 23T392-303l-56 71q11 15 17.5 33.5T360-160q0 50-35 85t-85 35ZM120-540q17 0 28.5-11.5T160-580q0-17-11.5-28.5T120-620q-17 0-28.5 11.5T80-580q0 17 11.5 28.5T120-540Zm120 420q17 0 28.5-11.5T280-160q0-17-11.5-28.5T240-200q-17 0-28.5 11.5T200-160q0 17 11.5 28.5T240-120Zm240-680q17 0 28.5-11.5T520-840q0-17-11.5-28.5T480-880q-17 0-28.5 11.5T440-840q0 17 11.5 28.5T480-800Zm0 440q42 0 71-29t29-71q0-42-29-71t-71-29q-42 0-71 29t-29 71q0 42 29 71t71 29Zm240 240q17 0 28.5-11.5T760-160q0-17-11.5-28.5T720-200q-17 0-28.5 11.5T680-160q0 17 11.5 28.5T720-120Zm120-420q17 0 28.5-11.5T880-580q0-17-11.5-28.5T840-620q-17 0-28.5 11.5T800-580q0 17 11.5 28.5T840-540ZM480-840ZM120-580Zm360 120Zm360-120ZM240-160Zm480 0Z"/></svg> Teia</button><button data-v="time" class="on">Linha do tempo</button><button data-v="grid">Grade</button><button data-v="az">A–Z</button></div>
+      <div class="seg" id="views"><button data-v="teia"><svg viewBox="0 -960 960 960" width="15" height="15" style="vertical-align:-3px" aria-hidden="true"><path fill="currentColor" d="M240-40q-50 0-85-35t-35-85q0-50 35-85t85-35q14 0 26 3t23 8l57-71q-28-31-39-70t-5-78l-81-27q-17 25-43 40t-58 15q-50 0-85-35T0-580q0-50 35-85t85-35q50 0 85 35t35 85v8l81 28q20-36 53.5-61t75.5-32v-87q-39-11-64.5-42.5T360-840q0-50 35-85t85-35q50 0 85 35t35 85q0 42-26 73.5T510-724v87q42 7 75.5 32t53.5 61l81-28v-8q0-50 35-85t85-35q50 0 85 35t35 85q0 50-35 85t-85 35q-32 0-58.5-15T739-515l-81 27q6 39-5 77.5T614-340l57 70q11-5 23-7.5t26-2.5q50 0 85 35t35 85q0 50-35 85t-85 35q-50 0-85-35t-35-85q0-20 6.5-38.5T624-232l-57-71q-41 23-87.5 23T392-303l-56 71q11 15 17.5 33.5T360-160q0 50-35 85t-85 35ZM120-540q17 0 28.5-11.5T160-580q0-17-11.5-28.5T120-620q-17 0-28.5 11.5T80-580q0 17 11.5 28.5T120-540Zm120 420q17 0 28.5-11.5T280-160q0-17-11.5-28.5T240-200q-17 0-28.5 11.5T200-160q0 17 11.5 28.5T240-120Zm240-680q17 0 28.5-11.5T520-840q0-17-11.5-28.5T480-880q-17 0-28.5 11.5T440-840q0 17 11.5 28.5T480-800Zm0 440q42 0 71-29t29-71q0-42-29-71t-71-29q-42 0-71 29t-29 71q0 42 29 71t71 29Zm240 240q17 0 28.5-11.5T760-160q0-17-11.5-28.5T720-200q-17 0-28.5 11.5T680-160q0 17 11.5 28.5T720-120Zm120-420q17 0 28.5-11.5T880-580q0-17-11.5-28.5T840-620q-17 0-28.5 11.5T800-580q0 17 11.5 28.5T840-540ZM480-840ZM120-580Zm360 120Zm360-120ZM240-160Zm480 0Z"/></svg> Teia</button><button data-v="time">Linha do tempo</button><button data-v="grid">Grade</button><button data-v="az">A–Z</button></div>
       <div class="seg" id="order"><button data-o="new" class="on" title="Mais novos primeiro">↓</button><button data-o="old" title="Mais antigos primeiro">↑</button></div>
     </div>
   </div>
 
   <div class="main">
-    <div class="list" id="list"></div>
-    <div class="detail idle" id="detail">Escolha algo na lista</div>
+    <div class="list" id="list" data-clarity-mask="true"></div>
+    <div class="detail idle" id="detail" data-clarity-mask="true">Escolha algo na lista</div>
   </div>
-  <div class="ver"><span id="ver">VisualContext · Manager v0.18.18</span></div>
+  <button class="fab" data-fb="1" aria-label="Enviar feedback"><span id="fabic"></span>Feedback</button>
+  <div class="ver"><span id="ver">VisualContext · Manager v0.18.22</span></div>
 </div>
 
 <div class="sheet" id="sheet"><div class="box" id="sbox"></div></div>
@@ -291,13 +307,14 @@ async function call(action, extra = {}) {
 function toast(t) { const el = $("#toast"); el.textContent = t; el.classList.add("on"); clearTimeout(toast.h); toast.h = setTimeout(() => el.classList.remove("on"), 2600); }
 
 /* ---------- data ---------- */
-const S = { me: null, people: [], enc: [], things: [], notes: [], cat: "all", view: "time", order: "new", sel: null, filter: null, dayOnly: false, face: "all", pick: null };
+const S = { me: null, people: [], enc: [], things: [], notes: [], cat: "all", view: store.get("vc_view_pref") || "teia", order: "new", sel: null, filter: null, dayOnly: false, face: "all", pick: null };
 async function load() {
   S.myPlaces = await call("places").catch(() => []);
   const [me, people, enc, things, notes] = await Promise.all([call("me"), call("list", { entity: "person", thumbs: true }), call("list", { entity: "encounter" }), call("list", { entity: "thing" }), call("list", { entity: "note" })]);
   Object.assign(S, { me, people, enc, things, notes });
   render();
   refreshTopics();
+  $("#fabic").innerHTML = I("rate_review");
   let o = null; try { o = sessionStorage.getItem("vc_open"); sessionStorage.removeItem("vc_open") } catch {}
   if (o) { const [pid, what] = o.split("|"); if (S.people.some(p => p.id === pid)) { open("person", pid); if (what === "prep") prep(pid); } }
 }
@@ -563,7 +580,7 @@ function myDay() {
   const tm = d => new Date(d).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   const stopsHtml = byPlace.map(b => (b.how ? `<div class="how">${esc(b.how)}</div>` : "") + `<div class="stop"><span>${esc(tm(b.from))}${b.to !== b.from ? "–" + esc(tm(b.to)) : ""}</span><div class="stopb"><div class="stopn">${esc(b.key.split(" · ")[0])}</div>${b.key.includes(" · ") ? `<div class="muted" style="font-size:12.5px">${esc(b.key.split(" · ").slice(1).join(" · "))}</div>` : ""}${b.who.length ? `<div class="whom">${stack([meAv(), ...b.who.map(w => w.p ? avatar(w.p) : w.name === "assistente" ? sym("auto_awesome") : `<span class="av">${esc(initials(w.name))}</span>`)])}<span class="names">${esc(listPt(b.who.map(w => w.name === "assistente" ? "assistente" : w.name.split(" ")[0])))}</span></div>` : ""}</div></div>`)
     .concat(th.map(t => `<div class="stop"><span>${esc(tm(t.seen_at))}</span><div class="stopb"><div>${esc(t.name)} → ${esc(t.location_description || "")}</div></div></div>`)).slice(0, 6).join("");
-  return `<div class="day"><h4 style="display:flex;justify-content:space-between;align-items:center;gap:8px">✦ Meu dia · hoje<button class="btn pri" data-reviver="1" style="min-height:36px;padding:0 14px;font-size:13px">${I("play_arrow")} Reviver</button></h4><p>Hoje você ${esc(listPt(bits))}.</p><div class="stops">${stopsHtml}</div>${tasksBlock()}${pendingPlans()}
+  return `<div class="day"><h4 style="display:flex;justify-content:space-between;align-items:center;gap:8px">✦ Meu dia · hoje<button class="btn pri" data-reviver="1" style="min-height:36px;padding:0 14px;font-size:13px">${I("play_arrow")} Reviver</button></h4><p>Hoje você ${esc(listPt(bits))}.</p>${rate("meu dia")}<div class="stops">${stopsHtml}</div>${tasksBlock()}${pendingPlans()}
   <div class="foot"><span>${[[people.length, "pessoa", "pessoas"], [places.length, "lugar", "lugares"], [no.length, "nota", "notas"], [follow, "pendência", "pendências"]].filter(x => x[0]).map(([n, a, b]) => n + " " + (n === 1 ? a : b)).join(" · ")}</span><button data-day="1">Ver o dia →</button></div></div>`;
 }
 /** Suggestions still waiting (any day): one tap opens each. */
@@ -709,7 +726,7 @@ DADOS: ${memoryText()}`;
     pr.done();
     const srcs = (a.fontes || []).map(s => source(s)).filter(Boolean);
     const acts = (a.acoes || []).map(action).filter(Boolean);
-    box.innerHTML = `<h3>✦ ${esc(question)}<button data-close-ans="1" aria-label="Fechar">✕</button></h3><p>${esc(a.resposta)}</p>` +
+    box.innerHTML = `<h3>✦ ${esc(question)}<button data-close-ans="1" aria-label="Fechar">✕</button></h3><p>${esc(a.resposta)}</p>` + rate("resposta: " + question) +
       (srcs.length ? `<div class="src"><span class="muted" style="font-size:12px;align-self:center">Fonte:</span>${srcs.join("")}</div>` : "") + (acts.length ? `<div class="acts">${acts.join("")}</div>` : "");
   } catch (e) {
     pr.done();
@@ -764,7 +781,7 @@ function memHtml(r, it) {
   const p = S.people.find(x => x.id === r.person_id) || (r.person_name ? S.people.find(x => nameKey(x.name) === nameKey(r.person_name)) : null);
   const live = r.capture_mode === "live";
   return `<div class="ph">${it.av}<div><h2>${live ? "✦ " : ""}${esc(it.mini ? "Consultou: " + it.title : it.title)}</h2><div class="hook">${esc(fmtFull(r.at))}${placeName(r) ? " · " + esc(placeName(r)) : ""}</div></div></div>
-  ${r.summary && norm(cleanSaid(r.summary)) !== norm(it.title) ? `<div class="sec"><h5>Resumo</h5><p>${esc(cleanSaid(r.summary))}</p></div>` : ""}
+  ${r.summary && norm(cleanSaid(r.summary)) !== norm(it.title) ? `<div class="sec"><h5>Resumo</h5><p>${esc(cleanSaid(r.summary))}</p>${rate("resumo de " + it.title)}</div>` : ""}
   ${(r.follow_ups || []).length ? `<div class="sec"><h5>Pendências</h5><ul style="margin-left:18px">${r.follow_ups.map(f => `<li>${esc(typeof f === "string" ? f : f.text || "")}</li>`).join("")}</ul></div>` : ""}
   ${plansBlock(r)}
   ${p ? `<div class="sec"><h5>Pessoa</h5><button class="row" data-k="person" data-id="${p.id}">${avatar(p)}<span class="tx"><span class="t1">${esc(p.name)}</span></span></button></div>` : ""}
@@ -1206,6 +1223,48 @@ function parseVcf(text) {
   return out.map(r => ({ ...r, source: "contatos" }));
 }
 
+/* ---------- feedback everywhere ---------- */
+const appVer = () => "manager " + (($("#ver") || {}).textContent || "").split(" v")[1];
+/** Thumbs up / down under something the AI made; [what] says what was rated. */
+const rate = what => `<span class="rate" data-what="${esc(what)}"><span>Útil?</span><button data-rate="up" aria-label="Útil">${I("thumb_up")}</button><button data-rate="down" aria-label="Não ajudou">${I("thumb_down")}</button></span>`;
+async function sendRate(btn) {
+  const box = btn.closest(".rate"), what = box.dataset.what, v = btn.dataset.rate;
+  box.querySelectorAll("button").forEach(b => b.classList.toggle("on", b === btn));
+  call("feedback", { text: `[${v === "up" ? "útil" : "não ajudou"}] ${what}`, app: appVer(), usage: { kind: "rate", what, v } }).catch(() => {});
+  if (v === "down" && !box.querySelector("input")) {
+    box.insertAdjacentHTML("beforeend", `<input placeholder="O que faltou? (opcional)" data-clarity-mask="true"><button data-ratewhy="1" aria-label="Enviar">${I("check")}</button>`);
+    box.querySelector("input").focus();
+  } else if (v === "up") box.firstElementChild.textContent = "Obrigado!";
+}
+function sendWhy(btn) {
+  const box = btn.closest(".rate"), t = box.querySelector("input").value.trim();
+  if (t) call("feedback", { text: `[não ajudou] ${box.dataset.what}: ${t}`, app: appVer(), usage: { kind: "rate_why", what: box.dataset.what } }).catch(() => {});
+  box.innerHTML = `<span>Obrigado!</span>`;
+}
+/** Google's five faces instead of NPS (Marcus, 09/11: "NPS é muito chato"). */
+const FACES = [["sentiment_very_dissatisfied", "Muito ruim"], ["sentiment_dissatisfied", "Ruim"], ["sentiment_neutral", "Mais ou menos"], ["sentiment_satisfied", "Bom"], ["sentiment_very_satisfied", "Muito bom"]];
+function feedbackSheet() {
+  sheet(`<h3>Como está sendo usar o VisualContext?</h3>
+    <div class="faces" role="radiogroup" aria-label="Sua experiência">${FACES.map(([n, l], i) => `<button type="button" role="radio" aria-checked="false" data-face5="${i + 1}" title="${l}">${I(n)}<small>${l}</small></button>`).join("")}</div>
+    <p class="sub" style="margin-top:12px">Quer contar mais? Ideia, problema, elogio: vai direto para quem faz o app, sem abrir e-mail.</p>
+    <form class="f" onsubmit="return false"><textarea id="fbt" data-clarity-mask="true" placeholder="O que você achou desta tela?"></textarea>
+    <div class="btns" style="margin-top:0"><button class="btn pri" data-fbsend="1">Enviar</button><button class="btn" type="button" data-x="1">Fechar</button></div><p class="muted" id="fbm" style="font-size:13px"></p></form>`);
+}
+/** After using the web and then going to the timeline, once: which one makes more sense? */
+function maybeAskView(next) {
+  if (store.get("vc_view_asked") || !window.vcTeiaUsed || !["time", "grid"].includes(next)) return;
+  store.set("vc_view_asked", "1");
+  sheet(`<h3>Qual jeito faz mais sentido para você?</h3><p class="sub">Você usou a teia e agora a linha do tempo. A sua resposta decide o que abre primeiro.</p>
+    <div class="choice"><button data-viewpref="teia">${I("hub")}<span><b>Teia</b><small>mapa neural: tudo ligado, pessoas, lugares, músicas</small></span></button>
+    <button data-viewpref="time">${I("history")}<span><b>Linha do tempo</b><small>uma lista, do mais novo ao mais antigo</small></span></button>
+    <button data-viewpref="both">${I("check")}<span><b>As duas, depende do momento</b><small>abre na teia</small></span></button></div>`);
+}
+function setViewPref(v) {
+  store.set("vc_view_pref", v === "time" ? "time" : "teia");
+  call("feedback", { text: `[preferência de vista] ${({ teia: "teia", time: "linha do tempo", both: "as duas" })[v]}`, app: appVer(), usage: { kind: "view_pref", v } }).catch(() => {});
+  closeSheet(); toast("Obrigado! Anotado.");
+}
+
 /* ---------- Meu uso (Marcus, 09/11): what the app does, what you already used and what you never tried — to
    learn the rest, not to collect trophies — and a direct line for feedback, without opening an e-mail app. ---------- */
 const bump = k => { try { const u = JSON.parse(store.get("vc_use") || "{}"); u[k] = (u[k] || 0) + 1; store.set("vc_use", JSON.stringify(u)); } catch {} };
@@ -1243,7 +1302,10 @@ function usage() {
       <div class="btns" style="margin-top:0"><button class="btn pri" data-fbsend="1">Enviar</button><button class="btn" type="button" data-x="1">Fechar</button>${admin ? `<button class="btn" type="button" data-fblist="1">Recados recebidos</button>` : ""}</div><p class="muted" id="fbm" style="font-size:13px"></p></form></div>`);
 }
 async function sendFeedback() {
-  const t = $("#fbt").value.trim(), m = $("#fbm"); if (t.length < 2) { m.textContent = "Escreva o recado primeiro."; return; }
+  const face = +($("#sbox .faces .on")?.dataset.face5 || 0);
+  let t = $("#fbt").value.trim(); const m = $("#fbm");
+  if (t.length < 2 && !face) { m.textContent = "Escolha uma carinha ou escreva o recado."; return; }
+  if (face) t = `[${face}/5 ${FACES[face - 1][1]}] ` + t;
   m.textContent = "Enviando…";
   try { await call("feedback", { text: t, app: "manager " + ($("#ver")?.textContent.split(" v")[1] || ""), usage: Object.fromEntries(features().map(f => [f[0], f[1]])) }); $("#fbt").value = ""; m.textContent = "✓ Recebido. Obrigado!"; }
   catch (e) { m.textContent = "Não deu: " + e.message; }
@@ -1298,7 +1360,7 @@ document.addEventListener("click", e => {
   else if (d.clear) { S.filter = null; $("#q").value = ""; render(); }
   else if (d.clearday) { S.dayOnly = false; render(); }
   else if (d.day) { S.dayOnly = true; S.cat = "all"; render(); }
-  else if (d.v) { S.view = d.v; render(); }
+  else if (d.v) { maybeAskView(d.v); S.view = d.v; render(); }
   else if (d.teia) { const [k, id] = d.teia.split(/:(.+)/); const it = items().find(i => i.kind === k && i.id === id); if (it) { closeDetail(); teiaFocus(k, id, it.ref && it.ref.name || it.title.replace(/ ★ você$/, "")); } }
   else if (window.teiaClick && teiaClick(d)) {}
   else if (d.o) { S.order = d.o; render(); }
@@ -1320,6 +1382,11 @@ document.addEventListener("click", e => {
   else if (d.later) listenLater(d.later);
   else if (d.unlater) unlistenLater(d.unlater);
   else if (d.usage) usage();
+  else if (d.rate) sendRate(t.closest("[data-rate]"));
+  else if (d.ratewhy) sendWhy(t.closest("[data-ratewhy]"));
+  else if (d.fb) feedbackSheet();
+  else if (d.face5) { document.querySelectorAll("#sbox .faces button").forEach(b => { b.classList.toggle("on", b === t); b.setAttribute("aria-checked", b === t); }); }
+  else if (d.viewpref) setViewPref(d.viewpref);
   else if (d.fbsend) sendFeedback();
   else if (d.fblist) feedbackList();
   else if (d.translate) translateNote(d.translate);

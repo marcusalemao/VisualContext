@@ -26,8 +26,16 @@ class Ears(private val ctx: Context, private val onName: (String) -> Unit, priva
      * memory ("o que eu fiz hoje?") or a call to the assistant ("assistente, …"). Nothing else is kept.
      */
     var standby = false
-        set(v) { field = v; if (v && startedAt == 0L && !paused) start() else if (!v && startedAt == 0L) stopRec() }
-    private val inEncounter get() = startedAt > 0L
+        set(v) { field = v; if (v && startedAt == 0L && !paused && !asleep) start() else if (!v && startedAt == 0L) stopRec() }
+    val inEncounter get() = startedAt > 0L
+    /**
+     * Marcus, 09/11: after 10 s of silence the microphone turns off and the lens says so; a tap on ● turns it on
+     * again. A face in front (a real conversation) wakes it too. Different from [pause], which is the assistant's.
+     */
+    var asleep = false; private set
+    @Volatile var listenSince = 0L; private set
+    fun sleep() { if (inEncounter || !on) return; asleep = true; stopRec() }
+    fun wake() { asleep = false; if (!paused) start() }
     private val main = Handler(Looper.getMainLooper())
     private var rec: SpeechRecognizer? = null
     private var on = false
@@ -45,6 +53,7 @@ class Ears(private val ctx: Context, private val onName: (String) -> Unit, priva
         lastFaceAt = now
         if (name != null) who = name
         if (startedAt == 0L) startedAt = now
+        asleep = false
         if (!on && !paused) start()
         main.removeCallbacks(endCheck); main.postDelayed(endCheck, 60_000)
     }
@@ -62,7 +71,7 @@ class Ears(private val ctx: Context, private val onName: (String) -> Unit, priva
 
     /** The assistant takes the microphone. */
     fun pause() { paused = true; stopRec() }
-    fun resume() { paused = false; if ((startedAt > 0 && System.currentTimeMillis() - lastFaceAt < 60_000) || standby) start() }
+    fun resume() { paused = false; if ((startedAt > 0 && System.currentTimeMillis() - lastFaceAt < 60_000) || (standby && !asleep)) start() }
 
     /** ✕ during the countdown: the whole buffer goes. */
     fun discard() { text.setLength(0); startedAt = 0; who = null; if (!standby) stopRec() }
@@ -73,7 +82,7 @@ class Ears(private val ctx: Context, private val onName: (String) -> Unit, priva
 
     private fun start() {
         if (!SpeechRecognizer.isRecognitionAvailable(ctx)) return
-        on = true; onState(true)
+        on = true; listenSince = SystemClock.elapsedRealtime(); onState(true)
         listenOnce()
     }
 
@@ -90,7 +99,7 @@ class Ears(private val ctx: Context, private val onName: (String) -> Unit, priva
     private var musicMuted = false
     private fun quiet(on: Boolean) {
         if (on == muted) return; muted = on
-        for (st in intArrayOf(AudioManager.STREAM_SYSTEM)) // notifications keep their sound (WhatsApp, calls)
+        for (st in intArrayOf(AudioManager.STREAM_SYSTEM)) // notifications keep their sound (WhatsApp, calls); with segmented sessions the earcon is rare anyway
             try { am.adjustStreamVolume(st, if (on) AudioManager.ADJUST_MUTE else AudioManager.ADJUST_UNMUTE, 0) } catch (_: Exception) {}
     }
     private fun musicQuiet(on: Boolean) {
@@ -111,17 +120,33 @@ class Ears(private val ctx: Context, private val onName: (String) -> Unit, priva
             .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             .putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
             .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 2500L)
+        // Marcus, 09/11: "faz muito barulhinho, pique, pique". Android 13+ can keep ONE session open for minutes and
+        // hand over each phrase as a segment, so the recognizer does not stop and start (and beep) after every phrase.
+        if (segmented && Build.VERSION.SDK_INT >= 33) i.putExtra(RecognizerIntent.EXTRA_SEGMENTED_SESSION, RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS)
+            .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 15 * 60_000L)
+        sessionAt = SystemClock.elapsedRealtime()
         quiet(true); musicQuiet(true); main.removeCallbacks(unmuteMusic); main.postDelayed(unmuteMusic, 700)
         try { r.startListening(i) } catch (_: Exception) { main.postDelayed(::listenOnce, 1500) }
     }
 
+    /** Segmented sessions on; switched off for good on this phone if the recognizer refuses them at once. */
+    private var segmented = true
+    private var sessionAt = 0L
     private val listener = object : RecognitionListener {
+        override fun onSegmentResults(b: Bundle) {
+            lastSpeechAt = SystemClock.elapsedRealtime()
+            b.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.takeIf { it.isNotBlank() }?.let { heard(it, final = true) }
+        }
+        override fun onEndOfSegmentedSession() { main.postDelayed(::listenOnce, 150) }
         override fun onResults(b: Bundle?) {
             b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.takeIf { it.isNotBlank() }?.let { heard(it, final = true) }
             main.postDelayed(::listenOnce, 150)
         }
         override fun onPartialResults(b: Bundle?) { lastSpeechAt = SystemClock.elapsedRealtime(); b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.let { heard(it, final = false) } }
-        override fun onError(error: Int) { main.postDelayed(::listenOnce, when (error) {
+        override fun onError(error: Int) {
+            // A recognizer without segmented sessions fails right away: go back to phrase by phrase.
+            if (segmented && SystemClock.elapsedRealtime() - sessionAt < 1500 && error != SpeechRecognizer.ERROR_RECOGNIZER_BUSY && error != SpeechRecognizer.ERROR_NO_MATCH && error != SpeechRecognizer.ERROR_SPEECH_TIMEOUT) segmented = false
+            main.postDelayed(::listenOnce, when (error) {
             SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> 1200
             SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> 600 // silence: restart a bit slower
             else -> 300 }) }

@@ -6,7 +6,7 @@
  */
 (function () {
   var CLARITY_ID = ""; // ← Marcus: paste the Clarity project ID here
-  var APP_VERSION = "0.17.21";
+  var APP_VERSION = "0.18.22";
   var KEY = "vc_consent_clarity";
 
   function get() { try { return localStorage.getItem(KEY); } catch (e) { return null; } }

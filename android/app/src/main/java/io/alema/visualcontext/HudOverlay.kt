@@ -44,6 +44,9 @@ class HudOverlay(ctx: Context) : View(ctx) {
     var lyric: Lyric? = null
     var transcript: List<String> = emptyList()
     var footer: String = ""
+    /** The microphone on the lens (Marcus, 09/11): 1 listening (mic + moving dots), 2 Gemini Live, 0 off, -1 hidden. */
+    var mic = -1
+        set(v) { if (field != v) { field = v; invalidate() } }
     var arrow: String? = null
     var arrowText: String = ""
     var pins: List<Pin> = emptyList()
@@ -75,6 +78,28 @@ class HudOverlay(ctx: Context) : View(ctx) {
 
     private fun sp(v: Float) = v * resources.displayMetrics.scaledDensity
     private fun dp(v: Float) = v * resources.displayMetrics.density
+
+    private val pMic = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
+    private fun drawMic(c: Canvas) {
+        val x = dp(18f); val y = dp(16f); val s = dp(1f)
+        val col = if (mic == 0) Color.argb(150, 170, 190, 180) else green
+        pMic.color = col; pMic.strokeWidth = 2f * s; pMic.style = Paint.Style.STROKE
+        // capsule, cup and stem of a microphone
+        c.drawRoundRect(android.graphics.RectF(x + 5 * s, y, x + 13 * s, y + 13 * s), 4 * s, 4 * s, pMic)
+        c.drawArc(android.graphics.RectF(x + 1 * s, y + 4 * s, x + 17 * s, y + 18 * s), 0f, 180f, false, pMic)
+        c.drawLine(x + 9 * s, y + 18 * s, x + 9 * s, y + 22 * s, pMic)
+        if (mic == 0) c.drawLine(x, y, x + 18 * s, y + 22 * s, pMic) // slashed: off
+        pText.textSize = sp(11f); pText.color = col
+        val label = when (mic) { 2 -> "Gemini"; 1 -> ""; else -> "desligado · toque ●" }
+        if (mic == 1) { // three dots that breathe while listening
+            val t = (System.currentTimeMillis() / 300) % 3
+            pMic.style = Paint.Style.FILL
+            for (i in 0..2) { pMic.alpha = if (i.toLong() == t) 255 else 90; c.drawCircle(x + 26 * s + i * 8 * s, y + 12 * s, 2.6f * s, pMic) }
+            pMic.alpha = 255; pMic.style = Paint.Style.STROKE
+            postInvalidateDelayed(300)
+        } else c.drawText(label, x + 26 * s, y + 16 * s, pText)
+        pText.color = soft
+    }
 
     override fun onDraw(c: Canvas) {
         val w = width.toFloat(); val h = height.toFloat()
@@ -184,6 +209,8 @@ class HudOverlay(ctx: Context) : View(ctx) {
             c.drawRect(dp(12f), y - sp(14f), dp(12f) + pText.measureText(s) + dp(8f), y + dp(4f), pShadow)
             c.drawText(s, dp(16f), y, pText)
         }
+        // microphone state, top left, always in the same place
+        if (mic >= 0 && !compact) drawMic(c)
         // footer
         if (footer.isNotEmpty() && !compact) {
             pText.textSize = sp(11f); pText.color = green
