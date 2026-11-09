@@ -5,7 +5,7 @@
  * Masking: anything with data-clarity-mask="true" (camera, photos, typed text) is never recorded.
  */
 (function () {
-  var CLARITY_ID = ""; // ← Marcus: paste the Clarity project ID here
+  var CLARITY_ID = "zb1tjyx4v2"; // Marcus, 09/11
   var APP_VERSION = "0.18.22";
   var KEY = "vc_consent_clarity";
 
