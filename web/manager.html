@@ -632,7 +632,7 @@ function noteHtml(r, it) {
 /* ---------- Commitments from conversations (Marcus, 09/11): the glasses put clear ones in the calendar by themselves;
    the rest wait here as suggestions, next to the conversation they came from. "Criar na agenda" opens Google Agenda
    with everything filled (title, day, time, place, who, notes); "Procurar compromissos" reads any old conversation. ---------- */
-const evDone = () => { try { return JSON.parse(store.get("vc_evdone") || "{}"); } catch { return {}; } };
+const evDone = () => { try { /* this browser's marks; the server state (fields.status) wins elsewhere */ return JSON.parse(store.get("vc_evdone") || "{}"); } catch { return {}; } };
 function evWhen(f) {
   if (!f.inicio) return "";
   const d = new Date(f.inicio);
@@ -1092,8 +1092,8 @@ document.addEventListener("click", e => {
   else if (d.translate) translateNote(d.translate);
   else if (d.evfind) findPlans(d.evfind);
   else if (d.taskdone) taskDone(d.taskdone);
-  else if (d.evmark) { const m = evDone(); m[d.evmark] = 1; store.set("vc_evdone", JSON.stringify(m)); setTimeout(() => { const id = S.sel; render(); if (id) { const it = items().find(i => i.id === id); if (it) open(it.kind, id); } }, 400); }
-  else if (d.evskip) { (async () => { await call("delete_row", { kind: "note", id: d.evskip }); S.notes = S.notes.filter(n => n.id !== d.evskip); const id = S.sel; render(); if (id && id !== d.evskip) { const it = items().find(i => i.id === id); if (it) open(it.kind, id); } else closeDetail(); toast("Ignorado"); })(); }
+  else if (d.evmark) { const m = evDone(); m[d.evmark] = 1; store.set("vc_evdone", JSON.stringify(m)); call("update_note", { id: d.evmark, fields: { status: "na_agenda" } }).then(() => { const n = S.notes.find(x => x.id === d.evmark); if (n) n.fields = { ...(n.fields || {}), status: "na_agenda" }; }).catch(() => {}); setTimeout(() => { const id = S.sel; render(); if (id) { const it = items().find(i => i.id === id); if (it) open(it.kind, id); } }, 400); }
+  else if (d.evskip) { (async () => { await call("update_note", { id: d.evskip, fields: { status: "ignorado" } }); S.notes = S.notes.filter(n => n.id !== d.evskip); const id = S.sel; render(); if (id && id !== d.evskip) { const it = items().find(i => i.id === id); if (it) open(it.kind, id); } else closeDetail(); toast("Ignorado"); })(); }
   else if (d.reviver) reviverDia(d.reviver === "1" ? null : d.reviver);
   else if (d.prep) prepForm(d.prep);
   else if (d.prepnew) prepNew();
