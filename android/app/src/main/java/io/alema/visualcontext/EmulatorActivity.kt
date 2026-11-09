@@ -152,24 +152,44 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         }
         talk = btn("● Falar") { toggleLive() } // not in the bar any more (Marcus, 09/11): the temple's long press opens, two taps close
-        facesBtn = btn("") { facesOn = !facesOn; if (!facesOn) { hud.faces = emptyList(); cancelCountdown() }; paintToggles() }; bar.addView(facesBtn)
-        placesBtn = btn("") { placesOn = !placesOn; if (!placesOn) hud.pins = emptyList() else refreshPlaces(true); paintToggles() }; bar.addView(placesBtn)
-        earsBtn = btn("") { setEars(!Backend.earsOn(this)) }.apply { contentDescription = "Escuta offline do celular" }; bar.addView(earsBtn)
-        qrBtn = btn("▣ QR") { setQr(!qrOn) }; bar.addView(qrBtn)
+        // Marcus, 09/11: real switches, not "● Pessoas" (the dots read like the lens's own text). Label above, switch below.
+        fun tog(label: String, desc: String, cb: () -> Unit): Button {
+            val cell = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) }
+            cell.addView(TextView(this).apply { text = label; textSize = 11f; setTextColor(green); gravity = Gravity.CENTER })
+            val sw = android.widget.Switch(this).apply {
+                contentDescription = desc; showText = false
+                thumbTintList = android.content.res.ColorStateList(arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()), intArrayOf(green, Color.rgb(150, 160, 155)))
+                trackTintList = android.content.res.ColorStateList(arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()), intArrayOf(Color.argb(110, 0, 255, 136), Color.argb(70, 255, 255, 255)))
+                setOnClickListener { cb() }
+            }
+            cell.addView(sw); cell.setOnClickListener { sw.toggle(); cb() }; bar.addView(cell)
+            return sw
+        }
+        facesBtn = tog("Pessoas", "Reconhecer pessoas") { facesOn = !facesOn; if (!facesOn) { hud.faces = emptyList(); cancelCountdown() }; paintToggles() }
+        placesBtn = tog("Lugares", "Mostrar lugares por perto") { placesOn = !placesOn; if (!placesOn) hud.pins = emptyList() else refreshPlaces(true); paintToggles() }
+        earsBtn = tog("Escuta", "Escuta offline do celular") { setEars(!Backend.earsOn(this)) }
+        qrBtn = tog("QR", "Ler QR codes") { setQr(!qrOn) }
         outBtn = btn("") { setOutput(when (output) { "tela_voz" -> "voz"; "voz" -> "tela"; else -> "tela_voz" }) }.apply { maxLines = 2; textSize = 11f; contentDescription = "Saída: como os óculos falam com você" }; bar.addView(outBtn)
         // The temple, simulated (Marcus, 08/11: as in the old emulator). Same actions as the glasses' touchpad.
         val temple = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; setBackgroundColor(Color.argb(200, 0, 0, 0)); setPadding(4, 2, 4, 2) }
         fun tb(t: String, desc: String, cb: () -> Unit) = btn(t, cb).apply { textSize = 14f; contentDescription = desc; minHeight = (48 * resources.displayMetrics.density).toInt() }
-        temple.addView(tb("◀", "Haste para trás") { templeKey(android.view.KeyEvent.KEYCODE_DPAD_LEFT) })
-        // One button = the touchpad: tap chooses, two taps go back / cancel, a long press talks to the assistant.
-        temple.addView(tb("●", "Toque: escolher. Dois toques: voltar ou cancelar. Toque longo: falar com o assistente") { centerTap() }.apply {
-            textSize = 22f; layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.6f)
+        // Marcus, 09/11: ◀ ● ▶ looked like Android's own navigation bar. Long thin arrows for the temple, ● to choose
+        // (long press: assistant) and ●● to go back — two quick taps on one button were not always caught.
+        fun arrow(res: Int, desc: String, code: Int) = android.widget.ImageButton(this).apply {
+            setImageResource(res); setBackgroundColor(Color.TRANSPARENT); contentDescription = desc; scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+            setPadding((8 * dp).toInt(), (12 * dp).toInt(), (8 * dp).toInt(), (12 * dp).toInt()); setOnClickListener { templeKey(code) }
+            layoutParams = LinearLayout.LayoutParams(0, (48 * dp).toInt(), 1.3f)
+        }
+        temple.addView(arrow(R.drawable.ic_arrow_long_left, "Haste para trás", android.view.KeyEvent.KEYCODE_DPAD_LEFT))
+        temple.addView(tb("●", "Toque: escolher. Toque longo: falar com o assistente") { centerTap() }.apply {
+            textSize = 22f
             setOnLongClickListener { pendingTap?.let { main.removeCallbacks(it) }; pendingTap = null; performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS); toggleLive(); true } })
-        temple.addView(tb("▶", "Haste para frente") { templeKey(android.view.KeyEvent.KEYCODE_DPAD_RIGHT) })
+        temple.addView(tb("●●", "Voltar, cancelar, fechar; com o assistente aberto, ele para") { pendingTap?.let { main.removeCallbacks(it) }; pendingTap = null; templeBack() }.apply { textSize = 15f })
+        temple.addView(arrow(R.drawable.ic_arrow_long_right, "Haste para frente", android.view.KeyEvent.KEYCODE_DPAD_RIGHT))
         temple.addView(tb("?", "Como usar a haste") { showHelp(helpBox.visibility != View.VISIBLE) }.apply { layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.6f) })
         // The little guide that slides up: what each gesture does. Opens by itself the first time.
         helpBox = TextView(this).apply {
-            text = "● Toque: escolhe o que está marcado\n● Toque longo: abre o assistente (ele ouve até você mandar parar)\n●● Dois toques: volta, cancela, fecha o cartão; com o assistente aberto, ele para de ouvir\n◀ ▶ Haste para trás / para frente: anda entre pinos e opções\nVoltar do celular: fecha o emulador (câmera e microfone desligam)"
+            text = "● Toque: escolhe o que está marcado\n● Toque longo: abre o assistente (ele ouve até você mandar parar)\n●● Voltar (ou dois toques no ●): cancela, fecha o cartão; com o assistente aberto, ele para de ouvir\n⟵ ⟶ Haste para trás / para frente: anda entre pinos e opções\nVoltar do celular: fecha o emulador (câmera e microfone desligam)"
             textSize = 15f; setTextColor(Color.WHITE); setLineSpacing(0f, 1.35f); setPadding((18 * dp).toInt(), (14 * dp).toInt(), (18 * dp).toInt(), (14 * dp).toInt())
             setBackgroundColor(Color.rgb(13, 18, 23)); visibility = View.GONE; setOnClickListener { showHelp(false) }
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
@@ -214,13 +234,11 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
 
     /** Toggles say their state in words and colour: "● Pessoas: ligado" / "○ Lugares: desligado". */
     private fun paintToggles() {
-        facesBtn.text = if (facesOn) "● Pessoas" else "○ Pessoas"
-        facesBtn.setTextColor(if (facesOn) green else dim)
-        placesBtn.text = if (placesOn) "● Lugares" else "○ Lugares"
-        placesBtn.setTextColor(if (placesOn) green else dim)
-        val eOn = Backend.earsOn(this)
-        earsBtn.text = if (eOn) "● Escuta" else "○ Escuta"; earsBtn.setTextColor(if (eOn) green else dim)
-        hud.footer = listOfNotNull(if (liveOn) liveState else null, if (!eOn && !liveOn) "escuta offline: desligada" else null, if (facesOn) "pessoas: ligado" else "pessoas: desligado", if (placesOn) "lugares: ligado" else "lugares: desligado").joinToString(" · ")
+        (facesBtn as android.widget.Switch).isChecked = facesOn
+        (placesBtn as android.widget.Switch).isChecked = placesOn
+        (earsBtn as android.widget.Switch).isChecked = Backend.earsOn(this)
+        (qrBtn as android.widget.Switch).isChecked = qrOn
+        hud.footer = "" // Marcus, 09/11: the switches already say what is on; the microphone icon says who listens
         hud.invalidate()
     }
 
@@ -356,7 +374,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         qrOn = on; qrAt = SystemClock.elapsedRealtime()
         hud.qrWindow = on; hud.qrHint = "encaixe o QR aqui"
         if (!on) { hud.qrView = null; qr.dismiss(SystemClock.elapsedRealtime()) }
-        qrBtn.setTextColor(if (on) green else dim); qrBtn.text = if (on) "● QR" else "▣ QR"
+        (qrBtn as android.widget.Switch).isChecked = on
         paintQr()
         if (on) main.postDelayed({ if (qrOn && SystemClock.elapsedRealtime() - qrAt >= 25_000 && qr.offer == null) setQr(false) }, 25_000)
     }
@@ -377,7 +395,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     /** Stops looking for codes but keeps the one found (and its card). */
     private fun stopQrScan() {
         qrOn = false; hud.qrWindow = false; hud.qrView = null
-        qrBtn.setTextColor(dim); qrBtn.text = "▣ QR"
+        (qrBtn as android.widget.Switch).isChecked = false
     }
 
     // ── Cards with buttons (QR, places) ──
@@ -425,7 +443,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         if (on) { getSharedPreferences("visualcontext", MODE_PRIVATE).edit().putBoolean("emu_help_seen", true).apply(); helpBox.announceForAccessibility(helpBox.text) }
     }
     private var pendingTap: Runnable? = null
-    private fun paintMic() { hud.mic = when { liveOn -> 2; ::ears.isInitialized && hearing -> 1; ::ears.isInitialized && ears.enabled && (ears.asleep || ears.standby) -> 0; else -> -1 } }
+    private fun paintMic() { hud.mic = when { liveOn -> 2; ::ears.isInitialized && hearing -> 1; else -> 0 } }
     private fun centerTap() {
         val p = pendingTap
         if (p != null) { main.removeCallbacks(p); pendingTap = null; templeBack(); return } // second tap: back

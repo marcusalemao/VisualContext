@@ -82,31 +82,28 @@ class HudOverlay(ctx: Context) : View(ctx) {
     private val pMic = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
     private fun drawMic(c: Canvas) {
         val x = dp(18f); val y = dp(16f); val s = dp(1f)
-        val col = if (mic == 0) Color.argb(150, 170, 190, 180) else green
+        val col = if (mic <= 0) Color.argb(150, 170, 190, 180) else green
         pMic.color = col; pMic.strokeWidth = 2f * s; pMic.style = Paint.Style.STROKE
         // capsule, cup and stem of a microphone
         c.drawRoundRect(android.graphics.RectF(x + 5 * s, y, x + 13 * s, y + 13 * s), 4 * s, 4 * s, pMic)
         c.drawArc(android.graphics.RectF(x + 1 * s, y + 4 * s, x + 17 * s, y + 18 * s), 0f, 180f, false, pMic)
         c.drawLine(x + 9 * s, y + 18 * s, x + 9 * s, y + 22 * s, pMic)
-        if (mic == 0) c.drawLine(x, y, x + 18 * s, y + 22 * s, pMic) // slashed: off
-        pText.textSize = sp(11f); pText.color = col
-        val label = when (mic) { 2 -> "Gemini"; 1 -> ""; else -> "desligado · toque ●" }
-        if (mic == 1) { // three dots that breathe while listening
+        if (mic <= 0) c.drawLine(x, y, x + 18 * s, y + 22 * s, pMic) // slashed: off
+        // Marcus, 09/11: just the microphone — lit with breathing dots while something listens, dim and slashed when not.
+        if (mic >= 1) {
             val t = (System.currentTimeMillis() / 300) % 3
             pMic.style = Paint.Style.FILL
             for (i in 0..2) { pMic.alpha = if (i.toLong() == t) 255 else 90; c.drawCircle(x + 26 * s + i * 8 * s, y + 12 * s, 2.6f * s, pMic) }
             pMic.alpha = 255; pMic.style = Paint.Style.STROKE
             postInvalidateDelayed(300)
-        } else c.drawText(label, x + 26 * s, y + 16 * s, pText)
+        }
         pText.color = soft
     }
 
     override fun onDraw(c: Canvas) {
         val w = width.toFloat(); val h = height.toFloat()
         val useful = h * 0.70f
-        // standby dot (top right)
-        pFill.color = if (listening) soft else green
-        c.drawCircle(w - dp(18f), dp(18f), dp(if (listening) 7f else 5f), pFill)
+        // (the standby dot at the top right went away on 09/11: the microphone at the top left says it)
         // place pins: cards pinned to a bearing inside a ±30° window (Marcus, 08/11: one degree moved them a lot).
         // They start below the top card and never sit on top of each other: an overlapping pin drops to the next row.
         val pinTop = (cardRect?.bottom ?: 0f).coerceAtLeast(dp(44f)) + dp(14f)
@@ -210,7 +207,7 @@ class HudOverlay(ctx: Context) : View(ctx) {
             c.drawText(s, dp(16f), y, pText)
         }
         // microphone state, top left, always in the same place
-        if (mic >= 0 && !compact) drawMic(c)
+        if (!compact) drawMic(c)
         // footer
         if (footer.isNotEmpty() && !compact) {
             pText.textSize = sp(11f); pText.color = green
