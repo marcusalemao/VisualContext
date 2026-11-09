@@ -27,7 +27,7 @@
     const out = [];
     for (const e of S.enc) {
       const pl = placeKey(e), who = personOf(e), live = e.capture_mode === "live";
-      out.push({ kind: "memory", id: e.id, label: live ? (said(e) || "Conversa com o assistente") : who ? "Encontro com " + who : (e.context || "Momento"), sub: live ? "assistente" : "encontro",
+      out.push({ kind: "memory", id: e.id, label: live ? (said(e) || "Conversa com o assistente") : (e.summary || (who ? "Encontro com " + who : (e.context || "Momento"))), sub: live ? "assistente" : who ? "com " + who.split(" ")[0] : "encontro",
         date: e.at, person: who, place: pl, day: dayKey(e.at), ref: e });
     }
     for (const n of S.notes) {
@@ -41,34 +41,54 @@
   }
   const inScale = (f, now) => { const days = SCALES.find(s => s[0] === T.scale)[2]; return f.date && (now - new Date(f.date)) / 864e5 <= days; };
 
-  /** The nodes around a centre, with weight (0.1–1) and recency (0 near … 1 far). */
+  // Identity of things that repeat: a song is its title (every time it was heard), an object is its name (every sighting).
+  const songKey = t => norm(String(t || "").split(" · ")[0].split(" — ")[0]);
+  const songLabel = t => String(t || "").split(" · ")[0];
+  const entOf = f => f.kind === "music" ? "music:song:" + songKey(f.label) : f.kind === "thing" ? "thing:thing:" + norm(f.label) : null;
+  const NEAR_MS = 90 * 60_000; // "together": within an hour and a half, in the same place when both have one
+
+  /**
+   * The nodes around a centre, with weight (0.1–1) and recency (0 near … 1 far). Marcus, 09/11: not a timeline —
+   * every centre reaches what happened AROUND it: the Bruno brings the songs heard with him and the places you went;
+   * a song brings every time it played, where and with whom, and marks the first time.
+   */
   function edges(center) {
-    const now = Date.now(), fs = facts().filter(f => inScale(f, now)), span = SCALES.find(s => s[0] === T.scale)[2] * 864e5;
-    const acc = new Map(); // key → {node, n, newest}
-    const add = (node, date) => { const k = node.kind + ":" + node.id; const a = acc.get(k) || { node, n: 0, newest: 0 }; a.n++; const t = new Date(date || 0).getTime(); if (t > a.newest) a.newest = t; acc.set(k, a); };
+    const now = Date.now(), all = facts(), fs = all.filter(f => inScale(f, now)), span = SCALES.find(s => s[0] === T.scale)[2] * 864e5;
+    const acc = new Map(); // key → {node, n, newest, oldest}
+    const add = (node, date) => { const k = node.kind + ":" + node.id; if (k === center.kind + ":" + center.id) return; const a = acc.get(k) || { node, n: 0, newest: 0, oldest: Infinity }; a.n++; const t = new Date(date || 0).getTime(); if (t > a.newest) a.newest = t; if (t < a.oldest) a.oldest = t; acc.set(k, a); };
     const dayNode = k => ({ kind: "day", id: k, label: dayLabel(k), sub: "" });
     const placeNode = p => ({ kind: "place", id: "pl:" + p.k, label: p.name, sub: "" });
-    const self = f => ({ kind: f.kind, id: f.id, label: f.label, sub: f.sub, ref: f.ref });
-    if (center.kind === "day") {
-      for (const f of fs.filter(f => f.day === center.id)) { add(self(f), f.date); if (f.person) add(personNode(f.person), f.date); if (f.place) add(placeNode(f.place), f.date); }
-    } else if (center.kind === "person") {
-      const name = norm(center.label);
-      for (const f of fs) {
-        const hit = (f.person && norm(f.person) === name) || (f.text && norm(f.text).includes(name));
-        if (!hit) continue;
-        if (f.day) add(dayNode(f.day), f.date); if (f.place) add(placeNode(f.place), f.date); if (f.kind !== "memory" || !f.person) add(self(f), f.date);
-      }
-    } else if (center.kind === "place") {
-      const k = center.id.replace(/^pl:/, "");
-      for (const f of fs.filter(f => f.place && f.place.k === k)) { if (f.day) add(dayNode(f.day), f.date); if (f.person) add(personNode(f.person), f.date); if (f.kind === "thing" || f.kind === "music") add(self(f), f.date); }
-    } else { // a moment, note or object: its person, place and day, and what else happened that day
-      const f0 = fs.find(f => f.kind === center.kind && f.id === center.id) || facts().find(f => f.kind === center.kind && f.id === center.id);
-      if (f0) {
-        if (f0.person) add(personNode(f0.person), f0.date); if (f0.place) add(placeNode(f0.place), f0.date); if (f0.day) add(dayNode(f0.day), f0.date);
-        for (const f of fs.filter(f => f.day === f0.day && !(f.kind === f0.kind && f.id === f0.id)).slice(0, 6)) add(self(f), f.date);
+    const songNode = f => ({ kind: "music", id: "song:" + songKey(f.label), label: songLabel(f.label), sub: "música", ref: f.ref });
+    const thingNode = f => ({ kind: "thing", id: "thing:" + norm(f.label), label: f.label, sub: f.sub, ref: f.ref });
+    const self = f => f.kind === "music" ? songNode(f) : f.kind === "thing" ? thingNode(f) : ({ kind: f.kind, id: f.id, label: f.label, sub: f.sub, ref: f.ref });
+    const ckey = center.kind + ":" + center.id;
+    // 1. The centre's own moments.
+    const mine = fs.filter(f => {
+      if (center.kind === "day") return f.day === center.id;
+      if (center.kind === "person") return (f.person && norm(f.person) === norm(center.label)) || (f.text && norm(f.text).includes(norm(center.label)));
+      if (center.kind === "place") return f.place && "pl:" + f.place.k === center.id;
+      if (center.kind === "music" || center.kind === "thing") return entOf(f) === ckey;
+      return f.kind === center.kind && f.id === center.id;
+    });
+    // 2. Everything that happened around each of them (same day for a day; ±90 min, same place, otherwise).
+    const around = m => center.kind === "day" ? [m] : fs.filter(f => f !== m && f.date && m.date && Math.abs(new Date(f.date) - new Date(m.date)) <= NEAR_MS && (!f.place || !m.place || f.place.k === m.place.k));
+    const seen = new Set();
+    for (const m of mine) {
+      if (m.day && center.kind !== "day") add(dayNode(m.day), m.date);
+      if (m.place && center.kind !== "place") add(placeNode(m.place), m.date);
+      if (m.person && center.kind !== "person") add(personNode(m.person), m.date);
+      if (center.kind === "person" || center.kind === "place" || center.kind === "day") if (!seen.has(m)) { seen.add(m); if (m.kind !== "memory" || center.kind !== "day" || true) add(self(m), m.date); }
+      for (const f of around(m)) {
+        if (seen.has(f)) continue; seen.add(f);
+        if (f.person && norm(f.person) !== norm(center.label)) add(personNode(f.person), f.date);
+        if (f.place && center.kind !== "place" && !(m.place && f.place.k === m.place.k)) add(placeNode(f.place), f.date);
+        if (f.kind === "music" || f.kind === "thing") add(self(f), f.date);
       }
     }
+    // The first time (oldest record) of a song or a place gets a mark.
     const max = Math.max(1, ...[...acc.values()].map(a => a.n));
+    const firstPlace = center.kind === "music" ? [...acc.values()].filter(a => a.node.kind === "place").sort((a, b) => a.oldest - b.oldest)[0] : null;
+    if (firstPlace && mine.length > 1) firstPlace.node = { ...firstPlace.node, sub: "1ª vez aqui" };
     return [...acc.values()].map(a => ({ node: a.node, n: a.n, weight: Math.max(0.1, a.n / max), recency: Math.min(1, Math.max(0.05, (now - a.newest) / span)) }))
       .sort((a, b) => b.weight - a.weight || a.recency - b.recency);
   }
@@ -92,7 +112,7 @@
       <div class="muted" style="display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;margin-top:8px">
         <span>○ pessoa</span><span>⬡ lugar</span><span>⬢ coisa</span><span>◇ música</span><span>✦ lembrança</span><span>▬ dia</span></div>
       <div id="teia" class="teia" role="application" aria-label="Teia da memória"></div>
-      <p class="muted" style="font-size:12px;margin:8px 0 0">Toque: pessoa, lugar ou dia vem para o meio; lembrança, coisa ou música abre. Segure: ações ali mesmo. Perto = recente; linha grossa = sempre juntos; pontilhada = uma vez só.</p>`;
+      <p class="muted" style="font-size:12px;margin:8px 0 0">Toque: pessoa, lugar, dia, música ou coisa vem para o meio, com tudo o que aconteceu em volta; lembrança abre. Segure: ações ali mesmo. Perto = recente; linha grossa = sempre juntos; pontilhada = uma vez só.</p>`;
   };
 
   window.teiaMount = function () {
@@ -167,7 +187,7 @@
       const p = pos[+g.dataset.ti], node = p.e.node;
       if (node.hub) { T.kind = node.kind; render(); return; }
       if (long) showActions(box, p, cx, cy);
-      else if (node.kind === "person" || node.kind === "place" || node.kind === "day") pivot(node);
+      else if (node.kind === "person" || node.kind === "place" || node.kind === "day" || node.kind === "music" || node.kind === "thing") pivot(node);
       else openDetail(node);
     };
     box.addEventListener("pointerdown", e => { if (!e.target.closest("g[role=button]") && !e.target.closest(".dact")) box.querySelectorAll(".dend").forEach(x => x.remove()); });
@@ -202,11 +222,14 @@
     } else if (node.kind === "music") {
       const t = String(node.label).split(" · ")[0].replace(" — ", " ");
       out.push(["▶", "Spotify", () => window.open("https://open.spotify.com/search/" + encodeURIComponent(t), "_blank")]);
-      out.push(["+", "Ouvir depois", () => listenLater(node.id)]);
-      out.push(["≡", "Página", () => open("memory", node.id)]);
+      const note = node.ref || S.notes.find(x => x.kind === "musica" && songKey(x.title) === String(node.id).replace(/^song:/, ""));
+      if (note) out.push(["+", "Ouvir depois", () => listenLater(note.id)]);
+      out.push(["◉", "Centro", () => pivot(node)]);
+      if (note) out.push(["≡", "Página", () => open("memory", note.id)]);
     } else if (node.kind === "thing") {
-      out.push(["📸", "Foto", () => open("thing", node.id)]);
-      const t = node.ref || S.things.find(x => x.id === node.id);
+      const t = S.things.filter(x => norm(x.name) === norm(node.label)).sort((a, b) => new Date(b.seen_at) - new Date(a.seen_at))[0];
+      if (t) out.push(["📸", "Foto", () => open("thing", t.id)]);
+      out.push(["◉", "Centro", () => pivot(node)]);
       if (t && t.lat) out.push(["📍", "Mapa", () => window.open(`https://www.google.com/maps/search/?api=1&query=${t.lat},${t.lng}`, "_blank")]);
     } else if (node.kind === "place") {
       out.push(["◉", "Centro", () => pivot(node)]);
@@ -320,7 +343,8 @@
     if (node.kind === "person") { const p = node.ref || S.people.find(x => x.id === node.id); if (p) open("person", p.id); else pivot(node); }
     else if (node.kind === "place") open("place", node.id);
     else if (node.kind === "day") { /* a day has no page: it is the centre itself */ if (T.center.id !== node.id) pivot(node); }
-    else if (node.kind === "thing") open("thing", node.id);
+    else if (node.kind === "thing") { const t = S.things.filter(x => norm(x.name) === norm(node.label)).sort((a, b) => new Date(b.seen_at) - new Date(a.seen_at))[0]; if (t) open("thing", t.id); }
+    else if (node.kind === "music") { const n = node.ref || S.notes.find(x => x.kind === "musica" && songKey(x.title) === node.id.replace(/^song:/, "")); if (n) open("memory", n.id); }
     else open("memory", node.id);
   }
   window.teiaClick = function (d) {

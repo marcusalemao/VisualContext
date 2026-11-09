@@ -40,17 +40,17 @@
       const who = [...new Set(s.items.map(e => e.person_name).filter(Boolean))];
       const live = s.items.filter(e => e.capture_mode === "live");
       const lines = s.items.map(e => said(e)).filter(Boolean).slice(0, 3);
-      const faces = who.map(n => { const p = S.people.find(x => nameKey(x.name) === nameKey(n)); return `<div class="rv-face">${face(p || { name: n })}<b>${esc(n.split(" ")[0])}</b></div>`; }).join("");
+      const faces = who.map(n => { const p = S.people.find(x => nameKey(x.name) === nameKey(n)); return `<button class="rv-face rv-go" data-go="person|${esc(p ? p.id : "nm:" + norm(n))}|${esc(n)}">${face(p || { name: n })}<b>${esc(n.split(" ")[0])} ◉</b></button>`; }).join("");
       out.push({ kind: "stop", lat: s.lat, lng: s.lng, html: `${s.how ? `<div class="rv-how">${esc(s.how)}</div>` : ""}<div class="rv-k">${i + 1} de ${stops.length} · ${esc(tm(s.from))}${s.to !== s.from ? "–" + esc(tm(s.to)) : ""}</div>
-        <h2>⌖ ${esc(s.key)}</h2>
+        <h2><button class="rv-go" data-go="place|pl:${esc(norm(s.key))}|${esc(s.key)}">⌖ ${esc(s.key)} <small>◉</small></button></h2>
         ${faces ? `<div class="rv-faces">${faces}</div>` : live.length ? `<p class="rv-dim">✦ conversa com o assistente</p>` : ""}
         ${lines.length ? `<div class="rv-said">${lines.map(l => `<p>“${esc(l)}”</p>`).join("")}</div>` : ""}
         ${s.lat ? `<a class="rv-link" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${s.lat},${s.lng}">abrir no mapa ↗</a>` : ""}` });
     });
     if (things.length) out.push({ kind: "things", html: `<div class="rv-k">Onde você deixou as coisas</div><h2>◈ Objetos</h2>
-      <div class="rv-things">${things.map(t => `<div class="rv-thing">${t.snapshot_url ? `<img src="${esc(t.snapshot_url)}" alt="">` : ""}<div><b>${esc(t.name)}</b><span>${esc((t.location_description || "").split(" · ")[0])} · ${esc(tm(t.seen_at))}</span></div></div>`).join("")}</div>` });
+      <div class="rv-things">${things.map(t => `<div class="rv-thing">${t.snapshot_url ? `<img src="${esc(t.snapshot_url)}" alt="">` : ""}<div><button class="rv-go" data-go="thing|thing:${esc(norm(t.name))}|${esc(t.name)}"><b>${esc(t.name)} ◉</b></button><span>${esc((t.location_description || "").split(" · ")[0])} · ${esc(tm(t.seen_at))}</span></div></div>`).join("")}</div>` });
     if (songs.length || papers.length || voice.length) out.push({ kind: "notes", html: `<div class="rv-k">O que ficou guardado</div><h2>${songs.length ? "♪ Trilha e notas" : "▤ Notas"}</h2>
-      <div class="rv-said">${songs.map(n => `<p>♪ ${esc((n.title || "").split(" · ")[0])}</p>`).join("")}${papers.map(n => `<p>▤ ${esc(n.title || n.kind)}</p>`).join("")}${voice.slice(0, 4).map(n => `<p>✎ ${esc(String(n.text).slice(0, 90))}</p>`).join("")}</div>` });
+      <div class="rv-said">${songs.map(n => { const t = (n.title || "").split(" · ")[0]; return `<p><button class="rv-go" data-go="music|song:${esc(norm(t.split(" — ")[0]))}|${esc(t)}">♪ ${esc(t)} <small>◉</small></button></p>`; }).join("")}${papers.map(n => `<p>▤ ${esc(n.title || n.kind)}</p>`).join("")}${voice.slice(0, 4).map(n => `<p>✎ ${esc(String(n.text).slice(0, 90))}</p>`).join("")}</div>` });
     out.push({ kind: "end", html: `<div class="rv-k">Fim</div><h2>${esc(dayName(day))}</h2><p class="rv-dim">Toque para rever ou feche.</p>
       <div class="rv-end"><button data-rv="again">↺ Rever</button><button data-rv="close">Fechar</button></div>` });
     return out;
@@ -87,14 +87,16 @@
     idx = 0;
     el = document.createElement("div"); el.className = "rv"; el.setAttribute("role", "dialog"); el.setAttribute("aria-label", "Reviver " + dayName(day));
     el.innerHTML = `<div class="rv-bars"></div><button class="rv-x" aria-label="Fechar">✕</button><div class="rv-card" aria-live="polite"></div>
-      <div class="rv-hint">toque à direita: próximo · à esquerda: anterior · segure: pausa</div>`;
+      <div class="rv-hint">toque à direita: próximo · à esquerda: anterior · segure: pausa · ◉ entra na teia</div>`;
     document.body.appendChild(el);
     try { history.pushState({ vc: "reviver" }, ""); } catch {}
     el.querySelector(".rv-x").onclick = () => close();
     let downAt = 0, y0 = 0;
-    el.addEventListener("pointerdown", e => { if (e.target.closest("a,button")) return; downAt = performance.now(); y0 = e.clientY; pause(); });
+    el.addEventListener("pointerdown", e => { if (e.target.closest("a,button:not(.rv-go)")) return; downAt = performance.now(); y0 = e.clientY; pause(); });
     el.addEventListener("pointerup", e => {
       if (e.target.closest("a")) return;
+      const g = e.target.closest("[data-go]");
+      if (g) { const [k, id, label] = g.dataset.go.split("|"); close(); setTimeout(() => { if (window.teiaFocus) teiaFocus(k, id, label); }, 30); return; }
       const b = e.target.closest("[data-rv]"); if (b) { if (b.dataset.rv === "again") { idx = 0; paint(); } else close(); return; }
       if (e.target.closest(".rv-x")) return;
       if (e.clientY - y0 > 90) { close(); return; }               // swipe down
@@ -118,6 +120,8 @@
   .rv-faces{display:flex;gap:14px;flex-wrap:wrap}.rv-face{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:13px}
   .rv-face img,.rv-face span{width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid var(--g,#00ff88);display:grid;place-items:center;font-size:26px;background:#0f291e}
   .rv-said p{margin:0 0 8px;font-size:17px;line-height:1.45;color:rgba(255,255,255,.92)}
+  .rv-go{all:unset;cursor:pointer;color:inherit}.rv-go small{font-size:.55em;color:var(--g,#00ff88);vertical-align:middle}.rv-go:focus-visible{outline:2px solid var(--g,#00ff88);outline-offset:3px;border-radius:6px}
+  button.rv-face{display:flex}
   .rv-link{color:var(--g,#00ff88);font-size:14px;align-self:flex-start}
   .rv-things{display:flex;flex-direction:column;gap:10px}.rv-thing{display:flex;gap:12px;align-items:center}.rv-thing img{width:84px;height:84px;object-fit:cover;border-radius:12px;border:1.5px solid #ffc85c}
   .rv-thing b{display:block;font-size:17px}.rv-thing span{font-size:14px;color:rgba(255,255,255,.7)}
