@@ -20,6 +20,7 @@ import android.view.WindowManager
 import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.camera.core.CameraSelector
@@ -95,7 +96,6 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     private val dim = Color.rgb(90, 120, 104)
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        glassesMode = getSharedPreferences("visualcontext", MODE_PRIVATE).getBoolean("emu_glasses", true)
         super.onCreate(savedInstanceState)
         Where.loadKey(this)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -112,7 +112,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         hud = HudOverlay(this).apply {
             // Tap anywhere on the lens during the countdown = cancel (the swipe on the glasses).
             setOnTouchListener { _, e ->
-                if (glassesMode) true // the glasses have no touch screen: use the temple strip below
+                if (glassesMode) true // the glasses have no touch screen: the temple strip below does everything
                 else if (taps.onTouchEvent(e)) true
                 else if (e.action != MotionEvent.ACTION_UP) false
                 else if (hud.buttonRects.indexOfFirst { it.contains(e.x, e.y) }.let { it >= 0 && cardAction != null }) { cardAction?.invoke(hud.buttonRects.indexOfFirst { it.contains(e.x, e.y) }); true }
@@ -123,6 +123,16 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         }
         // Lens on top, buttons in their own strip below it (never under the Android navigation bar).
         val lens = FrameLayout(this).apply { setBackgroundColor(Color.BLACK); addView(preview); addView(hud) }
+        // Things only this phone test has (Marcus, 08/11): on the video, not in the glasses' controls.
+        val dp = resources.displayMetrics.density
+        fun chip(t: String, desc: String, g: Int, cb: () -> Unit) = Button(this).apply {
+            text = t; textSize = 13f; isAllCaps = false; setTextColor(Color.WHITE); contentDescription = desc; minHeight = (44 * dp).toInt(); minWidth = (44 * dp).toInt()
+            background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = 22 * dp; setColor(Color.argb(190, 0, 0, 0)); setStroke((1.5f * dp).toInt(), Color.argb(140, 255, 255, 255)) }
+            setPadding((14 * dp).toInt(), 0, (14 * dp).toInt(), 0); setOnClickListener { cb() }
+            layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, g).apply { setMargins((10 * dp).toInt(), (10 * dp).toInt(), (10 * dp).toInt(), (10 * dp).toInt()) }
+        }
+        lens.addView(chip("✕ Encerrar", "Encerrar o emulador (para de ouvir e de filmar)", Gravity.TOP or Gravity.END) { finish() })
+        lens.addView(chip("⟲", "Trocar a câmera do celular", Gravity.BOTTOM or Gravity.END) { front = !front; startCamera() })
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.BLACK) }
         root.addView(lens, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
         val bar = LinearLayout(this).apply {
@@ -138,18 +148,24 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         placesBtn = btn("") { placesOn = !placesOn; if (!placesOn) hud.pins = emptyList() else refreshPlaces(true); paintToggles() }; bar.addView(placesBtn)
         qrBtn = btn("▣ QR") { setQr(!qrOn) }; bar.addView(qrBtn)
         outBtn = btn("") { setOutput(when (output) { "tela" -> "tela_voz"; "tela_voz" -> "voz"; else -> "tela" }) }; bar.addView(outBtn)
-        modeBtn = btn("") { glassesMode = !glassesMode; getSharedPreferences("visualcontext", MODE_PRIVATE).edit().putBoolean("emu_glasses", glassesMode).apply(); paintMode() }; bar.addView(modeBtn)
-        bar.addView(btn("⟲ Câmera") { front = !front; startCamera() })
-        bar.addView(btn("✕ Fechar") { finish() })
         // The temple, simulated (Marcus, 08/11: as in the old emulator). Same actions as the glasses' touchpad.
         val temple = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; setBackgroundColor(Color.argb(200, 0, 0, 0)); setPadding(4, 2, 4, 2) }
         fun tb(t: String, desc: String, cb: () -> Unit) = btn(t, cb).apply { textSize = 14f; contentDescription = desc; minHeight = (48 * resources.displayMetrics.density).toInt() }
-        temple.addView(tb("◀ haste", "Haste para trás") { templeKey(android.view.KeyEvent.KEYCODE_DPAD_LEFT) })
-        temple.addView(tb("● toque", "Toque: escolher. Toque longo: falar com o assistente") { templeKey(android.view.KeyEvent.KEYCODE_DPAD_CENTER) }.apply {
-            setOnLongClickListener { performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS); toggleLive(); true } })
-        temple.addView(tb("●● voltar", "Dois toques: voltar ou cancelar") { templeBack() })
-        temple.addView(tb("haste ▶", "Haste para frente") { templeKey(android.view.KeyEvent.KEYCODE_DPAD_RIGHT) })
-        templeRow = temple
+        temple.addView(tb("◀", "Haste para trás") { templeKey(android.view.KeyEvent.KEYCODE_DPAD_LEFT) })
+        // One button = the touchpad: tap chooses, two taps go back / cancel, a long press talks to the assistant.
+        temple.addView(tb("●", "Toque: escolher. Dois toques: voltar ou cancelar. Toque longo: falar com o assistente") { centerTap() }.apply {
+            textSize = 22f; layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.6f)
+            setOnLongClickListener { pendingTap?.let { main.removeCallbacks(it) }; pendingTap = null; performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS); toggleLive(); true } })
+        temple.addView(tb("▶", "Haste para frente") { templeKey(android.view.KeyEvent.KEYCODE_DPAD_RIGHT) })
+        temple.addView(tb("?", "Como usar a haste") { showHelp(helpBox.visibility != View.VISIBLE) }.apply { layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.6f) })
+        // The little guide that slides up: what each gesture does. Opens by itself the first time.
+        helpBox = TextView(this).apply {
+            text = "● Toque: escolhe o que está marcado\n●● Dois toques: volta ou cancela (sempre)\n● Toque longo: fala com o assistente\n◀ ▶ Haste para trás / para frente: anda entre pinos e opções"
+            textSize = 15f; setTextColor(Color.WHITE); setLineSpacing(0f, 1.35f); setPadding((18 * dp).toInt(), (14 * dp).toInt(), (18 * dp).toInt(), (14 * dp).toInt())
+            setBackgroundColor(Color.rgb(13, 18, 23)); visibility = View.GONE; setOnClickListener { showHelp(false) }
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+        }
+        root.addView(helpBox, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         root.addView(temple, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         root.addView(bar, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         // Android 15+ draws apps under the system bars: the whole screen steps in by the bars' size.
@@ -163,7 +179,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
             androidx.core.view.WindowInsetsCompat.CONSUMED
         }
         setContentView(root)
-        paintMode()
+        if (!getSharedPreferences("visualcontext", MODE_PRIVATE).getBoolean("emu_help_seen", false)) showHelp(true)
         voice = Voice(this)
         output = Voice.output(this)
         ears = Ears(this, onName = { n -> work.execute {
@@ -383,16 +399,18 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     }
 
     private var longFired = false
-    /**
-     * Two ways to use this screen (Marcus, 08/11): 👓 óculos = only the temple strip acts, as on the glasses (to rehearse and demo);
-     * 📱 celular = a phone product for who has no glasses: tap the lens (pills, pins, cards) and hold the lens to talk.
-     */
-    private var glassesMode = true
-    private lateinit var templeRow: LinearLayout
-    private lateinit var modeBtn: Button
-    private fun paintMode() {
-        templeRow.visibility = if (glassesMode) View.VISIBLE else View.GONE
-        modeBtn.text = if (glassesMode) "👓 Óculos" else "📱 Celular"
+    // The emulator is the glasses: the lens takes no touches, the temple strip does everything (Marcus, 08/11: "não vamos ficar inventando modo").
+    private val glassesMode = true
+    private lateinit var helpBox: TextView
+    private fun showHelp(on: Boolean) {
+        helpBox.visibility = if (on) View.VISIBLE else View.GONE
+        if (on) { getSharedPreferences("visualcontext", MODE_PRIVATE).edit().putBoolean("emu_help_seen", true).apply(); helpBox.announceForAccessibility(helpBox.text) }
+    }
+    private var pendingTap: Runnable? = null
+    private fun centerTap() {
+        val p = pendingTap
+        if (p != null) { main.removeCallbacks(p); pendingTap = null; templeBack(); return } // second tap: back
+        pendingTap = Runnable { pendingTap = null; templeKey(android.view.KeyEvent.KEYCODE_DPAD_CENTER) }.also { main.postDelayed(it, 300) }
     }
     private fun templeKey(code: Int) {
         if (code == android.view.KeyEvent.KEYCODE_DPAD_CENTER) dispatchKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, code))
@@ -556,25 +574,36 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     override fun onFaces(seen: List<FaceBrain.Seen>, bw: Int, bh: Int) {
         lastSeen = seen; lastBw = bw; lastBh = bh
         val primary = seen.firstOrNull { it.label.isNotEmpty() }
-        if (primary != null && !primary.isMe && ::ears.isInitialized && !liveOn) ears.faceSeen(if (primary.known) primary.label else null)
+        if (primary != null && !primary.isMe && (primary.known || primary.w >= bw * 0.08f) && ::ears.isInitialized && !liveOn) ears.faceSeen(if (primary.known) primary.label else null)
         // It was me all along (the encounter had started while the face was still unknown): drop it.
         if (primary != null && primary.isMe && ::ears.isInitialized && ears.who == null) ears.discard()
         if (primary != null && !primary.isMe && speaks) announce(primary)
         // Countdown: a new face that stays in front of you for 7 s; then 5…0 and it is kept.
         val pid = primary?.pendingId
         // The buffer runs from the first second (in memory); at 7 s the countdown starts; cancelling discards it all.
-        if (pid != null && countdownId == null && System.currentTimeMillis() - primary.pendingSince > 7000) {
+        // Marcus, 08/11: it asked about dolls, drawings and tiny faces far away, all the time. Only a real encounter
+        // counts: a face close and in front (conversation distance), and someone talking in the last seconds.
+        if (pid != null && countdownId == null && System.currentTimeMillis() - primary.pendingSince > 7000 && encounter(primary, bw)) {
             countdownId = pid; countdownAt = SystemClock.elapsedRealtime()
-            if (speaks) voice.say("Pessoa nova. Guardar? Dois toques cancelam.")
+            // With a screen the countdown on the lens is enough; only the voice-only mode says it.
+            if (output == "voz") voice.say("Pessoa nova. Guardar? Dois toques cancelam.")
         }
         if (countdownId != null && seen.none { it.pendingId == countdownId }) countdownId = null
         val left = countdownId?.let { 5 - ((SystemClock.elapsedRealtime() - countdownAt) / 1000).toInt() } ?: 0
         // Known person: records at once, no countdown (spec 10/10). New person: countdown, then recording.
-        hud.faces = seen.filter { it.label.isNotEmpty() }.map {
+        hud.faces = seen.filter { it.label.isNotEmpty() && (it.known || it.w >= bw * 0.06f) }.map {
             val cd = if (it.pendingId != null && it.pendingId == countdownId) maxOf(left, 1) else 0
             toTag(it, bw, bh, it === primary, cd).copy(recording = it === primary && it.known && !it.isMe && cd == 0)
         }
         hud.invalidate()
+    }
+
+    /** In front of you and talking: the face is at least ~12% of the image wide, near the middle, and a voice was heard in the last 8 s. */
+    private fun encounter(f: FaceBrain.Seen, bw: Int): Boolean {
+        val close = f.w >= bw * 0.12f
+        val front = kotlin.math.abs(f.x + f.w / 2f - bw / 2f) <= bw * 0.3f
+        val talk = ::ears.isInitialized && SystemClock.elapsedRealtime() - ears.lastSpeechAt < 8000
+        return close && front && talk
     }
 
     private fun countdownTick() {

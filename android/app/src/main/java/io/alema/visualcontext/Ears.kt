@@ -5,6 +5,7 @@ import android.content.Intent
 import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import android.os.Handler
 import android.os.Looper
 import android.speech.RecognitionListener
@@ -47,6 +48,9 @@ class Ears(private val ctx: Context, private val onName: (String) -> Unit, priva
         if (!on && !paused) start()
         main.removeCallbacks(endCheck); main.postDelayed(endCheck, 60_000)
     }
+
+    /** When someone last spoke near the glasses (a conversation, not a poster or a doll). */
+    @Volatile var lastSpeechAt = 0L
 
     /** The screen goes away: stop listening and give back any muted sound. */
     fun close() { standby = false; stopRec() }
@@ -111,13 +115,13 @@ class Ears(private val ctx: Context, private val onName: (String) -> Unit, priva
             b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.takeIf { it.isNotBlank() }?.let { heard(it, final = true) }
             main.postDelayed(::listenOnce, 150)
         }
-        override fun onPartialResults(b: Bundle?) { b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.let { heard(it, final = false) } }
+        override fun onPartialResults(b: Bundle?) { lastSpeechAt = SystemClock.elapsedRealtime(); b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.let { heard(it, final = false) } }
         override fun onError(error: Int) { main.postDelayed(::listenOnce, when (error) {
             SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> 1200
             SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> 600 // silence: restart a bit slower
             else -> 300 }) }
         override fun onReadyForSpeech(p: Bundle?) { main.removeCallbacks(unmuteMusic); main.postDelayed(unmuteMusic, 250) }
-        override fun onBeginningOfSpeech() {}
+        override fun onBeginningOfSpeech() { lastSpeechAt = SystemClock.elapsedRealtime() }
         override fun onRmsChanged(v: Float) {}
         override fun onBufferReceived(b: ByteArray?) {}
         override fun onEndOfSpeech() {}
