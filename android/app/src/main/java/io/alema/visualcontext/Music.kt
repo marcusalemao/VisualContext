@@ -164,7 +164,7 @@ object Things {
 
     fun tools(): List<JSONObject> = listOf(
         JSONObject().put("name", TOOL_KEEP)
-            .put("description", "Guarda um objeto do usuário na memória visual, com foto e lugar: \"essas são minhas chaves\", \"guarda onde deixei o carregador\", \"lembra que o óculos ficou aqui\". Chame na hora; a foto é a câmera agora, então peça para ele olhar para o objeto se não estiver vendo.")
+            .put("description", "Guarda um objeto do usuário na memória visual, com foto e lugar: \"essas são minhas chaves\", \"esse é meu cigarro\", \"guarda onde deixei o carregador\", \"lembra que o óculos ficou aqui\". Chame NA HORA, sem perguntar se deve guardar: a foto é a câmera agora.")
             .put("parameters", JSONObject().put("type", "OBJECT").put("properties", JSONObject()
                 .put("nome", JSONObject().put("type", "STRING").put("description", "o objeto, curto: chaves, carteira, carregador"))
                 .put("onde", JSONObject().put("type", "STRING").put("description", "onde está, se ele disse ou se dá para ver: mesa da cozinha, bolso da mochila")))
@@ -173,7 +173,7 @@ object Things {
             .put("description", "Onde o usuário deixou um objeto, pela memória visual: \"onde deixei as chaves?\", \"cadê meu carregador?\". Chame ANTES de olhar a câmera; responda com o lugar e quando foi.")
             .put("parameters", JSONObject().put("type", "OBJECT").put("properties", JSONObject().put("objeto", JSONObject().put("type", "STRING"))).put("required", JSONArray().put("objeto"))),
     )
-    const val SYSTEM = " OBJETOS: quando ele mostrar ou nomear um objeto seu (\"essas são minhas chaves\"), chame guardar_objeto; nunca transforme isso em nota. Quando perguntar onde deixou algo, chame onde_deixei primeiro e só depois, se não houver registro, olhe a câmera. A resposta de onde_deixei traz o lugar exato e a foto de quando foi visto já aparece na lente: diga como última vez vista (\"a última vez que vi foi às 14h32, na mesa da sala\"), nunca como se estivesse lá agora, e \"a foto está na lente\"; nunca diga que não pode mostrar o passado."
+    const val SYSTEM = " OBJETOS: quando ele mostrar ou nomear um objeto seu (\"essas são minhas chaves\", \"esse é meu cigarro, guarda\", \"lembra dele\"), chame guardar_objeto IMEDIATAMENTE, sem perguntar \"quer que eu guarde?\" (Marcus, 09/11: perguntar fez a conversa fechar sem guardar); nunca transforme isso em nota. Em onde_deixei, passe só o nome do objeto (\"chaves\", não \"minhas chaves\"). Quando perguntar onde deixou algo, chame onde_deixei primeiro e só depois, se não houver registro, olhe a câmera. A resposta de onde_deixei traz o lugar exato e a foto de quando foi visto já aparece na lente: diga como última vez vista (\"a última vez que vi foi às 14h32, na mesa da sala\"), nunca como se estivesse lá agora, e \"a foto está na lente\"; nunca diga que não pode mostrar o passado."
 
     /** Current frame as a small JPEG (base64), or null. */
     fun snapshot(jpeg: ByteArray?): String? = jpeg?.let {
@@ -228,9 +228,19 @@ object Things {
             .put("onde", JSONObject().put("type", "STRING").put("description", "lugar concreto e referência ao lado: na mesa da sala, ao lado do controle"))).put("required", JSONArray().put("nome").put("onde")))
 
     data class Found(val name: String, val where: String?, val at: String, val snapshot: String?)
+    /**
+     * Marcus, 09/11: "onde estão minhas chaves?" found nothing — the search was for "minhas chaves". Tries the name
+     * without articles and possessives, then singular, then each word, until something is found.
+     */
     fun find(ctx: Context, name: String): List<Found> {
-        val r = Backend.post(ctx, JSONObject().put("action", "find_thing").put("name", name)) ?: return emptyList()
-        val a = runCatching { JSONArray(r) }.getOrNull() ?: return emptyList()
-        return (0 until a.length()).mapNotNull { a.optJSONObject(it) }.map { Found(it.optString("name"), it.optString("location_description").ifEmpty { null }, it.optString("seen_at"), it.optString("snapshot_url").ifEmpty { null }) }
+        val base = name.lowercase().trim().replace(Regex("^(o|a|os|as|um|uma|meu|minha|meus|minhas|seu|sua|seus|suas|o meu|a minha|os meus|as minhas)\\s+"), "").trim(' ', '?', '.', '!')
+        val sing = base.split(" ").joinToString(" ") { w -> if (w.length > 4 && w.endsWith("ões")) w.dropLast(3) + "ão" else if (w.length > 4 && w.endsWith("es") && w[w.length - 3] in "rzs") w.dropLast(2) else if (w.length > 3 && w.endsWith("s")) w.dropLast(1) else w }
+        val tries = (listOf(base, sing) + sing.split(" ").filter { it.length > 3 }).distinct().filter { it.isNotBlank() }
+        for (q in tries) {
+            val r = Backend.post(ctx, JSONObject().put("action", "find_thing").put("name", q)) ?: continue
+            val a = runCatching { JSONArray(r) }.getOrNull() ?: continue
+            if (a.length() > 0) return (0 until a.length()).mapNotNull { a.optJSONObject(it) }.map { Found(it.optString("name"), it.optString("location_description").ifEmpty { null }, it.optString("seen_at"), it.optString("snapshot_url").ifEmpty { null }) }
+        }
+        return emptyList()
     }
 }
