@@ -116,10 +116,11 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
             Skills.refresh(ctx)
             MyPlaces.refresh(ctx)
             val placeHint = Where.location(ctx)?.let { loc -> MyPlaces.askHint(ctx, loc) } ?: ""
-            live.extraTools = Skills.tools(ctx).put(Music.tool()).put(Recall.tool()).put(MyPlaces.tool()).put(Agenda.tool()).also { a -> Things.tools().forEach { a.put(it) }; Player.tools().forEach { a.put(it) }; a.put(Zap.tool()); a.put(Story.tool()); a.put(Plans.tool()); if (Claude.provider(Claude.key(ctx)).isNotEmpty()) a.put(Claude.tool(ctx)); Things.names(ctx).takeIf { it.isNotEmpty() }?.let { n -> a.put(Things.seenTool(n)) } }
+            live.extraTools = Skills.tools(ctx).put(Music.tool()).put(Recall.tool()).put(MyPlaces.tool()).put(Agenda.tool()).also { a -> Things.tools().forEach { a.put(it) }; Player.tools().forEach { a.put(it) }; a.put(Zap.tool()); a.put(Story.tool()); a.put(Plans.tool()); Tasks.tools().forEach { a.put(it) }; if (Claude.provider(Claude.key(ctx)).isNotEmpty()) a.put(Claude.tool(ctx)); Things.names(ctx).takeIf { it.isNotEmpty() }?.let { n -> a.put(Things.seenTool(n)) } }
             live.extraSystem = Skills.system(ctx) + " ENCERRAMENTO: depois de responder, fique em silêncio; nunca pergunte \"mais alguma coisa?\" nem se despeça. Se ele não falar mais, o app fecha sozinho; se falar, continue." + " MÚSICA: se ele perguntar que música está tocando, chame identificar_musica e espere; não adivinhe. \"Toca…\" / \"quero ouvir…\" → tocar_musica; pausar, pular, voltar → controlar_musica; \"mostra a letra\" → mostrar_letra." + Things.SYSTEM +
                 (if (Claude.provider(Claude.key(ctx)).isNotEmpty()) " OUTRO ASSISTENTE: ele configurou o ${Claude.friendlyName(ctx)}. \"Quero falar com o ${Claude.friendlyName(ctx)}\" (ou com o nome parecido que a transcrição escrever, ex. Groc) → chame outro_assistente com cada fala dele, sem criar habilidade e sem julgar o tom (o estilo é escolha dele e quem responde é o outro), até ele dizer \"volta\"." else "") +
                 " AGENDA (escrever): quando ele combinar um compromisso na conversa ou pedir \"marca na agenda\", chame marcar_agenda com título, início, local, com quem e TODAS as outras informações ditas em notas; não pergunte antes, o app grava e mostra Desfazer." +
+                " TAREFAS: \"me lembra de…\", \"preciso mandar…\", \"depois eu escrevo\", algo que alguém pediu e ele aceitou → anotar_tarefa (com a ação: whatsapp, email, ligar, agenda, comprar). \"O que eu tenho para fazer?\" → minhas_tarefas. \"Já fiz…\" → concluir_tarefa. Ao ler uma tarefa, ofereça a ação (\"quer que eu abra a conversa com o Bruno?\" → conversar_com)." +
                 " CONVERSAR: \"manda mensagem pro Bruno\", \"abre a conversa com a Ana\", \"fala com o Pedro\" → conversar_com (o app abre o Zap ou o WhatsApp na pessoa; você não escreve a mensagem)." +
                 " TRADUZIR: \"traduz isso\" (placa, cardápio, texto) → diga só \"deixa eu ver\" e espere: o app lê, traduz e manda a tradução; não traduza pela imagem pequena." +
                 " LER: quando ele pedir para ler algo (\"o que está escrito\", etiqueta, bula, placa), diga só \"deixa eu ler\" e espere: o app lê em alta resolução e manda o texto; nunca diga que não consegue ler antes disso." +
@@ -447,6 +448,22 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
                                 .put("diga", if (ok) "Abri a pesquisa por som do Google no seu celular." else "Ainda não tenho como identificar músicas; dá para ligar isso nos Ajustes.")
                         } else JSONObject().put("erro", e.message)
                     }
+                }
+                Tasks.TOOL_ADD -> {
+                    Tasks.add(ctx, call.args.optString("texto"), call.args.optString("acao"), call.args.optString("pessoa").ifBlank { null }, call.args.optString("quando").ifBlank { null }, call.args.optString("detalhes").ifBlank { null }, null)
+                    main.post { host.onBrief("✓ Tarefa anotada", listOf(call.args.optString("texto"))) }
+                    JSONObject().put("ok", true).put("diga", "Anotado.")
+                }
+                Tasks.TOOL_LIST -> {
+                    val ts = Tasks.open(ctx)
+                    if (ts.isEmpty()) JSONObject().put("vazio", true).put("diga", "Nada pendente.")
+                    else { main.post { host.onStory(Tasks.chapters(ts)) }
+                        JSONObject().put("tarefas", JSONArray(ts.take(8).map { JSONObject().put("tarefa", it.text).put("prazo", it.due?.toString() ?: "").put("pessoa", it.person ?: "").put("acao_sugerida", it.suggestion()) }))
+                            .put("diga", "Leia curto: quantas são e as três primeiras com a ação sugerida; a lista está na lente.") }
+                }
+                Tasks.TOOL_DONE -> {
+                    val t = Tasks.match(Tasks.open(ctx), call.args.optString("texto"))
+                    if (t == null) JSONObject().put("erro", "não achei essa tarefa") else { Tasks.done(ctx, t); main.post { host.onBrief("✓ Feito", listOf(t.text)) }; JSONObject().put("ok", true).put("diga", "Tirei: ${t.text}.") }
                 }
                 Plans.TOOL -> {
                     val p = Plans.fromArgs(call.args)

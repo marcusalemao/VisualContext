@@ -56,9 +56,10 @@ object Plans {
         val model = Describe.textModel(ctx, key) ?: return emptyList()
         val now = ZonedDateTime.ofInstant(java.time.Instant.ofEpochMilli(at), ZoneId.systemDefault())
         val prompt = "Conversa gravada em ${now.format(DateTimeFormatter.ofPattern("EEEE, dd/MM/yyyy HH:mm", Locale("pt", "BR")))}" + (person?.let { " com $it" } ?: "") + ".\n" +
-            "Liste só compromissos FUTUROS combinados nela (reunião, encontro, consulta, ligação, entrega), com dia definido. Datas relativas (\"terça que vem\", \"amanhã\") a partir da data acima. " +
-            "Responda só JSON: [{\"titulo\":\"curto\",\"inicio\":\"AAAA-MM-DDTHH:MM\",\"duracao_min\":60,\"dia_inteiro\":false,\"local\":\"endereço ou lugar, se dito\",\"com\":\"quem\",\"notas\":\"assunto e demais detalhes ditos\"}]. " +
-            "Sem hora dita: dia_inteiro true. Nenhum compromisso claro: []. Não invente.\n\n" + transcript.take(12000)
+            "Extraia (1) compromissos FUTUROS combinados, com dia definido (reunião, encontro, consulta, entrega), e (2) TAREFAS que o usuário ficou de fazer: o que alguém pediu e ele aceitou, o que ele disse que faria depois (\"depois eu te mando\", \"te escrevo\", \"vou ligar\"), lembretes que pediu. " +
+            "Datas relativas (\"terça que vem\", \"amanhã\") a partir da data acima. Responda só JSON: {\"eventos\":[{\"titulo\":\"curto\",\"inicio\":\"AAAA-MM-DDTHH:MM\",\"duracao_min\":60,\"dia_inteiro\":false,\"local\":\"\",\"com\":\"\",\"notas\":\"assunto e demais detalhes\"}], " +
+            "\"tarefas\":[{\"texto\":\"curto, começando pelo verbo\",\"acao\":\"whatsapp|email|ligar|agenda|comprar|lembrete|outro\",\"pessoa\":\"para quem ou quem pediu\",\"quando\":\"AAAA-MM-DDTHH:MM ou vazio\",\"detalhes\":\"o que escrever, endereço, valores\"}]}. " +
+            "Sem hora dita no evento: dia_inteiro true. Nada claro: listas vazias. Não invente.\n\n" + transcript.take(12000)
         val body = JSONObject().put("contents", JSONArray().put(JSONObject().put("parts", JSONArray().put(JSONObject().put("text", prompt)))))
             .put("generationConfig", JSONObject().put("temperature", 0.1).put("maxOutputTokens", 1500).put("responseMimeType", "application/json"))
         return try {
@@ -70,10 +71,14 @@ object Plans {
             if (c.responseCode !in 200..299) { if (c.responseCode in listOf(400, 403, 404)) Backend.markBadModel(ctx, model); return emptyList() }
             val parts = JSONObject(c.inputStream.bufferedReader().readText()).optJSONArray("candidates")?.optJSONObject(0)?.optJSONObject("content")?.optJSONArray("parts") ?: return emptyList()
             val txt = (0 until parts.length()).mapNotNull { parts.optJSONObject(it) }.filter { !it.optBoolean("thought") }.joinToString("") { it.optString("text") }.trim().removePrefix("```json").removeSuffix("```")
-            val a = JSONArray(txt)
+            val o = if (txt.trimStart().startsWith("[")) JSONObject().put("eventos", JSONArray(txt)) else JSONObject(txt)
+            lastTasks = o.optJSONArray("tarefas")?.let { t -> (0 until t.length()).mapNotNull { t.optJSONObject(it) }.filter { it.optString("texto").isNotBlank() }.take(6) } ?: emptyList()
+            val a = o.optJSONArray("eventos") ?: JSONArray()
             (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let(::fromArgs) }.filter { it.start.isAfter(ZonedDateTime.now().minusHours(1)) }.take(3)
         } catch (_: Exception) { emptyList() }
     }
+    /** The tasks found by the last [extract] call (same Gemini answer). */
+    @Volatile var lastTasks: List<JSONObject> = emptyList()
 
     fun canWrite(ctx: Context) = ctx.checkSelfPermission(android.Manifest.permission.WRITE_CALENDAR) == PackageManager.PERMISSION_GRANTED &&
         ctx.checkSelfPermission(android.Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED

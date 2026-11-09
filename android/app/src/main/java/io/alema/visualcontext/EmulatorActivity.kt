@@ -188,6 +188,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
             } }, onState = { h -> val was = hearing; hearing = h; main.post { paintToggles(); if (speaks && h != was) { if (h) voice.recStart() else voice.recEnd() } } },
             onQuestion = { q -> standbyQuestion(q) })
         ears.onPlan = { p, uri -> onPlan(p, uri) }
+        ears.onTasks = { ts -> onBrief("✓ ${if (ts.size == 1) "Tarefa anotada" else ts.size.toString() + " tarefas anotadas"}", ts.take(3)) }
         ears.standby = Backend.standby(this) // on by default since 09/11: one way to use it — speak, and the right thing happens
         applyOutput()
         paintToggles()
@@ -764,6 +765,10 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         val lb = body.lowercase()
         val memory = Regex("""o que (eu )?(fiz|anotei|combinei|guardei)|quem (eu )?(encontrei|vi)|quando (foi que )?(eu )?(vi|encontrei|falei)|última vez que""").containsMatchIn(lb)
         val thing = Regex("""onde (eu )?deixei (o |a |as |os |meu |minha )?(.+)|cad[eê] (meu |minha |o |a |as |os )?(.+)""").find(lb)
+        if (Regex("""o que (eu )?tenho (que|pra|para) fazer|minhas tarefas|o que ficou pendente""").containsMatchIn(lb)) {
+            work.execute { val ts = Tasks.open(this); main.post { if (ts.isEmpty()) say("Nada pendente.", "✓ Para fazer", listOf("nada pendente")) else { onStory(Tasks.chapters(ts)); if (output != "tela") voice.say("Você tem ${ts.size} ${if (ts.size == 1) "tarefa" else "tarefas"}. " + ts.take(3).joinToString(". ") { it.text }) } } }
+            return
+        }
         val relive = Regex("""reviver (o )?(meu )?dia|como foi (o )?meu dia|me conta (o )?meu dia|reviver ontem""").find(lb)
         when {
             relive != null -> work.execute { val ch = Story.build(this, if (lb.contains("ontem")) 1 else 0); main.post { if (ch.isEmpty()) say("Não tenho nada registrado nesse dia.", "✦ Reviver", listOf("sem registros")) else onStory(ch) } }

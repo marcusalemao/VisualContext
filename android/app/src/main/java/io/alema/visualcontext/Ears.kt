@@ -51,6 +51,8 @@ class Ears(private val ctx: Context, private val onName: (String) -> Unit, priva
 
     /** Plans found in a finished conversation (the host asks before writing them in the calendar). */
     var onPlan: (Plans.Plan, android.net.Uri?) -> Unit = { _, _ -> }
+    /** Tasks noted from a finished conversation (the lens just tells). */
+    var onTasks: (List<String>) -> Unit = {}
 
     /** When someone last spoke near the glasses (a conversation, not a poster or a doll). */
     @Volatile var lastSpeechAt = 0L
@@ -142,7 +144,7 @@ class Ears(private val ctx: Context, private val onName: (String) -> Unit, priva
 
     companion object {
         /** What counts as talking to the glasses while nobody is in front. */
-        val QUESTION = Regex("""^(ei|ô|oi|olha|escuta)?[,\s]*(assistente|visual\s?context|visualcontext|óculos)\b|\b(reviver (o )?(meu )?dia|reviver ontem|como foi (o )?meu dia|me conta (o )?meu dia|o que (eu )?(fiz|anotei|combinei|guardei)|quem (eu )?(encontrei|vi)|quando (foi que )?(eu )?(vi|encontrei|falei)|onde (eu )?deixei|cad[eê] (meu|minha|o|a|as|os)\b|última vez que|que horas são|que dia é hoje|que música)""")
+        val QUESTION = Regex("""^(ei|ô|oi|olha|escuta)?[,\s]*(assistente|visual\s?context|visualcontext|óculos)\b|\b(o que (eu )?tenho (que|pra|para) fazer|minhas tarefas|o que ficou pendente|reviver (o )?(meu )?dia|reviver ontem|como foi (o )?meu dia|me conta (o )?meu dia|o que (eu )?(fiz|anotei|combinei|guardei)|quem (eu )?(encontrei|vi)|quando (foi que )?(eu )?(vi|encontrei|falei)|onde (eu )?deixei|cad[eê] (meu|minha|o|a|as|os)\b|última vez que|que horas são|que dia é hoje|que música)""")
     }
 
     private fun save() {
@@ -159,7 +161,11 @@ class Ears(private val ctx: Context, private val onName: (String) -> Unit, priva
             // Something agreed for a date? The lens asks whether it goes to the calendar.
             // Marcus, 09/11: "na hora da conversa a gente não quer interagir" — clear plans (day + time) go in by
             // themselves when automatic is on; the rest wait in the Manager as suggestions. The lens only tells.
-            for (p in Plans.extract(ctx, t, at, person)) {
+            val found = Plans.extract(ctx, t, at, person)
+            val tasks = Plans.lastTasks
+            for (x in tasks) Tasks.add(ctx, x.optString("texto"), x.optString("acao"), x.optString("pessoa").ifBlank { person }, x.optString("quando").ifBlank { null }, x.optString("detalhes").ifBlank { null }, person ?: "conversa")
+            if (tasks.isNotEmpty()) main.post { onTasks(tasks.map { it.optString("texto") }) }
+            for (p in found) {
                 val uri = if (Plans.auto(ctx) && Plans.certain(p)) Plans.save(ctx, p, openAppIfNoPermission = false) else null
                 Plans.remember(ctx, p, if (uri != null) "na_agenda" else "sugerido", person)
                 main.post { onPlan(p, uri) }
