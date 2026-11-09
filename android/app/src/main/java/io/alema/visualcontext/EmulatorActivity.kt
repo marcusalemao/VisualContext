@@ -867,10 +867,29 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         hud.invalidate()
     }
     override fun onTranscript(lines: List<String>, userLine: String?) {
-        hud.transcript = if (userLine != null && lines.isEmpty()) listOf("● " + userLine.takeLast(34)) else lines
+        if (userLine != null && lines.isEmpty()) {
+            val fixed = heardFix[userLine]?.takeIf { it != "…" }
+            hud.transcript = listOf("● " + (fixed ?: userLine).takeLast(34))
+            if (!heardFix.containsKey(userLine)) { main.removeCallbacks(checkHeard); heardNow = userLine; main.postDelayed(checkHeard, 700) }
+        } else hud.transcript = lines
         hud.invalidate()
         // The answer leaves the lens by itself (Marcus, 07/11: it stayed fixed on screen).
         main.removeCallbacks(clearTranscript); main.postDelayed(clearTranscript, 9000)
+    }
+    /** His words, rewritten when the live transcription put them in a language he does not speak (Marcus, 09/11). */
+    private val heardFix = HashMap<String, String>()
+    private var heardNow = ""
+    private val checkHeard = Runnable {
+        val h = heardNow
+        if (h.isBlank() || heardFix.containsKey(h) || Describe.plausible(h, Backend.languages(this))) return@Runnable
+        heardFix[h] = "…"
+        work.execute {
+            val f = Describe.fixHeard(this, h)
+            main.post {
+                heardFix[h] = f ?: h
+                if (hud.transcript.size == 1 && hud.transcript[0].startsWith("● ")) { hud.transcript = listOf("● " + (f ?: h).takeLast(34)); hud.invalidate() }
+            }
+        }
     }
     private val clearTranscript = Runnable { if (!live.speaking) { hud.transcript = emptyList(); hud.invalidate() } else main.postDelayed(this::clearLater, 3000) }
     private fun clearLater() { main.removeCallbacks(clearTranscript); main.postDelayed(clearTranscript, 3000) }

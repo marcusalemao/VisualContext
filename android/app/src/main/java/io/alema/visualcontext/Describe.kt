@@ -143,6 +143,44 @@ object Describe {
         } catch (_: Exception) { null }
     }
 
+    /**
+     * Marcus, 09/11: he set the languages he speaks, and still the lens showed "Ki múzika sta tukandu". Google's live
+     * transcription only takes them as a hint (its docs: "bias", not a lock). Common words of his languages are
+     * checked first (free); only a line with none of them goes to a quick text call that rewrites it.
+     */
+    private val COMMON = mapOf(
+        "pt" to "que o a os as de do da dos das e é em um uma no na nos nas pra para por com não sim eu você ele ela isso esse essa está tá estou qual quem onde quando como meu minha tem ter me se mais muito aqui agora hoje música tocando",
+        "en" to "the a an is are was what who where when how i you he she it this that my your to of in on for with and not yes do does can please",
+        "de" to "der die das ist und nicht ich du er sie es was wer wo wann wie ein eine mein dein mit für auf ja nein bitte",
+        "es" to "el la los las es que de y en un una no sí yo tú qué quién dónde cuándo cómo mi está",
+        "fr" to "le la les est que de et en un une ne pas oui je tu il elle quoi qui où quand comment mon",
+        "it" to "il la gli è che di e in un una non sì io tu cosa chi dove quando come mio")
+    fun plausible(text: String, langs: List<String>): Boolean {
+        val words = text.lowercase().split(Regex("[^\\p{L}]+")).filter { it.isNotEmpty() }
+        if (words.size < 3) return true
+        val common = langs.map { it.take(2) }.flatMap { (COMMON[it] ?: "").split(" ") }.toSet()
+        return words.any { it in common }
+    }
+    /** What the user probably said, in one of his languages; null on failure. Blocking. */
+    fun fixHeard(ctx: Context, heard: String): String? {
+        val key = Backend.geminiKey(ctx); if (key.length < 20) return null
+        val model = textModel(ctx, key) ?: return null
+        val prompt = "Uma transcrição automática escreveu a fala de uma pessoa assim: \"" + heard.take(300) + "\". Ela só fala " + Backend.languageNames(ctx).joinToString(", ") +
+            ". A transcrição errou a língua e escreveu pelo som. Escreva o que ela provavelmente disse, numa dessas línguas, com a grafia certa. Responda só a frase, sem aspas."
+        val body = JSONObject().put("contents", JSONArray().put(JSONObject().put("parts", JSONArray().put(JSONObject().put("text", prompt)))))
+            .put("generationConfig", JSONObject().put("maxOutputTokens", 200).put("temperature", 0.1).put("thinkingConfig", JSONObject().put("thinkingBudget", 0)))
+        return try {
+            val c = (Gem.url(key, "$model:generateContent").openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"; connectTimeout = 8_000; readTimeout = 15_000; doOutput = true
+                setRequestProperty("Content-Type", "application/json"); Gem.auth(this, key)
+            }
+            c.outputStream.use { it.write(body.toString().toByteArray()) }
+            if (c.responseCode !in 200..299) return null
+            val parts = JSONObject(c.inputStream.bufferedReader().readText()).optJSONArray("candidates")?.optJSONObject(0)?.optJSONObject("content")?.optJSONArray("parts") ?: return null
+            (0 until parts.length()).mapNotNull { parts.optJSONObject(it) }.filter { !it.optBoolean("thought") }.joinToString("") { it.optString("text") }.trim().trim('"').takeIf { it.isNotBlank() }
+        } catch (_: Exception) { null }
+    }
+
     /** A cheap text+vision model this key can use, from ListModels (cached). */
     fun textModel(ctx: Context, key: String): String? {
         Backend.prefsText(ctx)?.let { return it }
