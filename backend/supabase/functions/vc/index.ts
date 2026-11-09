@@ -123,6 +123,14 @@ Deno.serve(async (req) => {
         if (error) throw error;
         return json({ ok: true });
       }
+      case "update_note": { // the state of a commitment or a task (sugerido → na_agenda / ignorado), from the Manager or the glasses
+        if (!body.id || typeof body.fields !== "object" || !body.fields) return json({ error: "id/fields" }, 400);
+        const { data: cur } = await mine(db.from("notes").select("fields"), w).eq("id", body.id).maybeSingle();
+        if (!cur) return json({ error: "not found" }, 404);
+        const { error } = await mine(db.from("notes").update({ fields: { ...(cur.fields ?? {}), ...body.fields } }), w).eq("id", body.id);
+        if (error) throw error;
+        return json({ ok: true });
+      }
       case "moment": { // a free conversation with the assistant (Gemini Live), or any moment: text only, never audio
         if (!body.transcript && !body.summary) return json({ error: "transcript" }, 400);
         let personId: string | null = null;
