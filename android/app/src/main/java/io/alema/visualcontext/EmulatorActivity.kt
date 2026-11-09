@@ -177,6 +177,8 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
             androidx.core.view.WindowInsetsCompat.CONSUMED
         }
         setContentView(root)
+        chrome = listOf(bar, temple, helpBox)
+        try { setPictureInPictureParams(pipParams()) } catch (_: Exception) {}
         if (!getSharedPreferences("visualcontext", MODE_PRIVATE).getBoolean("emu_help_seen", false)) showHelp(true)
         voice = Voice(this)
         output = Voice.output(this)
@@ -185,7 +187,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
                 if (r.optBoolean("guardado")) main.post { onNamed(r.optString("nome", n)) }
             } }, onState = { h -> val was = hearing; hearing = h; main.post { paintToggles(); if (speaks && h != was) { if (h) voice.recStart() else voice.recEnd() } } },
             onQuestion = { q -> standbyQuestion(q) })
-        ears.standby = Backend.standby(this) // off by default (Marcus, 08/11: "aperto o Falar"); a setting for who wants it
+        ears.standby = Backend.standby(this) // on by default since 09/11: one way to use it — speak, and the right thing happens
         applyOutput()
         paintToggles()
         val need = listOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO, Manifest.permission.ACCESS_FINE_LOCATION)
@@ -646,6 +648,19 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         briefClear = Runnable { onLyricEnd() }.also { main.postDelayed(it, 20_000L) } // a stalled card leaves by itself
     }
     override fun onLyricEnd() { hud.lyric = null; hud.invalidate() }
+    override fun onIdle() { if (liveOn) { toggleLive(); toast("assistente em espera") } }
+
+    // ── Picture-in-picture (Marcus, 09/11): leaving to another app keeps the glasses running in a small window, like Maps and
+    // YouTube. The camera, the mic and the lens stay live; the window has its own X. Back here, everything comes back.
+    private lateinit var chrome: List<View>
+    private fun pipParams() = android.app.PictureInPictureParams.Builder().setAspectRatio(android.util.Rational(9, 16))
+        .apply { if (android.os.Build.VERSION.SDK_INT >= 31) setAutoEnterEnabled(true).setSeamlessResizeEnabled(false) }.build()
+    override fun onUserLeaveHint() { super.onUserLeaveHint(); if (!isInPictureInPictureMode) try { enterPictureInPictureMode(pipParams()) } catch (_: Exception) {} }
+    override fun onPictureInPictureModeChanged(inPip: Boolean, newConfig: android.content.res.Configuration) {
+        super.onPictureInPictureModeChanged(inPip, newConfig)
+        chrome.forEach { it.visibility = if (inPip) View.GONE else View.VISIBLE }
+        hud.compact = inPip; hud.invalidate()
+    }
 
     override fun onThing(name: String, where: String, whenTxt: String, photo: android.graphics.Bitmap?) {
         onBrief("⌖ $name", listOf(where, whenTxt)); hud.cardImage = photo; hud.invalidate()

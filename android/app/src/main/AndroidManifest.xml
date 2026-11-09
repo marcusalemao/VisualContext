@@ -73,7 +73,8 @@
         <activity
             android:name=".EmulatorActivity"
             android:exported="false"
-            android:configChanges="orientation|screenSize|keyboardHidden" />
+            android:supportsPictureInPicture="true"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden" />
 
         <!-- Spec 1o: check the calendar for meetings with people from the memory. -->
         <receiver android:name=".Prep$Check" android:exported="false" />

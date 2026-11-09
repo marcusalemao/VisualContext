@@ -37,6 +37,8 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
         /** The lyrics card on the lens: cover, title, previous / current / next line. */
         fun onLyric(title: String, artist: String, prev: String?, cur: String?, next: String?, cover: android.graphics.Bitmap?) { onBrief("♪ $title", listOfNotNull(cur)) }
         fun onLyricEnd() {}
+        /** Nothing said for a while after an answer: the assistant should close (the host stops it). */
+        fun onIdle() {}
         /** Where an object was last seen, with its photo when there is one. */
         fun onThing(name: String, where: String, whenTxt: String, photo: android.graphics.Bitmap?) { onBrief("⌖ $name", listOf(where, whenTxt)) }
         /** Another app (the music player) took the screen: bring the glasses view back. */
@@ -59,7 +61,10 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
      */
     private val held = ArrayDeque<ByteArray>()
     private var loud = 0
+    /** When his voice was last heard by the mic (for the idle close), independent of the transcription. */
+    @Volatile private var lastVoice = 0L
     private fun onMic(pcm: ByteArray) {
+        if (rms(pcm) > VOICE_RMS) lastVoice = SystemClock.elapsedRealtime()
         if (!speaker.speaking) { loud = 0; held.clear(); live.send(LiveProtocol.audio(Base64.encodeToString(pcm, Base64.NO_WRAP))); return }
         if (rms(pcm) > BARGE_RMS) loud++ else loud = 0
         held.addLast(pcm); while (held.size > 3) held.removeFirst()
@@ -106,7 +111,7 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
             MyPlaces.refresh(ctx)
             val placeHint = Where.location(ctx)?.let { loc -> MyPlaces.askHint(ctx, loc) } ?: ""
             live.extraTools = Skills.tools(ctx).put(Music.tool()).put(Recall.tool()).put(MyPlaces.tool()).put(Agenda.tool()).also { a -> Things.tools().forEach { a.put(it) }; Player.tools().forEach { a.put(it) }; if (Claude.provider(Claude.key(ctx)).isNotEmpty()) a.put(Claude.tool(ctx)); Things.names(ctx).takeIf { it.isNotEmpty() }?.let { n -> a.put(Things.seenTool(n)) } }
-            live.extraSystem = Skills.system(ctx) + " MÚSICA: se ele perguntar que música está tocando, chame identificar_musica e espere; não adivinhe. \"Toca…\" / \"quero ouvir…\" → tocar_musica; pausar, pular, voltar → controlar_musica; \"mostra a letra\" → mostrar_letra." + Things.SYSTEM +
+            live.extraSystem = Skills.system(ctx) + " ENCERRAMENTO: depois de responder, fique em silêncio; nunca pergunte \"mais alguma coisa?\" nem se despeça. Se ele não falar mais, o app fecha sozinho; se falar, continue." + " MÚSICA: se ele perguntar que música está tocando, chame identificar_musica e espere; não adivinhe. \"Toca…\" / \"quero ouvir…\" → tocar_musica; pausar, pular, voltar → controlar_musica; \"mostra a letra\" → mostrar_letra." + Things.SYSTEM +
                 (if (Claude.provider(Claude.key(ctx)).isNotEmpty()) " OUTRO ASSISTENTE: ele configurou o ${Claude.friendlyName(ctx)}. \"Quero falar com o ${Claude.friendlyName(ctx)}\" (ou com o nome parecido que a transcrição escrever, ex. Groc) → chame outro_assistente com cada fala dele, sem criar habilidade e sem julgar o tom (o estilo é escolha dele e quem responde é o outro), até ele dizer \"volta\"." else "") +
                 " LER: quando ele pedir para ler algo (\"o que está escrito\", etiqueta, bula, placa), diga só \"deixa eu ler\" e espere: o app lê em alta resolução e manda o texto; nunca diga que não consegue ler antes disso." +
                 " MEMÓRIA: perguntas sobre o passado dele (o que fiz hoje, quem encontrei, quando vi fulano, o que combinei) vão para consultar_memoria; leia a resposta em voz alta como veio." +
@@ -119,8 +124,26 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
         }
     }
 
+    /**
+     * Marcus, 09/11: like the glasses' own assistant — answers, and if nothing more is said it goes away by itself.
+     * After the model finishes a turn, 12 s with no voice and no tool running closes the session; the next long
+     * press resumes it with the same context (session resumption + the last turns sent as a reminder).
+     */
+    private val idleCheck = object : Runnable { override fun run() {
+        if (!open) return
+        val now = SystemClock.elapsedRealtime()
+        val quiet = turnDone && !speaker.speaking && now - lastActivity > IDLE_MS && now - lastVoice > IDLE_MS
+        if (quiet) { host.onIdle(); return }
+        main.postDelayed(this, 1000)
+    } }
+    private var closedAt = 0L
+    private var lastTurns = ""
+
     fun stop() {
+        main.removeCallbacks(idleCheck)
         Player.duck(ctx, false); Claude.reset()
+        lastTurns = (turns.takeLast(3)).joinToString(" | ") { (u, m) -> listOfNotNull(u.takeIf { it.isNotEmpty() }?.let { "Você: ${it.take(160)}" }, m.takeIf { it.isNotEmpty() }?.let { "Assistente: ${it.take(160)}" }).joinToString(" / ") }
+        closedAt = SystemClock.elapsedRealtime()
         saveConversation()
         open = false
         mic.stop(); speaker.stop(); live.close()
@@ -144,7 +167,13 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
                 if (turns.isEmpty()) talkStartedAt = System.currentTimeMillis()
                 if (!mic.start()) { host.onState("error: microfone não liberado"); return }
                 host.onState("listening")
+                // Picking up where it left (Marcus, 09/11: "que ele lembre do que você falou por último"): within two hours
+                // the last turns go back as a reminder, in case the server did not resume the session.
+                if (lastTurns.isNotEmpty() && closedAt > 0 && SystemClock.elapsedRealtime() - closedAt < 2 * 3600_000L) {
+                    live.send(LiveProtocol.text("(retomando a conversa de há ${(SystemClock.elapsedRealtime() - closedAt) / 60_000} min; o fim dela foi: $lastTurns. Continue de onde parou, sem recapitular.)"))
+                }
                 pendingContext?.let { pendingContext = null; live.send(LiveProtocol.text(it)) }
+                lastVoice = SystemClock.elapsedRealtime(); main.removeCallbacks(idleCheck); main.postDelayed(idleCheck, 1000)
             }
             is LiveProtocol.Event.UserText -> {
                 lastActivity = SystemClock.elapsedRealtime()
@@ -461,6 +490,8 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
 
     companion object {
         private val YES = Regex("""\b(sim|pode|copia|copiar|isso|ok|beleza|quero)\b""", RegexOption.IGNORE_CASE)
+        private const val IDLE_MS = 12_000L
+        private const val VOICE_RMS = 900.0 // someone speaking near the glasses
         private const val BARGE_RMS = 2200.0 // a voice at the glasses' mic; the echo after the canceller stays well below
         private val READ = Regex("""(o que (est[áa]|t[áa]) escrito|o que (diz|fala) (a|o|aqui|essa|esse|isso|nessa|nesse)|l[êe] (isso|pra mim|aqui|essa|esse|o que)|leia|consegue ler|qual [ée] o (nome|texto) (do|da|desse|dessa))""", RegexOption.IGNORE_CASE)
         private val REMEMBER = Regex("""\b(lembra (disso|isso|desse|dessa|deste|desta)|guarda (isso|esse papel|essa receita|esse cart[ãa]o)|anota (isso|esse|essa))\b""", RegexOption.IGNORE_CASE)

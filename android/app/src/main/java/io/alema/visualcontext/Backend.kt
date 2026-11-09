@@ -40,7 +40,7 @@ object Backend {
     fun offlineOnly(ctx: Context) = prefs(ctx).getBoolean("offline_only", false)
     fun setOfflineOnly(ctx: Context, on: Boolean) { prefs(ctx).edit().putBoolean("offline_only", on).apply() }
     /** Standby: between encounters, listen (offline) for questions to the memory and calls to the assistant. */
-    fun standby(ctx: Context) = prefs(ctx).getBoolean("standby", false)
+    fun standby(ctx: Context) = prefs(ctx).getBoolean("standby", true)
     fun setStandby(ctx: Context, on: Boolean) { prefs(ctx).edit().putBoolean("standby", on).apply() }
 
     /** Hints on the lens (Marcus, 08/11: "no começo precisa ter uns hints"): on until turned off; counts Live starts. */

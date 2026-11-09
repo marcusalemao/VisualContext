@@ -35,6 +35,8 @@ class HudOverlay(ctx: Context) : View(ctx) {
     /** Where the top card was drawn (to keep pins below it and to close it with a tap). */
     var cardRect: RectF? = null; private set
     var cardLines: List<String> = emptyList()
+    /** Small window (picture-in-picture): only cards and faces, no pins or footer. */
+    var compact = false
     /** A photo inside the card (where an object was last seen); cleared with the title. */
     var cardImage: Bitmap? = null
     /** The lyrics card (Marcus, 09/11): cover, title, previous / current / next line with three weights. */
@@ -87,7 +89,7 @@ class HudOverlay(ctx: Context) : View(ctx) {
         val rows = ArrayList<MutableList<RectF>>()
         pinRects.clear()
         // QR mode: the window is the only thing in the middle (pins sat on top of it).
-        if (!qrWindow) pins.mapIndexed { i, p -> Triple(i, p, (p.bearingDeg - heading + 540) % 360 - 180) }.filter { kotlin.math.abs(it.third) <= 30f || it.first == pinFocus }
+        if (!qrWindow && !compact) pins.mapIndexed { i, p -> Triple(i, p, (p.bearingDeg - heading + 540) % 360 - 180) }.filter { kotlin.math.abs(it.third) <= 30f || it.first == pinFocus }
             .sortedBy { kotlin.math.abs(it.third) }.forEach { (idx, p, d0) -> val d = d0.coerceIn(-30f, 30f)
                 val cx = (w / 2 + d / 30f * (w / 2 - cw / 2)).coerceIn(cw / 2 + dp(6f), w - cw / 2 - dp(6f))
                 var row = 0
@@ -183,7 +185,7 @@ class HudOverlay(ctx: Context) : View(ctx) {
             c.drawText(s, dp(16f), y, pText)
         }
         // footer
-        if (footer.isNotEmpty()) {
+        if (footer.isNotEmpty() && !compact) {
             pText.textSize = sp(11f); pText.color = green
             c.drawText(footer, dp(16f), h - dp(14f), pText)
             pText.color = soft
