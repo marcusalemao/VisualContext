@@ -70,7 +70,7 @@
     }
     const max = Math.max(1, ...[...acc.values()].map(a => a.n));
     return [...acc.values()].map(a => ({ node: a.node, n: a.n, weight: Math.max(0.1, a.n / max), recency: Math.min(1, Math.max(0.05, (now - a.newest) / span)) }))
-      .sort((a, b) => b.weight - a.weight || a.recency - b.recency).slice(0, 12);
+      .sort((a, b) => b.weight - a.weight || a.recency - b.recency);
   }
 
   function defaultCenter() {
@@ -83,8 +83,11 @@
   window.teiaHtml = function () {
     if (!T.center) T.center = defaultCenter();
     const chips = SCALES.map(([k, l]) => `<button class="pill ${T.scale === k ? "on" : ""}" data-tscale="${k}">${l}</button>`).join("");
+    const mode = `<div class="seg" style="align-self:center"><button data-tmode="foco" class="${T.mode !== "rede" ? "on" : ""}">Foco</button><button data-tmode="rede" class="${T.mode === "rede" ? "on" : ""}">Rede inteira</button></div>`;
+    const kindChip = T.kind && T.mode !== "rede" ? `<button class="pill on" data-tkind="1">✕ só ${({ person: "pessoas", place: "lugares", day: "dias", memory: "lembranças", thing: "coisas", music: "músicas" })[T.kind]}</button>` : "";
     const trail = T.trail.length ? `<button class="pill" data-tback="1">← ${esc(T.trail[T.trail.length - 1].label)}</button>` : "";
     return `<div class="teia-top">${trail}<span class="muted" style="font-size:12px;align-self:center">${T.trail.map(x => esc(x.label) + " › ").join("")}<b style="color:var(--t)">${esc(T.center.label)}</b></span></div>
+      <div class="teia-top" style="margin-top:6px">${mode}${kindChip}</div>
       <div class="teia-top" style="margin-top:6px">${chips}</div>
       <div class="muted" style="display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;margin-top:8px">
         <span>○ pessoa</span><span>⬡ lugar</span><span>⬢ coisa</span><span>◇ música</span><span>✦ lembrança</span><span>▬ dia</span></div>
@@ -94,12 +97,21 @@
 
   window.teiaMount = function () {
     const box = document.getElementById("teia"); if (!box) return;
+    if (T.mode === "rede") { mountRede(box); return; }
     const W = Math.max(300, box.clientWidth), H = Math.max(560, Math.round(W * 1.55));
     const NW = 86, NH = 42, CR = 42;
     const cx = W / 2, cy = H / 2, maxRx = cx - NW / 2 - 8, maxRy = cy - NH / 2 - 8;
     // Nothing may sit on the centre: the inner ring clears it with room for a node (on both axes); the outer ring is the box edge.
     const inner = Math.min(Math.max((CR + NH / 2 + 12) / maxRy, (CR + NW / 2 + 8) / maxRx), 0.85);
-    const es = edges(T.center);
+    // Many connections (Mindomo idea, 09/11): one bubble per kind with its count; tapping it opens that kind only.
+    const KIND_NAME = { person: "Pessoas", place: "Lugares", day: "Dias", memory: "Lembranças", thing: "Coisas", music: "Músicas" };
+    let es = edges(T.center);
+    if (T.kind) es = es.filter(e => e.node.kind === T.kind).slice(0, 12);
+    else if (es.length > 9) {
+      const by = new Map(); for (const e of es) { const a = by.get(e.node.kind) || []; a.push(e); by.set(e.node.kind, a); }
+      es = [...by.entries()].map(([k, xs]) => xs.length === 1 ? xs[0] : ({ node: { kind: k, id: "hub:" + k, label: KIND_NAME[k] || k, sub: "abrir", hub: true }, n: xs.length,
+        weight: Math.min(1, xs.length / 10 + 0.2), recency: Math.min(...xs.map(x => x.recency)) }));
+    }
     const n = es.length;
     // Time sets the radius (recent near, old far). When everything is from the same moment (one day), the order
     // of recency still spreads them, so the rings read as "earlier today … later today".
@@ -132,7 +144,7 @@
         <rect x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" rx="${k === "day" ? h / 2 : 12}" fill="#0f1519" stroke="${col(k)}" stroke-opacity=".85" stroke-width="1.5"/>
         ${shape(k, -w / 2 + 13, 0, col(k))}
         <text x="${-w / 2 + 24}" y="${p.e.node.sub || p.e.n > 1 ? -5 : 4}" fill="#fff" font-size="11" font-weight="600">${esc(label(p.e.node.label, 11))}</text>
-        ${p.e.node.sub || p.e.n > 1 ? `<text x="${-w / 2 + 24}" y="11" fill="rgba(255,255,255,.6)" font-size="9.5">${esc(label(p.e.n > 1 ? p.e.n + "× " + (p.e.node.sub || "") : p.e.node.sub, 14))}</text>` : ""}
+        ${p.e.node.sub || p.e.n > 1 ? `<text x="${-w / 2 + 24}" y="11" fill="rgba(255,255,255,.6)" font-size="9.5">${esc(label(p.e.node.hub ? p.e.n + " · abrir" : p.e.n > 1 ? p.e.n + "× " + (p.e.node.sub || "") : p.e.node.sub, 18))}</text>` : ""}
       </g>`;
     });
     const ck = T.center.kind;
@@ -153,6 +165,7 @@
     const act = (g, long) => {
       if (g.dataset.tc) { if (long) showActions(box, { e: { node: T.center }, x: cx, y: cy - 1 }, cx, cy + 1); else openDetail(T.center); return; }
       const p = pos[+g.dataset.ti], node = p.e.node;
+      if (node.hub) { T.kind = node.kind; render(); return; }
       if (long) showActions(box, p, cx, cy);
       else if (node.kind === "person" || node.kind === "place" || node.kind === "day") pivot(node);
       else openDetail(node);
@@ -231,7 +244,78 @@
     g.querySelector(".dact").focus();
   }
 
-  function pivot(node) { T.trail = [...T.trail, T.center].slice(-8); T.center = node; render(); }
+  /**
+   * "Rede inteira" (from the first reference image, 09/11): everything in the time window as dots around you —
+   * people, places, things, songs — sized by how often they appear, with dotted links between what appeared
+   * together. Labels only for the biggest; tapping a dot shows its name, a second tap opens it in Foco.
+   */
+  function mountRede(box) {
+    const now = Date.now(), fs = facts().filter(f => inScale(f, now));
+    const nodes = new Map(), links = new Map();
+    const node = (k, id, label, ref) => { const key = k + ":" + id; const n = nodes.get(key) || { key, kind: k, id, label, ref, n: 0 }; n.n++; nodes.set(key, n); return key; };
+    for (const f of fs) {
+      const ks = [];
+      if (f.person) ks.push(node("person", (S.people.find(x => norm(x.name) === norm(f.person)) || {}).id || "nm:" + norm(f.person), f.person));
+      if (f.place) ks.push(node("place", "pl:" + f.place.k, f.place.name));
+      if (f.kind === "thing" || f.kind === "music") ks.push(node(f.kind, f.id, f.label, f.ref));
+      for (let i = 0; i < ks.length; i++) for (let j = i + 1; j < ks.length; j++) { const k = [ks[i], ks[j]].sort().join("|"); links.set(k, (links.get(k) || 0) + 1); }
+    }
+    const list = [...nodes.values()].sort((a, b) => b.n - a.n).slice(0, 160);
+    if (!list.length) { box.innerHTML = `<div class="empty">Nada nesta janela de tempo. Experimente uma escala maior.</div>`; return; }
+    const W = Math.max(300, box.clientWidth), H = Math.max(560, Math.round(W * 1.4)), cx = W / 2, cy = H / 2;
+    const max = Math.max(...list.map(n => n.n));
+    // A small, deterministic force layout: every dot pulled to you, pushed from the others, held by its links.
+    let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    list.forEach((n, i) => { const a = i * 2.39996, r = 40 + Math.sqrt(i + 1) * Math.min(W, H) * 0.045; n.x = cx + Math.cos(a) * r; n.y = cy + Math.sin(a) * r; n.r = 4 + 8 * Math.sqrt(n.n / max); n.vx = 0; n.vy = 0; });
+    const idx = new Map(list.map(n => [n.key, n]));
+    const L = [...links.entries()].map(([k, w]) => { const [a, b] = k.split("|"); return { a: idx.get(a), b: idx.get(b), w }; }).filter(l => l.a && l.b);
+    for (let it = 0; it < 220; it++) {
+      const cool = 1 - it / 220;
+      for (const n of list) { n.vx += (cx - n.x) * 0.0025 * (0.5 + n.n / max); n.vy += (cy - n.y) * 0.0025 * (0.5 + n.n / max); }
+      for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
+        const a = list[i], b = list[j]; let dx = a.x - b.x, dy = a.y - b.y; let d2 = dx * dx + dy * dy || 0.01; const min = (a.r + b.r + 10);
+        const f = Math.min(8, 2400 / d2) + (d2 < min * min ? 3 : 0); const d = Math.sqrt(d2); dx /= d; dy /= d;
+        a.vx += dx * f; a.vy += dy * f; b.vx -= dx * f; b.vy -= dy * f;
+      }
+      for (const l of L) { const dx = l.b.x - l.a.x, dy = l.b.y - l.a.y, d = Math.hypot(dx, dy) || 1, f = (d - 95) * 0.006 * Math.min(3, l.w); l.a.vx += dx / d * f; l.a.vy += dy / d * f; l.b.vx -= dx / d * f; l.b.vy -= dy / d * f; }
+      // keep clear of "you" in the middle
+      for (const n of list) { const dx = n.x - cx, dy = n.y - cy, d = Math.hypot(dx, dy) || 1; if (d < 64) { n.vx += dx / d * 6; n.vy += dy / d * 6; } }
+      for (const n of list) { n.x += n.vx * cool; n.y += n.vy * cool; n.vx *= 0.5; n.vy *= 0.5; n.x = Math.max(n.r + 4, Math.min(W - n.r - 4, n.x)); n.y = Math.max(n.r + 4, Math.min(H - n.r - 4, n.y)); }
+    }
+    const col = k => COLOR[k] || "var(--g2)";
+    let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="display:block">`;
+    for (const n of list) svg += `<line x1="${cx}" y1="${cy}" x2="${n.x.toFixed(1)}" y2="${n.y.toFixed(1)}" stroke="var(--g)" stroke-opacity="${(0.08 + 0.3 * n.n / max).toFixed(2)}" stroke-width="${(0.6 + 1.6 * n.n / max).toFixed(1)}"/>`;
+    for (const l of L) svg += `<line x1="${l.a.x.toFixed(1)}" y1="${l.a.y.toFixed(1)}" x2="${l.b.x.toFixed(1)}" y2="${l.b.y.toFixed(1)}" stroke="#ffc85c" stroke-opacity="${Math.min(0.75, 0.25 + 0.15 * l.w).toFixed(2)}" stroke-width="${Math.min(2.5, 0.7 + 0.4 * l.w).toFixed(1)}" stroke-dasharray="2 3"/>`;
+    // Names for the biggest dots only, and never on top of each other or of "você".
+    const big = new Set(), boxes = [[cx - 26, cy - 22, cx + 26, cy + 36]];
+    for (const n of list.slice(0, 14)) {
+      const t = n.label.length > 14 ? n.label.slice(0, 13) + "…" : n.label, w = t.length * 5.6, b = [n.x - w / 2, n.y + n.r + 1, n.x + w / 2, n.y + n.r + 14];
+      if (boxes.some(o => b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1])) continue;
+      boxes.push(b); big.add(n.key);
+    }
+    list.forEach((n, i) => {
+      svg += `<g class="dot" role="button" tabindex="0" data-di="${i}" aria-label="${esc(n.label)}, ${n.n} ${n.n === 1 ? "vez" : "vezes"}">
+        <circle cx="${n.x.toFixed(1)}" cy="${n.y.toFixed(1)}" r="${n.r.toFixed(1)}" fill="${col(n.kind)}" fill-opacity=".9" stroke="#0b0f12" stroke-width="1.5"/>
+        ${big.has(n.key) ? `<text x="${n.x.toFixed(1)}" y="${(n.y + n.r + 11).toFixed(1)}" text-anchor="middle" font-size="10" fill="#fff" paint-order="stroke" stroke="#0b0f12" stroke-width="3">${esc(n.label.length > 14 ? n.label.slice(0, 13) + "…" : n.label)}</text>` : ""}</g>`;
+    });
+    svg += `<g class="center"><circle cx="${cx}" cy="${cy}" r="16" fill="#a77bff" stroke="#fff" stroke-width="2"/><text x="${cx}" y="${cy + 30}" text-anchor="middle" font-size="11" font-weight="700" fill="#fff" paint-order="stroke" stroke="#0b0f12" stroke-width="3">você</text></g>
+      <g id="rede-tip"></g></svg>`;
+    box.innerHTML = svg + `<p class="muted" style="font-size:12px;margin:8px 12px">${list.length} pontos · tamanho = quantas vezes aparece · pontilhado amarelo = apareceram juntos. Toque num ponto para ver o nome; toque de novo para abrir.</p>`;
+    let picked = null;
+    const tip = box.querySelector("#rede-tip");
+    box.querySelectorAll("g.dot").forEach(g => {
+      const go = () => {
+        const n = list[+g.dataset.di];
+        if (picked === n.key) { pivot({ kind: n.kind, id: n.id, label: n.label, sub: "", ref: n.ref }); return; }
+        picked = n.key;
+        const w = Math.min(190, 16 + n.label.length * 6.3), x = Math.max(4, Math.min(W - w - 4, n.x - w / 2)), y = n.y - n.r - 34 < 4 ? n.y + n.r + 6 : n.y - n.r - 34;
+        tip.innerHTML = `<rect x="${x}" y="${y}" width="${w}" height="26" rx="8" fill="#0f291e" stroke="${col(n.kind)}"/><text x="${x + 8}" y="${y + 17}" font-size="11.5" fill="#fff">${esc(n.label.slice(0, 26))} · ${n.n}×</text>`;
+      };
+      g.addEventListener("click", go); g.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+    });
+  }
+
+  function pivot(node) { T.trail = [...T.trail, T.center].slice(-8); T.center = node; T.kind = null; T.mode = "foco"; render(); }
   function openDetail(node) {
     if (node.kind === "person") { const p = node.ref || S.people.find(x => x.id === node.id); if (p) open("person", p.id); else pivot(node); }
     else if (node.kind === "place") open("place", node.id);
@@ -241,7 +325,9 @@
   }
   window.teiaClick = function (d) {
     if (d.tscale) { T.scale = d.tscale; render(); return true; }
-    if (d.tback) { const prev = T.trail.pop(); if (prev) T.center = prev; render(); return true; }
+    if (d.tback) { const prev = T.trail.pop(); if (prev) T.center = prev; T.kind = null; render(); return true; }
+    if (d.tkind) { T.kind = null; render(); return true; }
+    if (d.tmode) { T.mode = d.tmode; render(); return true; }
     return false;
   };
   /** The Manager can send something to the middle of the web (e.g. from a person's page). */
