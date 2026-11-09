@@ -51,7 +51,7 @@ class Voice(ctx: Context) {
 
     companion object {
         /** "tela" | "tela_voz" | "voz" */
-        fun output(ctx: Context) = ctx.getSharedPreferences("visualcontext", Context.MODE_PRIVATE).getString("output", "tela") ?: "tela"
+        fun output(ctx: Context) = ctx.getSharedPreferences("visualcontext", Context.MODE_PRIVATE).getString("output", "tela_voz") ?: "tela_voz" // Marcus, 09/11: "por default deixa tela e áudio"
         fun phoneVoice(ctx: Context) = ctx.getSharedPreferences("visualcontext", Context.MODE_PRIVATE).getString("phone_voice", "") ?: ""
         fun setPhoneVoice(ctx: Context, v: String) { ctx.getSharedPreferences("visualcontext", Context.MODE_PRIVATE).edit().putString("phone_voice", v).apply() }
         fun setOutput(ctx: Context, v: String) { ctx.getSharedPreferences("visualcontext", Context.MODE_PRIVATE).edit().putString("output", v).apply() }

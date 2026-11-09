@@ -1,6 +1,7 @@
 package io.alema.visualcontext
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.DashPathEffect
@@ -30,10 +31,15 @@ class HudOverlay(ctx: Context) : View(ctx) {
 
     var labels: List<Label> = emptyList()
     var cardTitle: String? = null
-        set(v) { if (v != field) { cardButtons = emptyList(); buttonFocus = 0 }; field = v }
+        set(v) { if (v != field) { cardButtons = emptyList(); buttonFocus = 0; cardImage = null }; field = v }
     /** Where the top card was drawn (to keep pins below it and to close it with a tap). */
     var cardRect: RectF? = null; private set
     var cardLines: List<String> = emptyList()
+    /** A photo inside the card (where an object was last seen); cleared with the title. */
+    var cardImage: Bitmap? = null
+    /** The lyrics card (Marcus, 09/11): cover, title, previous / current / next line with three weights. */
+    data class Lyric(val title: String, val artist: String, val prev: String?, val cur: String?, val next: String?, val cover: Bitmap?)
+    var lyric: Lyric? = null
     var transcript: List<String> = emptyList()
     var footer: String = ""
     var arrow: String? = null
@@ -112,22 +118,37 @@ class HudOverlay(ctx: Context) : View(ctx) {
             c.drawRoundRect(RectF(x - dp(4f), y - sp(14f), x + tw + dp(4f), y + dp(6f)), dp(4f), dp(4f), pShadow)
             c.drawText(l.text, x, y, pTitle)
         }
+        lyric?.let { drawLyric(c, w, it) }
         // card (top left, ≤ 70 % width)
         if (cardTitle == null && cardRect != null) cardRect = null
-        cardTitle?.let { t ->
-            pTitle.textSize = sp(18f); pText.textSize = sp(13f)
+        if (lyric == null) cardTitle?.let { t ->
+            pTitle.textSize = sp(17f); pText.textSize = sp(12.5f)
             val cw = minOf(w * 0.7f, dp(340f)); val pad = dp(12f)
-            // Lines wrap instead of ending in "…" (Marcus, 08/11): up to 3 rows each, 8 in all.
-            val lines = cardLines.flatMap { wrap(it, pText, cw - 2 * pad).let { w -> if (w.size > 3) w.take(2) + fit(w.drop(2).joinToString(" "), pText, cw - 2 * pad) else w } }.take(8)
+            // Nothing ends in "…" (Marcus, 09/11): the title wraps to 2 rows, each line to 4 rows, 10 rows in all.
+            val titleRows = wrap(t.uppercase(), pTitle, cw - 2 * pad, 2)
+            val lines = cardLines.flatMap { wrap(it, pText, cw - 2 * pad, 4) }.take(10)
+            val img = cardImage; val ih = if (img == null) 0f else minOf(dp(120f), (cw - 2 * pad) * img.height / img.width) + dp(8f)
             val bh = if (cardButtons.isEmpty()) 0f else dp(48f) + dp(8f)
-            val ch = pad + sp(20f) + dp(8f) + lines.size * sp(17f) + pad + bh
+            val th = titleRows.size * sp(20f)
+            val ch = pad + th + dp(8f) + ih + lines.size * sp(16f) + pad + bh
             val r = RectF(dp(16f), dp(16f), dp(16f) + cw, dp(16f) + ch)
             if (cardRect != r) { cardRect = r; post { invalidate() } } // pins are laid out from this
             c.drawRoundRect(r, dp(12f), dp(12f), pShadow)
             c.drawRoundRect(r, dp(12f), dp(12f), pStroke)
-            c.drawText(fit(t.uppercase(), pTitle, cw - 2 * pad), r.left + pad, r.top + pad + sp(16f), pTitle)
-            c.drawLine(r.left + pad, r.top + pad + sp(22f), r.right - pad, r.top + pad + sp(22f), pStroke)
-            lines.forEachIndexed { i, s -> c.drawText(s, r.left + pad, r.top + pad + sp(22f) + dp(6f) + (i + 1) * sp(17f) - dp(3f), pText) }
+            titleRows.forEachIndexed { i, row -> c.drawText(row, r.left + pad, r.top + pad + sp(16f) + i * sp(20f), pTitle) }
+            val sep = r.top + pad + th + dp(2f)
+            c.drawLine(r.left + pad, sep, r.right - pad, sep, pStroke)
+            var y = sep + dp(6f)
+            if (img != null) {
+                val iw = cw - 2 * pad; val hh = ih - dp(8f)
+                val dst = RectF(r.left + pad, y, r.left + pad + iw, y + hh)
+                val sc = maxOf(iw / img.width, hh / img.height); val sw = iw / sc; val sh = hh / sc
+                val src = android.graphics.Rect(((img.width - sw) / 2).toInt(), ((img.height - sh) / 2).toInt(), ((img.width + sw) / 2).toInt(), ((img.height + sh) / 2).toInt())
+                c.save(); c.clipPath(android.graphics.Path().apply { addRoundRect(dst, dp(8f), dp(8f), android.graphics.Path.Direction.CW) })
+                c.drawBitmap(img, src, dst, null); c.restore()
+                y += ih
+            }
+            lines.forEachIndexed { i, s -> c.drawText(s, r.left + pad, y + (i + 1) * sp(16f) - dp(3f), pText) }
             // Buttons on the card itself (Marcus, 08/11: "toque ou diga sim" had no Yes on the screen). 48 dp to tap.
             buttonRects.clear()
             if (cardButtons.isNotEmpty()) {
@@ -192,10 +213,13 @@ class HudOverlay(ctx: Context) : View(ctx) {
                 continue
             }
             // The card: right of the head, or left when there is no room; top aligned with the forehead, inside the useful area.
-            pTitle.textSize = sp(16f); pText.textSize = sp(12f)
-            val cw = minOf(w * 0.55f, dp(260f)); val pad = dp(10f)
-            val lines = f.lines.map { fit(it, pText, cw - 2 * pad) }
-            val ch = pad + sp(18f) + dp(6f) + lines.size * sp(16f) + pad
+            pTitle.textSize = sp(15f); pText.textSize = sp(11.5f)
+            val cw = minOf(w * 0.6f, dp(280f)); val pad = dp(10f)
+            // Wrapped, never cut (Marcus, 09/11): title up to 2 rows, each line up to 4.
+            val titleRows = wrap(f.title.uppercase(), pTitle, cw - 2 * pad, 2)
+            val lines = f.lines.flatMap { wrap(it, pText, cw - 2 * pad, 4) }.take(10)
+            val th = titleRows.size * sp(18f)
+            val ch = pad + th + dp(6f) + lines.size * sp(15f) + pad
             var left = cx + fw / 2 + dp(14f)
             if (left + cw > w - dp(8f)) left = cx - fw / 2 - dp(14f) - cw
             left = left.coerceIn(dp(8f), w - cw - dp(8f))
@@ -211,15 +235,54 @@ class HudOverlay(ctx: Context) : View(ctx) {
                 val ty = r.top - dp(8f)
                 c.drawRect(r.left, ty - sp(14f), r.left + pTitle.measureText(t) + dp(6f), ty + dp(4f), pShadow)
                 c.drawText(t, r.left + dp(2f), ty, pTitle)
-                pTitle.textSize = sp(16f)
+                pTitle.textSize = sp(15f)
             }
             c.drawRoundRect(r, dp(10f), dp(10f), pShadow)
             c.drawRoundRect(r, dp(10f), dp(10f), stroke)
-            c.drawText(fit(f.title.uppercase(), pTitle, cw - 2 * pad), r.left + pad, r.top + pad + sp(14f), pTitle)
-            c.drawLine(r.left + pad, r.top + pad + sp(20f), r.right - pad, r.top + pad + sp(20f), stroke)
-            lines.forEachIndexed { i, s -> c.drawText(s, r.left + pad, r.top + pad + sp(20f) + dp(4f) + (i + 1) * sp(16f) - dp(3f), pText) }
+            titleRows.forEachIndexed { i, row -> c.drawText(row, r.left + pad, r.top + pad + sp(14f) + i * sp(18f), pTitle) }
+            val sep = r.top + pad + th + dp(2f)
+            c.drawLine(r.left + pad, sep, r.right - pad, sep, stroke)
+            lines.forEachIndexed { i, s -> c.drawText(s, r.left + pad, sep + dp(4f) + (i + 1) * sp(15f) - dp(3f), pText) }
         }
         if (moving) postInvalidateOnAnimation()
+    }
+
+    /** Cover on the left, title and artist, then the line before (faint), the current (bold) and the next (half). */
+    private fun drawLyric(c: Canvas, w: Float, l: Lyric) {
+        val cw = minOf(w * 0.78f, dp(360f)); val pad = dp(12f); val cover = dp(64f)
+        val textW = cw - 2 * pad - (if (l.cover != null) cover + dp(10f) else 0f)
+        pTitle.textSize = sp(15f); pText.textSize = sp(11f)
+        val title = wrap(l.title, pTitle, textW, 2); val artist = wrap(l.artist, pText, textW, 1)
+        val head = maxOf(if (l.cover != null) cover else 0f, title.size * sp(18f) + artist.size * sp(14f))
+        val pLine = Paint(pText).apply { textSize = sp(14f) }
+        val pCur = Paint(pTitle).apply { textSize = sp(16f); isFakeBoldText = true }
+        val prev = l.prev?.let { wrap(it, pLine, cw - 2 * pad, 2) } ?: emptyList()
+        val cur = l.cur?.let { wrap(it, pCur, cw - 2 * pad, 3) } ?: emptyList()
+        val next = l.next?.let { wrap(it, pLine, cw - 2 * pad, 2) } ?: emptyList()
+        val body = prev.size * sp(18f) + cur.size * sp(21f) + next.size * sp(18f) + (if (prev.isNotEmpty() || next.isNotEmpty()) dp(8f) else 0f)
+        val ch = pad + head + dp(10f) + body + pad
+        val r = RectF(dp(16f), dp(16f), dp(16f) + cw, dp(16f) + ch)
+        if (cardRect != r) { cardRect = r; post { invalidate() } }
+        c.drawRoundRect(r, dp(12f), dp(12f), pShadow); c.drawRoundRect(r, dp(12f), dp(12f), pStroke)
+        var x = r.left + pad
+        l.cover?.let { b ->
+            val dst = RectF(x, r.top + pad, x + cover, r.top + pad + cover)
+            c.save(); c.clipPath(android.graphics.Path().apply { addRoundRect(dst, dp(8f), dp(8f), android.graphics.Path.Direction.CW) })
+            c.drawBitmap(b, null, dst, null); c.restore(); x += cover + dp(10f)
+        }
+        var y = r.top + pad + sp(14f)
+        title.forEach { c.drawText(it, x, y, pTitle); y += sp(18f) }
+        artist.forEach { c.drawText(it, x, y - dp(2f), pText); y += sp(14f) }
+        y = r.top + pad + head + dp(10f)
+        // Three weights (Marcus, 09/11): the line sung now bold and full green, the one before faint, the next in between.
+        pLine.color = green; pLine.alpha = 95
+        prev.forEach { y += sp(18f); c.drawText(it, r.left + pad, y - dp(4f), pLine) }
+        if (prev.isNotEmpty()) y += dp(4f)
+        cur.forEach { y += sp(21f); c.drawText(it, r.left + pad, y - dp(4f), pCur) }
+        if (next.isNotEmpty()) y += dp(4f)
+        pLine.alpha = 170
+        next.forEach { y += sp(18f); c.drawText(it, r.left + pad, y - dp(4f), pLine) }
+        pText.color = soft
     }
 
     private fun drawQrWindow(c: Canvas, w: Float, useful: Float) {
@@ -240,13 +303,15 @@ class HudOverlay(ctx: Context) : View(ctx) {
         c.drawText(qrHint, (w - tw) / 2, r.top - dp(13f), pTitle)
     }
 
-    private fun wrap(t: String, p: Paint, max: Float): List<String> {
+    private fun wrap(t: String, p: Paint, max: Float, rows: Int = 99): List<String> {
         val out = ArrayList<String>(); var line = ""
         for (word in t.split(Regex("\\s+"))) {
             val tryL = if (line.isEmpty()) word else "$line $word"
             if (p.measureText(tryL) <= max || line.isEmpty()) line = tryL else { out += line; line = word }
         }
         if (line.isNotEmpty()) out += line
+        // Over the row limit: the last row carries what is left, and only then an ellipsis.
+        if (out.size > rows) { val keep = out.take(rows - 1); return (keep + out.drop(rows - 1).joinToString(" ")).map { fit(it, p, max) } }
         return out.map { fit(it, p, max) }
     }
 
@@ -257,5 +322,5 @@ class HudOverlay(ctx: Context) : View(ctx) {
         return "$s…"
     }
 
-    fun clearCard() { cardTitle = null; cardLines = emptyList(); labels = emptyList(); faces = emptyList(); arrow = null; invalidate() }
+    fun clearCard() { cardTitle = null; cardLines = emptyList(); lyric = null; labels = emptyList(); faces = emptyList(); arrow = null; invalidate() }
 }

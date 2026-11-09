@@ -52,4 +52,15 @@ object Frames {
         }
         return out
     }
+
+    /** A 16×12 grey thumbnail of the frame, for telling whether the scene changed. */
+    fun signature(jpeg: ByteArray): IntArray? {
+        val b = bitmap(jpeg, 64) ?: return null
+        val s = Bitmap.createScaledBitmap(b, 16, 12, true)
+        val out = IntArray(16 * 12)
+        for (y in 0 until 12) for (x in 0 until 16) { val p = s.getPixel(x, y); out[y * 16 + x] = ((p shr 16 and 255) * 3 + (p shr 8 and 255) * 6 + (p and 255)) / 10 }
+        return out
+    }
+    /** 0 = identical, 1 = completely different. */
+    fun diff(a: IntArray, b: IntArray): Float { var d = 0L; for (i in a.indices) d += kotlin.math.abs(a[i] - b[i]); return d / (255f * a.size) }
 }

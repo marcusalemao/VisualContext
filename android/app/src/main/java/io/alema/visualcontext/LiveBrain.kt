@@ -34,8 +34,11 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
         fun onYes(): Boolean = false
         /** Where we are, in words, for memories made by tools (blocking, may be null). */
         fun placeName(): String? = null
-        /** A lyric line on the lens (replaces the card, no auto-close while it runs). */
-        fun onLyric(title: String, lines: List<String>) { onBrief(title, lines) }
+        /** The lyrics card on the lens: cover, title, previous / current / next line. */
+        fun onLyric(title: String, artist: String, prev: String?, cur: String?, next: String?, cover: android.graphics.Bitmap?) { onBrief("♪ $title", listOfNotNull(cur)) }
+        fun onLyricEnd() {}
+        /** Where an object was last seen, with its photo when there is one. */
+        fun onThing(name: String, where: String, whenTxt: String, photo: android.graphics.Bitmap?) { onBrief("⌖ $name", listOf(where, whenTxt)) }
         /** Another app (the music player) took the screen: bring the glasses view back. */
         fun comeBack() {}
         /** A paper or label was read: the lens offers what to do with it (pills). */
@@ -102,7 +105,7 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
             Skills.refresh(ctx)
             MyPlaces.refresh(ctx)
             val placeHint = Where.location(ctx)?.let { loc -> MyPlaces.askHint(ctx, loc) } ?: ""
-            live.extraTools = Skills.tools(ctx).put(Music.tool()).put(Recall.tool()).put(MyPlaces.tool()).put(Agenda.tool()).also { a -> Things.tools().forEach { a.put(it) }; Player.tools().forEach { a.put(it) }; if (Claude.provider(Claude.key(ctx)).isNotEmpty()) a.put(Claude.tool(ctx)) }
+            live.extraTools = Skills.tools(ctx).put(Music.tool()).put(Recall.tool()).put(MyPlaces.tool()).put(Agenda.tool()).also { a -> Things.tools().forEach { a.put(it) }; Player.tools().forEach { a.put(it) }; if (Claude.provider(Claude.key(ctx)).isNotEmpty()) a.put(Claude.tool(ctx)); Things.names(ctx).takeIf { it.isNotEmpty() }?.let { n -> a.put(Things.seenTool(n)) } }
             live.extraSystem = Skills.system(ctx) + " MÚSICA: se ele perguntar que música está tocando, chame identificar_musica e espere; não adivinhe. \"Toca…\" / \"quero ouvir…\" → tocar_musica; pausar, pular, voltar → controlar_musica; \"mostra a letra\" → mostrar_letra." + Things.SYSTEM +
                 (if (Claude.provider(Claude.key(ctx)).isNotEmpty()) " OUTRO ASSISTENTE: ele configurou o ${Claude.friendlyName(ctx)}. \"Quero falar com o ${Claude.friendlyName(ctx)}\" (ou com o nome parecido que a transcrição escrever, ex. Groc) → chame outro_assistente com cada fala dele, sem criar habilidade e sem julgar o tom (o estilo é escolha dele e quem responde é o outro), até ele dizer \"volta\"." else "") +
                 " LER: quando ele pedir para ler algo (\"o que está escrito\", etiqueta, bula, placa), diga só \"deixa eu ler\" e espere: o app lê em alta resolução e manda o texto; nunca diga que não consegue ler antes disso." +
@@ -344,10 +347,21 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
                     else { main.post { host.onBrief(a.title.removePrefix("✦ "), a.lines) }; JSONObject().put("resposta", a.say).put("diga", a.say) }
                 }
                 Things.TOOL_KEEP -> {
-                    val name = call.args.optString("nome").ifEmpty { "objeto" }; val where = call.args.optString("onde").ifEmpty { null }
-                    val ok = Things.keep(ctx, name, where, host.frame(), host.placeName())
+                    val name = call.args.optString("nome").ifEmpty { "objeto" }; val said = call.args.optString("onde").ifEmpty { null }
+                    val (ok, where) = Things.keep(ctx, name, said, host.frame(), host.placeName())
+                    Things.forgetNames()
                     main.post { host.onSaved("$name guardado"); host.onBrief("⌖ $name", listOf(where ?: "", if (ok) "guardado na memória" else "guardado; envia quando tiver rede")) }
                     JSONObject().put("ok", true).put("diga", "Guardei: $name" + (where?.let { " em $it" } ?: "") + ".")
+                }
+                Things.TOOL_SEEN -> { // the camera saw one of his objects somewhere: written silently
+                    val name = call.args.optString("nome").lowercase(); val where = call.args.optString("onde").trim('.', ' ').lowercase()
+                    if (name.isBlank() || where.isBlank() || where.contains("na mão")) JSONObject().put("ok", false)
+                    else if (!Things.worthSaving(name, where)) JSONObject().put("ok", true).put("ja_anotado", true)
+                    else {
+                        Things.keep(ctx, name, where, host.frame(), host.placeName())
+                        main.post { host.onBrief("⌖ $name", listOf(where, "visto agora")) }
+                        JSONObject().put("ok", true).put("diga", "nada: não comente")
+                    }
                 }
                 Things.TOOL_FIND -> {
                     val q = call.args.optString("objeto")
@@ -355,7 +369,9 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
                     if (f.isEmpty()) JSONObject().put("resultado", "nenhum registro de \"$q\"").put("diga", "Não tenho registro de onde você deixou $q. Posso olhar agora, se quiser.")
                     else {
                         val t = f[0]; val whenTxt = runCatching { java.text.SimpleDateFormat("EEE HH:mm", java.util.Locale("pt", "BR")).format(java.time.OffsetDateTime.parse(t.at).toInstant().toEpochMilli()) }.getOrDefault("")
-                        main.post { host.onBrief("⌖ ${t.name}", listOf(t.where ?: "lugar não anotado", whenTxt)) }
+                        // The photo of when it was last seen goes to the lens (Marcus, 09/11: "ele devia ter mostrado a foto").
+                        val img = t.snapshot?.substringAfter("base64,", "")?.takeIf { it.isNotEmpty() }?.let { b -> runCatching { Base64.decode(b, Base64.DEFAULT) }.getOrNull()?.let { android.graphics.BitmapFactory.decodeByteArray(it, 0, it.size) } }
+                        main.post { host.onThing(t.name, t.where ?: "lugar não anotado", whenTxt, img) }
                         JSONObject().put("objeto", t.name).put("onde", t.where ?: "").put("quando", t.at).put("diga", "Você deixou ${t.name}" + (t.where?.let { " em $it" } ?: "") + (if (whenTxt.isNotEmpty()) ", $whenTxt" else "") + ".")
                     }
                 }
@@ -398,7 +414,7 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
                 }
                 Player.TOOL_CTRL -> JSONObject().put("ok", Player.control(ctx, call.args.optString("acao")))
                 Player.TOOL_LYRICS -> {
-                    if (call.args.optBoolean("parar")) { Player.stopLyrics(); main.post { host.onBrief("♪", listOf("letra fechada")) }; JSONObject().put("ok", true) }
+                    if (call.args.optBoolean("parar")) { Player.stopLyrics(); main.post { host.onLyricEnd() }; JSONObject().put("ok", true) }
                     else {
                         val last = Player.lastSong
                         val t = call.args.optString("musica").ifBlank { last?.first ?: "" }; val a = call.args.optString("artista").ifBlank { last?.second ?: "" }
@@ -409,7 +425,8 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
                             else {
                                 val same = last != null && last.first.equals(t, true)
                                 val pos = if (same) Player.lastPosMs else -1L
-                                main.post { Player.showLyrics(l, pos, Player.lastAt) { ti, li -> host.onLyric(ti, li) } }
+                                val cover = Player.cover(l.title, l.artist)
+                                main.post { Player.showLyrics(l, pos, Player.lastAt) { pv, cu, nx -> host.onLyric(l.title, l.artist, pv, cu, nx, cover) } }
                                 JSONObject().put("na_lente", if (l.synced.isNotEmpty() && pos >= 0) "letra sincronizada" else "começo da letra").put("diga", "Pronto, a letra está na lente.")
                             }
                         }

@@ -39,6 +39,51 @@ object Describe {
         } catch (_: Exception) { null }
     }
 
+    /** One question about one photo, plain text answer (first non-thought part). Blocking; null on failure. */
+    fun vision(ctx: Context, jpeg: ByteArray, prompt: String, maxTokens: Int = 700): String? {
+        val key = Backend.geminiKey(ctx); if (key.length < 20) return null
+        val model = textModel(ctx, key) ?: return null
+        val body = JSONObject().put("contents", JSONArray().put(JSONObject().put("parts", JSONArray()
+            .put(JSONObject().put("text", prompt))
+            .put(JSONObject().put("inlineData", JSONObject().put("mimeType", "image/jpeg").put("data", Base64.encodeToString(jpeg, Base64.NO_WRAP)))))))
+            .put("generationConfig", JSONObject().put("maxOutputTokens", maxTokens).put("temperature", 0.2))
+        return try {
+            val c = (URL("https://generativelanguage.googleapis.com/v1beta/$model:generateContent").openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"; connectTimeout = 10_000; readTimeout = 30_000; doOutput = true
+                setRequestProperty("Content-Type", "application/json"); setRequestProperty("x-goog-api-key", key)
+            }
+            c.outputStream.use { it.write(body.toString().toByteArray()) }
+            if (c.responseCode !in 200..299) { if (c.responseCode in listOf(400, 403, 404)) Backend.markBadModel(ctx, model); return null }
+            val parts = JSONObject(c.inputStream.bufferedReader().readText()).optJSONArray("candidates")?.optJSONObject(0)?.optJSONObject("content")?.optJSONArray("parts") ?: return null
+            (0 until parts.length()).mapNotNull { parts.optJSONObject(it) }.filter { !it.optBoolean("thought") }.joinToString("") { it.optString("text") }.trim().ifBlank { null }
+        } catch (_: Exception) { null }
+    }
+
+    /**
+     * Marcus, 09/11: "só o endereço não é suficiente: preciso saber se deixei na mesa, no sofá, embaixo do travesseiro".
+     * Where the object is in this photo, with what is around it as a reference (for a motorbike, the street side, the shop).
+     */
+    fun whereIs(ctx: Context, jpeg: ByteArray, name: String): String? =
+        vision(ctx, jpeg, "Nesta foto, onde está \"$name\"? Responda em português, até 12 palavras, só o lugar concreto e uma referência ao lado, " +
+            "como alguém diria para outra pessoa achar: \"na mesa de cabeceira, ao lado do abajur\", \"no sofá, em cima da almofada cinza\", " +
+            "\"na calçada em frente à padaria, perto do poste\". Se estiver na mão de alguém, diga \"na mão\". Se o objeto não aparecer, responda só: não vejo. Sem ponto final.")
+            ?.lines()?.first()?.trim('.', '"', ' ')?.lowercase()?.take(90)?.takeIf { it.isNotBlank() && !it.startsWith("não vejo") }
+
+    /**
+     * Which of the user's registered objects are in view, and where (the automatic "last seen"). Returns name → place;
+     * empty when none. Objects in someone's hand are skipped (they are moving, not left somewhere).
+     */
+    fun spotThings(ctx: Context, jpeg: ByteArray, names: List<String>): Map<String, String> {
+        val txt = vision(ctx, jpeg, "O usuário tem estes objetos: ${names.joinToString(", ")}. Quais deles aparecem NESTA foto, parados em algum lugar (não na mão de alguém)? " +
+            "Responda só JSON, uma lista: [{\"nome\": \"<nome exatamente como na lista>\", \"onde\": \"<lugar concreto e referência ao lado, até 12 palavras>\"}]. " +
+            "Só inclua se tiver certeza de que é o objeto. Se nenhum, responda []. Em português.") ?: return emptyMap()
+        return try {
+            val a = JSONArray(txt.removePrefix("```json").removePrefix("```").removeSuffix("```").trim())
+            (0 until a.length()).mapNotNull { a.optJSONObject(it) }.mapNotNull { o -> val n = o.optString("nome"); val w = o.optString("onde").trim('.', ' ').lowercase()
+                if (n.isBlank() || w.isBlank() || names.none { it.equals(n, true) }) null else names.first { it.equals(n, true) } to w.take(90) }.toMap()
+        } catch (_: Exception) { emptyMap() }
+    }
+
     /**
      * The memory version of a conversation with the assistant (07/11): reading for the user is help, not memory.
      * Keeps the user's words and decisions; long readings (menu, sign, leaflet, book page) become one line.

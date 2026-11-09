@@ -107,22 +107,38 @@ object Player {
         lastAt = SystemClock.elapsedRealtime()
     }
 
+    /** Album cover from the iTunes search API (free, no key); null when nothing matches. Blocking. */
+    fun cover(title: String, artist: String): android.graphics.Bitmap? = try {
+        val u = "https://itunes.apple.com/search?media=music&entity=song&limit=1&term=" + URLEncoder.encode("$artist $title", "UTF-8")
+        val c = (URL(u).openConnection() as HttpURLConnection).apply { connectTimeout = 6000; readTimeout = 8000 }
+        val j = JSONObject(c.inputStream.bufferedReader().readText()).optJSONArray("results")?.optJSONObject(0)
+        val art = j?.optString("artworkUrl100")?.replace("100x100bb", "300x300bb")
+        if (art.isNullOrBlank()) null else (URL(art).openConnection() as HttpURLConnection).apply { connectTimeout = 6000; readTimeout = 8000 }.inputStream.use { android.graphics.BitmapFactory.decodeStream(it) }
+    } catch (_: Exception) { null }
+
     private var ticker: Runnable? = null
     fun stopLyrics() { ticker?.let { main.removeCallbacks(it) }; ticker = null }
 
     /**
-     * Shows the lyrics on the lens through [show] (title, lines). Synced: the current line in the middle, the one
-     * before and after around it, following the clock from the last identification. Plain: the first lines.
+     * Shows the lyrics on the lens through [show] (previous, current, next line). Synced: follows the clock from the
+     * last identification (AudD says where in the song the fragment was). Plain: walks the text at reading pace.
      */
-    fun showLyrics(l: Lyrics, startPosMs: Long, startAt: Long, show: (String, List<String>) -> Unit) {
+    fun showLyrics(l: Lyrics, startPosMs: Long, startAt: Long, show: (String?, String?, String?) -> Unit) {
         stopLyrics()
-        val title = "♪ " + l.title
-        if (l.synced.isEmpty() || startPosMs < 0) { show(title, l.plain.take(6)); return }
+        if (l.synced.isEmpty() || startPosMs < 0) {
+            // No timing: three lines at a time, advancing every 4 s, so the whole text is readable.
+            var i = 0; val lines = l.plain.ifEmpty { l.synced.map { it.text } }
+            val r = object : Runnable { override fun run() {
+                show(lines.getOrNull(i - 1), lines.getOrNull(i), lines.getOrNull(i + 1)); i++
+                if (i < lines.size) main.postDelayed(this, 4000) else ticker = null
+            } }
+            ticker = r; main.post(r); return
+        }
         var last = -2
         val r = object : Runnable { override fun run() {
             val pos = startPosMs + (SystemClock.elapsedRealtime() - startAt)
             val i = l.synced.indexOfLast { it.ms <= pos }
-            if (i != last) { last = i; show(title, listOfNotNull(l.synced.getOrNull(i - 1)?.text?.let { "  $it" }, l.synced.getOrNull(i)?.text?.let { "▸ $it" } ?: "…", l.synced.getOrNull(i + 1)?.text?.let { "  $it" })) }
+            if (i != last) { last = i; show(l.synced.getOrNull(i - 1)?.text, l.synced.getOrNull(i)?.text ?: "…", l.synced.getOrNull(i + 1)?.text) }
             if (i < l.synced.size - 1 || pos < l.synced.last().ms + 6000) main.postDelayed(this, 250) else ticker = null
         } }
         ticker = r; main.post(r)

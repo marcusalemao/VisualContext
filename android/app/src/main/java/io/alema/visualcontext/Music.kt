@@ -90,7 +90,7 @@ object Things {
             .put("description", "Onde o usuário deixou um objeto, pela memória visual: \"onde deixei as chaves?\", \"cadê meu carregador?\". Chame ANTES de olhar a câmera; responda com o lugar e quando foi.")
             .put("parameters", JSONObject().put("type", "OBJECT").put("properties", JSONObject().put("objeto", JSONObject().put("type", "STRING"))).put("required", JSONArray().put("objeto"))),
     )
-    const val SYSTEM = " OBJETOS: quando ele mostrar ou nomear um objeto seu (\"essas são minhas chaves\"), chame guardar_objeto; nunca transforme isso em nota. Quando perguntar onde deixou algo, chame onde_deixei primeiro e só depois, se não houver registro, olhe a câmera."
+    const val SYSTEM = " OBJETOS: quando ele mostrar ou nomear um objeto seu (\"essas são minhas chaves\"), chame guardar_objeto; nunca transforme isso em nota. Quando perguntar onde deixou algo, chame onde_deixei primeiro e só depois, se não houver registro, olhe a câmera. A resposta de onde_deixei traz o lugar exato e a foto de quando foi visto já aparece na lente: diga o lugar e \"a foto está na lente\"; nunca diga que não pode mostrar o passado."
 
     /** Current frame as a small JPEG (base64), or null. */
     fun snapshot(jpeg: ByteArray?): String? = jpeg?.let {
@@ -100,14 +100,49 @@ object Things {
         android.util.Base64.encodeToString(o.toByteArray(), android.util.Base64.NO_WRAP)
     }
 
-    fun keep(ctx: Context, name: String, where: String?, jpeg: ByteArray?, place: String?): Boolean {
+    /**
+     * Saves where an object is now. [where] is what the user said; when empty, the photo is asked where the object is
+     * (Marcus, 09/11: "na mesa, no sofá, embaixo do travesseiro" — the address alone is useless). Returns the place saved.
+     */
+    fun keep(ctx: Context, name: String, where: String?, jpeg: ByteArray?, place: String?): Pair<Boolean, String?> {
         val loc = Where.location(ctx)
-        val body = JSONObject().put("action", "thing").put("name", name).put("location_description", listOfNotNull(where?.takeIf { it.isNotBlank() }, place).joinToString(" · ").ifEmpty { null })
+        val seen = if (where.isNullOrBlank() && jpeg != null) Frames.shrink(jpeg, 1024)?.let { Describe.whereIs(ctx, it, name) } else null
+        val spot = where?.takeIf { it.isNotBlank() } ?: seen
+        val body = JSONObject().put("action", "thing").put("name", name).put("location_description", listOfNotNull(spot, place).joinToString(" · ").ifEmpty { null })
             .put("snapshot", snapshot(jpeg)).apply { if (loc != null) put("lat", loc.latitude).put("lng", loc.longitude) }
         val r = Backend.post(ctx, body)
-        if (r == null) { Moments.send(ctx, body); return false } // offline: queued, goes later
-        return true
+        if (r == null) { Moments.send(ctx, body); return false to spot } // offline: queued, goes later
+        return true to spot
     }
+
+    // ── Automatic "last seen" (Marcus, 09/11: "isso devia ser automático") ──
+    /** Names of the user's objects (cached for 10 min), so the camera can look for them. */
+    @Volatile private var namesAt = 0L; @Volatile private var namesCache: List<String> = emptyList()
+    fun names(ctx: Context): List<String> {
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (now - namesAt < 600_000) return namesCache
+        namesAt = now
+        val r = Backend.post(ctx, JSONObject().put("action", "list").put("entity", "thing").put("limit", 200)) ?: return namesCache
+        val a = runCatching { JSONArray(r) }.getOrNull() ?: return namesCache
+        namesCache = (0 until a.length()).mapNotNull { a.optJSONObject(it)?.optString("name")?.trim()?.lowercase()?.takeIf { n -> n.isNotBlank() } }.distinct().take(30)
+        return namesCache
+    }
+    fun forgetNames() { namesAt = 0L }
+    /** The same object in the same spot is not written twice within 15 min. */
+    private val lastSpot = HashMap<String, Pair<String, Long>>()
+    fun worthSaving(name: String, where: String): Boolean {
+        val now = android.os.SystemClock.elapsedRealtime(); val last = lastSpot[name]
+        val same = last != null && now - last.second < 900_000 && (last.first == where || last.first.take(12) == where.take(12))
+        if (!same) lastSpot[name] = where to now
+        return !same
+    }
+
+    const val TOOL_SEEN = "vi_objeto"
+    fun seenTool(names: List<String>): JSONObject = JSONObject().put("name", TOOL_SEEN)
+        .put("description", "Chame, sem dizer nada, quando vir na câmera um dos objetos do usuário parado em algum lugar (não na mão): ${names.joinToString(", ")}. Assim ele sabe depois onde deixou.")
+        .put("parameters", JSONObject().put("type", "OBJECT").put("properties", JSONObject()
+            .put("nome", JSONObject().put("type", "STRING").put("description", "o objeto, com o nome da lista"))
+            .put("onde", JSONObject().put("type", "STRING").put("description", "lugar concreto e referência ao lado: na mesa da sala, ao lado do controle"))).put("required", JSONArray().put("nome").put("onde")))
 
     data class Found(val name: String, val where: String?, val at: String, val snapshot: String?)
     fun find(ctx: Context, name: String): List<Found> {

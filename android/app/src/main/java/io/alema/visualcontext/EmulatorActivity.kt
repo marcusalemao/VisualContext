@@ -123,16 +123,14 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         }
         // Lens on top, buttons in their own strip below it (never under the Android navigation bar).
         val lens = FrameLayout(this).apply { setBackgroundColor(Color.BLACK); addView(preview); addView(hud) }
-        // Things only this phone test has (Marcus, 08/11): on the video, not in the glasses' controls.
+        // The only thing this phone test has that the glasses don't: which camera. A bare icon on the video (Marcus, 09/11),
+        // top right, out of the lens cards' way; no pill, a dark halo gives the contrast.
         val dp = resources.displayMetrics.density
-        fun chip(t: String, desc: String, g: Int, cb: () -> Unit) = Button(this).apply {
-            text = t; textSize = 13f; isAllCaps = false; setTextColor(Color.WHITE); contentDescription = desc; minHeight = (44 * dp).toInt(); minWidth = (44 * dp).toInt()
-            background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = 22 * dp; setColor(Color.argb(190, 0, 0, 0)); setStroke((1.5f * dp).toInt(), Color.argb(140, 255, 255, 255)) }
-            setPadding((14 * dp).toInt(), 0, (14 * dp).toInt(), 0); setOnClickListener { cb() }
-            layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, g).apply { setMargins((10 * dp).toInt(), (10 * dp).toInt(), (10 * dp).toInt(), (10 * dp).toInt()) }
-        }
-        lens.addView(chip("✕ Encerrar", "Encerrar o emulador (para de ouvir e de filmar)", Gravity.TOP or Gravity.END) { finish() })
-        lens.addView(chip("⟲", "Trocar a câmera do celular", Gravity.BOTTOM or Gravity.END) { front = !front; startCamera() })
+        lens.addView(android.widget.ImageButton(this).apply {
+            setImageResource(R.drawable.ic_flip_camera); setBackgroundColor(Color.TRANSPARENT); contentDescription = "Trocar a câmera do celular"
+            setPadding((6 * dp).toInt(), (6 * dp).toInt(), (6 * dp).toInt(), (6 * dp).toInt()); setOnClickListener { front = !front; startCamera() }
+            layoutParams = FrameLayout.LayoutParams((52 * dp).toInt(), (52 * dp).toInt(), Gravity.TOP or Gravity.END).apply { setMargins(0, (8 * dp).toInt(), (8 * dp).toInt(), 0) }
+        })
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.BLACK) }
         root.addView(lens, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
         val bar = LinearLayout(this).apply {
@@ -143,11 +141,11 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
             text = t; textSize = 12f; isAllCaps = false; setTextColor(green); setBackgroundColor(Color.TRANSPARENT); setOnClickListener { cb() }
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         }
-        talk = btn("🎙 Falar") { toggleLive() }; bar.addView(talk)
+        talk = btn("🎙 Falar") { toggleLive() } // not in the bar any more (Marcus, 09/11): the temple's long press opens, two taps close
         facesBtn = btn("") { facesOn = !facesOn; if (!facesOn) { hud.faces = emptyList(); cancelCountdown() }; paintToggles() }; bar.addView(facesBtn)
         placesBtn = btn("") { placesOn = !placesOn; if (!placesOn) hud.pins = emptyList() else refreshPlaces(true); paintToggles() }; bar.addView(placesBtn)
         qrBtn = btn("▣ QR") { setQr(!qrOn) }; bar.addView(qrBtn)
-        outBtn = btn("") { setOutput(when (output) { "tela" -> "tela_voz"; "tela_voz" -> "voz"; else -> "tela" }) }; bar.addView(outBtn)
+        outBtn = btn("") { setOutput(when (output) { "tela_voz" -> "voz"; "voz" -> "tela"; else -> "tela_voz" }) }.apply { maxLines = 2; textSize = 11f; contentDescription = "Saída: como os óculos falam com você" }; bar.addView(outBtn)
         // The temple, simulated (Marcus, 08/11: as in the old emulator). Same actions as the glasses' touchpad.
         val temple = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; setBackgroundColor(Color.argb(200, 0, 0, 0)); setPadding(4, 2, 4, 2) }
         fun tb(t: String, desc: String, cb: () -> Unit) = btn(t, cb).apply { textSize = 14f; contentDescription = desc; minHeight = (48 * resources.displayMetrics.density).toInt() }
@@ -160,7 +158,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         temple.addView(tb("?", "Como usar a haste") { showHelp(helpBox.visibility != View.VISIBLE) }.apply { layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.6f) })
         // The little guide that slides up: what each gesture does. Opens by itself the first time.
         helpBox = TextView(this).apply {
-            text = "● Toque: escolhe o que está marcado\n●● Dois toques: volta ou cancela (sempre)\n● Toque longo: fala com o assistente\n◀ ▶ Haste para trás / para frente: anda entre pinos e opções"
+            text = "● Toque: escolhe o que está marcado\n● Toque longo: abre o assistente (ele ouve até você mandar parar)\n●● Dois toques: volta, cancela, fecha o cartão; com o assistente aberto, ele para de ouvir\n◀ ▶ Haste para trás / para frente: anda entre pinos e opções\nVoltar do celular: fecha o emulador (câmera e microfone desligam)"
             textSize = 15f; setTextColor(Color.WHITE); setLineSpacing(0f, 1.35f); setPadding((18 * dp).toInt(), (14 * dp).toInt(), (18 * dp).toInt(), (14 * dp).toInt())
             setBackgroundColor(Color.rgb(13, 18, 23)); visibility = View.GONE; setOnClickListener { showHelp(false) }
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
@@ -203,7 +201,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         facesBtn.setTextColor(if (facesOn) green else dim)
         placesBtn.text = if (placesOn) "● Lugares" else "○ Lugares"
         placesBtn.setTextColor(if (placesOn) green else dim)
-        hud.footer = listOfNotNull(if (facesOn) "pessoas: ligado" else "pessoas: desligado", if (placesOn) "lugares: ligado" else "lugares: desligado", if (::ears.isInitialized && hearing) "🎙 ouvindo a conversa" else null).joinToString(" · ")
+        hud.footer = listOfNotNull(if (liveOn) liveState else null, if (facesOn) "pessoas: ligado" else "pessoas: desligado", if (placesOn) "lugares: ligado" else "lugares: desligado", if (::ears.isInitialized && hearing && !liveOn) "🎙 ouvindo a conversa" else null).joinToString(" · ")
         hud.invalidate()
     }
 
@@ -292,6 +290,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
                         if (facesOn && !scanning) { lastFaceScan = now; scan() }
                         if (qrOn && now - lastQrScan > 300 && !qrBusy) { lastQrScan = now; qrScan() }
                         if (!qrOn && now - lastTextScan > 1500 && !textBusy && Backend.hints(this)) { lastTextScan = now; textScan() }
+                        if (now - lastSceneCheck > 2000) { lastSceneCheck = now; thingScan() }
                     }
                 } finally { img.close() }
             }
@@ -369,7 +368,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         briefClear?.let { main.removeCallbacks(it) }
         briefClear = Runnable { if (hud.cardTitle == title) closeCard() }.also { main.postDelayed(it, 30_000L) }
     }
-    private fun closeCard() { hud.cardTitle = null; hud.cardLines = emptyList(); cardAction = null; hud.pinFocus = -1; hud.invalidate() }
+    private fun closeCard() { Player.stopLyrics(); hud.lyric = null; hud.cardTitle = null; hud.cardLines = emptyList(); cardAction = null; hud.pinFocus = -1; hud.invalidate() }
 
     /** A place pin chosen (tap or temple): its card with what to do (Marcus, 08/11: "caminhar, navegar até lá, ou mais detalhes"). */
     private fun openPin(i: Int) {
@@ -420,9 +419,10 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     private fun templeBack() {
         when {
             countdownId != null -> cancelCountdown()
-            hud.cardTitle != null -> { if (qr.offer != null) qr.dismiss(SystemClock.elapsedRealtime()); closeCard() }
+            hud.cardTitle != null || hud.lyric != null -> { if (qr.offer != null) qr.dismiss(SystemClock.elapsedRealtime()); closeCard() }
             hud.pinFocus >= 0 -> { hud.pinFocus = -1; hud.invalidate() }
             qrOn -> setQr(false)
+            liveOn -> toggleLive() // the assistant stops listening (Marcus, 09/11: no "Encerrar" button for that)
         }
     }
 
@@ -535,7 +535,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
 
     /** Voice only = the lens shows nothing (as glasses without a display); the camera keeps working. */
     private fun applyOutput() {
-        outBtn.text = when (output) { "tela" -> "▭ Tela"; "tela_voz" -> "▭+🔊"; else -> "🔊 Voz" }
+        outBtn.text = when (output) { "tela" -> "Só tela"; "tela_voz" -> "Tela e\náudio"; else -> "Só áudio" }
         outBtn.setTextColor(if (output == "tela") dim else green)
         hud.alpha = if (output == "voz") 0f else 1f
     }
@@ -640,10 +640,46 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         voice.say(text, interrupt = true)
     }
 
-    override fun onLyric(title: String, lines: List<String>) {
-        hud.cardTitle = title; hud.cardLines = lines; hud.invalidate()
+    override fun onLyric(title: String, artist: String, prev: String?, cur: String?, next: String?, cover: android.graphics.Bitmap?) {
+        hud.lyric = HudOverlay.Lyric(title, artist, prev, cur, next, cover); hud.invalidate()
         briefClear?.let { main.removeCallbacks(it) }
-        briefClear = Runnable { if (hud.cardTitle == title) { hud.cardTitle = null; hud.cardLines = emptyList(); hud.invalidate() } }.also { main.postDelayed(it, 15_000L) }
+        briefClear = Runnable { onLyricEnd() }.also { main.postDelayed(it, 20_000L) } // a stalled card leaves by itself
+    }
+    override fun onLyricEnd() { hud.lyric = null; hud.invalidate() }
+
+    override fun onThing(name: String, where: String, whenTxt: String, photo: android.graphics.Bitmap?) {
+        onBrief("⌖ $name", listOf(where, whenTxt)); hud.cardImage = photo; hud.invalidate()
+        briefClear?.let { main.removeCallbacks(it) }
+        briefClear = Runnable { if (hud.cardTitle == "⌖ $name") closeCard() }.also { main.postDelayed(it, 40_000L) } // a photo takes longer to look at
+    }
+
+    // ── The camera notices his objects on its own (Marcus, 09/11), when the assistant is closed. One look a minute, only
+    // when the scene is still and different from the last one looked at. With the Live open, the Live does it (vi_objeto).
+    private var lastSceneCheck = 0L
+    private var liveState: String? = null
+    private var lastThingLook = 0L; private var lastScene: IntArray? = null; private var lookedScene: IntArray? = null
+    @Volatile private var thingBusy = false
+    private fun thingScan() {
+        if (liveOn || thingBusy || Backend.geminiKey(this).length < 20) return
+        val now = SystemClock.elapsedRealtime(); if (now - lastThingLook < 60_000) return
+        val j = lastJpeg ?: return
+        val sig = Frames.signature(j) ?: return
+        val still = lastScene?.let { Frames.diff(it, sig) < 0.06f } ?: false
+        lastScene = sig
+        if (!still) return
+        if (lookedScene?.let { Frames.diff(it, sig) < 0.12f } == true) return // same picture as last time: nothing new
+        lastThingLook = now; lookedScene = sig; thingBusy = true
+        work.execute {
+            try {
+                val names = Things.names(this); if (names.isEmpty()) return@execute
+                val small = Frames.shrink(j, 1024) ?: return@execute
+                for ((name, where) in Describe.spotThings(this, small, names)) {
+                    if (where.contains("na mão") || !Things.worthSaving(name, where)) continue
+                    Things.keep(this, name, where, j, Where.location(this)?.let { Where.placeLabel(this, it) })
+                    main.post { onBrief("⌖ $name", listOf(where, "visto agora")) }
+                }
+            } finally { thingBusy = false }
+        }
     }
 
     /** The music app came to the front to start playing: back to the glasses view. */
@@ -710,6 +746,9 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     override fun onState(state: String) {
         hud.listening = state == "listening"; hud.speaking = state == "speaking"
         talk.text = when { state == "connecting" -> "… conectando"; state == "speaking" -> "■ Interromper"; state == "listening" -> "■ Encerrar"; else -> "🎙 Falar" }
+        // The state lives in the footer now (Marcus, 09/11): no "Encerrar" button; two taps on the temple stop it.
+        liveState = when (state) { "connecting" -> "✦ conectando…"; "speaking" -> "✦ assistente falando"; "listening" -> "✦ assistente ouvindo (●● para parar)"; else -> "" }.ifEmpty { null }
+        paintToggles()
         if (state.startsWith("error")) {
             val why = state.removePrefix("error: "); toast(why); liveOn = false; talk.text = "🎙 Falar"; ears.resume()
             val now = android.os.SystemClock.elapsedRealtime()

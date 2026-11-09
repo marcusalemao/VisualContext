@@ -294,7 +294,7 @@ function items() {
     const what = said(e);
     out.push({ kind: "memory", id: e.id, title: live ? "✦ " + (what || "Conversa com o assistente") : isMe(e.person_name) ? "Você mesmo (teste ou espelho)" : e.person_name ? "Encontro com " + e.person_name : (e.context || "Momento"), sub: [live ? "conversa com o assistente" : what, placeName(e)].filter(Boolean).join(" · "), date: e.at, ref: e, sub2: "enc", av: (() => { const p = e.person_name && S.people.find(x => nameKey(x.name) === nameKey(e.person_name)); return p && photo(p) ? avatar(p) : `<span class="av k">${live ? "✦" : "◷"}</span>`; })() });
   }
-  const PK = { pix: ["◈", "Pix"], link: ["↗", "link"], cartao: ["☏", "cartão de visita"], cracha: ["☏", "crachá"], receita: ["✚", "receita"], formulario: ["▤", "formulário"], cardapio: ["▤", "cardápio"], musica: ["♪", "música"], outro: ["▤", "papel"] };
+  const PK = { pix: ["◈", "Pix"], link: ["↗", "link"], cartao: ["☏", "cartão de visita"], cracha: ["☏", "crachá"], receita: ["✚", "receita"], formulario: ["▤", "formulário"], cardapio: ["▤", "cardápio"], musica: ["♪", "música"], ouvir_depois: ["♫", "ouvir depois"], outro: ["▤", "papel"] };
   for (const n of S.notes) { const k = PK[n.kind]; out.push({ kind: "memory", id: n.id, title: n.title || n.text, sub: k ? k[1] + (n.place ? " · " + n.place : "") : "nota" + (n.source === "voice" ? " por voz" : ""), date: n.at, ref: n, sub2: "note", av: `<span class="av k">${k ? k[0] : "✎"}</span>` }); }
   for (const t of S.things) out.push({ kind: "thing", id: t.id, title: t.name, sub: t.location_description || "", date: t.seen_at, ref: t, av: t.snapshot_url ? `<span class="av"><img src="${esc(t.snapshot_url)}" alt="" loading="lazy"></span>` : `<span class="av k">⌖</span>` });
   const places = new Map();
@@ -607,8 +607,25 @@ function noteHtml(r, it) {
   return `<div class="ph">${it.av.replace('class="av k"', 'class="av k" style="width:64px;height:64px;font-size:26px"')}<div><h2>${esc(r.title || "Nota")}</h2><div class="hook">${esc(fmtFull(r.at))}${r.place ? " · " + esc(r.place) : ""}</div></div></div>
   ${pe ? `<div class="sec"><h5>${r.kind === "cracha" ? "Crachá" : "Cartão de visita"}</h5>${kv([["Nome", pe.nome], ["Empresa", pe.empresa], ["Cargo", pe.cargo], ["Telefone", pe.telefone], ["E-mail", pe.email], ["Site", pe.site]])}${person ? `<button class="row" style="margin-top:10px" data-k="person" data-id="${person.id}">${avatar(person)}<span class="tx"><span class="t1">Ver ${esc(person.name)}</span></span></button>` : ""}</div>` : ""}
   ${rx ? `<div class="sec"><h5>Receita</h5>${kv([["Médico", rx.medico], ["Data", rx.data]])}<ul style="margin:10px 0 0 18px">${(rx.itens || []).map(i => `<li>${esc([i.remedio, i.dose, i.quando].filter(Boolean).join(" · "))}</li>`).join("")}</ul></div>` : ""}
+  ${r.kind === "musica" ? musicBtns(r) : ""}
   <div class="sec"><h5>${r.kind ? "Texto" : "Nota"}</h5><div class="trans" style="color:var(--t);font-size:15px;max-height:none">${esc(r.text)}</div></div>
   <div class="btns"><button class="btn pri" data-share="${r.id}">Enviar para Notas</button><button class="btn dan" data-del-row="note:${r.id}">Apagar</button></div>`;
+}
+/* A song the glasses heard (Marcus, 09/11): open it where he listens, or keep it for later. */
+function songOf(r) { const m = String(r.title || "").split(" · ")[0].split(" — "); return { title: m[0] || "", artist: m[1] || "" }; }
+function musicBtns(r) {
+  const s = songOf(r), q = encodeURIComponent([s.title, s.artist].filter(Boolean).join(" "));
+  const later = S.notes.some(n => n.kind === "ouvir_depois" && n.title === r.title);
+  return `<div class="btns" style="margin-top:4px">
+    <a class="btn pri" target="_blank" rel="noopener" href="https://open.spotify.com/search/${q}">▶ Abrir no Spotify</a>
+    <a class="btn" target="_blank" rel="noopener" href="https://music.youtube.com/search?q=${q}">YouTube Music</a>
+    ${later ? `<span class="btn" style="opacity:.7">✓ Na lista Ouvir depois</span>` : `<button class="btn" data-later="${r.id}">+ Ouvir depois</button>`}
+  </div>`;
+}
+async function listenLater(id) {
+  const n = S.notes.find(x => x.id === id); if (!n) return;
+  await call("note", { kind: "ouvir_depois", title: n.title, text: "Ouvir depois: " + n.title, source: "manager" });
+  S.notes = await call("list", { entity: "note" }); render(); open("memory", id); toast("Na lista Ouvir depois");
 }
 function shareNote(id) {
   const n = S.notes.find(x => x.id === id); if (!n) return;
@@ -917,6 +934,7 @@ document.addEventListener("click", e => {
   else if (d.delRow) { const [kind, id] = d.delRow.split(":"); confirmDelete({ note: "esta nota", thing: "esta coisa", encounter: "este momento" }[kind], () => call("delete_row", { kind, id })); }
   else if (d.dups) dupReview();
   else if (d.share) shareNote(d.share);
+  else if (d.later) listenLater(d.later);
   else if (d.prep) prepForm(d.prep);
   else if (d.prepnew) prepNew();
 });
