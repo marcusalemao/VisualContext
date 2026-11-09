@@ -80,8 +80,30 @@ header .sp{flex:1}
 .row:hover{background:var(--s1)}
 .row.sel{border-color:var(--g);background:var(--s1)}
 .row .tx{min-width:0;flex:1}
-.row .t1{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.row .t2{display:block;color:var(--m);font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .t1{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;font-weight:600;line-height:1.3}
+.row .t2{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;color:var(--m);font-size:13.5px;margin-top:2px}
+/* who took part, as circles side by side (Marcus, 09/11): you + the assistant, you + Bruno, you + the photo of the keys */
+.stk{display:flex;flex:none;align-items:center}
+.stk .av{width:44px!important;height:44px!important;border:2px solid var(--bg);margin-left:-14px;font-size:20px}
+.stk .av:first-child{margin-left:0}
+.stk .av:not(.sym){font-size:12px}
+.stk.n3 .av{width:40px!important;height:40px!important;margin-left:-18px}
+.av.sym{color:var(--g);font-size:22px;font-family:inherit;background:#0f1d17}
+.av.cov{border-radius:10px;padding:0}.av.cov img{border-radius:9px}
+.av.k{font-size:26px;font-family:inherit}
+.row.mini{padding:3px 12px;gap:10px;align-items:center}
+.row.mini .t1{font-weight:400;font-size:13.5px!important;color:var(--m);-webkit-line-clamp:1}
+.row.mini .mi{width:22px;text-align:center;color:var(--m);font-size:13px;flex:none}
+/* waiting for Gemini: a bar and a percentage, not three grey dots (Marcus, 09/11) */
+.prog{display:grid;gap:8px;padding:4px 0}
+.prog .pl{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.prog .pt{color:var(--t);font-size:14.5px}
+.prog .pp{font:700 20px var(--mono);color:var(--g)}
+.prog .pb{height:6px;border-radius:9px;background:var(--s2);overflow:hidden}
+.prog .pb i{display:block;height:100%;width:0;background:var(--g);border-radius:9px;box-shadow:0 0 10px rgba(0,255,136,.6);transition:width .25s linear}
+.ver{display:flex;justify-content:center;margin-top:28px}
+.ver span{font:600 11px var(--mono);color:var(--m);border:1px solid var(--line2);border-radius:99px;padding:3px 10px}
+.pill.off{opacity:.35;pointer-events:none}
 .row .when{color:var(--m);font:12px var(--mono);white-space:nowrap}
 .av{width:42px;height:42px;border-radius:50%;flex:none;display:grid;place-items:center;font:600 14px var(--mono);border:1.5px solid var(--line2);color:var(--g2);overflow:hidden;background:var(--s2)}
 .av img{width:100%;height:100%;object-fit:cover}
@@ -102,10 +124,9 @@ header .sp{flex:1}
 .day .stops span{font-family:var(--mono);color:var(--m);margin-right:6px}
 .day .stop{display:flex;gap:8px;align-items:flex-start;margin-top:4px}.day .stop>span{flex:0 0 auto;padding-top:2px}.day .stopb{min-width:0;flex:1}
 .day .who{display:flex;flex-wrap:wrap;gap:6px;margin-top:5px}.day .whoa{display:inline-flex;align-items:center;gap:6px;padding:3px 10px 3px 3px;border-radius:99px;background:var(--s2);border:1px solid var(--line);font-size:13px;color:var(--g1)}
-.day .whoa .av{width:56px;height:56px;font-size:16px;border-radius:50%;overflow:hidden;flex:0 0 auto}.day .whoa .av img{width:100%;height:100%;object-fit:cover}
-.day .whoa{padding:4px 14px 4px 4px;font-size:15px;font-weight:600;color:var(--g0,#fff);gap:10px;font-family:inherit}.day .stopn{font-size:16px;font-weight:600;color:var(--g0,#fff)}
+.day .whom{display:flex;align-items:center;gap:10px;margin-top:6px}.day .whom .names{font-size:13.5px;color:var(--m)}.day .whom .stk .av{width:36px!important;height:36px!important;margin-left:-10px;font-size:16px}.day .whom .stk .av:first-child{margin-left:0}.day .stopn{font-size:16px;font-weight:600;color:var(--g0,#fff)}
 .day .how{font-family:var(--mono);font-size:12px;color:var(--m);padding:6px 0 2px 14px;border-left:2px dashed var(--line);margin:2px 0 2px 28px}
-.row .av{width:56px;height:56px}.row .t1{font-size:16px}
+.row>.av{width:56px;height:56px}.row .t1{font-size:16px}
 .day .foot{display:flex;justify-content:space-between;margin-top:10px;font:12px var(--mono);color:var(--m)}
 .day .foot button{color:var(--g)}
 
@@ -127,7 +148,7 @@ header .sp{flex:1}
 .enc ul{margin:6px 0 0 18px;color:var(--g2);font-size:14px}
 .trans{font-size:13.5px;color:var(--m);white-space:pre-wrap;max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:8px}
 .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:22px}
-.btn{border:1.5px solid var(--line2);border-radius:12px;padding:10px 14px;font-weight:600;font-size:14px}
+.btn{border:1.5px solid var(--line2);border-radius:12px;padding:10px 14px;font-weight:600;font-size:14px;text-decoration:none;display:inline-flex;align-items:center}
 .btn:hover{border-color:var(--g)}
 .btn.pri{background:var(--g);color:var(--bg);border-color:var(--g)}
 .btn.dan{color:var(--red);border-color:rgba(255,107,107,.4)}
@@ -223,6 +244,7 @@ header .sp{flex:1}
     <div class="list" id="list"></div>
     <div class="detail idle" id="detail">Escolha algo na lista</div>
   </div>
+  <div class="ver"><span id="ver">VisualContext · Manager v0.18.17</span></div>
 </div>
 
 <div class="sheet" id="sheet"><div class="box" id="sbox"></div></div>
@@ -267,6 +289,7 @@ async function load() {
   const [me, people, enc, things, notes] = await Promise.all([call("me"), call("list", { entity: "person", thumbs: true }), call("list", { entity: "encounter" }), call("list", { entity: "thing" }), call("list", { entity: "note" })]);
   Object.assign(S, { me, people, enc, things, notes });
   render();
+  refreshTopics();
   let o = null; try { o = sessionStorage.getItem("vc_open"); sessionStorage.removeItem("vc_open") } catch {}
   if (o) { const [pid, what] = o.split("|"); if (S.people.some(p => p.id === pid)) { open("person", pid); if (what === "prep") prep(pid); } }
 }
@@ -285,22 +308,108 @@ const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() ==
 const initials = n => String(n || "?").split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join("").toUpperCase();
 const photo = p => p && p.photo_url && !/ui-avatars\.com/.test(p.photo_url) ? p.photo_url : p && p.thumb ? "data:image/jpeg;base64," + p.thumb : null;
 const avatar = (p, cls = "") => { const u = photo(p); return `<span class="av ${cls}">${u ? `<img src="${esc(u)}" alt="" loading="lazy" onerror="this.remove()">` : esc(initials(p.name))}</span>`; };
+/** You, as a circle: the photo of the person marked "Sou eu", or your initials. */
+const meAv = () => { const p = S.people.find(x => isMe(x.name)); return p ? avatar(p) : `<span class="av">${esc(initials((S.me && S.me.me_name) || "Eu"))}</span>`; };
+const sym = (c, title = "") => `<span class="av sym" title="${esc(title)}">${c}</span>`;
+const imgAv = u => `<span class="av"><img src="${esc(u)}" alt="" loading="lazy" onerror="this.remove()"></span>`;
+/** Who took part, side by side; past three they overlap more (Marcus, 09/11). */
+const stack = parts => `<span class="stk ${parts.length > 2 ? "n3" : ""}">${parts.join("")}</span>`;
 
+/* ---------- topics (Marcus, 09/11): a conversation's title starts with its subject ("Gastos a pagar"), never
+   "O usuário pediu para…"; a talk that was only about a song folds into the song; a plain look-up (agenda, time)
+   is not a memory and becomes a small line. Gemini names them once; the names stay in this browser. ---------- */
+const TOP = (() => { try { return JSON.parse(store.get("vc_topics") || "{}") } catch { return {} } })();
+const userLines = e => String(e.transcript || "").split("\n").filter(l => /^Você:/.test(l)).map(l => l.replace(/^Você:\s*/, "").trim());
+const cap = t => t ? t[0].toUpperCase() + t.slice(1) : t;
+function cleanSaid(t) {
+  t = String(t || "").trim().replace(/\.$/, "");
+  t = t.replace(/^(o|a) usu[aá]ri[oa]\s+(pediu|perguntou|quis saber|tentou|solicitou|queria|identificou|disse|falou|comentou|mencionou|buscou|procurou)\s+(para\s+|ao assistente\s+(para\s+|sobre\s+|se\s+)?|sobre\s+|se\s+|que\s+|a\s+|o\s+|qual\s+|quais\s+|onde\s+)?/iu, "");
+  t = t.replace(/^(você|vc)\s+(pediu|perguntou)\s+(para\s+|sobre\s+|se\s+)?/iu, "");
+  return cap(t);
+}
+function guessKind(e) {
+  const u = userLines(e); if (!u.length) return "outro";
+  const music = /m[uú]sica|letra|tocando|toca |spotify|cantor|banda|essa can[cç][aã]o/i, look = /(o que|que) .*(tenho|tem)|agenda|compromisso|que horas|amanh[aã]|para fazer|meu dia/i;
+  if (u.every(l => music.test(l) || l.split(/\s+/).length < 4)) return "musica";
+  if (u.every(l => look.test(l) || l.split(/\s+/).length < 4)) return "consulta";
+  return "outro";
+}
+const topicOf = e => TOP[e.id] || { t: cleanSaid(said(e)) || "Conversa com o assistente", k: guessKind(e) };
+const dayPt = d => new Date(d).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" }).replace(".", "");
+async function refreshTopics() {
+  const key = store.get("vc_gemini"); if (!key) return;
+  const todo = S.enc.filter(e => e.capture_mode === "live" && !TOP[e.id] && e.transcript).slice(0, 30);
+  if (!todo.length) return;
+  const items = todo.map(e => ({ id: e.id, quando: new Date(e.at).toLocaleString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }), conversa: String(e.transcript).slice(0, 900) }));
+  const prompt = `Para cada conversa do usuário com o assistente dos óculos, dê um título e um tipo. Responda em JSON: [{"id": string, "titulo": string, "tipo": "musica"|"consulta"|"outro"}].
+Título: até 6 palavras, começando pelo assunto ("Gastos a pagar até sexta", "Onde deixei a moto", "Calorias do prato do Bruno"). Nunca "O usuário…", "Você pediu…" nem verbo de pedir. Datas relativas (hoje, amanhã, sexta) viram a data real a partir de "quando" ("Agenda de seg 09/11").
+Tipo: "musica" se a conversa foi só para identificar, tocar ou ver a letra de música; "consulta" se ele só consultou agenda, tarefas, hora ou clima e nada novo foi dito ou decidido; senão "outro".
+CONVERSAS: ${JSON.stringify(items)}`;
+  try {
+    const j = await gemini(key, { contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.1, maxOutputTokens: 4096, responseMimeType: "application/json" } });
+    const txt = (j.candidates?.[0]?.content?.parts || []).filter(p => !p.thought && p.text).map(p => p.text).join("");
+    for (const r of JSON.parse(txt.replace(/^```json|```$/g, ""))) if (r.id && r.titulo) TOP[r.id] = { t: cleanSaid(r.titulo), k: ["musica", "consulta"].includes(r.tipo) ? r.tipo : "outro" };
+    store.set("vc_topics", JSON.stringify(TOP)); render();
+  } catch {}
+}
+
+/* ---------- album covers (iTunes search, free, no key; JSONP because it sends no CORS header) ---------- */
+const COV = (() => { try { return JSON.parse(store.get("vc_cov") || "{}") } catch { return {} } })();
+function coverFor(t, a, cb) {
+  const k = norm(t + " " + a); if (k in COV) return cb(COV[k]);
+  const fn = "vcCov" + Math.random().toString(36).slice(2), sc = document.createElement("script");
+  const end = u => { COV[k] = u; store.set("vc_cov", JSON.stringify(COV)); delete window[fn]; sc.remove(); cb(u); };
+  window[fn] = j => end(j?.results?.[0]?.artworkUrl100?.replace("100x100bb", "300x300bb") || "");
+  sc.onerror = () => { delete window[fn]; sc.remove(); cb(""); };
+  sc.src = `https://itunes.apple.com/search?media=music&entity=song&limit=1&callback=${fn}&term=${encodeURIComponent(a + " " + t)}`;
+  document.head.appendChild(sc);
+}
+function hydrateCovers(root = document) {
+  root.querySelectorAll("[data-cover]").forEach(el => { const [t, a] = el.dataset.cover.split("\u0001"); el.removeAttribute("data-cover"); coverFor(t, a, u => { if (u) el.innerHTML = `<img src="${esc(u)}" alt="">`; }); });
+}
+const coverAv = (r, big) => { const s = songOf(r); return `<span class="av k cov" ${big ? 'style="width:96px;height:96px;font-size:40px"' : ""} data-cover="${esc(s.title + "\u0001" + s.artist)}">♪</span>`; };
+
+/** Conversations that were only about a song, and the song note each belongs to (identified within 15 min). */
+function musicChats() {
+  const m = new Map();
+  for (const e of S.enc) {
+    if (e.capture_mode !== "live" || topicOf(e).k !== "musica") continue;
+    const t = new Date(e.at).getTime();
+    const n = S.notes.find(n => n.kind === "musica" && Math.abs(new Date(n.at) - t) < 15 * 6e4);
+    if (n) m.set(e.id, n.id);
+  }
+  return m;
+}
 /** Everything as one catalog: people, places, things, memories (moments and notes). */
 function items() {
   const out = [];
   for (const p of S.people) out.push({ kind: "person", id: p.id, title: isMe(p.name) ? p.name + " ★ você" : p.name, sub: isMe(p.name) ? "você mesmo · nunca vira encontro" : [p.relation, p.company, p.role].filter(Boolean).join(" · ") || (p.faces ? "rosto guardado" : "sem rosto ainda"), date: p.last_seen_date || p.created_at, ref: p, av: avatar(p) });
+  const folded = musicChats();
   for (const e of S.enc) {
     const live = e.capture_mode === "live";
+    if (folded.has(e.id)) continue; // only about a song: it lives inside the song's card
+    const p = e.person_name && !isMe(e.person_name) ? S.people.find(x => nameKey(x.name) === nameKey(e.person_name)) : null;
+    if (live) {
+      const tp = topicOf(e);
+      out.push({ kind: "memory", id: e.id, title: tp.t, sub: placeName(e) || "", date: e.at, ref: e, sub2: "enc", mini: tp.k === "consulta",
+        av: stack([meAv(), sym("✦", "assistente"), ...(p ? [avatar(p)] : [])]) });
+      continue;
+    }
     const what = said(e);
-    out.push({ kind: "memory", id: e.id, title: live ? "✦ " + (what || "Conversa com o assistente") : isMe(e.person_name) ? "Você mesmo (teste ou espelho)" : e.person_name ? "Encontro com " + e.person_name : (e.context || "Momento"), sub: [live ? "conversa com o assistente" : what, placeName(e)].filter(Boolean).join(" · "), date: e.at, ref: e, sub2: "enc", av: (() => { const p = e.person_name && S.people.find(x => nameKey(x.name) === nameKey(e.person_name)); return p && photo(p) ? avatar(p) : `<span class="av k">${live ? "✦" : "◷"}</span>`; })() });
+    out.push({ kind: "memory", id: e.id, title: isMe(e.person_name) ? "Você mesmo (teste ou espelho)" : e.person_name ? e.person_name : (e.context || "Momento"), sub: [what, placeName(e)].filter(Boolean).join(" · "), date: e.at, ref: e, sub2: "enc",
+      av: stack([meAv(), p ? avatar(p) : e.person_name ? `<span class="av">${esc(initials(e.person_name))}</span>` : sym("◷")]) });
   }
   const PK = { pix: ["◈", "Pix"], link: ["↗", "link"], cartao: ["☏", "cartão de visita"], cracha: ["☏", "crachá"], receita: ["✚", "receita"], formulario: ["▤", "formulário"], cardapio: ["▤", "cardápio"], musica: ["♪", "música"], ouvir_depois: ["♫", "ouvir depois"], traducao: ["⇄", "tradução"], evento: ["🗓", "compromisso"], outro: ["▤", "papel"] };
   // To-dos (Marcus, 09/11): their own category; done ones (a "tarefa_feita" note points to them) and the "feita" markers stay out.
   const doneT = tasksDone();
   for (const n of S.notes) if (n.kind === "tarefa" && !doneT.has(n.id)) { const f = n.fields || {}; out.push({ kind: "task", id: n.id, title: n.title || n.text, sub: [TACT[f.acao]?.[1], f.pessoa, f.quando && "até " + fmtShort(f.quando)].filter(Boolean).join(" · ") || "tarefa", date: f.quando || n.at, ref: n, av: `<span class="av k">${TACT[f.acao]?.[0] || "✓"}</span>` }); }
-  for (const n of S.notes) { if (n.kind === "tarefa" || n.kind === "tarefa_feita") continue; const k = PK[n.kind]; out.push({ kind: "memory", id: n.id, title: n.title || n.text, sub: k ? k[1] + (n.place ? " · " + n.place : "") : "nota" + (n.source === "voice" ? " por voz" : ""), date: n.at, ref: n, sub2: "note", av: `<span class="av k">${k ? k[0] : "✎"}</span>` }); }
-  for (const t of S.things) out.push({ kind: "thing", id: t.id, title: t.name, sub: t.location_description || "", date: t.seen_at, ref: t, av: t.snapshot_url ? `<span class="av"><img src="${esc(t.snapshot_url)}" alt="" loading="lazy"></span>` : `<span class="av k">⌖</span>` });
+  for (const n of S.notes) {
+    if (["tarefa", "tarefa_feita", "ligacao"].includes(n.kind)) continue;
+    const k = PK[n.kind];
+    if (n.kind === "musica" || n.kind === "ouvir_depois") { const sg = songOf(n); out.push({ kind: "memory", id: n.id, title: sg.title || n.title, sub: [n.kind === "ouvir_depois" ? "ouvir depois" : "", sg.artist, n.place].filter(Boolean).join(" · "), date: n.at, ref: n, sub2: "note", av: coverAv(n) }); continue; }
+    out.push({ kind: "memory", id: n.id, title: n.title || n.text, sub: k ? k[1] + (n.place ? " · " + n.place : "") : "nota" + (n.source === "voice" ? " por voz" : ""), date: n.at, ref: n, sub2: "note", av: stack([meAv(), sym(k ? k[0] : "✎")]) });
+  }
+  for (const t of S.things) out.push({ kind: "thing", id: t.id, title: t.name, sub: t.location_description || "", date: t.seen_at, ref: t, av: stack([meAv(), t.snapshot_url ? imgAv(t.snapshot_url) : sym("⌖")]) });
   const places = new Map();
   const addPlace = (name, date, lat, lng) => { if (!name) return; const k = norm(name); const p = places.get(k) || { name, n: 0, date: null, lat, lng }; p.n++; if (!p.date || date > p.date) p.date = date; if (lat && !p.lat) { p.lat = lat; p.lng = lng; } places.set(k, p); };
   S.enc.forEach(e => { const m = myPlaceAt(e.lat, e.lng); addPlace(m ? m.name : e.place, e.at, m ? m.lat : e.lat, m ? m.lng : e.lng); });
@@ -352,7 +461,8 @@ function render() {
   else pl.textContent = ({ founder: "Fundador", essential: "Essencial", plus: "Plus", byok: "Sua chave", paused: "Só leitura" })[m.plan] || "";
   const all = items(), q = S.filter;
   const counts = Object.fromEntries(CATS.map(([k]) => [k, all.filter(i => (k === "all" || i.kind === k) && matches(i, q)).length]));
-  $("#pills").innerHTML = CATS.map(([k, l]) => `<button class="pill ${S.cat === k ? "on" : ""}" data-c="${k}">${l}<b>${counts[k]}</b></button>`).join("") + (q ? `<button class="pill" data-clear="1">✕ “${esc(q)}”</button>` : "") + (S.dayOnly ? `<button class="pill" data-clearday="1">✕ Hoje</button>` : "");
+  if (S.view === "teia" && S.cat === "task") S.cat = "all"; // tasks have no place in the web: the pill goes grey, not silent
+  $("#pills").innerHTML = CATS.map(([k, l]) => `<button class="pill ${S.cat === k ? "on" : ""} ${S.view === "teia" && k === "task" ? "off" : ""}" data-c="${k}">${l}<b>${counts[k]}</b></button>`).join("") + (q ? `<button class="pill" data-clear="1">✕ “${esc(q)}”</button>` : "") + (S.dayOnly ? `<button class="pill" data-clearday="1">✕ Hoje</button>` : "");
   $("#order").classList.toggle("hide", S.view === "az" || S.view === "teia");
   document.querySelectorAll("#views button").forEach(b => b.classList.toggle("on", b.dataset.v === S.view));
   document.querySelectorAll("#order button").forEach(b => b.classList.toggle("on", b.dataset.o === S.order));
@@ -388,6 +498,7 @@ function render() {
     for (const [g, xs] of groups) html += `<div class="grp">${g}</div>` + xs.map(row).join("");
   }
   $("#list").innerHTML = html;
+  hydrateCovers($("#list"));
 }
 function bucket(d) {
   if (!d) return "Sem data";
@@ -398,7 +509,8 @@ function bucket(d) {
   return String(t.getFullYear());
 }
 const srcName = x => ({ import_linkedin: "LinkedIn", import_contatos: "contatos", import_google_fotos: "Google Fotos", import: "importação", glasses: "óculos", base44: "antigo", manual: "você" })[x] || String(x).replace(/^import_/, "");
-const row = i => S.pick && i.kind === "person" ? `<button class="row ${S.pick.has(i.id) ? "sel" : ""}" data-pick="${esc(i.id)}"><span class="av" style="font-size:18px">${S.pick.has(i.id) ? "☑" : "☐"}</span>${i.av}<span class="tx"><span class="t1">${esc(i.title)}</span><span class="t2">${esc(i.sub)}${i.ref.source ? " · " + esc(srcName(i.ref.source)) : ""}</span></span></button>` : `<button class="row ${S.sel === i.id ? "sel" : ""}" data-k="${i.kind}" data-id="${esc(i.id)}">${i.av}<span class="tx"><span class="t1">${esc(i.title)}</span><span class="t2">${esc(i.sub)}</span></span><span class="when">${esc(fmtWhen(i.date))}</span></button>`;
+const row = i => S.pick && i.kind === "person" ? `<button class="row ${S.pick.has(i.id) ? "sel" : ""}" data-pick="${esc(i.id)}"><span class="av" style="font-size:18px">${S.pick.has(i.id) ? "☑" : "☐"}</span>${i.av}<span class="tx"><span class="t1">${esc(i.title)}</span><span class="t2">${esc(i.sub)}${i.ref.source ? " · " + esc(srcName(i.ref.source)) : ""}</span></span></button>` : i.mini ? `<button class="row mini ${S.sel === i.id ? "sel" : ""}" data-k="${i.kind}" data-id="${esc(i.id)}"><span class="mi">✦</span><span class="tx"><span class="t1">Consultou: ${esc(i.title)}</span></span><span class="when">${esc(fmtWhen(i.date))}</span></button>`
+  : `<button class="row ${S.sel === i.id ? "sel" : ""}" data-k="${i.kind}" data-id="${esc(i.id)}">${i.av}<span class="tx"><span class="t1">${esc(i.title)}</span>${i.sub ? `<span class="t2">${esc(i.sub)}</span>` : ""}</span><span class="when">${esc(fmtWhen(i.date))}</span></button>`;
 const card = i => `<button class="card ${S.sel === i.id ? "sel" : ""}" data-k="${i.kind}" data-id="${esc(i.id)}">${i.av}<span class="t1">${esc(i.title)}</span><span class="t2">${esc(i.sub)}</span><span class="t2" style="margin-top:auto;font-family:var(--mono);font-size:11px">${esc(fmtWhen(i.date))}</span></button>`;
 
 /** Spec 1b: "My day", built only from what is already recorded. */
@@ -434,10 +546,10 @@ function myDay() {
   if (th.length) bits.push("guardou onde deixou " + listPt(th.map(t => t.name.toLowerCase())));
   if (no.length) bits.push("anotou " + no.length + (no.length === 1 ? " lembrete" : " lembretes"));
   const tm = d => new Date(d).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-  const stopsHtml = byPlace.map(b => (b.how ? `<div class="how">${esc(b.how)}</div>` : "") + `<div class="stop"><span>${esc(tm(b.from))}${b.to !== b.from ? "–" + esc(tm(b.to)) : ""}</span><div class="stopb"><div class="stopn">${esc(b.key.split(" · ")[0])}</div>${b.key.includes(" · ") ? `<div class="muted" style="font-size:12.5px">${esc(b.key.split(" · ").slice(1).join(" · "))}</div>` : ""}<div class="who">${b.who.map(w => w.p ? `<button class="whoa" data-k="person" data-id="${w.p.id}">${avatar(w.p, "sm")}<span>${esc(w.name)}</span></button>` : `<span class="whoa"><span class="av k" style="font-size:16px">✦</span><span>${esc(w.name)}</span></span>`).join("")}</div></div></div>`)
+  const stopsHtml = byPlace.map(b => (b.how ? `<div class="how">${esc(b.how)}</div>` : "") + `<div class="stop"><span>${esc(tm(b.from))}${b.to !== b.from ? "–" + esc(tm(b.to)) : ""}</span><div class="stopb"><div class="stopn">${esc(b.key.split(" · ")[0])}</div>${b.key.includes(" · ") ? `<div class="muted" style="font-size:12.5px">${esc(b.key.split(" · ").slice(1).join(" · "))}</div>` : ""}${b.who.length ? `<div class="whom">${stack([meAv(), ...b.who.map(w => w.p ? avatar(w.p) : w.name === "assistente" ? sym("✦") : `<span class="av">${esc(initials(w.name))}</span>`)])}<span class="names">${esc(listPt(b.who.map(w => w.name === "assistente" ? "assistente" : w.name.split(" ")[0])))}</span></div>` : ""}</div></div>`)
     .concat(th.map(t => `<div class="stop"><span>${esc(tm(t.seen_at))}</span><div class="stopb"><div>${esc(t.name)} → ${esc(t.location_description || "")}</div></div></div>`)).slice(0, 6).join("");
   return `<div class="day"><h4 style="display:flex;justify-content:space-between;align-items:center;gap:8px">✦ Meu dia · hoje<button class="btn pri" data-reviver="1" style="min-height:36px;padding:0 14px;font-size:13px">▶ Reviver</button></h4><p>Hoje você ${esc(listPt(bits))}.</p><div class="stops">${stopsHtml}</div>${tasksBlock()}${pendingPlans()}
-  <div class="foot"><span>${people.length} ${people.length === 1 ? "pessoa" : "pessoas"} · ${places.length} ${places.length === 1 ? "lugar" : "lugares"} · ${no.length} ${no.length === 1 ? "nota" : "notas"} · ${follow} ${follow === 1 ? "pendência" : "pendências"}</span><button data-day="1">Ver o dia →</button></div></div>`;
+  <div class="foot"><span>${[[people.length, "pessoa", "pessoas"], [places.length, "lugar", "lugares"], [no.length, "nota", "notas"], [follow, "pendência", "pendências"]].filter(x => x[0]).map(([n, a, b]) => n + " " + (n === 1 ? a : b)).join(" · ")}</span><button data-day="1">Ver o dia →</button></div></div>`;
 }
 /** Suggestions still waiting (any day): one tap opens each. */
 function pendingPlans() {
@@ -531,19 +643,44 @@ async function geminiModel(key, bad = []) {
 }
 function memoryText() {
   const P = S.people.map(p => ({ id: p.id, nome: p.name, relacao: p.relation, empresa: p.company, cargo: p.role, tags: p.tags, ultima_vez: p.last_seen_date, onde: p.last_seen_context, notas: p.notes }));
-  const E = S.enc.map(e => ({ id: e.id, tipo: e.capture_mode === "live" ? "conversa com o assistente" : "encontro", quando: e.at, lugar: e.place, pessoa: e.person_name, contexto: e.context, resumo: e.summary, pendencias: e.follow_ups, trecho: (e.transcript || "").slice(0, 600) }));
+  const E = S.enc.map(e => ({ id: e.id, tipo: e.capture_mode === "live" ? (topicOf(e).k === "consulta" ? "consulta" : "conversa com o assistente") : "encontro", quando: new Date(e.at).toLocaleString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }), lugar: e.place, pessoa: e.person_name, contexto: e.context, resumo: e.summary, pendencias: e.follow_ups, trecho: (e.transcript || "").slice(0, 600) }));
   const T = S.things.map(t => ({ id: t.id, coisa: t.name, onde: t.location_description, quando: t.seen_at, lat: t.lat, lng: t.lng }));
-  const N = S.notes.map(n => ({ id: n.id, tipo: n.kind || "nota", titulo: n.title, nota: (n.text || "").slice(0, 1500), campos: n.fields, lugar: n.place, quando: n.at }));
+  const N = S.notes.filter(n => n.kind !== "ligacao").map(n => ({ id: n.id, tipo: n.kind || "nota", titulo: n.title, nota: (n.text || "").slice(0, 1500), campos: n.fields, lugar: n.place, quando: n.at }));
   return JSON.stringify({ pessoas: P, momentos: E, coisas: T, notas: N });
+}
+/**
+ * A bar and a percentage while Gemini works (Marcus, 09/11: "parece que minha pergunta não foi respondida").
+ * Gemini does not say how much is left, so the bar walks the real steps and, inside each, the time that step
+ * usually takes; it slows near the end and never reaches 100 % before the answer arrives.
+ */
+function progress(el, steps) {
+  el.innerHTML = `<div class="prog" role="progressbar" aria-valuemin="0" aria-valuemax="100"><div class="pl"><span class="pt"></span><b class="pp">0%</b></div><div class="pb"><i></i></div></div>`;
+  const pg = el.querySelector(".prog"), lab = el.querySelector(".pt"), pp = el.querySelector(".pp"), bar = el.querySelector(".pb i");
+  let i = 0, t0 = performance.now(), from = 0, pct = 0, stop = false;
+  const tick = () => {
+    if (stop || !pg.isConnected) return;
+    const [l, end, ms] = steps[i];
+    pct = Math.max(pct, from + (end - from) * (1 - Math.exp(-(performance.now() - t0) / ms)));
+    lab.textContent = l; pp.textContent = Math.floor(pct) + "%"; bar.style.width = pct.toFixed(1) + "%"; pg.setAttribute("aria-valuenow", Math.floor(pct));
+    setTimeout(tick, 120);
+  };
+  tick();
+  return { next(label) { if (i < steps.length - 1) { from = pct; i++; t0 = performance.now(); if (label) steps[i][0] = label; } }, done() { stop = true; } };
 }
 async function ask(question) {
   $("#scope").classList.remove("on"); $("#q").blur();
   const box = $("#ans"), key = store.get("vc_gemini");
   box.classList.add("on");
   if (!key) { box.innerHTML = `<h3>✦ Resposta</h3><p>Para perguntar, falta a chave do Gemini. Abra o Manager pelo app (ele traz a chave junto) ou cole a chave em Ajustes.</p><div class="acts"><button class="act" data-open-set="1">Abrir Ajustes</button></div>`; return; }
-  box.innerHTML = `<h3>✦ ${esc(question)}</h3><p class="muted dots">Procurando na sua memória</p>`;
-  const now = new Date();
-  const prompt = `Você é a memória pessoal do usuário (app VisualContext). Agora: ${now.toLocaleString("pt-BR")} (${Intl.DateTimeFormat().resolvedOptions().timeZone}).
+  box.innerHTML = `<h3>✦ ${esc(question)}</h3><div id="ansp"></div>`;
+  const pr = progress($("#ansp"), [["Procurando na sua memória", 12, 400], ["Lendo", 30, 900], ["Escrevendo a resposta", 96, 7000]]);
+  const now = new Date(), tom = new Date(now); tom.setDate(tom.getDate() + 1);
+  const nMom = S.enc.length + S.notes.length + S.things.length;
+  setTimeout(() => pr.next(`Lendo ${nMom} ${nMom === 1 ? "lembrança" : "lembranças"}`), 350);
+  setTimeout(() => pr.next(), 1300);
+  const prompt = `Você é a memória pessoal do usuário (app VisualContext). Agora: ${now.toLocaleString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })} (${Intl.DateTimeFormat().resolvedOptions().timeZone}). Hoje = ${dayPt(now)}; amanhã = ${dayPt(tom)}.
+DATAS (Marcus, 09/11): "hoje", "amanhã", "sexta" na PERGUNTA contam a partir de agora. Nos DADOS, uma data relativa dita numa conversa conta a partir do "quando" daquela conversa (ex.: "amanhã" dito no domingo 08/11 é segunda 09/11). Na resposta, sempre o dia da semana e a data (ex.: "seg 09/11, 19:00").
+Para "o que eu tenho para hoje/amanhã/fazer": responda com os compromissos (notas tipo "evento") e tarefas ("tarefa") daquele dia, ao vivo. Conversas em que ele só consultou a agenda ("consulta") não são fonte: nunca as cite nem as use como resposta.
 Responda em português, curto e direto (no máximo 4 frases), usando SÓ os dados abaixo. Se não houver dado, diga que não encontrou e sugira o que guardar. Nunca invente.
 Responda em JSON: {"resposta": string, "fontes": [{"tipo": "pessoa"|"momento"|"coisa"|"nota", "id": string}], "acoes": [{"tipo": "agenda"|"mapa", "titulo": string, "inicio": "ISO 8601 opcional", "busca": "endereço ou lugar, para mapa", "lat": number?, "lng": number?}]}
 Inclua "acoes" só quando fizer sentido (um compromisso ou pendência com data → agenda; um lugar ou coisa com endereço → mapa).
@@ -553,11 +690,13 @@ DADOS: ${memoryText()}`;
     const j = await gemini(key, { contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.2, maxOutputTokens: 4096, responseMimeType: "application/json" } });
     const txt = (j.candidates?.[0]?.content?.parts || []).filter(p => !p.thought && p.text).map(p => p.text).join("");
     const a = JSON.parse(txt.replace(/^```json|```$/g, ""));
+    pr.done();
     const srcs = (a.fontes || []).map(s => source(s)).filter(Boolean);
     const acts = (a.acoes || []).map(action).filter(Boolean);
     box.innerHTML = `<h3>✦ ${esc(question)}<button data-close-ans="1" aria-label="Fechar">✕</button></h3><p>${esc(a.resposta)}</p>` +
       (srcs.length ? `<div class="src"><span class="muted" style="font-size:12px;align-self:center">Fonte:</span>${srcs.join("")}</div>` : "") + (acts.length ? `<div class="acts">${acts.join("")}</div>` : "");
   } catch (e) {
+    pr.done();
     box.innerHTML = `<h3>✦ ${esc(question)}<button data-close-ans="1">✕</button></h3><p>Não consegui perguntar agora (${esc(String(e.message).slice(0, 90))}). Confira a chave em Ajustes.</p>`;
   }
 }
@@ -584,6 +723,7 @@ function open(kind, id) {
   const it = items().find(i => i.kind === kind && i.id === id); if (!it) return;
   if (!d.classList.contains("open") || innerWidth < 920) { if (!wasOpen) pushNav("detail"); }
   d.innerHTML = `<button class="back" data-back="1">← Voltar</button>` + ({ person: personHtml, memory: memHtml, thing: thingHtml, place: placeHtml, task: taskHtml })[kind](it.ref, it);
+  hydrateCovers(d);
   document.querySelectorAll(".row.sel,.card.sel").forEach(e => e.classList.remove("sel"));
   document.querySelectorAll(`[data-id="${CSS.escape(id)}"]`).forEach(e => { if (e.closest("#list")) e.classList.add("sel"); });
   if (innerWidth < 920) d.scrollTop = 0;
@@ -606,8 +746,9 @@ const encHtml = e => `<div class="enc"><div class="d">${esc(fmtFull(e.at))}${e.p
 function memHtml(r, it) {
   if (it.sub2 === "note") return noteHtml(r, it);
   const p = S.people.find(x => x.id === r.person_id) || (r.person_name ? S.people.find(x => nameKey(x.name) === nameKey(r.person_name)) : null);
-  return `<h2>${esc(it.title)}</h2><div class="hook">${esc(fmtFull(r.at))}${placeName(r) ? " · " + esc(placeName(r)) : ""}</div>
-  ${r.summary ? `<div class="sec"><h5>Resumo</h5><p>${esc(r.summary)}</p></div>` : ""}
+  const live = r.capture_mode === "live";
+  return `<div class="ph">${it.av}<div><h2>${live ? "✦ " : ""}${esc(it.mini ? "Consultou: " + it.title : it.title)}</h2><div class="hook">${esc(fmtFull(r.at))}${placeName(r) ? " · " + esc(placeName(r)) : ""}</div></div></div>
+  ${r.summary && norm(cleanSaid(r.summary)) !== norm(it.title) ? `<div class="sec"><h5>Resumo</h5><p>${esc(cleanSaid(r.summary))}</p></div>` : ""}
   ${(r.follow_ups || []).length ? `<div class="sec"><h5>Pendências</h5><ul style="margin-left:18px">${r.follow_ups.map(f => `<li>${esc(typeof f === "string" ? f : f.text || "")}</li>`).join("")}</ul></div>` : ""}
   ${plansBlock(r)}
   ${p ? `<div class="sec"><h5>Pessoa</h5><button class="row" data-k="person" data-id="${p.id}">${avatar(p)}<span class="tx"><span class="t1">${esc(p.name)}</span></span></button></div>` : ""}
@@ -619,7 +760,14 @@ function noteHtml(r, it) {
   if (r.kind === "evento") return `<h2>🗓 ${esc(r.title || "Compromisso")}</h2><div class="hook">${esc(evWhen(r.fields || {}))}</div>${planCard(r, true)}`;
   const f = r.fields || {}, pe = f.pessoa, rx = f.receita;
   const person = pe && pe.nome ? S.people.find(p => norm(p.name) === norm(pe.nome)) : null;
-  return `<div class="ph">${it.av.replace('class="av k"', 'class="av k" style="width:64px;height:64px;font-size:26px"')}<div><h2>${esc(r.title || "Nota")}</h2><div class="hook">${esc(fmtFull(r.at))}${r.place ? " · " + esc(r.place) : ""}</div></div></div>
+  if (r.kind === "musica" || r.kind === "ouvir_depois") {
+    const sg = songOf(r), chatId = [...musicChats()].find(([, n]) => n === r.id)?.[0], conv = chatId && S.enc.find(e => e.id === chatId);
+    return `<div class="ph">${coverAv(r, true)}<div><h2>${esc(sg.title)}</h2><div class="hook">${esc([sg.artist, sg.album].filter(Boolean).join(" · "))}</div><div class="hook" style="color:var(--m)">${esc(fmtFull(r.at))}${r.place ? " · " + esc(r.place) : ""}</div></div></div>
+    ${musicBtns(r)}
+    ${conv ? `<div class="sec"><details><summary style="cursor:pointer;color:var(--g2)">Ver a conversa com o assistente</summary><div class="chat" style="margin-top:10px">${chat(conv.transcript)}</div></details></div>` : ""}
+    <div class="btns"><button class="btn" data-share="${r.id}">Enviar para Notas</button><button class="btn dan" data-del-row="note:${r.id}">Apagar</button></div>`;
+  }
+  return `<div class="ph">${it.av}<div><h2>${esc(r.title || "Nota")}</h2><div class="hook">${esc(fmtFull(r.at))}${r.place ? " · " + esc(r.place) : ""}</div></div></div>
   ${pe ? `<div class="sec"><h5>${r.kind === "cracha" ? "Crachá" : "Cartão de visita"}</h5>${kv([["Nome", pe.nome], ["Empresa", pe.empresa], ["Cargo", pe.cargo], ["Telefone", pe.telefone], ["E-mail", pe.email], ["Site", pe.site]])}${person ? `<button class="row" style="margin-top:10px" data-k="person" data-id="${person.id}">${avatar(person)}<span class="tx"><span class="t1">Ver ${esc(person.name)}</span></span></button>` : ""}</div>` : ""}
   ${rx ? `<div class="sec"><h5>Receita</h5>${kv([["Médico", rx.medico], ["Data", rx.data]])}<ul style="margin:10px 0 0 18px">${(rx.itens || []).map(i => `<li>${esc([i.remedio, i.dose, i.quando].filter(Boolean).join(" · "))}</li>`).join("")}</ul></div>` : ""}
   ${r.kind === "musica" ? musicBtns(r) : ""}
@@ -666,20 +814,23 @@ function plansBlock(r) {
 async function findPlans(id) {
   const r = S.enc.find(x => x.id === id); if (!r) return;
   const key = store.get("vc_gemini"); if (!key) { toast("Falta a chave do Gemini em Ajustes"); return; }
-  toast("Lendo a conversa…");
+  const btn = document.querySelector(`[data-evfind="${CSS.escape(id)}"]`), slot = document.createElement("div");
+  if (btn) btn.replaceWith(slot);
+  const pr = progress(slot, [["Lendo a conversa", 25, 800], ["Procurando compromissos", 96, 6000]]); setTimeout(() => pr.next(), 900);
   const when = new Date(r.at).toLocaleString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
   try {
     const j = await gemini(key, { contents: [{ parts: [{ text: `Conversa gravada em ${when}${r.person_name ? " com " + r.person_name : ""}.\nListe só compromissos FUTUROS combinados nela (reunião, encontro, consulta, ligação, entrega), com dia definido; datas relativas a partir da data acima. Responda só JSON: [{"titulo":"curto","inicio":"AAAA-MM-DDTHH:MM","duracao_min":60,"dia_inteiro":false,"local":"","com":"","notas":"assunto e demais detalhes ditos"}]. Sem hora dita: dia_inteiro true. Nenhum: []. Não invente.\n\n${String(r.transcript).slice(0, 12000)}` }] }], generationConfig: { temperature: 0.1, maxOutputTokens: 1500, responseMimeType: "application/json" } });
     const txt = (j.candidates?.[0]?.content?.parts || []).filter(p => p.text && !p.thought).map(p => p.text).join("").trim();
     const list = JSON.parse(txt.replace(/^```json|```$/g, ""));
-    if (!Array.isArray(list) || !list.length) { toast("Nenhum compromisso nessa conversa"); return; }
+    pr.done();
+    if (!Array.isArray(list) || !list.length) { slot.innerHTML = `<p class="muted">Nenhum compromisso nessa conversa.</p>`; return; }
     for (const e of list.slice(0, 3)) await call("note", { kind: "evento", title: e.titulo || "Compromisso", text: [e.titulo, e.com, e.local, e.notas].filter(Boolean).join("\n"), source: "manager",
       fields: { inicio: e.inicio, duracao_min: e.duracao_min || 60, dia_inteiro: !!e.dia_inteiro, local: e.local || "", com: e.com || r.person_name || "", notas: e.notas || "", status: "sugerido", de: r.person_name || "" } });
     S.notes = await call("list", { entity: "note" });
     // A note made now would not sit right after an old conversation: keep the link in this browser.
     const link = JSON.parse(store.get("vc_evlink") || "{}"); S.notes.filter(n => n.kind === "evento" && n.source === "manager" && !Object.values(link).flat().includes(n.id) && Date.now() - new Date(n.at) < 6e4).forEach(n => { (link[id] = link[id] || []).push(n.id); });
     store.set("vc_evlink", JSON.stringify(link)); render(); open("memory", id); toast(list.length === 1 ? "1 compromisso encontrado" : list.length + " compromissos encontrados");
-  } catch (e) { toast("Não deu: " + (e.message || e)); }
+  } catch (e) { pr.done(); slot.innerHTML = `<p class="muted">Não deu: ${esc(e.message || e)}</p>`; }
 }
 
 /* ---------- Tarefas (Marcus, 09/11): "o que eu tenho para fazer?" — what was agreed and not done, what someone
@@ -739,16 +890,20 @@ async function translateNote(id) {
   const n = S.notes.find(x => x.id === id); if (!n) return;
   const key = store.get("vc_gemini"); if (!key) { toast("Falta a chave do Gemini em Ajustes"); return; }
   const lang = $("#tr-lang").value, name = (LANGS.find(l => l[0] === lang) || [])[1] || lang, out = $("#tr-out");
-  out.style.display = "block"; out.textContent = "Traduzindo…";
+  out.style.display = "block"; const pr = progress(out, [["Traduzindo para " + name, 96, 5000]]);
   try {
     const src = n.fields?.original || n.text || "";
     const j = await gemini(key, { contents: [{ parts: [{ text: `Traduza para ${name} o texto abaixo, fiel e natural, mantendo quebras de linha. Responda só com a tradução.\n\n${src.slice(0, 6000)}` }] }], generationConfig: { temperature: 0.2, maxOutputTokens: 4000 } });
-    out.textContent = (j.candidates?.[0]?.content?.parts || []).filter(p => p.text && !p.thought).map(p => p.text).join("").trim() || "Sem resposta.";
-  } catch (e) { out.textContent = "Não deu: " + (e.message || e); }
+    pr.done(); out.textContent = (j.candidates?.[0]?.content?.parts || []).filter(p => p.text && !p.thought).map(p => p.text).join("").trim() || "Sem resposta.";
+  } catch (e) { pr.done(); out.textContent = "Não deu: " + (e.message || e); }
 }
 
 /* A song the glasses heard (Marcus, 09/11): open it where he listens, or keep it for later. */
-function songOf(r) { const m = String(r.title || "").split(" · ")[0].split(" — "); return { title: m[0] || "", artist: m[1] || "" }; }
+function songOf(r) {
+  const f = r.fields || {}, parts = String(r.title || "").split(" · "), m = parts[0].split(" — ");
+  const title = f.titulo || m[0] || "", artist = f.artista || m[1] || "", album = parts[1] && norm(parts[1]) !== norm(title) ? parts[1] : "";
+  return { title, artist, album };
+}
 function musicBtns(r) {
   const s = songOf(r), q = encodeURIComponent([s.title, s.artist].filter(Boolean).join(" "));
   const later = S.notes.some(n => n.kind === "ouvir_depois" && n.title === r.title);
@@ -801,7 +956,8 @@ async function prep(id, opt = {}) {
   const p = S.people.find(x => x.id === id); if (!p) return;
   const box = $("#prep"), key = store.get("vc_gemini");
   if (!box) return;
-  box.innerHTML = `<div class="sec"><h5>✦ Preparação</h5><p class="muted dots">Juntando o que você sabe e o que está na web</p></div>`;
+  box.innerHTML = `<div class="sec"><h5>✦ Preparação</h5><div id="prepp"></div></div>`;
+  const ppr = progress($("#prepp"), [["Juntando o que você sabe", 30, 1200], ["Procurando na web", 96, 14000]]); setTimeout(() => ppr.next(), 1500);
   box.scrollIntoView({ behavior: "smooth", block: "start" });
   if (!key) { box.innerHTML = `<div class="sec"><h5>✦ Preparação</h5><p>Falta a chave do Gemini. Abra o Manager pelo app ou cole a chave em Ajustes.</p></div>`; return; }
   const first = norm(p.name).split(" ")[0];

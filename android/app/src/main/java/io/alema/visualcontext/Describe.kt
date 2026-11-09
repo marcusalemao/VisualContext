@@ -109,11 +109,12 @@ object Describe {
      * Keeps the user's words and decisions; long readings (menu, sign, leaflet, book page) become one line.
      * Returns (one-sentence summary, condensed conversation). Blocking; null on failure (then the raw text is kept).
      */
-    fun memoryVersion(ctx: Context, conversation: String, tries: Int = 0): Pair<String, String>? {
+    fun memoryVersion(ctx: Context, conversation: String, tries: Int = 0, at: Long = System.currentTimeMillis()): Pair<String, String>? {
         val key = Backend.geminiKey(ctx); if (key.length < 20) return null
         val model = textModel(ctx, key) ?: return null
         val prompt = "Abaixo está uma conversa entre o usuário e o assistente dos óculos. Prepare a versão que vai para a memória dele, em português, e responda em JSON " +
-            "{\"resumo\": \"uma frase (até 15 palavras) com o assunto ou o que ele decidiu\", \"conversa\": \"a conversa condensada\"}.\n" +
+            "{\"resumo\": \"o assunto em até 7 palavras, começando pelo tema (\\\"Gastos a pagar até sexta\\\", \\\"Música do bar: Material Girl\\\", \\\"Agenda de seg 09/11\\\"); nunca \\\"O usuário…\\\", \\\"Você pediu…\\\" nem verbo de pedir\", \"conversa\": \"a conversa condensada\"}.\n" +
+            "A conversa aconteceu em " + java.text.SimpleDateFormat("EEEE dd/MM/yyyy HH:mm", java.util.Locale("pt", "BR")).format(java.util.Date(at)) + ": datas relativas (hoje, amanhã, sexta) no resumo viram datas reais a partir desse dia.\n" +
             "Regras da conversa condensada: mantenha as falas do usuário e tudo o que ele decidiu, pediu, comprou, combinou ou comeu. " +
             "Quando o assistente apenas leu algo para ele (cardápio, placa, bula, página, tela), troque a leitura por uma linha só, por exemplo \"[o assistente leu o cardápio]\". " +
             "Respostas curtas do assistente ficam. Mantenha o formato \"Você: …\" / \"Assistente: …\". " +
@@ -131,7 +132,7 @@ object Describe {
             c.outputStream.use { it.write(body.toString().toByteArray()) }
             if (c.responseCode !in 200..299) {
                 // A model Google retired for this key ("no longer available to new users"): skip it and pick the next one.
-                if (c.responseCode in listOf(400, 403, 404) && tries < 2) { Backend.markBadModel(ctx, model); return memoryVersion(ctx, conversation, tries + 1) }
+                if (c.responseCode in listOf(400, 403, 404) && tries < 2) { Backend.markBadModel(ctx, model); return memoryVersion(ctx, conversation, tries + 1, at) }
                 return null
             }
             val parts = JSONObject(c.inputStream.bufferedReader().readText()).optJSONArray("candidates")?.optJSONObject(0)?.optJSONObject("content")?.optJSONArray("parts") ?: return null

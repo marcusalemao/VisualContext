@@ -87,18 +87,42 @@ class SettingsActivity : Activity() {
         layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(8) }
         setOnClickListener { cb() }
     }.also { addView(it) }
+    /** An on/off option: the words on the left, a switch on the right, as in Android's own settings (Marcus, 09/11). */
+    private fun sw() = android.widget.Switch(this).apply {
+        textSize = 14f; setTextColor(soft); setPadding(0, dp(8), 0, dp(8)); switchPadding = dp(14)
+        thumbTintList = android.content.res.ColorStateList(arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()), intArrayOf(green, Color.rgb(170, 180, 175)))
+        trackTintList = android.content.res.ColorStateList(arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()), intArrayOf(Color.argb(110, 0, 255, 136), Color.argb(70, 255, 255, 255)))
+        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+    }
+    /** Green fill only for the action that needs doing now; done things look like the others (Marcus, 09/11). */
+    private fun Button.primary(on: Boolean) {
+        setTextColor(if (on) ink else green)
+        background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(14).toFloat(); if (on) setColor(green) else { setColor(Color.TRANSPARENT); setStroke(dp(2), green) } }
+    }
     private var facesOpen = false
 
     private fun render() {
         col.removeAllViews()
         col.setPadding(dp(16), dp(40), dp(16), dp(32) + Look.nav(col))
         // The full logo (symbol + wordmark); long-press = developer mode.
+        // Marcus, 09/11: the same logo, about a third of the width, with "by alema.io" and the version under it.
         col.addView(android.widget.ImageView(this).apply {
             setImageResource(R.drawable.logo_full)
             adjustViewBounds = true
             contentDescription = "VisualContext"
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(12) }
+            layoutParams = LinearLayout.LayoutParams(dp(150), LinearLayout.LayoutParams.WRAP_CONTENT).apply { gravity = android.view.Gravity.CENTER_HORIZONTAL }
             setOnLongClickListener { dev = !dev; render(); true }
+        })
+        val ver = runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull() ?: ""
+        col.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(2); bottomMargin = dp(16) }
+            addView(TextView(context).apply { text = "by alema.io"; textSize = 12f; setTextColor(soft); setOnClickListener { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://alema.io"))) } })
+            addView(TextView(context).apply {
+                text = "v$ver"; textSize = 11f; setTextColor(soft); typeface = android.graphics.Typeface.MONOSPACE; setPadding(dp(8), dp(1), dp(8), dp(1))
+                background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(99).toFloat(); setStroke(dp(1), Color.argb(70, 255, 255, 255)) }
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(8) }
+            })
         })
 
         // 1. Connection
@@ -166,7 +190,7 @@ class SettingsActivity : Activity() {
         val status = TextView(this).apply { text = "verificando…"; textSize = 16f; setTextColor(green) }
             c1.addView(status); check(status)
             Backend.email(this).takeIf { it.isNotEmpty() }?.let { c1.p("Conta: $it", 13f) }
-            c1.btn("Abrir o Manager", true) { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(Backend.managerLink(this)))) }
+            c1.btn("Abrir o Manager", false) { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(Backend.managerLink(this)))) }
             c1.p("Sua memória no navegador: pergunte qualquer coisa, prepare conversas, edite pessoas, importe contatos.", 13f)
         }
 
@@ -190,8 +214,10 @@ class SettingsActivity : Activity() {
         c4b.h("Com quem você mais fala")
         c4b.p("Conta as mensagens que chegam no WhatsApp, Telegram, Signal e SMS, por pessoa, nos últimos 30 dias. Só a contagem: o texto nunca é guardado, e grupos ficam de fora. Ajuda a importar primeiro quem importa e a preparar conversas. Com o Zap instalado, ele já traz 7 dias de histórico.", 13f)
         val on = TalkCounter.enabled(this)
-        c4b.p(if (on) "● Ligado · ${TalkCounter.counts(this).size} pessoas contadas" else "○ Desligado", 14f).setTextColor(if (on) green else soft)
-        c4b.btn(if (on) "Desligar (acesso às notificações)" else "Ligar (acesso às notificações)", !on) { startActivity(Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
+        c4b.addView(sw().apply {
+            text = if (on) "Contando · ${TalkCounter.counts(this@SettingsActivity).size} pessoas" else "Contar mensagens (acesso às notificações)"; isChecked = on
+            setOnCheckedChangeListener { _, _ -> startActivity(Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
+        })
         // Cross-sell (Marcus, 07/11): Zap brings the last 7 days at once, and WhatsApp on the glasses.
         if (packageManager.resolveContentProvider("io.alema.zap.frequent", 0) == null) c4b.addView(TextView(this).apply {
             text = "Ainda não tem o Zap? Ele traz os últimos 7 dias de uma vez e põe o WhatsApp nos óculos. Baixar →"
@@ -204,7 +230,7 @@ class SettingsActivity : Activity() {
         val c5 = card()
         c5.h("Preparação")
         c5.p("10 minutos antes de um compromisso com alguém da sua memória, um aviso abre o que você precisa saber.")
-        c5.addView(android.widget.CheckBox(this).apply {
+        c5.addView(sw().apply {
             text = "Avisar antes dos compromissos (lê a agenda do celular)"; setTextColor(soft); textSize = 14f; buttonTintList = android.content.res.ColorStateList.valueOf(green)
             isChecked = checkSelfPermission(android.Manifest.permission.READ_CALENDAR) == android.content.pm.PackageManager.PERMISSION_GRANTED && getSharedPreferences("visualcontext", MODE_PRIVATE).getBoolean("prep_on", false)
             setOnCheckedChangeListener { _, on ->
@@ -228,7 +254,7 @@ class SettingsActivity : Activity() {
                 if (android.os.Build.VERSION.SDK_INT >= 33 && apps[id - 400].first != "none") requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 9)
             }
         })
-        c6.addView(android.widget.CheckBox(this).apply {
+        c6.addView(sw().apply {
             text = "Mandar receitas médicas também (dado de saúde)"; setTextColor(soft); textSize = 14f; isChecked = NotesOut.health(context); buttonTintList = android.content.res.ColorStateList.valueOf(green)
             setOnCheckedChangeListener { _, on -> NotesOut.setHealth(context, on) }
         })
@@ -273,22 +299,22 @@ class SettingsActivity : Activity() {
             })
             if (Voice.phoneVoice(this).isEmpty() && cur.isNotEmpty()) Voice.setPhoneVoice(this, cur)
         }, 900)
-        c7.addView(android.widget.CheckBox(this).apply {
+        c7.addView(sw().apply {
             text = "Desligar o Live (modo só celular): os óculos reconhecem, transcrevem e avisam pela voz do celular, mas o assistente não responde perguntas. Não tem a ver com a voz escolhida acima."
             textSize = 14f; setTextColor(soft); buttonTintList = android.content.res.ColorStateList.valueOf(green); isChecked = Backend.offlineOnly(this@SettingsActivity)
             setOnCheckedChangeListener { _, on -> Backend.setOfflineOnly(this@SettingsActivity, on) }
         })
-        c7.addView(android.widget.CheckBox(this).apply {
+        c7.addView(sw().apply {
             text = "Escuta contínua (recomendado): você só fala. Perguntas simples (\"que horas são\", \"onde deixei as chaves\", \"o que fiz hoje\") o celular responde na hora; qualquer outra coisa dita ao assistente abre o Gemini, que responde e, se você não disser mais nada, sai sozinho e volta a escutar. O toque longo na haste continua abrindo o Gemini direto. Desligado, só o toque longo funciona."
             textSize = 13f; setTextColor(soft); buttonTintList = android.content.res.ColorStateList.valueOf(green); isChecked = Backend.standby(this@SettingsActivity)
             setOnCheckedChangeListener { _, on -> Backend.setStandby(this@SettingsActivity, on) }
         })
-        c7.addView(android.widget.CheckBox(this).apply {
+        c7.addView(sw().apply {
             text = "Dicas na lente: o que dá para dizer ao abrir o assistente e opções (Ler, Guardar, Keep, Agenda) quando você aponta para um texto."
             textSize = 13f; setTextColor(soft); buttonTintList = android.content.res.ColorStateList.valueOf(green); isChecked = Backend.hints(this@SettingsActivity)
             setOnCheckedChangeListener { _, on -> Backend.setHints(this@SettingsActivity, on) }
         })
-        c7.addView(android.widget.CheckBox(this).apply {
+        c7.addView(sw().apply {
             text = "Agenda automática: compromisso combinado numa conversa (com dia e hora) entra sozinho na agenda, com quem, onde e os detalhes; a lente mostra Desfazer. Sem hora certa, fica como sugestão no Manager."
             textSize = 13f; setTextColor(soft); buttonTintList = android.content.res.ColorStateList.valueOf(green); isChecked = Plans.auto(this@SettingsActivity)
             setOnCheckedChangeListener { _, on -> Plans.setAuto(this@SettingsActivity, on); if (on) requestPermissions(arrayOf(android.Manifest.permission.READ_CALENDAR, android.Manifest.permission.WRITE_CALENDAR), 12) }
@@ -296,7 +322,7 @@ class SettingsActivity : Activity() {
         c7.p("Idiomas que eu falo: o que você diz só é escrito nestas línguas, nunca em outra.", 13f)
         val langRow = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val chosen = Backend.languages(this).toMutableList()
-        for ((code, label) in Backend.LANGS) langRow.addView(android.widget.CheckBox(this).apply {
+        for ((code, label) in Backend.LANGS) langRow.addView(sw().apply {
             text = label; textSize = 14f; setTextColor(soft); buttonTintList = android.content.res.ColorStateList.valueOf(green); isChecked = code in chosen
             setOnCheckedChangeListener { b, on ->
                 if (on) { if (code !in chosen) chosen.add(code) } else chosen.remove(code)
@@ -633,10 +659,11 @@ class SettingsActivity : Activity() {
         val row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
         addView(row)
         lateinit var tb: Button
-        val sb = btn("Salvar", true) {
+        lateinit var sb: Button
+        sb = btn(if (cur.isEmpty()) "Salvar" else "✓ Salva", cur.isEmpty()) {
             val v = f.text.toString().trim()
             if (v.length < 12) { Toast.makeText(context, "Cole a chave primeiro", Toast.LENGTH_SHORT).show(); return@btn }
-            save(v); cur = v; f.setText(""); f.hint = "colar outra chave…"
+            save(v); cur = v; f.setText(""); f.hint = "colar outra chave…"; sb.text = "✓ Salva"; sb.primary(false)
             state.setTextColor(soft); state.text = "Chave salva: ${mask(cur)} (ainda não testada)"
         }
         tb = btn("Testar", false) {
@@ -653,6 +680,12 @@ class SettingsActivity : Activity() {
                 }
             }
         }
+        // Something pasted: saving is the thing to do now.
+        f.addTextChangedListener(object : android.text.TextWatcher {
+            override fun afterTextChanged(e: android.text.Editable?) { val has = !e.isNullOrBlank(); sb.text = if (has || cur.isEmpty()) "Salvar" else "✓ Salva"; sb.primary(has || cur.isEmpty()) }
+            override fun beforeTextChanged(a: CharSequence?, b: Int, c: Int, d: Int) {}
+            override fun onTextChanged(a: CharSequence?, b: Int, c: Int, d: Int) {}
+        })
         // Side by side: move the two buttons from the card into the row.
         removeView(sb); removeView(tb)
         for ((i, b) in listOf(sb, tb).withIndex()) row.addView(b, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { topMargin = dp(8); if (i == 0) rightMargin = dp(8) })

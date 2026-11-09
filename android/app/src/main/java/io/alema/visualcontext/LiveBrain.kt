@@ -233,7 +233,7 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
             val me = Backend.meName(ctx)
             if (who.size == 1 && !who[0].equals(me, true) && who[0] != "você") body.put("person_name", who[0])
             if (loc != null) body.put("lat", loc.latitude).put("lng", loc.longitude).put("place", Where.placeLabel(ctx, loc) ?: Where.address(ctx, loc))
-            val mv = Describe.memoryVersion(ctx, text)
+            val mv = Describe.memoryVersion(ctx, text, at = at)
             if (mv != null) { if (mv.first.isNotBlank()) body.put("summary", mv.first); body.put("transcript", mv.second) }
             else firstQuestion(text)?.let { body.put("summary", it) } // never a conversation without what it was about
             Moments.send(ctx, body)
@@ -434,11 +434,11 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
                         val song = Music.identify(ctx)
                         if (song == null) { main.post { host.onBrief("♪", listOf("não reconheci essa música")) }; JSONObject().put("resultado", "não reconhecida").put("diga", "Não reconheci essa música. Quer que eu tente de novo?") }
                         else {
-                            val line = "${song.title} — ${song.artist}" + (song.album?.let { " · $it" } ?: "")
+                            val line = "${song.title} — ${song.artist}" + (song.album?.takeIf { it.trim().lowercase() != song.title.trim().lowercase() }?.let { " · $it" } ?: "")
                             // The 8 s capture ended now: AudD's timecode is where the fragment started.
                             Player.heard(song.title, song.artist, song.timecode); Player.lastPosMs.takeIf { it >= 0 }?.let { Player.lastPosMs = it + Music.SECONDS_MS }
                             main.post { host.onBrief("♪ " + song.title, listOf(song.artist, song.album ?: "")) }
-                            Moments.send(ctx, JSONObject().put("action", "note").put("kind", "musica").put("title", line).put("text", "Ouviu $line").put("source", "glasses").put("place", host.placeName()).put("fields", JSONObject().put("fonte", song.source).put("titulo", song.title).put("artista", song.artist)))
+                            Moments.send(ctx, JSONObject().put("action", "note").put("kind", "musica").put("title", line).put("text", "Ouviu ${song.title}, de ${song.artist}.").put("source", "glasses").put("place", host.placeName()).put("fields", JSONObject().put("fonte", song.source).put("titulo", song.title).put("artista", song.artist)))
                             JSONObject().put("musica", song.title).put("artista", song.artist).put("album", song.album ?: "").put("diga", "É ${song.title}, de ${song.artist}.").put("letra", "se ele quiser ver a letra na lente, chame mostrar_letra")
                         }
                     } catch (e: IllegalStateException) {
