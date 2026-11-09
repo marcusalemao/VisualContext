@@ -676,7 +676,7 @@ async function geminiModel(key, bad = []) {
 }
 function memoryText() {
   const P = S.people.map(p => ({ id: p.id, nome: p.name, relacao: p.relation, empresa: p.company, cargo: p.role, tags: p.tags, ultima_vez: p.last_seen_date, onde: p.last_seen_context, notas: p.notes }));
-  const E = S.enc.map(e => ({ id: e.id, tipo: e.capture_mode === "live" ? (topicOf(e).k === "consulta" ? "consulta" : "conversa com o assistente") : "encontro", quando: new Date(e.at).toLocaleString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }), lugar: e.place, pessoa: e.person_name, contexto: e.context, resumo: e.summary, pendencias: e.follow_ups, trecho: (e.transcript || "").slice(0, 600) }));
+  const E = S.enc.map(e => ({ id: e.id, tipo: e.capture_mode === "live" ? (topicOf(e).k === "consulta" ? "consulta" : "conversa com o assistente") : "encontro", quando: new Date(e.at).toLocaleString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }), lugar: placeName(e), endereco: placeName(e) !== e.place ? e.place : undefined, pessoa: e.person_name, contexto: e.context, resumo: e.summary, pendencias: e.follow_ups, trecho: (e.transcript || "").slice(0, 600) }));
   const T = S.things.map(t => ({ id: t.id, coisa: t.name, onde: t.location_description, quando: t.seen_at, lat: t.lat, lng: t.lng }));
   const N = S.notes.filter(n => n.kind !== "ligacao").map(n => ({ id: n.id, tipo: n.kind || "nota", titulo: n.title, nota: (n.text || "").slice(0, 1500), campos: n.fields, lugar: n.place, quando: n.at }));
   return JSON.stringify({ pessoas: P, momentos: E, coisas: T, notas: N });
