@@ -29,15 +29,55 @@ object Music {
         .put("description", "Identifica a música que está tocando no ambiente (\"que música é essa\", \"quem canta isso\"). Chame assim que ele perguntar; os óculos escutam uns segundos. Nunca tente adivinhar a música sozinho.")
         .put("parameters", JSONObject().put("type", "OBJECT").put("properties", JSONObject()))
 
-    data class Song(val title: String, val artist: String, val album: String?, val link: String?, val timecode: String? = null)
 
-    /** Listens [SECONDS] s and asks AudD. Null = not found; throws with a message when the key or the network fails. */
+    // ── ACRCloud (Marcus, 09/11): asked at the same time as AudD; the better answer wins, and the app keeps score. ──
+    private fun p(ctx: Context) = ctx.getSharedPreferences("visualcontext", Context.MODE_PRIVATE)
+    fun acrHost(ctx: Context) = p(ctx).getString("acr_host", "") ?: ""
+    fun acrKey(ctx: Context) = p(ctx).getString("acr_key", "") ?: ""
+    fun acrSecret(ctx: Context) = p(ctx).getString("acr_secret", "") ?: ""
+    fun setAcr(ctx: Context, host: String? = null, key: String? = null, secret: String? = null) = p(ctx).edit().apply {
+        host?.let { putString("acr_host", it.trim().removePrefix("https://").removePrefix("http://").trimEnd('/')) }; key?.let { putString("acr_key", it.trim()) }; secret?.let { putString("acr_secret", it.trim()) } }.apply()
+    fun hasAcr(ctx: Context) = acrHost(ctx).isNotBlank() && acrKey(ctx).isNotBlank() && acrSecret(ctx).isNotBlank()
+    fun any(ctx: Context) = key(ctx).isNotEmpty() || hasAcr(ctx)
+
+    /** Who found what, kept on the phone: "audd", "acr", "ambos" (agreed), "divergiram", "nenhum". */
+    fun score(ctx: Context): Map<String, Int> = listOf("audd", "acr", "ambos", "divergiram", "nenhum").associateWith { p(ctx).getInt("mscore_$it", 0) }
+    private fun count(ctx: Context, k: String) = p(ctx).edit().putInt("mscore_$k", p(ctx).getInt("mscore_$k", 0) + 1).apply()
+
+    data class Song(val title: String, val artist: String, val album: String?, val link: String?, val timecode: String? = null, val source: String = "audd", val score: Int = 0)
+
+    /**
+     * Listens [SECONDS] s and asks AudD and ACRCloud at the same time (whichever keys exist). Both found the same song:
+     * AudD's answer (it has the link) with the best timecode. They disagree: ACRCloud when its score is high, otherwise
+     * AudD. Null = neither found it; throws with a message when no service is set up or nothing could be heard.
+     */
     fun identify(ctx: Context): Song? {
-        val k = key(ctx); if (k.isEmpty()) throw IllegalStateException("sem chave")
+        if (!any(ctx)) throw IllegalStateException("sem chave")
         val buf = ByteArrayOutputStream(); tap = buf
         try { Thread.sleep(SECONDS * 1000L) } finally { tap = null }
         val pcm = buf.toByteArray(); if (pcm.size < 16_000 * 2 * 3) throw IllegalStateException("não ouvi quase nada")
         val wav = wav(pcm, 16_000)
+        val pool = java.util.concurrent.Executors.newFixedThreadPool(2)
+        val fa = if (key(ctx).isNotEmpty()) pool.submit<Result<Song?>> { runCatching { audd(ctx, wav) } } else null
+        val fb = if (hasAcr(ctx)) pool.submit<Result<Song?>> { runCatching { acr(ctx, wav) } } else null
+        val a = fa?.let { runCatching { it.get(30, java.util.concurrent.TimeUnit.SECONDS) }.getOrElse { Result.failure(it) } }
+        val b = fb?.let { runCatching { it.get(30, java.util.concurrent.TimeUnit.SECONDS) }.getOrElse { Result.failure(it) } }
+        pool.shutdownNow()
+        val sa = a?.getOrNull(); val sb = b?.getOrNull()
+        val same = sa != null && sb != null && norm(sa.title) == norm(sb.title)
+        val pick = when {
+            same -> sa!!.copy(timecode = sa.timecode ?: sb!!.timecode, source = "ambos", score = sb!!.score)
+            sa != null && sb != null -> if (sb.score >= 85) sb else sa
+            else -> sa ?: sb
+        }
+        count(ctx, when { same -> "ambos"; sa != null && sb != null -> "divergiram"; sa != null -> "audd"; sb != null -> "acr"; else -> "nenhum" })
+        android.util.Log.i("VCMusic", "audd=${sa?.title ?: a?.exceptionOrNull()?.message ?: "-"} acr=${sb?.title ?: b?.exceptionOrNull()?.message ?: "-"}(${sb?.score}) → ${pick?.title} [${pick?.source}]")
+        if (pick == null) { val err = listOfNotNull(a?.exceptionOrNull(), b?.exceptionOrNull()); if (err.size == listOfNotNull(fa, fb).size && err.isNotEmpty()) throw IllegalStateException(err.first().message ?: "erro") }
+        return pick
+    }
+    private fun norm(t: String) = java.text.Normalizer.normalize(t.lowercase(), java.text.Normalizer.Form.NFD).replace(Regex("\\p{M}+"), "").replace(Regex("\\(.*?\\)|\\[.*?]|feat\\..*|[^a-z0-9 ]"), "").trim()
+
+    private fun audd(ctx: Context, wav: ByteArray): Song? {
         val boundary = "----vc" + System.nanoTime()
         val c = (URL("https://api.audd.io/").openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"; connectTimeout = 10_000; readTimeout = 25_000; doOutput = true
@@ -45,15 +85,48 @@ object Music {
         }
         c.outputStream.use { o ->
             fun field(n: String, v: String) = o.write("--$boundary\r\nContent-Disposition: form-data; name=\"$n\"\r\n\r\n$v\r\n".toByteArray())
-            field("api_token", k); field("return", "spotify,apple_music")
+            field("api_token", key(ctx)); field("return", "spotify,apple_music")
             o.write("--$boundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"a.wav\"\r\nContent-Type: audio/wav\r\n\r\n".toByteArray()); o.write(wav); o.write("\r\n--$boundary--\r\n".toByteArray())
         }
         if (c.responseCode !in 200..299) throw IllegalStateException("AudD respondeu ${c.responseCode}")
         val j = JSONObject(c.inputStream.bufferedReader().readText())
         if (j.optString("status") != "success") throw IllegalStateException(j.optJSONObject("error")?.optString("error_message") ?: "erro do AudD")
         val r = j.optJSONObject("result") ?: return null
-        return Song(r.optString("title"), r.optString("artist"), r.optString("album").ifEmpty { null }, r.optString("song_link").ifEmpty { null }, r.optString("timecode").ifEmpty { null })
+        return Song(r.optString("title"), r.optString("artist"), r.optString("album").ifEmpty { null }, r.optString("song_link").ifEmpty { null }, r.optString("timecode").ifEmpty { null }, "audd", 80)
     }
+
+    /** ACRCloud identify (v1, HMAC-SHA1 signature). Returns null on "no result" (code 1001). */
+    private fun acr(ctx: Context, sample: ByteArray) = acrCall(sample, acrHost(ctx), acrKey(ctx), acrSecret(ctx))
+    private fun acrCall(sample: ByteArray, host: String, key: String, secret: String): Song? {
+        val ts = (System.currentTimeMillis() / 1000).toString()
+        val toSign = "POST\n/v1/identify\n$key\naudio\n1\n$ts"
+        val mac = javax.crypto.Mac.getInstance("HmacSHA1").apply { init(javax.crypto.spec.SecretKeySpec(secret.toByteArray(), "HmacSHA1")) }
+        val sig = android.util.Base64.encodeToString(mac.doFinal(toSign.toByteArray()), android.util.Base64.NO_WRAP)
+        val boundary = "----vc" + System.nanoTime()
+        val c = (URL("https://$host/v1/identify").openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"; connectTimeout = 10_000; readTimeout = 25_000; doOutput = true
+            setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
+        }
+        c.outputStream.use { o ->
+            fun field(n: String, v: String) = o.write("--$boundary\r\nContent-Disposition: form-data; name=\"$n\"\r\n\r\n$v\r\n".toByteArray())
+            field("access_key", key); field("data_type", "audio"); field("signature_version", "1"); field("signature", sig); field("timestamp", ts); field("sample_bytes", sample.size.toString())
+            o.write("--$boundary\r\nContent-Disposition: form-data; name=\"sample\"; filename=\"a.wav\"\r\nContent-Type: audio/wav\r\n\r\n".toByteArray()); o.write(sample); o.write("\r\n--$boundary--\r\n".toByteArray())
+        }
+        if (c.responseCode !in 200..299) throw IllegalStateException("ACRCloud respondeu ${c.responseCode}")
+        val j = JSONObject(c.inputStream.bufferedReader().readText())
+        val code = j.optJSONObject("status")?.optInt("code", -1) ?: -1
+        if (code == 1001 || code == 2004) return null // no result / no fingerprint (silence): the keys worked
+        if (code != 0) throw IllegalStateException("ACRCloud: " + (j.optJSONObject("status")?.optString("msg") ?: "erro $code"))
+        val m = j.optJSONObject("metadata")?.optJSONArray("music")?.optJSONObject(0) ?: return null
+        val off = m.optLong("play_offset_ms", -1)
+        val tc = if (off >= 0) "%02d:%02d".format(off / 60000, off / 1000 % 60) else null
+        val artists = m.optJSONArray("artists")?.let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it)?.optString("name") }.joinToString(", ") } ?: ""
+        return Song(m.optString("title"), artists, m.optJSONObject("album")?.optString("name")?.ifEmpty { null }, null, tc, "acr", m.optInt("score", 0))
+    }
+
+    /** Settings test: a second of silence; "no result" (1001) means the keys work. Null = ok, else the problem. */
+    fun testAcr(host: String, key: String, secret: String): String? = try { acrCall(wav(ByteArray(16_000 * 2), 16_000), host, key, secret); null }
+        catch (e: Exception) { e.message ?: "não respondeu" }
 
     /** Google's sound search on the phone (the Google app's own intent; no result comes back to us). */
     fun openGoogle(ctx: Context): Boolean = try {
@@ -61,7 +134,7 @@ object Music {
         if (i.resolveActivity(ctx.packageManager) == null) false else { ctx.startActivity(i); true }
     } catch (_: Exception) { false }
 
-    private fun wav(pcm: ByteArray, rate: Int): ByteArray {
+    fun wav(pcm: ByteArray, rate: Int): ByteArray {
         val o = ByteArrayOutputStream(pcm.size + 44)
         fun i32(v: Int) = o.write(byteArrayOf((v and 0xff).toByte(), (v shr 8 and 0xff).toByte(), (v shr 16 and 0xff).toByte(), (v shr 24 and 0xff).toByte()))
         fun i16(v: Int) = o.write(byteArrayOf((v and 0xff).toByte(), (v shr 8 and 0xff).toByte()))

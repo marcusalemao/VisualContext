@@ -438,13 +438,13 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
                             // The 8 s capture ended now: AudD's timecode is where the fragment started.
                             Player.heard(song.title, song.artist, song.timecode); Player.lastPosMs.takeIf { it >= 0 }?.let { Player.lastPosMs = it + Music.SECONDS_MS }
                             main.post { host.onBrief("♪ " + song.title, listOf(song.artist, song.album ?: "")) }
-                            Moments.send(ctx, JSONObject().put("action", "note").put("kind", "musica").put("title", line).put("text", "Ouviu $line").put("source", "glasses").put("place", host.placeName()))
+                            Moments.send(ctx, JSONObject().put("action", "note").put("kind", "musica").put("title", line).put("text", "Ouviu $line").put("source", "glasses").put("place", host.placeName()).put("fields", JSONObject().put("fonte", song.source).put("titulo", song.title).put("artista", song.artist)))
                             JSONObject().put("musica", song.title).put("artista", song.artist).put("album", song.album ?: "").put("diga", "É ${song.title}, de ${song.artist}.").put("letra", "se ele quiser ver a letra na lente, chame mostrar_letra")
                         }
                     } catch (e: IllegalStateException) {
                         if (e.message == "sem chave") {
                             val ok = Music.openGoogle(ctx)
-                            JSONObject().put("resultado", if (ok) "abri a pesquisa por som do Google no celular; o resultado aparece lá" else "sem serviço de identificação de música; a chave do AudD pode ser configurada nos Ajustes")
+                            JSONObject().put("resultado", if (ok) "abri a pesquisa por som do Google no celular; o resultado aparece lá" else "sem serviço de identificação de música; as chaves do AudD ou do ACRCloud podem ser configuradas nos Ajustes")
                                 .put("diga", if (ok) "Abri a pesquisa por som do Google no seu celular." else "Ainda não tenho como identificar músicas; dá para ligar isso nos Ajustes.")
                         } else JSONObject().put("erro", e.message)
                     }

@@ -341,7 +341,7 @@ class SettingsActivity : Activity() {
         // Music (Marcus, 07/11): AudD recognises what is playing; Google's sound search has no API.
         val cm = card()
         cm.h("Música (opcional)")
-        cm.p("\"Que música é essa?\" nos óculos. Sem chave, o celular abre a pesquisa por som do Google (o resultado fica lá). Com uma chave do AudD (audd.io, tem plano grátis), o nome aparece na lente e vira lembrança.", 13f)
+        cm.p("\"Que música é essa?\" nos óculos. Sem chave, o celular abre a pesquisa por som do Google (o resultado fica lá). Com uma chave do AudD (audd.io) ou do ACRCloud (acrcloud.com), o nome aparece na lente e vira lembrança. Com as duas, o app pergunta às duas ao mesmo tempo e mostra a melhor resposta (o ACRCloud costuma conhecer mais música brasileira).", 13f)
         cm.btn("Pegar a chave no AudD ↗", false) { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://dashboard.audd.io/"))) }
         cm.keyRow(Music.key(this), "chave do AudD", save = { Music.setKey(this, it) }, test = { k ->
             try {
@@ -349,6 +349,25 @@ class SettingsActivity : Activity() {
                 val j = org.json.JSONObject(c.inputStream.bufferedReader().readText())
                 if (j.optString("status") == "success") null else (j.optJSONObject("error")?.optString("error_message") ?: "Chave recusada pelo AudD.")
             } catch (_: Exception) { "Sem internet." } })
+        // ACRCloud (Marcus, 09/11): asked together with AudD; the scoreboard shows who gets it right.
+        cm.p("ACRCloud: crie um projeto \"Audio & Video Recognition\" no console e copie Host, Access Key e Access Secret.", 12f)
+        cm.btn("Abrir o console do ACRCloud ↗", false) { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://console.acrcloud.com/"))) }
+        val acrState = TextView(this).apply { textSize = 13f; setTextColor(if (Music.hasAcr(this@SettingsActivity)) soft else Color.rgb(255, 170, 90))
+            text = if (Music.hasAcr(this@SettingsActivity)) "ACRCloud salvo: ${Music.acrHost(this@SettingsActivity)} · ${mask(Music.acrKey(this@SettingsActivity))}" else "ACRCloud não configurado." }
+        cm.addView(acrState)
+        val fh = field(Music.acrHost(this), false).apply { hint = "Host (identify-…acrcloud.com)" }; cm.addView(fh)
+        val fk = field("", true).apply { hint = if (Music.acrKey(this@SettingsActivity).isEmpty()) "Access Key" else "colar outra Access Key…" }; cm.addView(fk)
+        val fs = field("", true).apply { hint = if (Music.acrSecret(this@SettingsActivity).isEmpty()) "Access Secret" else "colar outro Access Secret…" }; cm.addView(fs)
+        cm.btn("Salvar e testar ACRCloud", true) {
+            val h = fh.text.toString().trim(); val k = fk.text.toString().trim().ifEmpty { Music.acrKey(this) }; val sct = fs.text.toString().trim().ifEmpty { Music.acrSecret(this) }
+            if (h.isEmpty() || k.isEmpty() || sct.isEmpty()) { Toast.makeText(this, "Preencha host, key e secret", Toast.LENGTH_SHORT).show(); return@btn }
+            Music.setAcr(this, h, k, sct); fk.setText(""); fs.setText(""); acrState.setTextColor(soft); acrState.text = "Testando ACRCloud…"
+            io.execute { val why = Music.testAcr(Music.acrHost(this), k, sct); runOnUiThread {
+                if (why == null) { acrState.setTextColor(green); acrState.text = "✓ ACRCloud funciona (${Music.acrHost(this)} · ${mask(k)})" }
+                else { acrState.setTextColor(Color.rgb(255, 120, 100)); acrState.text = "✗ ACRCloud: $why" } } }
+        }
+        val sc = Music.score(this)
+        if (sc.values.sum() > 0) cm.p("Placar até agora: as duas acertaram juntas ${sc["ambos"]}× · só AudD ${sc["audd"]}× · só ACRCloud ${sc["acr"]}× · discordaram ${sc["divergiram"]}× · nenhuma ${sc["nenhum"]}×", 12f)
         lateinit var mdl: EditText
         ca.keyRow(Claude.key(this), "sk-or-… / sk-… / sk-ant-…",
             save = { Claude.setKey(this, it); mdl.hint = Claude.defaultModel(it) },
