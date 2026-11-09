@@ -470,9 +470,11 @@ function render() {
   if (m.plan === "trial") { const d = Math.max(0, Math.ceil((new Date(m.trial_ends_at) - new Date()) / 864e5)); pl.textContent = d ? `Teste · ${d} ${d === 1 ? "dia" : "dias"}` : "Teste acabou"; pl.classList.toggle("warn", d <= 2); }
   else pl.textContent = ({ founder: "Fundador", essential: "Essencial", plus: "Plus", byok: "Sua chave", paused: "Só leitura" })[m.plan] || "";
   const all = items(), q = S.filter;
-  const counts = Object.fromEntries(CATS.map(([k]) => [k, all.filter(i => (k === "all" || i.kind === k) && matches(i, q)).length]));
+  // Counts follow what the list shows (Marcus, 09/11: "Coisas 5" but only 2 listed — the list was on "só hoje").
+  const today = i => !S.dayOnly || (i.date && sameDay(new Date(i.date), new Date()));
+  const counts = Object.fromEntries(CATS.map(([k]) => [k, all.filter(i => (k === "all" || i.kind === k) && matches(i, q) && today(i)).length]));
   if (S.view === "teia" && S.cat === "task") S.cat = "all"; // tasks have no place in the web: the pill goes grey, not silent
-  $("#pills").innerHTML = CATS.map(([k, l]) => `<button class="pill ${S.cat === k ? "on" : ""} ${S.view === "teia" && k === "task" ? "off" : ""}" data-c="${k}">${l}<b>${counts[k]}</b></button>`).join("") + (q ? `<button class="pill" data-clear="1">✕ “${esc(q)}”</button>` : "") + (S.dayOnly ? `<button class="pill" data-clearday="1">✕ Hoje</button>` : "");
+  $("#pills").innerHTML = (S.dayOnly ? `<button class="pill on" data-clearday="1">Só hoje ✕</button>` : "") + CATS.map(([k, l]) => `<button class="pill ${S.cat === k ? "on" : ""} ${S.view === "teia" && k === "task" ? "off" : ""}" data-c="${k}">${l}<b>${counts[k]}</b></button>`).join("") + (q ? `<button class="pill" data-clear="1">✕ “${esc(q)}”</button>` : "") + "";
   $("#order").classList.toggle("hide", S.view === "az" || S.view === "teia");
   document.querySelectorAll("#views button").forEach(b => b.classList.toggle("on", b.dataset.v === S.view));
   document.querySelectorAll("#order button").forEach(b => b.classList.toggle("on", b.dataset.o === S.order));
