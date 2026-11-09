@@ -78,8 +78,8 @@ object Plans {
     fun canWrite(ctx: Context) = ctx.checkSelfPermission(android.Manifest.permission.WRITE_CALENDAR) == PackageManager.PERMISSION_GRANTED &&
         ctx.checkSelfPermission(android.Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED
 
-    /** Writes the event in the main calendar; returns true when written silently, false when the calendar app was opened. */
-    fun save(ctx: Context, p: Plan): Boolean {
+    /** Writes the event in the main calendar; returns its Uri when written silently, null when the calendar app was opened. */
+    fun save(ctx: Context, p: Plan, openAppIfNoPermission: Boolean = true): android.net.Uri? {
         val desc = listOfNotNull(p.with?.let { "Com: $it" }, p.notes, "— anotado pelo VisualContext").joinToString("\n")
         val startMs = p.start.toInstant().toEpochMilli()
         val endMs = if (p.allDay) startMs + 86_400_000L else startMs + p.minutes * 60_000L
@@ -97,14 +97,29 @@ object Plans {
                     put(CalendarContract.Events.EVENT_TIMEZONE, if (p.allDay) "UTC" else ZoneId.systemDefault().id)
                     p.where?.let { put(CalendarContract.Events.EVENT_LOCATION, it) }
                 }
-                if (runCatching { ctx.contentResolver.insert(CalendarContract.Events.CONTENT_URI, v) }.getOrNull() != null) return true
+                runCatching { ctx.contentResolver.insert(CalendarContract.Events.CONTENT_URI, v) }.getOrNull()?.let { return it }
             }
         }
         val i = Intent(Intent.ACTION_INSERT, CalendarContract.Events.CONTENT_URI).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             .putExtra(CalendarContract.Events.TITLE, p.title).putExtra(CalendarContract.Events.DESCRIPTION, desc)
             .putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, startMs).putExtra(CalendarContract.EXTRA_EVENT_END_TIME, endMs).putExtra(CalendarContract.EXTRA_EVENT_ALL_DAY, p.allDay)
         p.where?.let { i.putExtra(CalendarContract.Events.EVENT_LOCATION, it) }
-        runCatching { ctx.startActivity(i) }
-        return false
+        if (openAppIfNoPermission) runCatching { ctx.startActivity(i) }
+        return null
     }
+    fun undo(ctx: Context, uri: android.net.Uri) = runCatching { ctx.contentResolver.delete(uri, null, null) > 0 }.getOrDefault(false)
+
+    /** Is the plan clear enough to go in on its own: a date and a time (not just "um dia desses"). */
+    fun certain(p: Plan) = !p.allDay
+
+    /** Kept as a note (kind "evento") so the Manager shows it: "sugerido" waits for him there, "na_agenda" is history. */
+    fun remember(ctx: Context, p: Plan, status: String, from: String?) {
+        val f = JSONObject().put("inicio", p.start.toLocalDateTime().toString()).put("duracao_min", p.minutes).put("dia_inteiro", p.allDay)
+            .put("local", p.where ?: "").put("com", p.with ?: "").put("notas", p.notes ?: "").put("status", status).put("de", from ?: "")
+        Moments.send(ctx, JSONObject().put("action", "note").put("kind", "evento").put("title", p.title)
+            .put("text", (listOf(p.line()) + listOfNotNull(p.with?.let { "com $it" }, p.where, p.notes)).joinToString("\n")).put("fields", f).put("source", "conversa"))
+    }
+
+    fun auto(ctx: Context) = ctx.getSharedPreferences("visualcontext", Context.MODE_PRIVATE).getBoolean("agenda_auto", true)
+    fun setAuto(ctx: Context, on: Boolean) = ctx.getSharedPreferences("visualcontext", Context.MODE_PRIVATE).edit().putBoolean("agenda_auto", on).apply()
 }

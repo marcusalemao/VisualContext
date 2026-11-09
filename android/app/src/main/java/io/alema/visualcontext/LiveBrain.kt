@@ -37,8 +37,8 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
         /** The lyrics card on the lens: cover, title, previous / current / next line. */
         fun onLyric(title: String, artist: String, prev: String?, cur: String?, next: String?, cover: android.graphics.Bitmap?) { onBrief("♪ $title", listOfNotNull(cur)) }
         fun onLyricEnd() {}
-        /** Commitments to confirm before they go in the calendar. */
-        fun onPlans(plans: List<Plans.Plan>) {}
+        /** A commitment went in the calendar (uri) or is waiting as a suggestion in the Manager (null). */
+        fun onPlan(p: Plans.Plan, uri: android.net.Uri?) {}
         /** "Reviver o dia": chapters walked with the temple. */
         fun onStory(chapters: List<Story.Chapter>) {}
         /** A text in view translated: original and translation side by side on the lens. */
@@ -119,7 +119,7 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
             live.extraTools = Skills.tools(ctx).put(Music.tool()).put(Recall.tool()).put(MyPlaces.tool()).put(Agenda.tool()).also { a -> Things.tools().forEach { a.put(it) }; Player.tools().forEach { a.put(it) }; a.put(Zap.tool()); a.put(Story.tool()); a.put(Plans.tool()); if (Claude.provider(Claude.key(ctx)).isNotEmpty()) a.put(Claude.tool(ctx)); Things.names(ctx).takeIf { it.isNotEmpty() }?.let { n -> a.put(Things.seenTool(n)) } }
             live.extraSystem = Skills.system(ctx) + " ENCERRAMENTO: depois de responder, fique em silêncio; nunca pergunte \"mais alguma coisa?\" nem se despeça. Se ele não falar mais, o app fecha sozinho; se falar, continue." + " MÚSICA: se ele perguntar que música está tocando, chame identificar_musica e espere; não adivinhe. \"Toca…\" / \"quero ouvir…\" → tocar_musica; pausar, pular, voltar → controlar_musica; \"mostra a letra\" → mostrar_letra." + Things.SYSTEM +
                 (if (Claude.provider(Claude.key(ctx)).isNotEmpty()) " OUTRO ASSISTENTE: ele configurou o ${Claude.friendlyName(ctx)}. \"Quero falar com o ${Claude.friendlyName(ctx)}\" (ou com o nome parecido que a transcrição escrever, ex. Groc) → chame outro_assistente com cada fala dele, sem criar habilidade e sem julgar o tom (o estilo é escolha dele e quem responde é o outro), até ele dizer \"volta\"." else "") +
-                " AGENDA (escrever): quando ele combinar um compromisso na conversa ou pedir \"marca na agenda\", chame marcar_agenda com título, início, local, com quem e TODAS as outras informações ditas em notas; o app pergunta antes de gravar." +
+                " AGENDA (escrever): quando ele combinar um compromisso na conversa ou pedir \"marca na agenda\", chame marcar_agenda com título, início, local, com quem e TODAS as outras informações ditas em notas; não pergunte antes, o app grava e mostra Desfazer." +
                 " CONVERSAR: \"manda mensagem pro Bruno\", \"abre a conversa com a Ana\", \"fala com o Pedro\" → conversar_com (o app abre o Zap ou o WhatsApp na pessoa; você não escreve a mensagem)." +
                 " TRADUZIR: \"traduz isso\" (placa, cardápio, texto) → diga só \"deixa eu ver\" e espere: o app lê, traduz e manda a tradução; não traduza pela imagem pequena." +
                 " LER: quando ele pedir para ler algo (\"o que está escrito\", etiqueta, bula, placa), diga só \"deixa eu ler\" e espere: o app lê em alta resolução e manda o texto; nunca diga que não consegue ler antes disso." +
@@ -451,7 +451,13 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
                 Plans.TOOL -> {
                     val p = Plans.fromArgs(call.args)
                     if (p == null) JSONObject().put("erro", "data/hora não entendida; peça o dia e a hora")
-                    else { main.post { host.onPlans(listOf(p)) }; JSONObject().put("na_lente", true).put("diga", "Diga só: \"quer pôr na agenda?\" O cartão está na lente; ele responde sim ou não.") }
+                    else {
+                        // He asked, or it was agreed in front of the assistant: it goes in now (undo on the lens).
+                        val uri = Plans.save(ctx, p)
+                        Plans.remember(ctx, p, if (uri != null) "na_agenda" else "sugerido", p.with)
+                        main.post { host.onPlan(p, uri) }
+                        JSONObject().put("ok", true).put("diga", if (uri != null) "Pronto, ${p.title} ${p.line()} está na agenda." else "Abri a agenda preenchida para você salvar.")
+                    }
                 }
                 Story.TOOL -> {
                     val days = call.args.optInt("dias_atras", 0).coerceIn(0, 30)

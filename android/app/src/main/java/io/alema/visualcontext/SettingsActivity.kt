@@ -288,6 +288,11 @@ class SettingsActivity : Activity() {
             textSize = 13f; setTextColor(soft); buttonTintList = android.content.res.ColorStateList.valueOf(green); isChecked = Backend.hints(this@SettingsActivity)
             setOnCheckedChangeListener { _, on -> Backend.setHints(this@SettingsActivity, on) }
         })
+        c7.addView(android.widget.CheckBox(this).apply {
+            text = "Agenda automática: compromisso combinado numa conversa (com dia e hora) entra sozinho na agenda, com quem, onde e os detalhes; a lente mostra Desfazer. Sem hora certa, fica como sugestão no Manager."
+            textSize = 13f; setTextColor(soft); buttonTintList = android.content.res.ColorStateList.valueOf(green); isChecked = Plans.auto(this@SettingsActivity)
+            setOnCheckedChangeListener { _, on -> Plans.setAuto(this@SettingsActivity, on); if (on) requestPermissions(arrayOf(android.Manifest.permission.READ_CALENDAR, android.Manifest.permission.WRITE_CALENDAR), 12) }
+        })
         c7.p("Idiomas que eu falo: o que você diz só é escrito nestas línguas, nunca em outra.", 13f)
         val langRow = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val chosen = Backend.languages(this).toMutableList()

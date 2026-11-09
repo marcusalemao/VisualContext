@@ -187,7 +187,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
                 if (r.optBoolean("guardado")) main.post { onNamed(r.optString("nome", n)) }
             } }, onState = { h -> val was = hearing; hearing = h; main.post { paintToggles(); if (speaks && h != was) { if (h) voice.recStart() else voice.recEnd() } } },
             onQuestion = { q -> standbyQuestion(q) })
-        ears.onPlans = { onPlans(it) }
+        ears.onPlan = { p, uri -> onPlan(p, uri) }
         ears.standby = Backend.standby(this) // on by default since 09/11: one way to use it — speak, and the right thing happens
         applyOutput()
         paintToggles()
@@ -546,7 +546,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     }
 
     override fun onYes(): Boolean = if (qr.offer != null) { main.post { acceptQr() }; true }
-        else if (hud.cardTitle?.startsWith("▦") == true && cardAction != null) { main.post { cardAction?.invoke(0) }; true } else false
+        else false
 
     private fun legacyCheck(p: FaceBrain.Seen, jpeg: ByteArray) {
         val pid = p.pendingId ?: return
@@ -653,16 +653,16 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     }
     override fun onLyricEnd() { hud.lyric = null; hud.invalidate() }
 
-    // ── Plans → calendar (Marcus, 09/11): one card per commitment, Sim writes it, Não skips ──
-    private val planQueue = ArrayDeque<Plans.Plan>()
-    override fun onPlans(plans: List<Plans.Plan>) { planQueue.addAll(plans); if (cardAction == null || hud.cardTitle?.startsWith("▦") != true) nextPlan() }
-    private fun nextPlan() {
-        val p = planQueue.removeFirstOrNull() ?: return
-        showCard("▦ ${p.title}", p.card() + "pôr na agenda?", listOf("✓ Sim", "✕ Não")) { i ->
-            if (i == 0) work.execute { val silent = Plans.save(this, p); main.post { toast(if (silent) "na agenda: ${p.title}" else "confira e salve na agenda"); if (speaks && output != "tela") voice.say(if (silent) "Pus na agenda." else "Abri a agenda para você salvar.") } }
-            closeCard(); main.postDelayed({ nextPlan() }, 400)
-        }
-        if (output == "voz") voice.say("Combinaram ${p.title}, ${p.line()}. Ponho na agenda?", interrupt = true)
+    // ── Plans → calendar (Marcus, 09/11): automatic, no question in the middle of a conversation. The lens just says
+    // what went in (with Desfazer for 30 s) or that a suggestion waits in the Manager.
+    override fun onPlan(p: Plans.Plan, uri: android.net.Uri?) {
+        if (uri != null) {
+            showCard("▦ Na agenda: ${p.title}", p.card(), listOf("↶ Desfazer", "✓ Ok")) { i ->
+                if (i == 0) work.execute { val ok = Plans.undo(this, uri); main.post { toast(if (ok) "tirado da agenda" else "não consegui desfazer") } }
+                closeCard()
+            }
+            if (output == "voz") voice.say("Pus na agenda: ${p.title}, ${p.line()}.")
+        } else onBrief("▦ Compromisso sugerido", listOf(p.title, p.line(), "confirme no Manager"))
     }
 
     // ── "Reviver o dia" on the lens: ◀ ▶ walk the chapters, ●● leaves (Marcus, 09/11) ──

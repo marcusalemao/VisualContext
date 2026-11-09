@@ -64,6 +64,7 @@ header .sp{flex:1}
 .pill b{font:600 12px var(--mono);color:var(--m);margin-left:5px}
 .pill.on{background:var(--g);color:var(--bg);border-color:var(--g)}
 .pill.on b{color:rgba(0,0,0,.6)}
+.plan{display:flex;flex-direction:column;gap:3px;border:1.5px solid var(--g);border-radius:14px;padding:12px 14px;margin:0 0 10px;background:var(--gdim)}.plan.done{border-color:var(--line2);background:transparent}.plan b{font-size:15px}.plan span{font-size:13.5px}
 .seg{display:flex;border:1.5px solid var(--line2);border-radius:11px;overflow:hidden}
 .seg button{padding:6px 11px;font-size:13px;color:var(--m)}
 .seg button.on{background:var(--s2);color:var(--g)}
@@ -294,7 +295,7 @@ function items() {
     const what = said(e);
     out.push({ kind: "memory", id: e.id, title: live ? "✦ " + (what || "Conversa com o assistente") : isMe(e.person_name) ? "Você mesmo (teste ou espelho)" : e.person_name ? "Encontro com " + e.person_name : (e.context || "Momento"), sub: [live ? "conversa com o assistente" : what, placeName(e)].filter(Boolean).join(" · "), date: e.at, ref: e, sub2: "enc", av: (() => { const p = e.person_name && S.people.find(x => nameKey(x.name) === nameKey(e.person_name)); return p && photo(p) ? avatar(p) : `<span class="av k">${live ? "✦" : "◷"}</span>`; })() });
   }
-  const PK = { pix: ["◈", "Pix"], link: ["↗", "link"], cartao: ["☏", "cartão de visita"], cracha: ["☏", "crachá"], receita: ["✚", "receita"], formulario: ["▤", "formulário"], cardapio: ["▤", "cardápio"], musica: ["♪", "música"], ouvir_depois: ["♫", "ouvir depois"], traducao: ["⇄", "tradução"], outro: ["▤", "papel"] };
+  const PK = { pix: ["◈", "Pix"], link: ["↗", "link"], cartao: ["☏", "cartão de visita"], cracha: ["☏", "crachá"], receita: ["✚", "receita"], formulario: ["▤", "formulário"], cardapio: ["▤", "cardápio"], musica: ["♪", "música"], ouvir_depois: ["♫", "ouvir depois"], traducao: ["⇄", "tradução"], evento: ["🗓", "compromisso"], outro: ["▤", "papel"] };
   for (const n of S.notes) { const k = PK[n.kind]; out.push({ kind: "memory", id: n.id, title: n.title || n.text, sub: k ? k[1] + (n.place ? " · " + n.place : "") : "nota" + (n.source === "voice" ? " por voz" : ""), date: n.at, ref: n, sub2: "note", av: `<span class="av k">${k ? k[0] : "✎"}</span>` }); }
   for (const t of S.things) out.push({ kind: "thing", id: t.id, title: t.name, sub: t.location_description || "", date: t.seen_at, ref: t, av: t.snapshot_url ? `<span class="av"><img src="${esc(t.snapshot_url)}" alt="" loading="lazy"></span>` : `<span class="av k">⌖</span>` });
   const places = new Map();
@@ -432,8 +433,14 @@ function myDay() {
   const tm = d => new Date(d).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   const stopsHtml = byPlace.map(b => (b.how ? `<div class="how">${esc(b.how)}</div>` : "") + `<div class="stop"><span>${esc(tm(b.from))}${b.to !== b.from ? "–" + esc(tm(b.to)) : ""}</span><div class="stopb"><div class="stopn">${esc(b.key.split(" · ")[0])}</div>${b.key.includes(" · ") ? `<div class="muted" style="font-size:12.5px">${esc(b.key.split(" · ").slice(1).join(" · "))}</div>` : ""}<div class="who">${b.who.map(w => w.p ? `<button class="whoa" data-k="person" data-id="${w.p.id}">${avatar(w.p, "sm")}<span>${esc(w.name)}</span></button>` : `<span class="whoa"><span class="av k" style="font-size:16px">✦</span><span>${esc(w.name)}</span></span>`).join("")}</div></div></div>`)
     .concat(th.map(t => `<div class="stop"><span>${esc(tm(t.seen_at))}</span><div class="stopb"><div>${esc(t.name)} → ${esc(t.location_description || "")}</div></div></div>`)).slice(0, 6).join("");
-  return `<div class="day"><h4 style="display:flex;justify-content:space-between;align-items:center;gap:8px">✦ Meu dia · hoje<button class="btn pri" data-reviver="1" style="min-height:36px;padding:0 14px;font-size:13px">▶ Reviver</button></h4><p>Hoje você ${esc(listPt(bits))}.</p><div class="stops">${stopsHtml}</div>
+  return `<div class="day"><h4 style="display:flex;justify-content:space-between;align-items:center;gap:8px">✦ Meu dia · hoje<button class="btn pri" data-reviver="1" style="min-height:36px;padding:0 14px;font-size:13px">▶ Reviver</button></h4><p>Hoje você ${esc(listPt(bits))}.</p><div class="stops">${stopsHtml}</div>${pendingPlans()}
   <div class="foot"><span>${people.length} ${people.length === 1 ? "pessoa" : "pessoas"} · ${places.length} ${places.length === 1 ? "lugar" : "lugares"} · ${no.length} ${no.length === 1 ? "nota" : "notas"} · ${follow} ${follow === 1 ? "pendência" : "pendências"}</span><button data-day="1">Ver o dia →</button></div></div>`;
+}
+/** Suggestions still waiting (any day): one tap opens each. */
+function pendingPlans() {
+  const done = evDone(), ps = S.notes.filter(n => n.kind === "evento" && (n.fields || {}).status === "sugerido" && !done[n.id] && (!n.fields.inicio || new Date(n.fields.inicio) > Date.now() - 864e5));
+  if (!ps.length) return "";
+  return `<div class="sec" style="margin-top:10px"><h5>🗓 ${ps.length === 1 ? "1 compromisso para confirmar" : ps.length + " compromissos para confirmar"}</h5>${ps.slice(0, 4).map(n => planCard(n)).join("")}</div>`;
 }
 const listPt = a => a.length <= 1 ? (a[0] || "") : a.slice(0, -1).join(", ") + " e " + a.at(-1);
 
@@ -598,12 +605,14 @@ function memHtml(r, it) {
   return `<h2>${esc(it.title)}</h2><div class="hook">${esc(fmtFull(r.at))}${placeName(r) ? " · " + esc(placeName(r)) : ""}</div>
   ${r.summary ? `<div class="sec"><h5>Resumo</h5><p>${esc(r.summary)}</p></div>` : ""}
   ${(r.follow_ups || []).length ? `<div class="sec"><h5>Pendências</h5><ul style="margin-left:18px">${r.follow_ups.map(f => `<li>${esc(typeof f === "string" ? f : f.text || "")}</li>`).join("")}</ul></div>` : ""}
+  ${plansBlock(r)}
   ${p ? `<div class="sec"><h5>Pessoa</h5><button class="row" data-k="person" data-id="${p.id}">${avatar(p)}<span class="tx"><span class="t1">${esc(p.name)}</span></span></button></div>` : ""}
   ${r.transcript ? `<div class="sec"><h5>${r.capture_mode === "live" ? "A conversa" : "Transcrição"}</h5>${/^(Você|Assistente):/m.test(r.transcript) ? `<div class="chat">${chat(r.transcript)}</div>` : `<div class="trans">${esc(r.transcript)}</div>`}</div>` : ""}
   ${r.ocr ? `<div class="sec"><h5>Texto lido</h5><div class="trans">${esc(r.ocr)}</div></div>` : ""}
   <div class="btns">${r.lat ? `<a class="btn" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${r.lat},${r.lng}">Abrir no mapa</a>` : ""}<button class="btn dan" data-del-row="encounter:${r.id}">Apagar este momento</button></div>`;
 }
 function noteHtml(r, it) {
+  if (r.kind === "evento") return `<h2>🗓 ${esc(r.title || "Compromisso")}</h2><div class="hook">${esc(evWhen(r.fields || {}))}</div>${planCard(r, true)}`;
   const f = r.fields || {}, pe = f.pessoa, rx = f.receita;
   const person = pe && pe.nome ? S.people.find(p => norm(p.name) === norm(pe.nome)) : null;
   return `<div class="ph">${it.av.replace('class="av k"', 'class="av k" style="width:64px;height:64px;font-size:26px"')}<div><h2>${esc(r.title || "Nota")}</h2><div class="hook">${esc(fmtFull(r.at))}${r.place ? " · " + esc(r.place) : ""}</div></div></div>
@@ -616,6 +625,59 @@ function noteHtml(r, it) {
   ${(r.text || r.fields?.original) && r.kind !== "musica" && r.kind !== "ouvir_depois" ? translateBox(r.id) : ""}
   <div class="btns"><button class="btn pri" data-share="${r.id}">Enviar para Notas</button><button class="btn dan" data-del-row="note:${r.id}">Apagar</button></div>`;
 }
+/* ---------- Commitments from conversations (Marcus, 09/11): the glasses put clear ones in the calendar by themselves;
+   the rest wait here as suggestions, next to the conversation they came from. "Criar na agenda" opens Google Agenda
+   with everything filled (title, day, time, place, who, notes); "Procurar compromissos" reads any old conversation. ---------- */
+const evDone = () => { try { return JSON.parse(store.get("vc_evdone") || "{}"); } catch { return {}; } };
+function evWhen(f) {
+  if (!f.inicio) return "";
+  const d = new Date(f.inicio);
+  return d.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" }) + (f.dia_inteiro ? " · dia inteiro" : " · " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) + " · " + (f.duracao_min || 60) + " min");
+}
+function gcalUrl(title, f) {
+  const z = d => d.getFullYear() + String(d.getMonth() + 1).padStart(2, "0") + String(d.getDate()).padStart(2, "0") + (f.dia_inteiro ? "" : "T" + String(d.getHours()).padStart(2, "0") + String(d.getMinutes()).padStart(2, "0") + "00");
+  const a = new Date(f.inicio), b = f.dia_inteiro ? new Date(a.getTime() + 864e5) : new Date(a.getTime() + (f.duracao_min || 60) * 6e4);
+  const details = [f.com && "Com: " + f.com, f.notas, "— VisualContext"].filter(Boolean).join("\n");
+  return "https://calendar.google.com/calendar/render?action=TEMPLATE&text=" + encodeURIComponent(title) + "&dates=" + z(a) + "/" + z(b) +
+    "&ctz=" + encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone) + "&details=" + encodeURIComponent(details) + (f.local ? "&location=" + encodeURIComponent(f.local) : "");
+}
+function planCard(n, big) {
+  const f = n.fields || {}, done = f.status === "na_agenda" || evDone()[n.id];
+  return `<div class="plan${done ? " done" : ""}"><b>🗓 ${esc(n.title || "Compromisso")}</b><span>${esc(evWhen(f))}</span>
+    ${f.com ? `<span>com ${esc(f.com)}</span>` : ""}${f.local ? `<span>⌖ ${esc(f.local)}</span>` : ""}${f.notas ? `<span class="muted">${esc(f.notas)}</span>` : ""}
+    <div class="btns" style="margin-top:6px">${done ? `<span class="btn" style="opacity:.75">✓ ${f.status === "na_agenda" ? "posto na agenda pelos óculos" : "criado na agenda"}</span>`
+      : `<a class="btn pri" target="_blank" rel="noopener" href="${esc(gcalUrl(n.title || "Compromisso", f))}" data-evmark="${n.id}">🗓 Criar na agenda</a><button class="btn" data-evskip="${n.id}">Ignorar</button>`}</div></div>`;
+}
+/** The commitments that came out of this conversation (notes of kind "evento" saved right after it, same person). */
+function plansOf(r) {
+  const t = new Date(r.at).getTime(), linked = (JSON.parse(store.get("vc_evlink") || "{}")[r.id] || []);
+  return S.notes.filter(n => n.kind === "evento" && (linked.includes(n.id) || ( (n.fields || {}).status !== "ignorado" && n.at && new Date(n.at) - t >= -6e4 && new Date(n.at) - t < 3 * 3.6e6 && (!r.person_name || !n.fields?.de || nameKey(n.fields.de) === nameKey(r.person_name)))));
+}
+function plansBlock(r) {
+  if (!r.transcript) return "";
+  const ps = plansOf(r);
+  return `<div class="sec"><h5>Compromissos combinados</h5>${ps.map(n => planCard(n)).join("") || `<p class="muted" style="margin:0 0 8px">Nenhum encontrado ainda.</p>`}
+    <button class="btn" data-evfind="${r.id}">🗓 Procurar compromissos nesta conversa</button></div>`;
+}
+async function findPlans(id) {
+  const r = S.enc.find(x => x.id === id); if (!r) return;
+  const key = store.get("vc_gemini"); if (!key) { toast("Falta a chave do Gemini em Ajustes"); return; }
+  toast("Lendo a conversa…");
+  const when = new Date(r.at).toLocaleString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  try {
+    const j = await gemini(key, { contents: [{ parts: [{ text: `Conversa gravada em ${when}${r.person_name ? " com " + r.person_name : ""}.\nListe só compromissos FUTUROS combinados nela (reunião, encontro, consulta, ligação, entrega), com dia definido; datas relativas a partir da data acima. Responda só JSON: [{"titulo":"curto","inicio":"AAAA-MM-DDTHH:MM","duracao_min":60,"dia_inteiro":false,"local":"","com":"","notas":"assunto e demais detalhes ditos"}]. Sem hora dita: dia_inteiro true. Nenhum: []. Não invente.\n\n${String(r.transcript).slice(0, 12000)}` }] }], generationConfig: { temperature: 0.1, maxOutputTokens: 1500, responseMimeType: "application/json" } });
+    const txt = (j.candidates?.[0]?.content?.parts || []).filter(p => p.text && !p.thought).map(p => p.text).join("").trim();
+    const list = JSON.parse(txt.replace(/^```json|```$/g, ""));
+    if (!Array.isArray(list) || !list.length) { toast("Nenhum compromisso nessa conversa"); return; }
+    for (const e of list.slice(0, 3)) await call("note", { kind: "evento", title: e.titulo || "Compromisso", text: [e.titulo, e.com, e.local, e.notas].filter(Boolean).join("\n"), source: "manager",
+      fields: { inicio: e.inicio, duracao_min: e.duracao_min || 60, dia_inteiro: !!e.dia_inteiro, local: e.local || "", com: e.com || r.person_name || "", notas: e.notas || "", status: "sugerido", de: r.person_name || "" } });
+    S.notes = await call("list", { entity: "note" });
+    // A note made now would not sit right after an old conversation: keep the link in this browser.
+    const link = JSON.parse(store.get("vc_evlink") || "{}"); S.notes.filter(n => n.kind === "evento" && n.source === "manager" && !Object.values(link).flat().includes(n.id) && Date.now() - new Date(n.at) < 6e4).forEach(n => { (link[id] = link[id] || []).push(n.id); });
+    store.set("vc_evlink", JSON.stringify(link)); render(); open("memory", id); toast(list.length === 1 ? "1 compromisso encontrado" : list.length + " compromissos encontrados");
+  } catch (e) { toast("Não deu: " + (e.message || e)); }
+}
+
 /* Talk to the person (Marcus, 09/11): on the phone the Zap opens the conversation (zap://chat); without it, WhatsApp;
    without a number, nothing to offer. The Zap link is the contract the Zap app answers from 0.16 on. */
 function chatBtn(p) {
@@ -987,6 +1049,9 @@ document.addEventListener("click", e => {
   else if (d.share) shareNote(d.share);
   else if (d.later) listenLater(d.later);
   else if (d.translate) translateNote(d.translate);
+  else if (d.evfind) findPlans(d.evfind);
+  else if (d.evmark) { const m = evDone(); m[d.evmark] = 1; store.set("vc_evdone", JSON.stringify(m)); setTimeout(() => { const id = S.sel; render(); if (id) { const it = items().find(i => i.id === id); if (it) open(it.kind, id); } }, 400); }
+  else if (d.evskip) { (async () => { await call("delete_row", { kind: "note", id: d.evskip }); S.notes = S.notes.filter(n => n.id !== d.evskip); const id = S.sel; render(); if (id && id !== d.evskip) { const it = items().find(i => i.id === id); if (it) open(it.kind, id); } else closeDetail(); toast("Ignorado"); })(); }
   else if (d.reviver) reviverDia(d.reviver === "1" ? null : d.reviver);
   else if (d.prep) prepForm(d.prep);
   else if (d.prepnew) prepNew();
