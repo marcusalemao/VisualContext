@@ -90,7 +90,7 @@ object Things {
             .put("description", "Onde o usuário deixou um objeto, pela memória visual: \"onde deixei as chaves?\", \"cadê meu carregador?\". Chame ANTES de olhar a câmera; responda com o lugar e quando foi.")
             .put("parameters", JSONObject().put("type", "OBJECT").put("properties", JSONObject().put("objeto", JSONObject().put("type", "STRING"))).put("required", JSONArray().put("objeto"))),
     )
-    const val SYSTEM = " OBJETOS: quando ele mostrar ou nomear um objeto seu (\"essas são minhas chaves\"), chame guardar_objeto; nunca transforme isso em nota. Quando perguntar onde deixou algo, chame onde_deixei primeiro e só depois, se não houver registro, olhe a câmera. A resposta de onde_deixei traz o lugar exato e a foto de quando foi visto já aparece na lente: diga o lugar e \"a foto está na lente\"; nunca diga que não pode mostrar o passado."
+    const val SYSTEM = " OBJETOS: quando ele mostrar ou nomear um objeto seu (\"essas são minhas chaves\"), chame guardar_objeto; nunca transforme isso em nota. Quando perguntar onde deixou algo, chame onde_deixei primeiro e só depois, se não houver registro, olhe a câmera. A resposta de onde_deixei traz o lugar exato e a foto de quando foi visto já aparece na lente: diga como última vez vista (\"a última vez que vi foi às 14h32, na mesa da sala\"), nunca como se estivesse lá agora, e \"a foto está na lente\"; nunca diga que não pode mostrar o passado."
 
     /** Current frame as a small JPEG (base64), or null. */
     fun snapshot(jpeg: ByteArray?): String? = jpeg?.let {

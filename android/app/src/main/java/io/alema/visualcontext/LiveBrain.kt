@@ -418,7 +418,7 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
                         val t = f[0]; val whenTxt = runCatching { java.text.SimpleDateFormat("EEE HH:mm", java.util.Locale("pt", "BR")).format(java.time.OffsetDateTime.parse(t.at).toInstant().toEpochMilli()) }.getOrDefault("")
                         // The photo of when it was last seen goes to the lens (Marcus, 09/11: "ele devia ter mostrado a foto").
                         val img = t.snapshot?.substringAfter("base64,", "")?.takeIf { it.isNotEmpty() }?.let { b -> runCatching { Base64.decode(b, Base64.DEFAULT) }.getOrNull()?.let { android.graphics.BitmapFactory.decodeByteArray(it, 0, it.size) } }
-                        main.post { host.onThing(t.name, t.where ?: "lugar não anotado", whenTxt, img) }
+                        main.post { host.onThing(t.name, t.where ?: "lugar não anotado", "visto por último $whenTxt", img) }
                         JSONObject().put("objeto", t.name).put("onde", t.where ?: "").put("quando", t.at).put("diga", "Você deixou ${t.name}" + (t.where?.let { " em $it" } ?: "") + (if (whenTxt.isNotEmpty()) ", $whenTxt" else "") + ".")
                     }
                 }

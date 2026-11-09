@@ -34,7 +34,9 @@
       const music = n.kind === "musica" || n.kind === "ouvir_depois";
       out.push({ kind: music ? "music" : "memory", id: n.id, label: n.title || n.text, sub: music ? "música" : (n.kind || "nota"), date: n.created_at || n.at, person: null, place: n.place ? { k: norm(n.place), name: n.place } : null, day: dayKey(n.created_at || n.at), ref: n, text: (n.title || "") + " " + (n.text || "") });
     }
-    for (const t of S.things) out.push({ kind: "thing", id: t.id, label: t.name, sub: t.location_description || "", date: t.seen_at, person: null, place: t.location_description ? { k: norm(t.location_description.split(" · ").pop()), name: t.location_description.split(" · ").pop() } : null, day: dayKey(t.seen_at), ref: t });
+    // An object's spot is where it was last SEEN, never where it is now (it may have moved): the label says when.
+    const ago = d => { const m = Math.round((Date.now() - new Date(d)) / 6e4); return m < 60 ? m + " min" : m < 1440 ? Math.round(m / 60) + " h" : Math.round(m / 1440) + " d"; };
+    for (const t of S.things) out.push({ kind: "thing", id: t.id, label: t.name, sub: t.seen_at ? "visto há " + ago(t.seen_at) : "", date: t.seen_at, person: null, place: t.location_description ? { k: norm(t.location_description.split(" · ").pop()), name: t.location_description.split(" · ").pop() } : null, day: dayKey(t.seen_at), ref: t });
     return out;
   }
   const inScale = (f, now) => { const days = SCALES.find(s => s[0] === T.scale)[2]; return f.date && (now - new Date(f.date)) / 864e5 <= days; };
