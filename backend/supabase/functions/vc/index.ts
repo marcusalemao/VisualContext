@@ -67,6 +67,31 @@ async function roleOf(email: string | null) {
   return { role: inv.tier as "beta" | "super", limits, today: t, spent: Math.round(spent * 100) / 100, days_left: daysLeft, accepted_at: inv.accepted_at };
 }
 
+// Invite codes (Marcus, 09/11): approval gives a code that goes with the download link; typed in the app or the
+// Manager it signs in without waiting for an e-mail. 14 days, up to 3 devices (phone, browser, a reinstall).
+const DOWNLOAD = "https://vc.alema.io/test-download/";
+const MANAGER = "https://web-visualcontext-site.visualcontext.pages.dev/manager";
+const CODE_DAYS = 14, CODE_USES = 3;
+const normCode = (c: string) => { const n = String(c ?? "").toUpperCase().replace(/[^A-Z0-9]/g, ""); return n.length === 10 && n.startsWith("VC") ? n.slice(2) : n; };
+async function newCode(email: string) {
+  const abc = "23456789ABCDEFGHJKMNPQRSTUVWXYZ", r = new Uint8Array(8); crypto.getRandomValues(r);
+  const raw = [...r].map((x) => abc[x % abc.length]).join("");
+  await db.from("invites").update({ invite_code: raw, code_expires: new Date(Date.now() + CODE_DAYS * 86400_000).toISOString(), code_uses: 0 }).eq("email", email);
+  return "VC-" + raw.slice(0, 4) + "-" + raw.slice(4);
+}
+const showCode = (raw: string | null) => raw ? "VC-" + raw.slice(0, 4) + "-" + raw.slice(4) : null;
+function inviteMail(name: string | null, email: string, code: string, lang = "pt") {
+  const first = (name ?? "").trim().split(/\s+/)[0];
+  if (lang === "en") return { subject: "Your VisualContext beta invite", text: `Hi${first ? " " + first : ""}!\n\nYou're in the VisualContext beta.\n\n1. Install the app on your Android phone: ${DOWNLOAD}\n2. Open it and tap "Tenho um código de convite" (I have an invite code). Your code: ${code}\n3. The Manager, to see everything in your browser (same code): ${MANAGER}\n\nThe code works for ${CODE_DAYS} days. The test plan is on the download page. The green bubble in the app sends feedback: tell me everything, good and bad.\n\nThanks!\nMarcus` };
+  return { subject: "Seu convite para o beta do VisualContext", text: `Oi${first ? ", " + first : ""}!\n\nVocê entrou no beta do VisualContext.\n\n1. Instale o app no celular Android: ${DOWNLOAD}\n2. Abra e toque em "Tenho um código de convite". Seu código: ${code}\n3. O Manager, para ver tudo no navegador (mesmo código): ${MANAGER}\n\nO código vale ${CODE_DAYS} dias. O roteiro do teste está na página de download. O balão verde no app manda feedback: conte tudo, bom e ruim.\n\nObrigado!\nMarcus` };
+}
+async function sendMail(to: string, m: { subject: string; text: string }) {
+  const rk = Deno.env.get("RESEND_API_KEY"); if (!rk) return false;
+  const r = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${rk}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from: Deno.env.get("INVITE_FROM") ?? Deno.env.get("FEEDBACK_FROM") ?? "VisualContext <convite@alema.io>", to: [to], reply_to: Deno.env.get("FEEDBACK_TO") ?? undefined, ...m }) }).catch(() => null);
+  return !!r?.ok;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "use POST" }, 405);
@@ -101,6 +126,26 @@ Deno.serve(async (req) => {
   if (!req.headers.get("x-vc-token") && !bearer) {
     let b: any = {};
     try { b = await req.json(); } catch { /* empty */ }
+    if (b.action === "redeem_code") {
+      const raw = normCode(b.code);
+      if (raw.length !== 8) return json({ error: "Confira o código: VC-XXXX-XXXX." }, 400);
+      const { data: inv } = await db.from("invites").select("*").eq("invite_code", raw).maybeSingle();
+      if (!inv || !inv.active) return json({ error: "Código inválido." }, 403);
+      if (inv.code_expires && new Date(inv.code_expires).getTime() < Date.now()) return json({ error: "Código vencido. Peça outro ao Marcus." }, 403);
+      if ((inv.code_uses ?? 0) >= CODE_USES) return json({ error: `Este código já foi usado em ${CODE_USES} aparelhos. Peça outro ao Marcus.` }, 403);
+      const email = String(inv.email).toLowerCase();
+      const r = new Uint8Array(30); crypto.getRandomValues(r);
+      const abc = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+      const tok = "vc_" + [...r].map((x) => abc[x % abc.length]).join("");
+      // Same account as an e-mail login, when there was one (rows are read by owner then).
+      const { data: acc } = await db.from("accounts").select("owner").eq("owner_email", email).maybeSingle();
+      const owner = acc?.owner ?? null;
+      const { error: de } = await db.from("devices").insert({ owner, owner_email: email, name: String(b.name ?? "aparelho").slice(0, 60) + " (convite)", token_hash: await sha256(tok) });
+      if (de) return json({ error: "Não deu para entrar agora." }, 500);
+      await db.from("invites").update({ code_uses: (inv.code_uses ?? 0) + 1, ...(inv.accepted_at ? {} : { accepted_at: new Date().toISOString() }) }).eq("email", email);
+      if (!acc) await db.from("accounts").insert({ owner_email: email, plan: inv.tier });
+      return json({ token: tok, email });
+    }
     if (b.action !== "beta_request") return json({ error: "token" }, 401);
     if (b.site) return json({ ok: true }); // the hidden field only robots fill
     const name = String(b.name ?? "").trim().slice(0, 120), email = String(b.email ?? "").trim().toLowerCase().slice(0, 200);
@@ -245,7 +290,7 @@ Deno.serve(async (req) => {
         const { data: use } = await db.from("usage").select("owner_email, day, calls, live_seconds, cost_usd");
         const out = (inv ?? []).map((i: any) => {
           const u = (use ?? []).filter((x: any) => x.owner_email === i.email);
-          return { ...i, defaults: TIERS[i.tier] ?? TIERS.beta, spent: Math.round(u.reduce((a: number, x: any) => a + Number(x.cost_usd), 0) * 100) / 100,
+          return { ...i, invite_code: showCode(i.invite_code), defaults: TIERS[i.tier] ?? TIERS.beta, spent: Math.round(u.reduce((a: number, x: any) => a + Number(x.cost_usd), 0) * 100) / 100,
             calls: u.reduce((a: number, x: any) => a + x.calls, 0), live_min: Math.round(u.reduce((a: number, x: any) => a + x.live_seconds, 0) / 60), last_day: u.map((x: any) => x.day).sort().pop() ?? null };
         });
         const { data: reqs } = await db.from("beta_requests").select("*").eq("status", "pending").order("created_at", { ascending: true });
@@ -260,7 +305,9 @@ Deno.serve(async (req) => {
         for (const k of ["days", "calls_day", "live_min_day", "budget_usd"]) if (body.limits && body.limits[k] !== undefined && body.limits[k] !== "" && body.limits[k] !== null) limits[k] = Number(body.limits[k]);
         const { error } = await db.from("invites").upsert({ email, tier, limits, note: body.note ?? null, active: body.active !== false }, { onConflict: "email" });
         if (error) throw error;
-        return json({ ok: true, email });
+        const { data: cur } = await db.from("invites").select("invite_code, code_expires").eq("email", email).maybeSingle();
+        const code = cur?.invite_code && new Date(cur.code_expires).getTime() > Date.now() ? showCode(cur.invite_code) : await newCode(email);
+        return json({ ok: true, email, code });
       }
       case "request_decide": { // approve as beta / super, or decline, a request from /convite
         if (w.email !== FOUNDER) return json({ error: "forbidden" }, 403);
@@ -271,8 +318,21 @@ Deno.serve(async (req) => {
           const { error } = await db.from("invites").upsert({ email, tier: body.decision, limits: {}, note: `pedido pelo site: ${r.name}${r.glasses ? " · " + r.glasses : ""}`, active: true }, { onConflict: "email" });
           if (error) throw error;
           await db.from("beta_requests").update({ status: "approved", tier: body.decision, decided_at: new Date().toISOString() }).eq("email", email);
+          const code = await newCode(email);
+          const mailed = await sendMail(email, inviteMail(r.name, email, code, r.lang));
+          return json({ ok: true, name: r.name, code, mailed });
         } else await db.from("beta_requests").update({ status: "declined", decided_at: new Date().toISOString() }).eq("email", email);
         return json({ ok: true, name: r.name });
+      }
+      case "invite_code": { // a fresh code for someone already invited (the old one stops working)
+        if (w.email !== FOUNDER) return json({ error: "forbidden" }, 403);
+        const email = String(body.email ?? "").toLowerCase();
+        const { data: i } = await db.from("invites").select("email").eq("email", email).maybeSingle();
+        if (!i) return json({ error: "not found" }, 404);
+        const code = await newCode(email);
+        let mailed = false;
+        if (body.send) { const { data: r } = await db.from("beta_requests").select("name, lang").eq("email", email).maybeSingle(); mailed = await sendMail(email, inviteMail(r?.name ?? null, email, code, r?.lang)); }
+        return json({ ok: true, code, mailed });
       }
       case "invite_remove": {
         if (w.email !== FOUNDER) return json({ error: "forbidden" }, 403);

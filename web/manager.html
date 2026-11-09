@@ -233,7 +233,7 @@ header .sp{flex:1}
       <div class="btns" style="margin-top:0"><button class="btn pri" id="lb">Enviar código</button></div>
       <p class="muted" id="lm" style="font-size:13px;min-height:1.2em"></p>
     </form>
-    <p class="muted" style="font-size:13px">Ou abra pelo app do celular: Ajustes → Abrir o Manager.<br><button id="gTok" style="color:var(--m);text-decoration:underline;margin-top:10px">Tenho um código de aparelho</button></p>
+    <p class="muted" style="font-size:13px">Ou abra pelo app do celular: Ajustes → Abrir o Manager.<br><button id="gInv" style="color:var(--g);text-decoration:underline;margin-top:10px;margin-right:14px">Tenho um código de convite</button><button id="gTok" style="color:var(--m);text-decoration:underline;margin-top:10px">Tenho um código de aparelho</button></p>
   </div>
 </div>
 
@@ -1385,18 +1385,18 @@ async function admin() {
       <span class="hint" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><button class="btn pri" data-reqok="${esc(r.email)}" data-tier="beta">Aprovar Beta</button><button class="btn" data-reqok="${esc(r.email)}" data-tier="super">Aprovar Super</button><button class="btn dan" data-reqno="${esc(r.email)}">Recusar</button></span></div>`).join("")}</div>` : `<p class="muted" style="font-size:13px">Pedidos de quem se inscreve em <a href="https://vc.alema.io/test-invite/" target="_blank">vc.alema.io/test-invite</a> aparecem aqui para você aprovar.</p>`}
     <div class="sec"><h5>${d.invites.length} convidados</h5>${d.invites.map(i => `<div class="feat" style="grid-template-columns:1fr auto">
       <b style="word-break:break-all">${esc(i.email)}</b><span class="n ${i.active ? "" : "no"}">${i.tier === "super" ? "SUPER" : "BETA"}</span>
-      <span class="hint">${esc(st(i))} · gastou US$ ${Number(i.spent).toFixed(2)} · ${i.calls} pedidos · ${i.live_min} min${i.last_day ? " · último uso " + esc(i.last_day.split("-").reverse().join("/")) : ""}<br>${esc(lim(i))}${i.note ? "<br>" + esc(i.note) : ""}</span>
-      <span class="hint" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><button class="btn" data-invedit="${esc(i.email)}">Editar</button><button class="btn" data-invcopy="${esc(i.email)}">Copiar convite</button>${i.active ? `<button class="btn dan" data-invoff="${esc(i.email)}">Desativar</button>` : `<button class="btn" data-invon="${esc(i.email)}">Reativar</button>`}</span></div>`).join("") || `<p class="muted">Ninguém ainda.</p>`}</div>`);
+      <span class="hint">${esc(st(i))} · gastou US$ ${Number(i.spent).toFixed(2)} · ${i.calls} pedidos · ${i.live_min} min${i.last_day ? " · último uso " + esc(i.last_day.split("-").reverse().join("/")) : ""}<br>${esc(lim(i))}${i.invite_code ? `<br>Código: <b style="font-family:var(--mono,monospace)">${esc(i.invite_code)}</b> · ${i.code_uses || 0} de 3 aparelhos · vale até ${esc(new Date(i.code_expires).toLocaleDateString("pt-BR"))}` : ""}${i.note ? "<br>" + esc(i.note) : ""}</span>
+      <span class="hint" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><button class="btn" data-invedit="${esc(i.email)}">Editar</button><button class="btn" data-invcopy="${esc(i.email)}">Copiar convite</button><button class="btn" data-invcode="${esc(i.email)}">Novo código</button>${i.active ? `<button class="btn dan" data-invoff="${esc(i.email)}">Desativar</button>` : `<button class="btn" data-invon="${esc(i.email)}">Reativar</button>`}</span></div>`).join("") || `<p class="muted">Ninguém ainda.</p>`}</div>`);
   admin.list = d.invites;
 }
-function inviteText(email, name) {
-  return `Oi${name ? ", " + name.split(" ")[0] : ""}! Você foi convidado(a) para testar o VisualContext, a memória para óculos inteligentes.\n\n1. Instale o app no celular Android: ${BETA_APK}\n2. Entre com este e-mail (${email}): chega um código, é só digitar. Não precisa de senha nem de chave nenhuma.\n3. O Manager, para ver tudo no navegador: ${location.origin}/manager\n\nNo app tem um botão de Feedback: conte tudo, bom e ruim. Obrigado!\nMarcus`;
+function inviteText(email, name, code) {
+  return `Oi${name ? ", " + name.split(" ")[0] : ""}! Você entrou no beta do VisualContext, a memória para óculos inteligentes.\n\n1. Instale o app no celular Android: ${BETA_APK}\n2. Abra e toque em "Tenho um código de convite". Seu código: ${code || "(gere em Testadores → Novo código)"}\n3. O Manager, para ver tudo no navegador (mesmo código): ${location.origin}/manager\n\nO código vale 14 dias. O roteiro do teste está na página de download. No app, o balão verde manda feedback: conte tudo, bom e ruim. Obrigado!\nMarcus`;
 }
 async function inviteSave() {
   const f = new FormData($("#invf")), email = String(f.get("email") || "").trim();
   if (!email.includes("@")) return toast("Escreva o e-mail");
   const limits = {}; for (const k of ["days", "calls_day", "live_min_day", "budget_usd"]) if (f.get(k)) limits[k] = Number(f.get(k));
-  try { await call("invite_save", { email, tier: f.get("tier"), limits, note: f.get("note") || null }); await navigator.clipboard?.writeText(inviteText(email)).catch(() => {}); toast("Convidado · convite copiado para colar no WhatsApp ou e-mail"); admin(); }
+  try { const r = await call("invite_save", { email, tier: f.get("tier"), limits, note: f.get("note") || null }); await navigator.clipboard?.writeText(inviteText(email, null, r.code)).catch(() => {}); toast("Convidado · convite com o código " + (r.code || "") + " copiado para mandar"); admin(); }
   catch (e) { toast("Não deu: " + e.message); }
 }
 function inviteEdit(email) {
@@ -1480,10 +1480,11 @@ document.addEventListener("click", e => {
   else if (d.fb) feedbackSheet();
   else if (d.admin) admin();
   else if (d.invsave) inviteSave();
-  else if (d.reqok) call("request_decide", { email: d.reqok, decision: d.tier }).then(r => { navigator.clipboard?.writeText(inviteText(d.reqok, r.name)).catch(() => {}); toast((d.tier === "super" ? "Super tester" : "Beta tester") + " aprovado · convite copiado para mandar"); admin(); }, e => toast("Não deu: " + e.message));
+  else if (d.reqok) call("request_decide", { email: d.reqok, decision: d.tier }).then(r => { navigator.clipboard?.writeText(inviteText(d.reqok, r.name, r.code)).catch(() => {}); toast((d.tier === "super" ? "Super tester" : "Beta tester") + " aprovado · código " + r.code + (r.mailed ? " · convite enviado por e-mail" : " · convite copiado para você mandar")); admin(); }, e => toast("Não deu: " + e.message));
   else if (d.reqno) { if (confirm("Recusar o pedido de " + d.reqno + "?")) call("request_decide", { email: d.reqno, decision: "no" }).then(admin); }
   else if (d.invedit) inviteEdit(d.invedit);
-  else if (d.invcopy) navigator.clipboard?.writeText(inviteText(d.invcopy)).then(() => toast("Convite copiado"), () => toast("Não deu para copiar"));
+  else if (d.invcopy) { const i = (admin.list || []).find(x => x.email === d.invcopy); const nm = ((i?.note || "").match(/^pedido pelo site: ([^·]+)/) || [])[1]?.trim() || null; const go = c => navigator.clipboard?.writeText(inviteText(d.invcopy, nm, c)).then(() => toast("Convite copiado, com o código " + c), () => toast("Não deu para copiar")); if (i?.invite_code && new Date(i.code_expires) > new Date()) go(i.invite_code); else call("invite_code", { email: d.invcopy }).then(r => { go(r.code); admin(); }); }
+  else if (d.invcode) { if (confirm("Gerar um código novo para " + d.invcode + "? O anterior para de funcionar.")) call("invite_code", { email: d.invcode, send: true }).then(r => { navigator.clipboard?.writeText(inviteText(d.invcode, null, r.code)).catch(() => {}); toast("Código novo: " + r.code + (r.mailed ? " · enviado por e-mail" : " · convite copiado")); admin(); }); }
   else if (d.invoff) { if (confirm("Desativar " + d.invoff + "? Ele sai do app e do Manager na hora.")) call("invite_remove", { email: d.invoff }).then(admin); }
   else if (d.invon) { const i = (admin.list || []).find(x => x.email === d.invon); call("invite_save", { email: i.email, tier: i.tier, limits: i.limits, note: i.note, active: true }).then(admin); }
   else if (d.copy) { navigator.clipboard?.writeText(d.copy).then(() => toast("Número copiado"), () => toast(d.copy)); }
@@ -1503,6 +1504,16 @@ document.addEventListener("click", e => {
 $("#bImport").onclick = importSheet;
 $("#bSet").onclick = settings;
 $("#gTok").onclick = () => sheet(`<h3>Código do aparelho</h3><p class="sub">Começa com vc_. Está em Ajustes → modo desenvolvedor, no app.</p><form class="f" id="tf"><input name="t" autocomplete="off" placeholder="vc_…"><div class="btns" style="margin-top:0"><button class="btn pri">Entrar</button><button class="btn" type="button" data-x="1">Cancelar</button></div></form>`) || ($("#tf").onsubmit = e => { e.preventDefault(); const v = new FormData(e.target).get("t").trim(); if (/^vc_[A-Za-z0-9]{16,128}$/.test(v)) { store.set("vc_token", v); location.reload(); } else toast("Código inválido"); });
+// Invite code (Marcus, 09/11): VC-XXXX-XXXX from the approval message signs in without an e-mail.
+$("#gInv").onclick = () => sheet(`<h3>Código de convite</h3><p class="sub">Veio na mensagem de aprovação, junto com o link do app: VC-XXXX-XXXX.</p><form class="f" id="icf"><input name="c" autocomplete="off" autocapitalize="characters" placeholder="VC-XXXX-XXXX" style="font-family:var(--mono,monospace);letter-spacing:.08em"><p class="muted" id="icm" style="font-size:13px;min-height:1.2em"></p><div class="btns" style="margin-top:0"><button class="btn pri">Entrar</button><button class="btn" type="button" data-x="1">Cancelar</button></div></form>`) || ($("#icf").onsubmit = async e => {
+  e.preventDefault(); const m = $("#icm"); m.textContent = "Entrando…";
+  try {
+    const r = await fetch(API, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "redeem_code", code: new FormData(e.target).get("c"), name: "navegador " + (navigator.userAgentData?.platform || navigator.platform || "") }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.token) throw new Error(j.error || "Não deu para entrar.");
+    store.set("vc_token", j.token); location.reload();
+  } catch (x) { m.textContent = x.message; }
+});
 addEventListener("keydown", e => { if (e.key === "Escape") { closeSheet(); if ($("#detail").classList.contains("open") && innerWidth < 920) closeDetail(); } });
 
 // E-mail code login (07/11): Supabase Auth → session → a device code for this browser.
@@ -1527,7 +1538,7 @@ const AUTH = "https://vzqjwhlpwvqrosoiwiin.supabase.co/auth/v1", PUB = "sb_publi
         const s = await r.json();
         const d = await post(API, { action: "register_device", name: "navegador " + (navigator.userAgentData?.platform || navigator.platform || "") }, s.access_token);
         const j = await d.json().catch(() => ({}));
-        if (d.status === 403 && j.error === "convite") throw new Error("O VisualContext está em teste fechado: só entra quem foi convidado. Peça um convite em visualcontext.alema.io.");
+        if (d.status === 403 && j.error === "convite") throw new Error("O VisualContext está em teste fechado: só entra quem foi convidado. Peça um convite em vc.alema.io/test-invite.");
         if (!d.ok || !j.token) throw new Error("Entrou, mas não deu para registrar este navegador.");
         store.set("vc_token", j.token); location.reload();
       }

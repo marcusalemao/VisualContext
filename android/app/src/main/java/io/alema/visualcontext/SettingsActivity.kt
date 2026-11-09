@@ -171,6 +171,26 @@ class SettingsActivity : Activity() {
                 }
             }
             c1.p("Outro e-mail? Edite acima e toque em Enviar código de novo.", 12f)
+            // Invite code (Marcus, 09/11): comes with the download link in the approval message; no e-mail to wait for.
+            c1.p("Recebeu um código de convite (VC-XXXX-XXXX)? Entre com ele:", 13f)
+            val inv = field("", false).apply { hint = "VC-XXXX-XXXX"; inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS }
+            c1.addView(inv)
+            val invMsg = TextView(this).apply { textSize = 13f; setTextColor(soft) }
+            c1.addView(invMsg)
+            lateinit var invGo: Button
+            invGo = c1.btn("Tenho um código de convite", false) {
+                val v = inv.text.toString().trim()
+                if (v.filter { it.isLetterOrDigit() }.length < 8) { invMsg.text = "Digite o código como veio: VC-XXXX-XXXX."; return@btn }
+                invGo.isEnabled = false; invMsg.text = "Entrando…"
+                io.execute {
+                    val (r, email) = Login.redeem(v, android.os.Build.MODEL ?: "celular")
+                    runOnUiThread {
+                        invGo.isEnabled = true
+                        if (r is Login.Out.Ok) { Backend.save(this, Backend.url(this), r.value); if (email.isNotBlank()) Backend.saveEmail(this, email); render() }
+                        else invMsg.text = (r as Login.Out.Fail).why
+                    }
+                }
+            }
             mail.addTextChangedListener(object : android.text.TextWatcher {
                 override fun afterTextChanged(x: android.text.Editable?) { if (sent) { sent = false; go.text = "Enviar código"; code.visibility = android.view.View.GONE } }
                 override fun beforeTextChanged(x: CharSequence?, a: Int, b: Int, c: Int) {}

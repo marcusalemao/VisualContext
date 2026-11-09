@@ -53,4 +53,13 @@ object Login {
             if (c2 in 200..299 && tok.startsWith("vc_")) Out.Ok(tok) else Out.Fail("Entrou, mas não deu para registrar este celular ($c2).")
         }
     } catch (_: Exception) { Out.Fail("Sem internet.") }
+
+    /** Invite code from the approval message (VC-XXXX-XXXX) → device token, no e-mail needed (Marcus, 09/11). Returns token and e-mail. */
+    fun redeem(code: String, deviceName: String): Pair<Out, String> = try {
+        val (c, t) = call(Backend.DEFAULT_URL, JSONObject().put("action", "redeem_code").put("code", code.trim()).put("name", deviceName))
+        val j = runCatching { JSONObject(t) }.getOrDefault(JSONObject())
+        val tok = j.optString("token")
+        if (c in 200..299 && tok.startsWith("vc_")) Out.Ok(tok) to j.optString("email")
+        else Out.Fail(j.optString("error").ifBlank { "Não deu para entrar ($c)." }) to ""
+    } catch (_: Exception) { Out.Fail("Sem internet.") to "" }
 }
