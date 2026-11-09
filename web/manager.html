@@ -476,7 +476,9 @@ function render() {
   if (S.view === "teia" && S.cat === "task") S.cat = "all"; // tasks have no place in the web: the pill goes grey, not silent
   $("#pills").innerHTML = (S.dayOnly ? `<button class="pill on" data-clearday="1">Só hoje ✕</button>` : "") + CATS.map(([k, l]) => `<button class="pill ${S.cat === k ? "on" : ""} ${S.view === "teia" && k === "task" ? "off" : ""}" data-c="${k}">${l}<b>${counts[k]}</b></button>`).join("") + (q ? `<button class="pill" data-clear="1">✕ “${esc(q)}”</button>` : "") + "";
   $("#order").classList.toggle("hide", S.view === "az" || S.view === "teia");
-  document.querySelectorAll("#views button").forEach(b => b.classList.toggle("on", b.dataset.v === S.view));
+  // A–Z only makes sense for people (Marcus, 09/11); anywhere else the list goes back to the timeline.
+  if (S.view === "az" && S.cat !== "person") S.view = "time";
+  document.querySelectorAll("#views button").forEach(b => { b.classList.toggle("on", b.dataset.v === S.view); if (b.dataset.v === "az") b.classList.toggle("hide", S.cat !== "person"); });
   document.querySelectorAll("#order button").forEach(b => b.classList.toggle("on", b.dataset.o === S.order));
   renderChips();
 
