@@ -35,7 +35,7 @@
       out.push({ kind: music ? "music" : "memory", id: n.id, label: n.title || n.text, sub: music ? "música" : (n.kind || "nota"), date: n.created_at || n.at, person: null, place: n.place ? { k: norm(n.place), name: n.place } : null, day: dayKey(n.created_at || n.at), ref: n, text: (n.title || "") + " " + (n.text || "") });
     }
     // An object's spot is where it was last SEEN, never where it is now (it may have moved): the label says when.
-    const ago = d => { const m = Math.round((Date.now() - new Date(d)) / 6e4); return m < 60 ? m + " min" : m < 1440 ? Math.round(m / 60) + " h" : Math.round(m / 1440) + " d"; };
+    const ago = d => { const m = Math.round((Date.now() - new Date(d)) / 6e4); return m < 1 ? "instantes" : m < 60 ? m + " min" : m < 1440 ? Math.round(m / 60) + " h" : Math.round(m / 1440) + " d"; };
     for (const t of S.things) out.push({ kind: "thing", id: t.id, label: t.name, sub: t.seen_at ? "visto há " + ago(t.seen_at) : "", date: t.seen_at, person: null, place: t.location_description ? { k: norm(t.location_description.split(" · ").pop()), name: t.location_description.split(" · ").pop() } : null, day: dayKey(t.seen_at), ref: t });
     return out;
   }
@@ -120,9 +120,11 @@
     svg += `<defs><filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.5"/></filter></defs>`;
     for (const p of pos) {
       const once = p.e.n < 2, op = (0.3 + 0.65 * (1 - p.e.recency)).toFixed(2), sw = once ? 1.4 : (1.5 + p.e.weight * 5).toFixed(1);
-      const attrs = `x1="${cx}" y1="${cy}" x2="${cx}" y2="${cy}" data-x2="${p.x.toFixed(1)}" data-y2="${p.y.toFixed(1)}" stroke="${col(p.e.node.kind)}" stroke-linecap="round"`;
-      if (!once) svg += `<line class="syn" ${attrs} stroke-opacity=".35" stroke-width="${(+sw + 4).toFixed(1)}" filter="url(#glow)"/>`;
-      svg += `<line class="syn" ${attrs} stroke-opacity="${op}" stroke-width="${sw}" ${once ? 'stroke-dasharray="3 5"' : ""}/>`;
+      // Curved like a nerve fibre (inspired by the Gemini sketch): the bend grows with the distance, always to the same side.
+      const mx = (cx + p.x) / 2, my = (cy + p.y) / 2, dx = p.x - cx, dy = p.y - cy, bend = 0.12;
+      const attrs = `d="M${cx},${cy} Q${(mx - dy * bend).toFixed(1)},${(my + dx * bend).toFixed(1)} ${p.x.toFixed(1)},${p.y.toFixed(1)}" fill="none" stroke="${col(p.e.node.kind)}" stroke-linecap="round"`;
+      if (!once) svg += `<path class="syn glow" ${attrs} stroke-opacity=".35" stroke-width="${(+sw + 4).toFixed(1)}" filter="url(#glow)"/>`;
+      svg += `<path class="syn" ${attrs} stroke-opacity="${op}" stroke-width="${sw}" ${once ? 'stroke-dasharray="3 5"' : ""}/>`;
     }
     pos.forEach((p, i) => {
       const k = p.e.node.kind, w = NW, h = p.e.node.sub || p.e.n > 1 ? NH : 32;
@@ -143,7 +145,7 @@
     box.innerHTML = svg;
     // Grow out of the centre.
     requestAnimationFrame(() => requestAnimationFrame(() => {
-      box.querySelectorAll("line.syn").forEach(l => { l.setAttribute("x2", l.dataset.x2); l.setAttribute("y2", l.dataset.y2); });
+      box.querySelectorAll("path.syn").forEach(l => l.classList.add("in"));
       box.querySelectorAll("g.node").forEach(g => { const p = pos[+g.dataset.ti]; g.style.transform = `translate(${p.x}px,${p.y}px)`; });
     }));
     // Tap / hold / keyboard.
@@ -249,8 +251,13 @@
   css.textContent = `.teia{margin-top:10px;border:1.5px solid var(--line2);border-radius:16px;background:radial-gradient(circle at 50% 50%,rgba(0,255,136,.05),transparent 60%),var(--s1);overflow:hidden}
   .teia svg{max-width:100%;height:auto}.teia g.node,.teia g.center{cursor:pointer;transition:transform .5s cubic-bezier(.2,.8,.2,1)}
   .teia g.node:hover rect,.teia g.node:focus-visible rect{stroke-width:2.5;filter:drop-shadow(0 0 6px rgba(0,255,136,.5))}.teia g:focus-visible{outline:none}
-  .teia line.syn{transition:x2 .5s cubic-bezier(.2,.8,.2,1),y2 .5s cubic-bezier(.2,.8,.2,1)}
+  .teia path.syn{opacity:0;transition:opacity .45s ease .2s}.teia path.syn.in{opacity:1}
+  .teia path.syn.glow.in{animation:teiaPulse 3.2s ease-in-out infinite alternate}
+  @keyframes teiaPulse{from{opacity:.55}to{opacity:1}}
+  .teia g.center circle{animation:teiaCore 3.2s ease-in-out infinite alternate}
+  @keyframes teiaCore{from{filter:drop-shadow(0 0 4px rgba(0,255,136,.35))}to{filter:drop-shadow(0 0 14px rgba(0,255,136,.7))}}
   .teia-top{display:flex;gap:6px;flex-wrap:wrap}
-  html.vc-rm .teia g,html.vc-rm .teia line{transition:none!important}`;
+  html.vc-rm .teia g,html.vc-rm .teia path{transition:none!important;animation:none!important}
+  @media (prefers-reduced-motion:reduce){.teia g,.teia path,.teia circle{transition:none!important;animation:none!important}}`;
   document.head.appendChild(css);
 })();
