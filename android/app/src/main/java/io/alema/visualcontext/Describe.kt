@@ -30,7 +30,7 @@ object Describe {
                 setRequestProperty("Content-Type", "application/json"); setRequestProperty("x-goog-api-key", key)
             }
             c.outputStream.use { it.write(body.toString().toByteArray()) }
-            if (c.responseCode !in 200..299) { if (model != "models/gemini-2.5-flash") Backend.saveTextModel(ctx, "models/gemini-2.5-flash"); return null }
+            if (c.responseCode !in 200..299) { if (c.responseCode in listOf(400, 403, 404)) Backend.markBadModel(ctx, model); return null }
             val j = JSONObject(c.inputStream.bufferedReader().readText())
             val parts = j.optJSONArray("candidates")?.optJSONObject(0)?.optJSONObject("content")?.optJSONArray("parts") ?: return null
             (0 until parts.length()).mapNotNull { parts.optJSONObject(it) }
@@ -44,7 +44,7 @@ object Describe {
      * Keeps the user's words and decisions; long readings (menu, sign, leaflet, book page) become one line.
      * Returns (one-sentence summary, condensed conversation). Blocking; null on failure (then the raw text is kept).
      */
-    fun memoryVersion(ctx: Context, conversation: String): Pair<String, String>? {
+    fun memoryVersion(ctx: Context, conversation: String, tries: Int = 0): Pair<String, String>? {
         val key = Backend.geminiKey(ctx); if (key.length < 20) return null
         val model = textModel(ctx, key) ?: return null
         val prompt = "Abaixo está uma conversa entre o usuário e o assistente dos óculos. Prepare a versão que vai para a memória dele, em português, e responda em JSON " +
@@ -65,7 +65,8 @@ object Describe {
             }
             c.outputStream.use { it.write(body.toString().toByteArray()) }
             if (c.responseCode !in 200..299) {
-                if (model != "models/gemini-2.5-flash") { Backend.saveTextModel(ctx, "models/gemini-2.5-flash"); return memoryVersion(ctx, conversation) }
+                // A model Google retired for this key ("no longer available to new users"): skip it and pick the next one.
+                if (c.responseCode in listOf(400, 403, 404) && tries < 2) { Backend.markBadModel(ctx, model); return memoryVersion(ctx, conversation, tries + 1) }
                 return null
             }
             val parts = JSONObject(c.inputStream.bufferedReader().readText()).optJSONArray("candidates")?.optJSONObject(0)?.optJSONObject("content")?.optJSONArray("parts") ?: return null
@@ -90,8 +91,9 @@ object Describe {
             val n = m.optString("name")
             if ((0 until methods.length()).any { methods.optString(it) == "generateContent" } && "flash" in n && listOf("live", "image", "tts", "audio", "think", "interaction", "robotics", "computer").none { it in n }) n else null
         }
-        fun score(n: String) = (if ("lite" in n) -1 else 0) + (if ("preview" in n || "exp" in n) 0 else 1)
-        val pick = ok.sortedWith(compareByDescending<String> { score(it) }.thenByDescending { it }).firstOrNull() ?: return null
+        fun score(n: String) = (if (n.endsWith("flash-latest")) 2 else 0) + (if ("lite" in n) -1 else 0) + (if ("preview" in n || "exp" in n) 0 else 1)
+        val bad = Backend.badModels(ctx)
+        val pick = ok.filter { it !in bad }.sortedWith(compareByDescending<String> { score(it) }.thenByDescending { it }).firstOrNull() ?: return null
         Backend.saveTextModel(ctx, pick)
         return pick
     }

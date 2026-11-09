@@ -180,6 +180,33 @@ object Claude {
 
     fun ask(ctx: Context, q: String): String? = call(ctx, q).first
 
+    // ── Talking to it from the Live (Marcus, 08/11: "quero falar com o Grok" did nothing). ──
+    const val TOOL = "outro_assistente"
+    /** "x-ai/grok-latest" → "Grok", "anthropic/claude-sonnet-5.5" → "Claude", "openai/gpt-5" → "ChatGPT". */
+    fun friendlyName(ctx: Context): String {
+        val m = model(ctx).lowercase().removePrefix("~")
+        return when {
+            "grok" in m || m.startsWith("x-ai") -> "Grok"; "claude" in m || m.startsWith("anthropic") -> "Claude"
+            "gpt" in m || m.startsWith("openai") -> "ChatGPT"; "gemini" in m -> "Gemini"; "llama" in m -> "Llama"; "deepseek" in m -> "DeepSeek"; "mistral" in m -> "Mistral"; "qwen" in m -> "Qwen"
+            else -> m.substringAfter('/').substringBefore('-').replaceFirstChar { it.uppercase() }
+        }
+    }
+    fun tool(ctx: Context): JSONObject = JSONObject().put("name", TOOL)
+        .put("description", "Passa a fala do usuário ao ${friendlyName(ctx)} (outro assistente que ele configurou) e o app lê a resposta com outra voz. " +
+            "Use quando ele disser \"quero falar com o ${friendlyName(ctx)}\", \"pergunta pro ${friendlyName(ctx)}\" e, depois disso, para CADA fala dele até ele dizer \"volta\" / \"chega\". Mande a fala inteira, como ele disse, sem julgar nem suavizar.")
+        .put("parameters", JSONObject().put("type", "OBJECT").put("properties", JSONObject()
+            .put("fala", JSONObject().put("type", "STRING").put("description", "o que ele disse, inteiro"))).put("required", JSONArray().put("fala")))
+
+    /** The running chat with the other assistant (it remembers the last turns; cleared when the Live closes). */
+    private val history = ArrayList<Pair<String, String>>()
+    fun reset() { synchronized(history) { history.clear() } }
+    fun chat(ctx: Context, said: String): Pair<String?, String> {
+        val turns = synchronized(history) { history.takeLast(8).toList() }
+        val (a, why) = call(ctx, said, turns, free = true)
+        if (a != null) synchronized(history) { history.add(said to a) }
+        return a to why
+    }
+
     /** Settings → "Testar": null when it works, otherwise what went wrong, in words. */
     fun test(ctx: Context): String? {
         val k = key(ctx); if (provider(k).isEmpty()) return "Chave não reconhecida: precisa começar com sk-or-, sk-ant- ou sk-."
@@ -187,16 +214,23 @@ object Claude {
         return if (a != null) null else why
     }
 
-    private fun call(ctx: Context, q: String): Pair<String?, String> {
+    private fun call(ctx: Context, q: String, turns: List<Pair<String, String>> = emptyList(), free: Boolean = false): Pair<String?, String> {
         val k = key(ctx); val prov = provider(k)
         if (prov.isEmpty()) return null to "Falta a chave do assistente nos Ajustes do VisualContext."
-        val sys = "Você responde pelos óculos do usuário: em português, curto (até 4 frases), sem markdown."
+        // In a chat he chose this assistant for its own style: no tone imposed, only "spoken, short, no markdown".
+        val sys = if (free) "Você está numa conversa falada pelos óculos do usuário. Responda no seu estilo e no tom que ele pedir, em português, falado (até 4 frases), sem markdown nem emojis."
+            else "Você responde pelos óculos do usuário: em português, curto (até 4 frases), sem markdown."
+        fun msgs(sysAsMessage: Boolean) = JSONArray().apply {
+            if (sysAsMessage) put(JSONObject().put("role", "system").put("content", sys))
+            turns.forEach { (u, a) -> put(JSONObject().put("role", "user").put("content", u)); put(JSONObject().put("role", "assistant").put("content", a)) }
+            put(JSONObject().put("role", "user").put("content", q))
+        }
         return try {
             val (url, headers, body) = when (prov) {
                 "anthropic" -> Triple("https://api.anthropic.com/v1/messages", mapOf("x-api-key" to k, "anthropic-version" to "2023-06-01"),
-                    JSONObject().put("model", model(ctx)).put("max_tokens", 800).put("system", sys).put("messages", JSONArray().put(JSONObject().put("role", "user").put("content", q))))
+                    JSONObject().put("model", model(ctx)).put("max_tokens", 800).put("system", sys).put("messages", msgs(false)))
                 else -> Triple(if (prov == "openrouter") "https://openrouter.ai/api/v1/chat/completions" else "https://api.openai.com/v1/chat/completions", mapOf("Authorization" to "Bearer $k"),
-                    JSONObject().put("model", model(ctx)).put("messages", JSONArray().put(JSONObject().put("role", "system").put("content", sys)).put(JSONObject().put("role", "user").put("content", q))))
+                    JSONObject().put("model", model(ctx)).put("messages", msgs(true)))
             }
             val c = (URL(url).openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"; connectTimeout = 10_000; readTimeout = 60_000; doOutput = true

@@ -40,6 +40,8 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
         fun comeBack() {}
         /** A paper or label was read: the lens offers what to do with it (pills). */
         fun onPaper(p: Papers.Paper, saved: Boolean) {}
+        /** The other assistant (Grok, Claude…) answered: shown and read with the phone's voice. */
+        fun onAltAnswer(who: String, text: String) { onBrief("◆ $who", listOf(text.take(200))) }
     }
 
     private val main = Handler(Looper.getMainLooper())
@@ -100,8 +102,9 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
             Skills.refresh(ctx)
             MyPlaces.refresh(ctx)
             val placeHint = Where.location(ctx)?.let { loc -> MyPlaces.askHint(ctx, loc) } ?: ""
-            live.extraTools = Skills.tools(ctx).put(Music.tool()).put(Recall.tool()).put(MyPlaces.tool()).put(Agenda.tool()).also { a -> Things.tools().forEach { a.put(it) }; Player.tools().forEach { a.put(it) } }
+            live.extraTools = Skills.tools(ctx).put(Music.tool()).put(Recall.tool()).put(MyPlaces.tool()).put(Agenda.tool()).also { a -> Things.tools().forEach { a.put(it) }; Player.tools().forEach { a.put(it) }; if (Claude.provider(Claude.key(ctx)).isNotEmpty()) a.put(Claude.tool(ctx)) }
             live.extraSystem = Skills.system(ctx) + " MÚSICA: se ele perguntar que música está tocando, chame identificar_musica e espere; não adivinhe. \"Toca…\" / \"quero ouvir…\" → tocar_musica; pausar, pular, voltar → controlar_musica; \"mostra a letra\" → mostrar_letra." + Things.SYSTEM +
+                (if (Claude.provider(Claude.key(ctx)).isNotEmpty()) " OUTRO ASSISTENTE: ele configurou o ${Claude.friendlyName(ctx)}. \"Quero falar com o ${Claude.friendlyName(ctx)}\" (ou com o nome parecido que a transcrição escrever, ex. Groc) → chame outro_assistente com cada fala dele, sem criar habilidade e sem julgar o tom (o estilo é escolha dele e quem responde é o outro), até ele dizer \"volta\"." else "") +
                 " LER: quando ele pedir para ler algo (\"o que está escrito\", etiqueta, bula, placa), diga só \"deixa eu ler\" e espere: o app lê em alta resolução e manda o texto; nunca diga que não consegue ler antes disso." +
                 " MEMÓRIA: perguntas sobre o passado dele (o que fiz hoje, quem encontrei, quando vi fulano, o que combinei) vão para consultar_memoria; leia a resposta em voz alta como veio." +
                 " AGENDA: compromissos, \"o que eu tenho para hoje/amanhã\" → agenda (nunca diga que não tem acesso). PESSOAS: \"o que eu preciso lembrar sobre a Ana\", \"do que falamos nos últimos dias\" → consultar_memoria com dias (10 se ele não disser) e, se for alguém prestes a encontrar, também preparar_conversa." +
@@ -114,7 +117,7 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
     }
 
     fun stop() {
-        Player.duck(ctx, false)
+        Player.duck(ctx, false); Claude.reset()
         saveConversation()
         open = false
         mic.stop(); speaker.stop(); live.close()
@@ -375,6 +378,17 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
                             JSONObject().put("resultado", if (ok) "abri a pesquisa por som do Google no celular; o resultado aparece lá" else "sem serviço de identificação de música; a chave do AudD pode ser configurada nos Ajustes")
                                 .put("diga", if (ok) "Abri a pesquisa por som do Google no seu celular." else "Ainda não tenho como identificar músicas; dá para ligar isso nos Ajustes.")
                         } else JSONObject().put("erro", e.message)
+                    }
+                }
+                Claude.TOOL -> {
+                    val who = Claude.friendlyName(ctx)
+                    main.post { host.onBrief("◆ $who", listOf("pensando…")) }
+                    val (a, why) = Claude.chat(ctx, call.args.optString("fala"))
+                    if (a == null) JSONObject().put("erro", why).put("diga", "O $who não respondeu: $why")
+                    else {
+                        // Read word for word with the phone's other voice, so it is the other assistant speaking, not Gemini retelling it.
+                        main.post { host.onAltAnswer(who, a) }
+                        JSONObject().put("lido_pelo_app", true).put("diga", "Não diga nada: o app já está lendo a resposta do $who em voz alta. Espere a próxima fala dele.")
                     }
                 }
                 Player.TOOL -> {

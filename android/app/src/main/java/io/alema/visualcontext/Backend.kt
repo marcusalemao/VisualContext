@@ -49,12 +49,18 @@ object Backend {
     fun hintRun(ctx: Context): Int { val n = prefs(ctx).getInt("hint_runs", 0); prefs(ctx).edit().putInt("hint_runs", n + 1).apply(); return n }
 
     /** Languages the owner speaks (Marcus, 08/11: "só inglês, alemão e português"). His voice is never written as another. */
-    val LANGS = listOf("pt-BR" to "Português", "en-US" to "English", "de-DE" to "Deutsch", "es-ES" to "Español", "fr-FR" to "Français", "it-IT" to "Italiano")
+    // Marcus, 08/11: the strongest marketplaces are in Asia — Chinese, Japanese, Thai and neighbours must be here.
+    val LANGS = listOf("pt-BR" to "Português", "en-US" to "English", "de-DE" to "Deutsch", "es-ES" to "Español", "fr-FR" to "Français", "it-IT" to "Italiano",
+        "cmn-CN" to "中文 (普通话)", "yue-HK" to "粵語", "ja-JP" to "日本語", "ko-KR" to "한국어", "th-TH" to "ไทย", "vi-VN" to "Tiếng Việt",
+        "id-ID" to "Bahasa Indonesia", "fil-PH" to "Filipino", "hi-IN" to "हिन्दी", "ar-XA" to "العربية", "ru-RU" to "Русский", "tr-TR" to "Türkçe", "nl-NL" to "Nederlands", "pl-PL" to "Polski")
     fun languages(ctx: Context): List<String> = (prefs(ctx).getString("langs", null) ?: "pt-BR,en-US,de-DE").split(",").filter { it.isNotBlank() }
     fun setLanguages(ctx: Context, l: List<String>) { prefs(ctx).edit().putString("langs", l.joinToString(",")).apply() }
     fun languageNames(ctx: Context) = languages(ctx).mapNotNull { c -> LANGS.firstOrNull { it.first == c }?.second }
     fun saveVoice(ctx: Context, voice: String) { prefs(ctx).edit().putString("voice", voice).apply() }
     fun prefsText(ctx: Context): String? = prefs(ctx).getString("text_model", null)
+    /** Text models that refused this key (retired, not allowed): never picked again. */
+    fun badModels(ctx: Context): Set<String> = prefs(ctx).getStringSet("bad_models", emptySet()) ?: emptySet()
+    fun markBadModel(ctx: Context, m: String) { prefs(ctx).edit().putStringSet("bad_models", badModels(ctx) + m).remove("text_model").apply() }
     fun saveTextModel(ctx: Context, m: String?) { prefs(ctx).edit().putString("text_model", m).apply() }
     fun liveModel(ctx: Context): String? = prefs(ctx).getString("live_model", null)
     fun saveLiveModel(ctx: Context, m: String?) { prefs(ctx).edit().putString("live_model", m).apply() }

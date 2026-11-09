@@ -21,6 +21,13 @@
     <queries>
         <package android:name="com.google.android.apps.photos" />
         <package android:name="com.google.android.keep" />
+        <package android:name="com.samsung.android.app.notes" />
+        <package android:name="com.spotify.music" />
+        <package android:name="com.google.android.apps.youtube.music" />
+        <package android:name="deezer.android.app" />
+        <package android:name="com.amazon.mp3" />
+        <package android:name="com.apple.android.music" />
+        <intent><action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" /></intent>
         <package android:name="com.android.chrome" />
         <provider android:authorities="io.alema.zap.frequent" />
         <package android:name="com.linkedin.android" />

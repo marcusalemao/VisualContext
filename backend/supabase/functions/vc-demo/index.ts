@@ -8,7 +8,7 @@ const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SE
 const KEY = Deno.env.get("GEMINI_DEMO_KEY") ?? "";
 const TURNSTILE = Deno.env.get("TURNSTILE_SECRET") ?? "";
 const MODEL = Deno.env.get("DEMO_LIVE_MODEL") ?? "models/gemini-3.8-live";
-const TEXT_MODEL = Deno.env.get("DEMO_TEXT_MODEL") ?? "models/gemini-2.5-flash";
+const TEXT_MODEL = Deno.env.get("DEMO_TEXT_MODEL") ?? "models/gemini-flash-latest";
 const PER_IP = Number(Deno.env.get("DEMO_PER_IP_DAY") ?? 4);
 const PER_DAY = Number(Deno.env.get("DEMO_PER_DAY") ?? 40);
 const ASKS = 25, MINUTES = 10;

@@ -634,6 +634,12 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     }
     private var briefClear: Runnable? = null
 
+    override fun onAltAnswer(who: String, text: String) {
+        val lines = text.chunked(60).take(6)
+        onBrief("◆ $who", lines)
+        voice.say(text, interrupt = true)
+    }
+
     override fun onLyric(title: String, lines: List<String>) {
         hud.cardTitle = title; hud.cardLines = lines; hud.invalidate()
         briefClear?.let { main.removeCallbacks(it) }

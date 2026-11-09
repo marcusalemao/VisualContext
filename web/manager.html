@@ -481,28 +481,41 @@ $("#q").addEventListener("keydown", e => { if (e.key === "Enter" && $("#q").valu
 document.addEventListener("click", e => { if (!e.target.closest(".ask")) $("#scope").classList.remove("on"); });
 
 /* ---------- ask anything (Gemini, called from this browser with the user's own key) ---------- */
-/** generateContent with the picked model; if the model refuses (wrong API, gone, not allowed), try gemini-2.5-flash once. */
+/**
+ * generateContent with the best text model this key can use. Google retires models per account (Marcus, 08/11:
+ * "gemini-2.5-flash is no longer available to new users"), so a model that refuses goes on a skip list and the
+ * next one from the key's own list is tried — never a fixed name.
+ */
 async function gemini(key, body) {
-  let model = await geminiModel(key);
-  for (let i = 0; i < 2; i++) {
+  const bad = store.get("vc_gbad") ? JSON.parse(store.get("vc_gbad")) : [];
+  let last = "";
+  for (let i = 0; i < 4; i++) {
+    const model = await geminiModel(key, bad);
+    if (!model) break;
     const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/${model}:generateContent`, { method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": key }, body: JSON.stringify(body) });
     const j = await r.json().catch(() => ({}));
     if (r.ok) return j;
-    const msg = j.error?.message || String(r.status);
-    if (i === 0 && model !== "models/gemini-2.5-flash" && (r.status === 404 || r.status === 400 || /Interactions API|not supported|not found/i.test(msg))) { model = "models/gemini-2.5-flash"; store.set("vc_gmodel", model); continue; }
-    throw new Error(msg);
+    last = j.error?.message || String(r.status);
+    if (r.status === 404 || r.status === 400 || r.status === 403 || /no longer available|Interactions API|not supported|not found|deprecated/i.test(last)) {
+      bad.push(model); store.set("vc_gbad", JSON.stringify(bad)); store.set("vc_gmodel", ""); continue;
+    }
+    throw new Error(last);
   }
+  throw new Error(last || "nenhum modelo disponível para esta chave");
 }
-async function geminiModel(key) {
-  const c = store.get("vc_gmodel"); if (c) return c;
+async function geminiModel(key, bad = []) {
+  const c = store.get("vc_gmodel"); if (c && !bad.includes(c)) return c;
   try {
     const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200", { headers: { "x-goog-api-key": key } });
     const j = await r.json();
-    const ok = (j.models || []).filter(m => (m.supportedGenerationMethods || []).includes("generateContent")).map(m => m.name).filter(n => /flash/.test(n) && !/live|image|tts|audio|lite|think|interaction|robotics|computer/.test(n));
-    // Stable first (Marcus, 08/11: a preview model answered "only supports Interactions API"), newest stable wins.
-    const pick = ok.sort((a, b) => ((/preview|exp/.test(a) ? 1 : 0) - (/preview|exp/.test(b) ? 1 : 0)) || (b > a ? 1 : -1))[0] || "models/gemini-2.5-flash";
-    store.set("vc_gmodel", pick); return pick;
-  } catch { return "models/gemini-2.5-flash"; }
+    const ok = (j.models || []).filter(m => (m.supportedGenerationMethods || []).includes("generateContent")).map(m => m.name)
+      .filter(n => /flash/.test(n) && !/live|image|tts|audio|lite|think|interaction|robotics|computer/.test(n) && !bad.includes(n));
+    // The "latest" alias follows Google's current model; then stable before preview, newest first.
+    const score = n => (/flash-latest$/.test(n) ? 2 : 0) + (/preview|exp/.test(n) ? 0 : 1);
+    const pick = ok.sort((a, b) => (score(b) - score(a)) || (b > a ? 1 : -1))[0];
+    if (pick) store.set("vc_gmodel", pick);
+    return pick || null;
+  } catch { return null; }
 }
 function memoryText() {
   const P = S.people.map(p => ({ id: p.id, nome: p.name, relacao: p.relation, empresa: p.company, cargo: p.role, tags: p.tags, ultima_vez: p.last_seen_date, onde: p.last_seen_context, notas: p.notes }));
@@ -846,7 +859,7 @@ function parseVcf(text) {
 function settings() {
   const m = S.me || {}, key = store.get("vc_gemini");
   sheet(`<h3>Ajustes</h3><p class="sub">${esc(m.email || "")}</p>
-  <div class="sec"><h5>Sua memória</h5>${kv([["Pessoas", String(m.counts?.people ?? 0)], ["Rostos", String(m.counts?.faces ?? 0)], ["Momentos", String(m.counts?.encounters ?? 0)], ["Coisas", String(m.counts?.things ?? 0)], ["Notas", String(m.counts?.notes ?? 0)], ["Plano", $("#plan").textContent]])}
+  <div class="sec"><h5>Sua memória</h5>${kv([["Pessoas", String(Math.max(S.people?.length || 0, m.counts?.people ?? 0))], ["Rostos", String(Math.max((S.people || []).reduce((n, p) => n + (p.faces || 0), 0), m.counts?.faces ?? 0))], ["Momentos", String(Math.max(S.enc?.length || 0, m.counts?.encounters ?? 0))], ["Coisas", String(Math.max(S.things?.length || 0, m.counts?.things ?? 0))], ["Notas", String(Math.max(S.notes?.length || 0, m.counts?.notes ?? 0))], ["Plano", $("#plan").textContent]])}
   <p class="muted" style="font-size:13px;margin-top:10px">A memória é para a vida toda: nada é apagado por tempo, e você pode exportar tudo quando quiser.</p>
   <div class="btns"><button class="btn" id="exp">Exportar tudo (arquivo)</button></div></div>
   <div class="sec"><h5>Chave do Gemini</h5><p class="muted" style="font-size:13px">Fica só neste navegador. O app do celular já traz a sua quando abre o Manager.</p>
