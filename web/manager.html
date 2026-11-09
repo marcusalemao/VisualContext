@@ -924,7 +924,7 @@ function brPhone(raw) {
 /** Opens the WhatsApp app itself on Android (wa.me opened the web version), the site elsewhere. */
 function waHref(num, text = "") {
   const n = brPhone(num), web = "https://wa.me/" + n + (text ? "?text=" + encodeURIComponent(text) : "");
-  return /Android/i.test(navigator.userAgent) ? `intent://send?phone=${n}${text ? "&text=" + encodeURIComponent(text) : ""}#Intent;scheme=whatsapp;package=com.whatsapp;S.browser_fallback_url=${encodeURIComponent(web)};end` : web;
+  return /Android/i.test(navigator.userAgent) ? `intent://send?phone=${n}${text ? "&text=" + encodeURIComponent(text) : ""}#Intent;scheme=whatsapp;S.browser_fallback_url=${encodeURIComponent(web)};end` : web;
 }
 
 /* Talk to the person (Marcus, 09/11): on the phone the Zap opens the conversation (zap://chat); without it, WhatsApp;
