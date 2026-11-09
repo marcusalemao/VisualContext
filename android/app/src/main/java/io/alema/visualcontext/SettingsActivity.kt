@@ -320,6 +320,11 @@ class SettingsActivity : Activity() {
             setOnCheckedChangeListener { _, on -> Backend.setOfflineOnly(this@SettingsActivity, on) }
         })
         c7.addView(sw().apply {
+            text = "Escuta offline do celular: o reconhecedor do próprio celular ouve as conversas (para guardar o encontro) e perguntas simples. Desligada, só o Gemini ouve, quando você abre com o toque longo na haste — sem os dois disputando o microfone. Também liga e desliga no botão Escuta, na barra dos óculos."
+            textSize = 14f; setTextColor(soft); buttonTintList = android.content.res.ColorStateList.valueOf(green); isChecked = Backend.earsOn(this@SettingsActivity)
+            setOnCheckedChangeListener { _, on -> Backend.setEarsOn(this@SettingsActivity, on) }
+        })
+        c7.addView(sw().apply {
             text = "Escuta contínua (recomendado): você só fala. Perguntas simples (\"que horas são\", \"onde deixei as chaves\", \"o que fiz hoje\") o celular responde na hora; qualquer outra coisa dita ao assistente abre o Gemini, que responde e, se você não disser mais nada, sai sozinho e volta a escutar. O toque longo na haste continua abrindo o Gemini direto. Desligado, só o toque longo funciona."
             textSize = 13f; setTextColor(soft); buttonTintList = android.content.res.ColorStateList.valueOf(green); isChecked = Backend.standby(this@SettingsActivity)
             setOnCheckedChangeListener { _, on -> Backend.setStandby(this@SettingsActivity, on) }

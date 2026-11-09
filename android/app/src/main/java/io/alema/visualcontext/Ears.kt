@@ -33,6 +33,14 @@ class Ears(private val ctx: Context, private val onName: (String) -> Unit, priva
      * again. A face in front (a real conversation) wakes it too. Different from [pause], which is the assistant's.
      */
     var asleep = false; private set
+    /**
+     * Marcus, 09/11: "uma chave para desativar a escuta offline" — off, the phone's own recognizer never opens
+     * (no standby, no transcription of encounters); only the Gemini Live listens, when it is open. No competition for the mic.
+     */
+    var enabled = true
+        set(v) { field = v; if (!v) { main.removeCallbacks(endCheck); text.setLength(0); startedAt = 0; who = null; stopRec() } else if (standby && !paused && !asleep) start() }
+    /** Every phrase heard between encounters, so the lens can show that the phone is listening (and what it understood). */
+    var onHeard: (String) -> Unit = {}
     @Volatile var listenSince = 0L; private set
     fun sleep() { if (inEncounter || !on) return; asleep = true; stopRec() }
     fun wake() { asleep = false; if (!paused) start() }
@@ -52,6 +60,7 @@ class Ears(private val ctx: Context, private val onName: (String) -> Unit, priva
         val now = System.currentTimeMillis()
         lastFaceAt = now
         if (name != null) who = name
+        if (!enabled) return
         if (startedAt == 0L) startedAt = now
         asleep = false
         if (!on && !paused) start()
@@ -81,7 +90,7 @@ class Ears(private val ctx: Context, private val onName: (String) -> Unit, priva
     private val endCheck = Runnable { if (System.currentTimeMillis() - lastFaceAt >= 59_000) { save(); if (!standby) stopRec() } }
 
     private fun start() {
-        if (!SpeechRecognizer.isRecognitionAvailable(ctx)) return
+        if (!enabled || !SpeechRecognizer.isRecognitionAvailable(ctx)) return
         on = true; listenSince = SystemClock.elapsedRealtime(); onState(true)
         listenOnce()
     }
@@ -163,7 +172,10 @@ class Ears(private val ctx: Context, private val onName: (String) -> Unit, priva
             val now = System.currentTimeMillis()
             if (!(n.equals(lastName, true) && now - lastNameAt < 20_000)) { lastName = n; lastNameAt = now; onName(n) }
         }
-        if (!inEncounter) { if (final && standby && QUESTION.containsMatchIn(s.lowercase())) onQuestion(s.trim()); return } // standby keeps nothing
+        if (!inEncounter) { // standby keeps nothing
+            if (final && standby) { if (QUESTION.containsMatchIn(s.lowercase())) onQuestion(s.trim()) else main.post { onHeard(s.trim()) } }
+            return
+        }
         if (final) text.append(s.trim()).append('\n')
     }
 

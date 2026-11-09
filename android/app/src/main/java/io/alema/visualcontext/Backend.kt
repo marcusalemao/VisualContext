@@ -52,6 +52,8 @@ object Backend {
     fun offlineOnly(ctx: Context) = prefs(ctx).getBoolean("offline_only", false)
     fun setOfflineOnly(ctx: Context, on: Boolean) { prefs(ctx).edit().putBoolean("offline_only", on).apply() }
     /** Standby: between encounters, listen (offline) for questions to the memory and calls to the assistant. */
+    fun earsOn(ctx: Context) = prefs(ctx).getBoolean("ears_on", true)
+    fun setEarsOn(ctx: Context, on: Boolean) { prefs(ctx).edit().putBoolean("ears_on", on).apply() }
     fun standby(ctx: Context) = prefs(ctx).getBoolean("standby", true)
     fun setStandby(ctx: Context, on: Boolean) { prefs(ctx).edit().putBoolean("standby", on).apply() }
 

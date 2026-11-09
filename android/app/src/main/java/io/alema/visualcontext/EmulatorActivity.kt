@@ -44,6 +44,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     private lateinit var hud: HudOverlay
     private lateinit var talk: Button
     private lateinit var placesBtn: Button
+    private lateinit var earsBtn: Button
     private lateinit var facesBtn: Button
     private val main = Handler(Looper.getMainLooper())
     private val work = Executors.newSingleThreadExecutor()
@@ -153,6 +154,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         talk = btn("● Falar") { toggleLive() } // not in the bar any more (Marcus, 09/11): the temple's long press opens, two taps close
         facesBtn = btn("") { facesOn = !facesOn; if (!facesOn) { hud.faces = emptyList(); cancelCountdown() }; paintToggles() }; bar.addView(facesBtn)
         placesBtn = btn("") { placesOn = !placesOn; if (!placesOn) hud.pins = emptyList() else refreshPlaces(true); paintToggles() }; bar.addView(placesBtn)
+        earsBtn = btn("") { setEars(!Backend.earsOn(this)) }.apply { contentDescription = "Escuta offline do celular" }; bar.addView(earsBtn)
         qrBtn = btn("▣ QR") { setQr(!qrOn) }; bar.addView(qrBtn)
         outBtn = btn("") { setOutput(when (output) { "tela_voz" -> "voz"; "voz" -> "tela"; else -> "tela_voz" }) }.apply { maxLines = 2; textSize = 11f; contentDescription = "Saída: como os óculos falam com você" }; bar.addView(outBtn)
         // The temple, simulated (Marcus, 08/11: as in the old emulator). Same actions as the glasses' touchpad.
@@ -198,6 +200,8 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
             onQuestion = { q -> standbyQuestion(q) })
         ears.onPlan = { p, uri -> onPlan(p, uri) }
         ears.onTasks = { ts -> onBrief("✓ ${if (ts.size == 1) "Tarefa anotada" else ts.size.toString() + " tarefas anotadas"}", ts.take(3)) }
+        ears.enabled = Backend.earsOn(this)
+        ears.onHeard = { t -> heardOffline(t) }
         ears.standby = Backend.standby(this) // on by default since 09/11: one way to use it — speak, and the right thing happens
         applyOutput()
         paintToggles()
@@ -214,7 +218,9 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         facesBtn.setTextColor(if (facesOn) green else dim)
         placesBtn.text = if (placesOn) "● Lugares" else "○ Lugares"
         placesBtn.setTextColor(if (placesOn) green else dim)
-        hud.footer = listOfNotNull(if (liveOn) liveState else null, if (facesOn) "pessoas: ligado" else "pessoas: desligado", if (placesOn) "lugares: ligado" else "lugares: desligado").joinToString(" · ")
+        val eOn = Backend.earsOn(this)
+        earsBtn.text = if (eOn) "● Escuta" else "○ Escuta"; earsBtn.setTextColor(if (eOn) green else dim)
+        hud.footer = listOfNotNull(if (liveOn) liveState else null, if (!eOn && !liveOn) "escuta offline: desligada" else null, if (facesOn) "pessoas: ligado" else "pessoas: desligado", if (placesOn) "lugares: ligado" else "lugares: desligado").joinToString(" · ")
         hud.invalidate()
     }
 
@@ -419,7 +425,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         if (on) { getSharedPreferences("visualcontext", MODE_PRIVATE).edit().putBoolean("emu_help_seen", true).apply(); helpBox.announceForAccessibility(helpBox.text) }
     }
     private var pendingTap: Runnable? = null
-    private fun paintMic() { hud.mic = when { liveOn -> 2; ::ears.isInitialized && hearing -> 1; ::ears.isInitialized && (ears.asleep || ears.standby) -> 0; else -> -1 } }
+    private fun paintMic() { hud.mic = when { liveOn -> 2; ::ears.isInitialized && hearing -> 1; ::ears.isInitialized && ears.enabled && (ears.asleep || ears.standby) -> 0; else -> -1 } }
     private fun centerTap() {
         val p = pendingTap
         if (p != null) { main.removeCallbacks(p); pendingTap = null; templeBack(); return } // second tap: back
@@ -747,10 +753,28 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         try { startActivity(Intent(this, EmulatorActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (_: Exception) {}
     }
 
+    /** The offline listening, on or off (bar button and Ajustes share the same setting). */
+    private fun setEars(on: Boolean) {
+        Backend.setEarsOn(this, on); ears.enabled = on
+        toast(if (on) "Escuta offline ligada: o celular ouve conversas e perguntas simples" else "Escuta offline desligada: só o Gemini ouve, quando aberto (toque longo na haste)")
+        paintToggles(); paintMic()
+    }
+
+    /** Marcus, 09/11: "nunca recebo um feedback" — what the offline listening understood shows on the lens, with how to ask. */
+    private fun heardOffline(t: String) {
+        if (liveOn || t.length < 3) return
+        hud.transcript = listOf("ouvi: " + t.takeLast(30), "para perguntar: \"assistente, …\"")
+        hud.invalidate()
+        main.removeCallbacks(clearHeard); main.postDelayed(clearHeard, 5000)
+    }
+    private val clearHeard = Runnable { if (!liveOn) { hud.transcript = emptyList(); hud.invalidate() } }
+
     private fun toggleLive() {
         if (!liveOn && Backend.offlineOnly(this)) { toast("O Live está desligado em Ajustes → Assistente (\"Desligar o Live\"). Ligue lá para falar com o assistente."); return }
         if (liveOn) { if (live.speaking) live.interrupt() else { live.stop(); liveOn = false; ears.resume() } }
-        else { liveOn = true; ears.pause(); live.start(); hintLive() }
+        // Marcus, 09/11: "o Gemini Live quase nunca me ouve". The phone's recognizer runs in another app and lets go of
+        // the microphone a moment after it is told to stop; opening the Live at once, it captured silence. Wait for it.
+        else { liveOn = true; val was = hearing; ears.pause(); paintMic(); main.postDelayed({ if (liveOn) { live.start(); hintLive() } }, if (was) 700L else 0L) }
     }
 
     /** The first times the assistant opens, the lens shows what can be said (rotating), until hints are turned off. */
@@ -870,6 +894,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
 
     override fun onResume() {
         super.onResume()
+        if (::ears.isInitialized) { ears.enabled = Backend.earsOn(this); ears.standby = Backend.standby(this); paintToggles(); paintMic() } // Ajustes changed it
         val sm = getSystemService(Context.SENSOR_SERVICE) as SensorManager
         sm.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)?.let { sm.registerListener(this, it, SensorManager.SENSOR_DELAY_UI) }
     }
