@@ -22,6 +22,14 @@ object MyPlaces {
         loadedAt = System.currentTimeMillis()
     }
     fun all() = list
+    /** A moment's place as he named it ("Pop Vegan"), with the street after; the street alone when no name fits. */
+    fun label(e: org.json.JSONObject): String {
+        val addr = e.optString("place")
+        if (!e.has("lat") || e.isNull("lat") || !e.has("lng") || e.isNull("lng")) return addr
+        val loc = Location("vc").apply { latitude = e.optDouble("lat"); longitude = e.optDouble("lng") }
+        val p = runCatching { at(loc) }.getOrNull() ?: return addr
+        return if (addr.isBlank() || addr == p.name) p.name else "${p.name} (${addr})"
+    }
 
     /** The saved place this location falls in (radius + the GPS's own uncertainty, up to 60 m). */
     fun at(loc: Location): P? = list.map { p -> val r = FloatArray(1); Location.distanceBetween(loc.latitude, loc.longitude, p.lat, p.lng, r); p to r[0] }

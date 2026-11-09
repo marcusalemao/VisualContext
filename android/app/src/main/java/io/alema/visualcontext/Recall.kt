@@ -31,7 +31,7 @@ object Recall {
         for (e in enc.take(120)) {
             val who = e.optString("person_name").ifEmpty { null }; if (who != null && me.isNotEmpty() && who.equals(me, true)) continue
             sb.append("- ").append(fmt.format(t(e.optString("at")))).append(" · ").append(if (e.optString("capture_mode") == "live") "conversa com o assistente" else "encontro" + (who?.let { " com $it" } ?: ""))
-            e.optString("place").ifEmpty { null }?.let { sb.append(" · ").append(it) }
+            MyPlaces.label(e).ifEmpty { null }?.let { sb.append(" · ").append(it) }
             (e.optString("summary").ifEmpty { e.optString("transcript").take(300) }).ifEmpty { null }?.let { sb.append(" · ").append(it.replace("\n", " ")) }
             sb.append("\n")
         }

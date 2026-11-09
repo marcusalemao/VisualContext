@@ -38,7 +38,7 @@ object Story {
         data class Stop(val place: String, val from: String, var to: String, val items: MutableList<JSONObject>)
         val stops = ArrayList<Stop>()
         for (e in enc) {
-            val place = e.optString("place").substringBefore(" · ").ifBlank { "—" }
+            val place = MyPlaces.label(e).substringBefore(" (").substringBefore(" · ").ifBlank { "—" }
             val last = stops.lastOrNull()
             if (last != null && last.place == place) { last.to = e.optString("at"); last.items += e } else stops += Stop(place, e.optString("at"), e.optString("at"), mutableListOf(e))
         }

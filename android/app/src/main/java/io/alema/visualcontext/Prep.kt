@@ -39,7 +39,7 @@ object Prep {
         for (i in 0 until encs.length()) {
             val e = encs.optJSONObject(i) ?: continue
             if ((p != null && e.optString("person_id") == p.id) || (first.length > 2 && norm(e.optString("transcript")).contains(first)))
-                mine.put(JSONObject().put("quando", e.optString("at")).put("lugar", e.optString("place")).put("resumo", e.optString("summary")).put("pendencias", e.opt("follow_ups")).put("trecho", e.optString("transcript").take(800)))
+                mine.put(JSONObject().put("quando", e.optString("at")).put("lugar", MyPlaces.label(e)).put("resumo", e.optString("summary")).put("pendencias", e.opt("follow_ups")).put("trecho", e.optString("transcript").take(800)))
             if (mine.length() >= 10) break
         }
         val mem = JSONObject().put("pessoa", if (p == null) JSONObject().put("nome", name) else JSONObject().put("nome", p.name).put("relacao", p.relation).put("empresa", p.company).put("ultima_vez", p.lastSeenDate).put("onde", p.lastSeenContext)).put("encontros", mine)
