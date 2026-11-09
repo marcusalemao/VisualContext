@@ -42,6 +42,7 @@ class SettingsActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Heat.start(this)
         Where.loadKey(this)
         col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(48, 96, 48, 48) }
         setContentView(ScrollView(this).apply { addView(col); setBackgroundColor(Color.rgb(3, 12, 6)) })
@@ -318,6 +319,11 @@ class SettingsActivity : Activity() {
             text = "Agenda automática: compromisso combinado numa conversa (com dia e hora) entra sozinho na agenda, com quem, onde e os detalhes; a lente mostra Desfazer. Sem hora certa, fica como sugestão no Manager."
             textSize = 13f; setTextColor(soft); buttonTintList = android.content.res.ColorStateList.valueOf(green); isChecked = Plans.auto(this@SettingsActivity)
             setOnCheckedChangeListener { _, on -> Plans.setAuto(this@SettingsActivity, on); if (on) requestPermissions(arrayOf(android.Manifest.permission.READ_CALENDAR, android.Manifest.permission.WRITE_CALENDAR), 12) }
+        })
+        c7.addView(sw().apply {
+            text = "Mapa de calor (Microsoft Clarity): grava onde você toca nas telas do app, para melhorar o desenho. O vídeo da câmera, a lente e as chaves nunca são gravados. Vale a partir da próxima abertura do app."
+            textSize = 13f; setTextColor(soft); isChecked = Heat.on(this@SettingsActivity)
+            setOnCheckedChangeListener { _, on -> Heat.set(this@SettingsActivity, on); if (on) Heat.start(this@SettingsActivity) }
         })
         c7.p("Idiomas que eu falo: o que você diz só é escrito nestas línguas, nunca em outra.", 13f)
         val langRow = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -680,7 +686,7 @@ class SettingsActivity : Activity() {
     }
 
     private fun field(v: String, secret: Boolean) = EditText(this).apply {
-        setText(v); setTextColor(green); textSize = 14f; isSingleLine = true
+        setText(v); setTextColor(green); textSize = 14f; isSingleLine = true; Heat.mask(this)
         if (secret) inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
     }
 

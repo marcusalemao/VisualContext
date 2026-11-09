@@ -36,8 +36,8 @@ android {
         applicationId = "io.alema.visualcontext"
         minSdk = 30
         targetSdk = 36
-        versionCode = 81
-        versionName = "0.18.22"
+        versionCode = 82
+        versionName = "0.18.23"
         // Rokid users' phones are 64-bit ARM; keeps the APK small (ONNX Runtime ships many ABIs).
         ndk { abiFilters += listOf("arm64-v8a") }
     }
@@ -58,6 +58,8 @@ android {
 }
 
 dependencies {
+    // Microsoft Clarity (heatmaps of the app, Marcus 09/11); only starts when he turns it on in Settings; the lens is masked.
+    implementation("com.microsoft.clarity:clarity:3.+")
     // Rokid Nexus plugin SDK (Apache-2.0) — https://github.com/Anezium/Rokid-Nexus
     implementation("com.github.Anezium.Rokid-Nexus:bus-client:sdk-v0.23.0")
     // Serves assets/face over https://appassets.androidplatform.net for the face engine WebView.

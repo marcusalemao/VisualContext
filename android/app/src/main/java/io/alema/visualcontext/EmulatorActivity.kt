@@ -97,6 +97,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Heat.start(this)
         Where.loadKey(this)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         preview = PreviewView(this).apply { implementationMode = PreviewView.ImplementationMode.COMPATIBLE; scaleType = PreviewView.ScaleType.FILL_CENTER }
@@ -123,6 +124,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         }
         // Lens on top, buttons in their own strip below it (never under the Android navigation bar).
         val lens = FrameLayout(this).apply { setBackgroundColor(Color.BLACK); addView(preview); addView(hud) }
+        Heat.mask(lens) // camera video and HUD: never recorded
         // The only thing this phone test has that the glasses don't: which camera. A bare icon on the video (Marcus, 09/11),
         // top right, out of the lens cards' way; no pill, a dark halo gives the contrast.
         val dp = resources.displayMetrics.density
