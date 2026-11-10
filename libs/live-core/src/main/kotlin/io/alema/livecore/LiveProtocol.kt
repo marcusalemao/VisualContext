@@ -149,6 +149,8 @@ object LiveProtocol {
         data class Resumption(val handle: String) : Event()
         data class GoAway(val timeLeft: String) : Event()
         data class Error(val message: String) : Event()
+        /** Tokens Google counted for one turn, by modality (TEXT, AUDIO, IMAGE, VIDEO): what the session really costs. */
+        data class Usage(val input: Map<String, Int>, val output: Map<String, Int>) : Event()
     }
 
     fun parse(text: String): List<Event> {
@@ -179,6 +181,19 @@ object LiveProtocol {
         }
         j.optJSONObject("goAway")?.let { out += Event.GoAway(it.optString("timeLeft")) }
         j.optJSONObject("error")?.let { out += Event.Error(it.optString("message", "erro")) }
+        j.optJSONObject("usageMetadata")?.let { u ->
+            fun mods(key: String, total: String): Map<String, Int> {
+                val a = u.optJSONArray(key)
+                val m = HashMap<String, Int>()
+                if (a != null) for (i in 0 until a.length()) a.optJSONObject(i)?.let { d -> m[d.optString("modality", "TEXT")] = (m[d.optString("modality", "TEXT")] ?: 0) + d.optInt("tokenCount") }
+                if (m.isEmpty() && u.optInt(total) > 0) m["TEXT"] = u.optInt(total)
+                return m
+            }
+            val thoughts = u.optInt("thoughtsTokenCount")
+            val outM = mods("responseTokensDetails", "responseTokenCount").toMutableMap()
+            if (thoughts > 0) outM["TEXT"] = (outM["TEXT"] ?: 0) + thoughts // thinking is billed as text output
+            out += Event.Usage(mods("promptTokensDetails", "promptTokenCount"), outM)
+        }
         return out
     }
 }

@@ -119,7 +119,7 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
                 if (r == null || !r.has("token")) { main.post { Player.duck(ctx, false); speaker.stop(); host.onState("error: " + (r?.optString("error")?.ifEmpty { null } ?: "o assistente não abriu agora")) }; return@execute }
                 connectKey = r.getString("token"); model = r.optString("model", LiveProtocol.MODEL)
             } else model = Backend.liveModel(ctx) ?: (live.listModels(key)?.let { LiveProtocol.pickLiveModel(it) } ?: LiveProtocol.MODEL).also { Backend.saveLiveModel(ctx, it) }
-            liveOpenedAt = SystemClock.elapsedRealtime()
+            liveOpenedAt = SystemClock.elapsedRealtime(); liveModel = model; usageIn.clear(); usageOut.clear()
             // Spec 1r: the learned skills become tools of this session.
             Skills.refresh(ctx)
             MyPlaces.refresh(ctx)
@@ -158,9 +158,19 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
     private var lastTurns = ""
 
     private var liveOpenedAt = 0L
+    private var liveModel = ""
+    // Marcus, 10/11: measure what a voice session really costs (Google reports tokens per turn), for everyone,
+    // the founder included, so the price of the plan comes from numbers and not from a guess per minute.
+    private val usageIn = HashMap<String, Int>()
+    private val usageOut = HashMap<String, Int>()
     fun stop() {
         main.removeCallbacks(idleCheck)
-        if (liveOpenedAt > 0 && Gem.proxied(Backend.geminiKey(ctx))) { val sec = (SystemClock.elapsedRealtime() - liveOpenedAt) / 1000; io.execute { Backend.post(ctx, JSONObject().put("action", "live_used").put("seconds", sec)) } }
+        if (liveOpenedAt > 0) {
+            val sec = (SystemClock.elapsedRealtime() - liveOpenedAt) / 1000
+            val u = JSONObject().put("in", JSONObject(usageIn as Map<*, *>)).put("out", JSONObject(usageOut as Map<*, *>))
+            val m = liveModel
+            io.execute { Backend.post(ctx, JSONObject().put("action", "live_used").put("seconds", sec).put("model", m).put("usage", u)) }
+        }
         liveOpenedAt = 0
         Player.duck(ctx, false); Claude.reset()
         lastTurns = (turns.takeLast(3)).joinToString(" | ") { (u, m) -> listOfNotNull(u.takeIf { it.isNotEmpty() }?.let { "Você: ${it.take(160)}" }, m.takeIf { it.isNotEmpty() }?.let { "Assistente: ${it.take(160)}" }).joinToString(" / ") }
@@ -183,6 +193,10 @@ class LiveBrain(private val ctx: Context, private val host: Host) : LiveSession.
 
     private fun handle(e: LiveProtocol.Event) {
         when (e) {
+            is LiveProtocol.Event.Usage -> {
+                e.input.forEach { (k, v) -> usageIn[k] = (usageIn[k] ?: 0) + v }
+                e.output.forEach { (k, v) -> usageOut[k] = (usageOut[k] ?: 0) + v }
+            }
             is LiveProtocol.Event.SetupComplete -> {
                 open = true; lastActivity = SystemClock.elapsedRealtime()
                 if (turns.isEmpty()) talkStartedAt = System.currentTimeMillis()

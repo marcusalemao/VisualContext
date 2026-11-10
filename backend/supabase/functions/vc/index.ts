@@ -51,7 +51,15 @@ const TIERS: Record<string, { days: number; calls_day: number; live_min_day: num
   beta: { days: 5, calls_day: 150, live_min_day: 20, budget_usd: 3, own_keys: false },
   super: { days: 30, calls_day: 1000, live_min_day: 90, budget_usd: 25, own_keys: true },
 };
-const LIVE_USD_PER_MIN = 0.03;
+const LIVE_USD_PER_MIN = 0.03; // only when a session reports no tokens (old app versions)
+// Live API list prices, US$ per 1M tokens (ai.google.dev/gemini-api/docs/pricing, 10/11/2026: gemini-3.8-live and 3.1-flash-live).
+const LIVE_PRICE = { in: { TEXT: 0.75, IMAGE: 1.0, VIDEO: 1.0, AUDIO: 3.0 } as Record<string, number>, out: { TEXT: 4.5, AUDIO: 12.0 } as Record<string, number> };
+function liveCost(u: any) {
+  let c = 0;
+  for (const [k, v] of Object.entries(u?.in ?? {})) c += Number(v) * (LIVE_PRICE.in[k] ?? 3.0) / 1e6;
+  for (const [k, v] of Object.entries(u?.out ?? {})) c += Number(v) * (LIVE_PRICE.out[k] ?? 12.0) / 1e6;
+  return c;
+}
 const today = () => new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10);
 async function roleOf(email: string | null) {
   if (!email) return null;
@@ -270,10 +278,17 @@ Deno.serve(async (req) => {
         if (!r.ok || !j.name) return json({ error: "não consegui abrir o assistente", detail: j?.error?.message ?? r.status }, 502);
         return json({ token: j.name, model, minutes_left: who.role === "founder" ? null : Math.max(0, Math.floor(((who.limits as any).live_min_day * 60 - (who.today as any).live_seconds) / 60)) });
       }
-      case "live_used": { // the app reports how long the assistant was open
+      case "live_used": { // the app reports how long the assistant was open and the tokens Google counted (10/11)
         const sec = Math.max(0, Math.min(4 * 3600, Math.round(Number(body.seconds) || 0)));
-        if (sec && w.email) await db.rpc("usage_add", { p_email: w.email, p_calls: 0, p_in: 0, p_out: 0, p_live: sec, p_cost: sec / 60 * LIVE_USD_PER_MIN });
-        return json({ ok: true });
+        const u = body.usage && typeof body.usage === "object" ? body.usage : null;
+        const measured = !!u && Object.values({ ...(u.in ?? {}), ...(u.out ?? {}) }).some((v) => Number(v) > 0);
+        const cost = measured ? liveCost(u) : sec / 60 * LIVE_USD_PER_MIN;
+        if (w.email && (sec || measured)) {
+          await db.from("live_sessions").insert({ owner_email: w.email, seconds: sec, model: String(body.model ?? "").slice(0, 80) || null, tokens: u, cost_usd: cost, measured });
+          const tin = measured ? Object.values(u.in ?? {}).reduce((a: number, v: any) => a + Number(v), 0) : 0, tout = measured ? Object.values(u.out ?? {}).reduce((a: number, v: any) => a + Number(v), 0) : 0;
+          await db.rpc("usage_add", { p_email: w.email, p_calls: 0, p_in: tin, p_out: tout, p_live: sec, p_cost: cost });
+        }
+        return json({ ok: true, cost_usd: Math.round(cost * 10000) / 10000, measured });
       }
       case "identify_audd": { // AudD with the app's key (testers have none)
         const k = Deno.env.get("AUDD_KEY"); if (!k) return json({ error: "audd not configured" }, 503);
@@ -352,7 +367,14 @@ Deno.serve(async (req) => {
             live_min: Math.round(u.reduce((a: number, x: any) => a + x.live_seconds, 0) / 60), last_day: u.map((x: any) => x.day).sort().pop() ?? null,
             devices: d.map((x: any) => ({ name: x.name, last_used_at: x.last_used_at })) };
         });
-        return json({ rows, tiers: TIERS, mail: !!Deno.env.get("RESEND_API_KEY"), download: DOWNLOAD });
+        // What the voice assistant really costs (measured sessions only), for everyone and for the founder alone.
+        const { data: ls } = await db.from("live_sessions").select("owner_email, seconds, cost_usd, measured, tokens, at").eq("measured", true).order("at", { ascending: false }).limit(2000);
+        const sum = (xs: any[]) => { const sec = xs.reduce((a, x) => a + x.seconds, 0), usd = xs.reduce((a, x) => a + Number(x.cost_usd), 0);
+          const tok: Record<string, number> = {}; for (const x of xs) for (const side of ["in", "out"]) for (const [k, v] of Object.entries(x.tokens?.[side] ?? {})) tok[side + ":" + k] = (tok[side + ":" + k] ?? 0) + Number(v);
+          return { sessions: xs.length, minutes: Math.round(sec / 6) / 10, usd: Math.round(usd * 1000) / 1000, usd_per_min: sec ? Math.round(usd / (sec / 60) * 1000) / 1000 : null, tokens: tok }; };
+        const live = { all: sum(ls ?? []), founder: sum((ls ?? []).filter((x: any) => x.owner_email === FOUNDER)), testers: sum((ls ?? []).filter((x: any) => x.owner_email !== FOUNDER)) };
+        for (const r of rows as any[]) { const mine = (ls ?? []).filter((x: any) => x.owner_email === r.email); r.live_real = mine.length ? sum(mine) : null; }
+        return json({ rows, tiers: TIERS, mail: !!Deno.env.get("RESEND_API_KEY"), download: DOWNLOAD, live });
       }
       case "mark_notified": { // the founder copied the answer to send it himself
         if (w.email !== FOUNDER) return json({ error: "forbidden" }, 403);

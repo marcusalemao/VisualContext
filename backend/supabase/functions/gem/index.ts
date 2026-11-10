@@ -9,7 +9,7 @@ const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: 
 const sha256 = async (t: string) => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t)))].map((b) => b.toString(16).padStart(2, "0")).join("");
 
 // Rough prices (US$ per 1M tokens) to turn usage into money; good enough to stop a budget, not an invoice.
-const PRICE = { in: 0.3, out: 2.5 };
+const PRICE = { in: 0.75, out: 3.75 }; // gemini-3.8-flash list price until 31/12/2026 (doubles in 2027); cheaper models cost less, so this errs high
 export const TIERS: Record<string, { days: number; calls_day: number; live_min_day: number; budget_usd: number; own_keys: boolean }> = {
   beta: { days: 5, calls_day: 150, live_min_day: 20, budget_usd: 3, own_keys: false },
   super: { days: 30, calls_day: 1000, live_min_day: 90, budget_usd: 25, own_keys: true },

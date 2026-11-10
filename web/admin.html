@@ -108,7 +108,7 @@ function row(r) {
   if (r.status === "approved") {
     const sent = r.notified_at ? `Resposta ${r.notified_how === "email" ? "enviada por e-mail" : r.notified_how === "mailto" ? "aberta no seu e-mail" : "copiada"} em ${esc(when(r.notified_at))}` : `<span class="warn">Resposta ainda não enviada</span>`;
     const used = r.devices.length ? `Entrou · ${r.devices.length} ${r.devices.length === 1 ? "aparelho" : "aparelhos"}${r.last_day ? " · último uso " + esc(r.last_day.split("-").reverse().join("/")) : ""}` : "Ainda não entrou";
-    mid = `<div class="meta"><span>Código <span class="code">${esc(r.code || "—")}</span></span><span>usado em ${r.code_uses} de 3 aparelhos · vale até ${esc(day(r.code_expires))}</span><span>${sent}</span><span>${used}</span><span>${r.calls} pedidos · ${r.live_min} min de assistente · US$ ${r.spent.toFixed(2)} de ${Number(r.limits.budget_usd).toFixed(2)}</span></div>`;
+    mid = `<div class="meta"><span>Código <span class="code">${esc(r.code || "—")}</span></span><span>usado em ${r.code_uses} de 3 aparelhos · vale até ${esc(day(r.code_expires))}</span><span>${sent}</span><span>${used}</span><span>${r.calls} pedidos · ${r.live_min} min de assistente · US$ ${r.spent.toFixed(2)} de ${Number(r.limits.budget_usd).toFixed(2)}</span>${r.live_real ? `<span>Voz medida: ${r.live_real.minutes} min · US$ ${r.live_real.usd.toFixed(3)} (US$ ${r.live_real.usd_per_min?.toFixed(3)}/min)</span>` : ""}</div>`;
     acts = `<button class="pri" data-a="copy" data-e="${esc(r.email)}">${ic("content_copy")}Copiar resposta</button><button data-a="mail" data-e="${esc(r.email)}">${ic("mail")}Abrir no e-mail</button><button data-a="code" data-e="${esc(r.email)}">Novo código</button><button data-a="lim" data-e="${esc(r.email)}">Limites</button>${r.from_site ? `<button class="dan" data-a="pending" data-e="${esc(r.email)}">Tirar acesso</button>` : `<button class="dan" data-a="off" data-e="${esc(r.email)}">Desativar</button>`}`;
   } else if (r.status === "pending") {
     mid = `<div class="meta"><span>Sem resposta: a pessoa só viu "Pedido recebido".</span></div>`;
@@ -128,6 +128,14 @@ function row(r) {
   return `<div class="row"><div class="who"><b>${esc(r.name || r.email.split("@")[0])}</b>${pill}<div class="e">${esc(r.email)}</div><div class="meta"><span>${ask}</span>${info.map(x => `<span>${x}</span>`).join("")}</div></div>${mid}<div class="acts">${acts}</div>${lim}</div>`;
 }
 
+// What the voice assistant really costs, measured from the tokens Google reports (Marcus, 10/11).
+function liveCard(l) {
+  if (!l) return "";
+  const line = (t, x) => x.sessions ? `<span><b>${t}:</b> ${x.sessions} ${x.sessions === 1 ? "conversa" : "conversas"} · ${x.minutes} min · US$ ${x.usd.toFixed(3)} · <b>US$ ${x.usd_per_min?.toFixed(3)}/min</b></span>` : `<span><b>${t}:</b> nada medido ainda</span>`;
+  const tk = l.all.tokens || {}, parts = Object.entries(tk).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k.replace("in:", "entrada ").replace("out:", "saída ").toLowerCase()} ${Math.round(v / 1000)}k`).join(" · ");
+  return `<div class="stat" style="cursor:default;margin-top:10px"><span style="color:var(--g);font-weight:700">Assistente de voz: custo real medido</span><div class="meta" style="margin-top:6px">${line("Você", l.founder)}${line("Testadores", l.testers)}${parts ? `<span>Tokens: ${esc(parts)}</span>` : ""}<span>Conta só conversas do app 0.19.5 em diante, com os preços de tabela do Google.</span></div></div>`;
+}
+
 function render() {
   const rows = D.rows, n = k => rows.filter(r => r.status === k).length;
   const q = Q.trim().toLowerCase();
@@ -135,6 +143,7 @@ function render() {
     .sort((a, b) => F === "pending" ? new Date(a.asked_at) - new Date(b.asked_at) : new Date(b.asked_at || b.accepted_at || 0) - new Date(a.asked_at || a.accepted_at || 0));
   $("#app").innerHTML = `<div class="top"><div class="stats">${["pending", "approved", "declined", "off"].map(k => `<button class="stat ${k === "pending" && n(k) ? "pend" : ""} ${F === k ? "on" : ""}" data-f="${k}"><b>${n(k)}</b><span>${ST[k]}</span></button>`).join("")}</div>
     <div class="bar"><input id="q" type="search" placeholder="Buscar nome ou e-mail" value="${esc(Q)}"><button data-f="all" class="${F === "all" ? "pri" : ""}">Todos (${rows.length})</button></div>
+    ${liveCard(D.live)}
     <p class="mail">${D.mail ? "As respostas saem por e-mail sozinhas quando você aprova." : "<b>Sem e-mail automático ainda:</b> quem você aprova não recebe nada até você mandar. Use Copiar resposta (WhatsApp) ou Abrir no e-mail. Quem está em espera ou recusado nunca recebe nada."}</p>
     <details class="add"><summary>Convidar alguém direto, sem pedido</summary><form id="addf"><input name="email" type="email" placeholder="e-mail" required><input name="name" placeholder="nome (para a resposta)"><select name="tier"><option value="beta">Beta tester</option><option value="super">Super tester</option></select><button class="pri">Convidar</button></form></details></div>
     <div class="list">${shown.map(row).join("") || `<p class="empty">${F === "pending" ? "Nenhum pedido esperando." : "Nada aqui."}</p>`}</div>`;
