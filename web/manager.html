@@ -1414,7 +1414,7 @@ function settings() {
   <p class="muted" style="font-size:13px;margin-top:10px">A memória é para a vida toda: nada é apagado por tempo, e você pode exportar tudo quando quiser.</p>
   <div class="btns"><button class="btn" id="exp">Exportar tudo (arquivo)</button></div></div>
   ${m.tester ? testerBox(m) : ""}
-  ${m.role === "founder" ? `<div class="sec"><h5>Testadores</h5><p class="muted" style="font-size:13px">Convide por e-mail, escolha Beta ou Super tester e ajuste os limites de cada um.</p><div class="btns" style="margin-top:6px"><button class="btn pri" data-admin="1">Abrir a lista de testadores</button></div></div>` : ""}
+  ${m.role === "founder" ? `<div class="sec"><h5>Testadores</h5><p class="muted" style="font-size:13px">Pedidos em espera, aprovados e recusados, com o código e a resposta de cada um.</p><div class="btns" style="margin-top:6px"><button class="btn pri" data-admin="1">Abrir o painel de testadores</button></div></div>` : ""}
   ${m.role === "beta" ? `<div class="sec"><h5>Assistente (Gemini)</h5><p style="color:var(--g1);font-size:14px">✓ Incluído pelo app: você não precisa de chave.</p></div>` : `<div class="sec"><h5>Chave do Gemini</h5>${m.role === "super" ? `<p class="muted" style="font-size:13px">${key ? "Usando a SUA chave." : "✓ Usando a chave do app. Se quiser, teste com a sua."}</p>` : ""}<p class="muted" style="font-size:13px">Fica só neste navegador. O app do celular já traz a sua quando abre o Manager.</p>
   <p id="kst" style="font-size:14px;margin:6px 0 8px;color:${key ? "var(--g1)" : "#ffaa5a"}">${key ? "Chave salva: " + esc(key.slice(0, 6) + "…" + key.slice(-4)) : "Nenhuma chave salva."}</p>
   <form class="f" id="kf"><input name="k" type="password" placeholder="${key ? "colar outra chave…" : "AIza…"}" autocomplete="off"><div class="btns" style="margin-top:0"><button class="btn pri">Salvar</button><button class="btn" type="button" id="ktest">Testar</button>${key ? `<button class="btn" type="button" id="kdel" style="margin-left:auto;font-size:12px;opacity:.7">${m.role === "super" ? "voltar para a chave do app" : "tirar a chave"}</button>` : ""}</div></form></div>`}
@@ -1478,7 +1478,7 @@ document.addEventListener("click", e => {
   else if (d.rate) sendRate(t.closest("[data-rate]"));
   else if (d.ratewhy) sendWhy(t.closest("[data-ratewhy]"));
   else if (d.fb) feedbackSheet();
-  else if (d.admin) admin();
+  else if (d.admin) location.href = "/admin"; // the testers dashboard (Marcus, 09/11)
   else if (d.invsave) inviteSave();
   else if (d.reqok) call("request_decide", { email: d.reqok, decision: d.tier }).then(r => { navigator.clipboard?.writeText(inviteText(d.reqok, r.name, r.code)).catch(() => {}); toast((d.tier === "super" ? "Super tester" : "Beta tester") + " aprovado · código " + r.code + (r.mailed ? " · convite enviado por e-mail" : " · convite copiado para você mandar")); admin(); }, e => toast("Não deu: " + e.message));
   else if (d.reqno) { if (confirm("Recusar o pedido de " + d.reqno + "?")) call("request_decide", { email: d.reqno, decision: "no" }).then(admin); }

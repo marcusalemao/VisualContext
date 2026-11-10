@@ -320,9 +320,44 @@ Deno.serve(async (req) => {
           await db.from("beta_requests").update({ status: "approved", tier: body.decision, decided_at: new Date().toISOString() }).eq("email", email);
           const code = await newCode(email);
           const mailed = await sendMail(email, inviteMail(r.name, email, code, r.lang));
+          if (mailed) await db.from("invites").update({ notified_at: new Date().toISOString(), notified_how: "email" }).eq("email", email);
           return json({ ok: true, name: r.name, code, mailed });
-        } else await db.from("beta_requests").update({ status: "declined", decided_at: new Date().toISOString() }).eq("email", email);
-        return json({ ok: true, name: r.name });
+        }
+        // Back to standby, or declined: no access (an approved person loses it at once).
+        const status = body.decision === "pending" ? "pending" : "declined";
+        await db.from("beta_requests").update({ status, tier: null, decided_at: status === "pending" ? null : new Date().toISOString() }).eq("email", email);
+        await db.from("invites").update({ active: false, invite_code: null }).eq("email", email);
+        await db.from("devices").update({ revoked_at: new Date().toISOString() }).eq("owner_email", email).is("revoked_at", null);
+        return json({ ok: true, name: r.name, status });
+      }
+      case "admin_board": { // the testers dashboard (Marcus, 09/11): every request and invite, with its status
+        if (w.email !== FOUNDER) return json({ error: "forbidden" }, 403);
+        const [{ data: reqs }, { data: inv }, { data: use }, { data: devs }] = await Promise.all([
+          db.from("beta_requests").select("*").order("created_at", { ascending: false }),
+          db.from("invites").select("*"),
+          db.from("usage").select("owner_email, day, calls, live_seconds, cost_usd"),
+          db.from("devices").select("owner_email, name, last_used_at, revoked_at"),
+        ]);
+        const byInv = new Map((inv ?? []).map((i: any) => [i.email, i]));
+        const emails = [...new Set([...(reqs ?? []).map((r: any) => r.email), ...(inv ?? []).map((i: any) => i.email)])];
+        const rows = emails.filter((e) => e !== FOUNDER).map((e) => {
+          const r: any = (reqs ?? []).find((x: any) => x.email === e) ?? null, i: any = byInv.get(e) ?? null;
+          const u = (use ?? []).filter((x: any) => x.owner_email === e), d = (devs ?? []).filter((x: any) => x.owner_email === e && !x.revoked_at);
+          const status = i?.active ? "approved" : r?.status === "declined" ? "declined" : r ? (r.status === "approved" ? "off" : "pending") : "off";
+          return { email: e, name: r?.name ?? null, phone: r?.phone ?? null, glasses: r?.glasses ?? null, lang: r?.lang ?? "pt", asked_at: r?.created_at ?? null, from_site: !!r,
+            status, tier: i?.tier ?? r?.tier ?? null, limits: { ...(TIERS[i?.tier ?? "beta"] ?? TIERS.beta), ...(i?.limits ?? {}) }, custom: i?.limits ?? {}, note: i?.note ?? null,
+            code: i?.active ? showCode(i.invite_code) : null, code_expires: i?.code_expires ?? null, code_uses: i?.code_uses ?? 0, accepted_at: i?.accepted_at ?? null,
+            notified_at: i?.notified_at ?? null, notified_how: i?.notified_how ?? null, decided_at: r?.decided_at ?? null,
+            spent: Math.round(u.reduce((a: number, x: any) => a + Number(x.cost_usd), 0) * 100) / 100, calls: u.reduce((a: number, x: any) => a + x.calls, 0),
+            live_min: Math.round(u.reduce((a: number, x: any) => a + x.live_seconds, 0) / 60), last_day: u.map((x: any) => x.day).sort().pop() ?? null,
+            devices: d.map((x: any) => ({ name: x.name, last_used_at: x.last_used_at })) };
+        });
+        return json({ rows, tiers: TIERS, mail: !!Deno.env.get("RESEND_API_KEY"), download: DOWNLOAD });
+      }
+      case "mark_notified": { // the founder copied the answer to send it himself
+        if (w.email !== FOUNDER) return json({ error: "forbidden" }, 403);
+        await db.from("invites").update({ notified_at: new Date().toISOString(), notified_how: String(body.how ?? "copiado").slice(0, 20) }).eq("email", String(body.email ?? "").toLowerCase());
+        return json({ ok: true });
       }
       case "invite_code": { // a fresh code for someone already invited (the old one stops working)
         if (w.email !== FOUNDER) return json({ error: "forbidden" }, 403);
@@ -332,6 +367,7 @@ Deno.serve(async (req) => {
         const code = await newCode(email);
         let mailed = false;
         if (body.send) { const { data: r } = await db.from("beta_requests").select("name, lang").eq("email", email).maybeSingle(); mailed = await sendMail(email, inviteMail(r?.name ?? null, email, code, r?.lang)); }
+        await db.from("invites").update(mailed ? { notified_at: new Date().toISOString(), notified_how: "email" } : { notified_at: null, notified_how: null }).eq("email", email);
         return json({ ok: true, code, mailed });
       }
       case "invite_remove": {

@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VisualContext · Testadores</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="/brand/visualcontext-symbol.svg" type="image/svg+xml">
+<meta name="theme-color" content="#07090c">
+<style>
+:root{--bg:#07090c;--s1:#0d1217;--s2:#121a20;--line:rgba(255,255,255,.1);--line2:rgba(255,255,255,.2);--g:#00ff88;--g2:#8fdfb5;--t:#e8f0ec;--m:#9aaaa2;--warn:#ffcf5a;--err:#ff8a8a;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--t);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:var(--g)}
+.wrap{max-width:1100px;margin:0 auto;padding:0 16px}
+header{border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5}
+header .wrap{display:flex;align-items:center;gap:12px;min-height:60px}
+header img{height:34px}
+header h1{font-size:18px;margin:0;color:var(--g)}
+header .sp{margin-left:auto;display:flex;gap:8px}
+@media (max-width:600px){header .lbl{display:none}header h1{font-size:16px}}
+html,body{overflow-x:hidden}
+button,.b{min-height:38px;padding:0 14px;border-radius:10px;border:1px solid var(--line2);background:transparent;color:var(--g);font:600 14px system-ui;cursor:pointer;display:inline-flex;align-items:center;gap:6px;text-decoration:none}
+button:hover,.b:hover{border-color:var(--g)}
+button.pri{background:var(--g);color:var(--bg);border-color:var(--g)}
+button.dan{color:var(--err)}
+button:disabled{opacity:.5;cursor:wait}
+.ic{width:18px;height:18px;flex:none}
+.top{padding:22px 0 8px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media (max-width:700px){.stats{grid-template-columns:repeat(2,1fr)}}
+.stat{background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:12px 14px;cursor:pointer;text-align:left;min-height:auto;display:block;color:var(--t)}
+.stat b{display:block;font:700 26px system-ui;color:var(--t)}
+.stat span{color:var(--m);font-size:13px}
+.stat.on{border-color:var(--g)}.stat.on b{color:var(--g)}
+.stat.pend b{color:var(--warn)}
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:16px 0 6px}
+.bar input{flex:1;min-width:200px;min-height:40px;background:var(--s1);color:var(--t);border:1px solid var(--line2);border-radius:10px;padding:0 12px;font:inherit}
+.mail{font-size:13px;color:var(--m);margin:4px 0 10px}
+.mail b{color:var(--warn)}
+.list{display:grid;gap:10px;padding-bottom:60px}
+.row{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:14px 16px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:8px 24px;align-items:start}
+@media (max-width:860px){.row{grid-template-columns:1fr}}
+.who b{font-size:16px}.who .e{color:var(--m);word-break:break-all;font-size:14px}
+.meta{color:var(--m);font-size:13px}
+.meta span{display:block}
+.pill{display:inline-block;font:700 11px var(--mono);letter-spacing:.06em;padding:3px 8px;border-radius:99px;border:1px solid currentColor;margin-left:6px;vertical-align:2px}
+.p-pending{color:var(--warn)}.p-approved{color:var(--g)}.p-declined{color:var(--err)}.p-off{color:var(--m)}
+.code{font:700 15px var(--mono);color:var(--g);letter-spacing:.06em}
+.warn{color:var(--warn)}
+.acts{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:10px;margin-top:2px}
+.lim{grid-column:1/-1;display:none;background:var(--s2);border-radius:12px;padding:12px;gap:8px;grid-template-columns:repeat(5,1fr) auto;align-items:end}
+.lim.on{display:grid}
+@media (max-width:860px){.lim{grid-template-columns:1fr 1fr}}
+.lim label{font-size:12px;color:var(--m);display:grid;gap:4px}
+.lim input,.lim select,.add input,.add select{min-height:38px;background:var(--bg);color:var(--t);border:1px solid var(--line2);border-radius:8px;padding:0 10px;font:inherit;width:100%}
+details.add{background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:10px 14px;margin-top:12px}
+details.add summary{cursor:pointer;color:var(--g);font-weight:600}
+details.add form{display:grid;grid-template-columns:2fr 1.3fr 1.3fr auto;gap:8px;margin-top:10px}
+@media (max-width:700px){details.add form{grid-template-columns:1fr}}
+.empty{color:var(--m);padding:30px 0;text-align:center}
+.gate{max-width:420px;margin:80px auto;text-align:center;color:var(--m)}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(80px);background:var(--g);color:var(--bg);font-weight:700;padding:10px 16px;border-radius:12px;transition:.25s;max-width:92vw;z-index:9;opacity:0;pointer-events:none}
+#toast.on{transform:translateX(-50%) translateY(0);opacity:1}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <a href="/manager"><img src="/brand/visualcontext-logo-transparent.png" alt="VisualContext"></a>
+  <h1>Testadores</h1>
+  <div class="sp"><a class="b" aria-label="Página de pedido" href="https://vc.alema.io/test-invite/" target="_blank" rel="noopener"><span data-i="open_in_new"></span><span class="lbl">Página de pedido</span></a><button id="reload" aria-label="Atualizar"><span data-i="history"></span><span class="lbl">Atualizar</span></button></div>
+</div></header>
+<main class="wrap" id="app"></main>
+<div id="toast" role="status"></div>
+<script src="/icons.js"></script>
+<script>
+const API = "https://vzqjwhlpwvqrosoiwiin.supabase.co/functions/v1/vc";
+const TOKEN = (() => { try { return localStorage.getItem("vc_token"); } catch (_) { return null; } })();
+const MANAGER = location.origin + "/manager";
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const ic = n => window.I ? I(n) : "";
+const when = d => d ? new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
+const day = d => d ? new Date(d).toLocaleDateString("pt-BR") : "";
+function toast(t) { const el = $("#toast"); el.textContent = t; el.classList.add("on"); clearTimeout(toast.h); toast.h = setTimeout(() => el.classList.remove("on"), 3200); }
+async function call(action, extra = {}) {
+  const r = await fetch(API, { method: "POST", headers: { "content-type": "application/json", "x-vc-token": TOKEN }, body: JSON.stringify({ action, ...extra }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.detail || j.error || r.status);
+  return j;
+}
+const ST = { pending: "Em espera", approved: "Aprovados", declined: "Recusados", off: "Desativados" };
+const PILL = { pending: "EM ESPERA", declined: "RECUSADO", off: "DESATIVADO" };
+let D = null, F = "pending", Q = "";
+
+function answer(r, code) {
+  const first = (r.name || "").trim().split(/\s+/)[0];
+  if (r.lang === "en") return { subject: "Your VisualContext beta invite", text: `Hi${first ? " " + first : ""}!\n\nYou're in the VisualContext beta.\n\n1. Install the app on your Android phone: ${D.download}\n2. Open it and tap "Tenho um código de convite" (I have an invite code). Your code: ${code}\n3. The Manager, to see everything in your browser (same code): ${MANAGER}\n\nThe code works for 14 days. The test plan is on the download page. The green bubble in the app sends feedback: tell me everything, good and bad.\n\nThanks!\nMarcus` };
+  return { subject: "Seu convite para o beta do VisualContext", text: `Oi${first ? ", " + first : ""}!\n\nVocê entrou no beta do VisualContext.\n\n1. Instale o app no celular Android: ${D.download}\n2. Abra e toque em "Tenho um código de convite". Seu código: ${code}\n3. O Manager, para ver tudo no navegador (mesmo código): ${MANAGER}\n\nO código vale 14 dias. O roteiro do teste está na página de download. O balão verde no app manda feedback: conte tudo, bom e ruim.\n\nObrigado!\nMarcus` };
+}
+
+function row(r) {
+  const tier = r.tier === "super" ? "SUPER" : "BETA";
+  const pill = r.status === "approved" ? `<span class="pill p-approved">${tier}</span>` : `<span class="pill p-${r.status}">${PILL[r.status]}</span>`;
+  const ask = r.from_site ? `pediu em ${esc(when(r.asked_at))}` : "convidado direto, sem pedido";
+  const info = [r.phone && "Celular: " + esc(r.phone), r.glasses && "Óculos: " + esc(r.glasses === "outros" ? "outra marca" : r.glasses), r.note && !r.from_site && esc(r.note)].filter(Boolean);
+  let mid = "", acts = "";
+  if (r.status === "approved") {
+    const sent = r.notified_at ? `Resposta ${r.notified_how === "email" ? "enviada por e-mail" : r.notified_how === "mailto" ? "aberta no seu e-mail" : "copiada"} em ${esc(when(r.notified_at))}` : `<span class="warn">Resposta ainda não enviada</span>`;
+    const used = r.devices.length ? `Entrou · ${r.devices.length} ${r.devices.length === 1 ? "aparelho" : "aparelhos"}${r.last_day ? " · último uso " + esc(r.last_day.split("-").reverse().join("/")) : ""}` : "Ainda não entrou";
+    mid = `<div class="meta"><span>Código <span class="code">${esc(r.code || "—")}</span></span><span>usado em ${r.code_uses} de 3 aparelhos · vale até ${esc(day(r.code_expires))}</span><span>${sent}</span><span>${used}</span><span>${r.calls} pedidos · ${r.live_min} min de assistente · US$ ${r.spent.toFixed(2)} de ${Number(r.limits.budget_usd).toFixed(2)}</span></div>`;
+    acts = `<button class="pri" data-a="copy" data-e="${esc(r.email)}">${ic("content_copy")}Copiar resposta</button><button data-a="mail" data-e="${esc(r.email)}">${ic("mail")}Abrir no e-mail</button><button data-a="code" data-e="${esc(r.email)}">Novo código</button><button data-a="lim" data-e="${esc(r.email)}">Limites</button>${r.from_site ? `<button class="dan" data-a="pending" data-e="${esc(r.email)}">Tirar acesso</button>` : `<button class="dan" data-a="off" data-e="${esc(r.email)}">Desativar</button>`}`;
+  } else if (r.status === "pending") {
+    mid = `<div class="meta"><span>Sem resposta: a pessoa só viu "Pedido recebido".</span></div>`;
+    acts = `<button class="pri" data-a="beta" data-e="${esc(r.email)}">Aprovar Beta</button><button data-a="super" data-e="${esc(r.email)}">Aprovar Super</button><button class="dan" data-a="no" data-e="${esc(r.email)}">Recusar</button>`;
+  } else if (r.status === "declined") {
+    mid = `<div class="meta"><span>Recusado em ${esc(when(r.decided_at))}. Nada foi enviado.</span></div>`;
+    acts = `<button data-a="beta" data-e="${esc(r.email)}">Aprovar Beta</button><button data-a="super" data-e="${esc(r.email)}">Aprovar Super</button><button data-a="pending" data-e="${esc(r.email)}">Voltar para espera</button>`;
+  } else {
+    mid = `<div class="meta"><span>Sem acesso.</span></div>`;
+    acts = r.from_site ? `<button data-a="beta" data-e="${esc(r.email)}">Aprovar Beta</button><button data-a="super" data-e="${esc(r.email)}">Aprovar Super</button>` : `<button data-a="on" data-e="${esc(r.email)}">Reativar</button>`;
+  }
+  const L = r.limits, C = r.custom || {};
+  const lim = r.status === "approved" ? `<form class="lim" data-lim="${esc(r.email)}"><label>Tipo<select name="tier"><option value="beta"${r.tier !== "super" ? " selected" : ""}>Beta</option><option value="super"${r.tier === "super" ? " selected" : ""}>Super (chaves próprias)</option></select></label>
+    <label>Dias de teste<input name="days" type="number" min="1" value="${C.days ?? ""}" placeholder="${L.days}"></label><label>Pedidos por dia<input name="calls_day" type="number" min="1" value="${C.calls_day ?? ""}" placeholder="${L.calls_day}"></label>
+    <label>Min de assistente/dia<input name="live_min_day" type="number" min="0" value="${C.live_min_day ?? ""}" placeholder="${L.live_min_day}"></label><label>Crédito total (US$)<input name="budget_usd" type="number" min="0" step="0.5" value="${C.budget_usd ?? ""}" placeholder="${L.budget_usd}"></label>
+    <button class="pri">Salvar</button></form>` : "";
+  return `<div class="row"><div class="who"><b>${esc(r.name || r.email.split("@")[0])}</b>${pill}<div class="e">${esc(r.email)}</div><div class="meta"><span>${ask}</span>${info.map(x => `<span>${x}</span>`).join("")}</div></div>${mid}<div class="acts">${acts}</div>${lim}</div>`;
+}
+
+function render() {
+  const rows = D.rows, n = k => rows.filter(r => r.status === k).length;
+  const q = Q.trim().toLowerCase();
+  const shown = rows.filter(r => (F === "all" || r.status === F) && (!q || (r.email + " " + (r.name || "")).toLowerCase().includes(q)))
+    .sort((a, b) => F === "pending" ? new Date(a.asked_at) - new Date(b.asked_at) : new Date(b.asked_at || b.accepted_at || 0) - new Date(a.asked_at || a.accepted_at || 0));
+  $("#app").innerHTML = `<div class="top"><div class="stats">${["pending", "approved", "declined", "off"].map(k => `<button class="stat ${k === "pending" && n(k) ? "pend" : ""} ${F === k ? "on" : ""}" data-f="${k}"><b>${n(k)}</b><span>${ST[k]}</span></button>`).join("")}</div>
+    <div class="bar"><input id="q" type="search" placeholder="Buscar nome ou e-mail" value="${esc(Q)}"><button data-f="all" class="${F === "all" ? "pri" : ""}">Todos (${rows.length})</button></div>
+    <p class="mail">${D.mail ? "As respostas saem por e-mail sozinhas quando você aprova." : "<b>Sem e-mail automático ainda:</b> quem você aprova não recebe nada até você mandar. Use Copiar resposta (WhatsApp) ou Abrir no e-mail. Quem está em espera ou recusado nunca recebe nada."}</p>
+    <details class="add"><summary>Convidar alguém direto, sem pedido</summary><form id="addf"><input name="email" type="email" placeholder="e-mail" required><input name="name" placeholder="nome (para a resposta)"><select name="tier"><option value="beta">Beta tester</option><option value="super">Super tester</option></select><button class="pri">Convidar</button></form></details></div>
+    <div class="list">${shown.map(row).join("") || `<p class="empty">${F === "pending" ? "Nenhum pedido esperando." : "Nada aqui."}</p>`}</div>`;
+  const qi = $("#q"); qi.oninput = () => { Q = qi.value; const pos = qi.selectionStart; render(); const n2 = $("#q"); n2.focus(); n2.setSelectionRange(pos, pos); };
+  $("#addf").onsubmit = async e => {
+    e.preventDefault(); const f = new FormData(e.target), email = String(f.get("email")).trim().toLowerCase();
+    try { const r = await call("invite_save", { email, tier: f.get("tier"), limits: {}, note: f.get("name") ? "convite direto: " + f.get("name") : null }); await copyAnswer({ email, name: f.get("name"), lang: "pt" }, r.code); load(); }
+    catch (x) { toast("Não deu: " + x.message); }
+  };
+}
+
+async function copyAnswer(r, code) {
+  const a = answer(r, code);
+  try { await navigator.clipboard.writeText(a.text); await call("mark_notified", { email: r.email, how: "copiado" }); toast("Resposta com o código " + code + " copiada: cole no WhatsApp ou e-mail"); }
+  catch (_) { toast("Não deu para copiar"); }
+}
+
+document.addEventListener("click", async e => {
+  const f = e.target.closest("[data-f]"); if (f) { F = f.dataset.f; render(); return; }
+  const b = e.target.closest("[data-a]"); if (!b) return;
+  const r = D.rows.find(x => x.email === b.dataset.e), a = b.dataset.a;
+  try {
+    b.disabled = true;
+    if (a === "beta" || a === "super") {
+      const j = await call("request_decide", { email: r.email, decision: a });
+      if (j.mailed) toast(`${a === "super" ? "Super" : "Beta"} aprovado · resposta enviada por e-mail`);
+      else await copyAnswer(r, j.code);
+    } else if (a === "no") { if (confirm(`Recusar ${r.email}? A pessoa não recebe nada.`)) await call("request_decide", { email: r.email, decision: "no" }); }
+    else if (a === "pending") { if (confirm(`Voltar ${r.email} para a espera? ${r.status === "approved" ? "O acesso e o código param de funcionar na hora." : ""}`)) await call("request_decide", { email: r.email, decision: "pending" }); }
+    else if (a === "off") { if (confirm(`Desativar ${r.email}? Sai do app na hora.`)) await call("invite_remove", { email: r.email }); }
+    else if (a === "on") await call("invite_save", { email: r.email, tier: r.tier || "beta", limits: r.custom, note: r.note, active: true });
+    else if (a === "copy") { await copyAnswer(r, r.code); }
+    else if (a === "mail") { const m = answer(r, r.code); location.href = `mailto:${encodeURIComponent(r.email)}?subject=${encodeURIComponent(m.subject)}&body=${encodeURIComponent(m.text)}`; await call("mark_notified", { email: r.email, how: "mailto" }); }
+    else if (a === "code") { if (confirm(`Gerar um código novo para ${r.email}? O anterior para de funcionar.`)) { const j = await call("invite_code", { email: r.email, send: true }); if (j.mailed) toast("Código novo enviado por e-mail"); else await copyAnswer(r, j.code); } }
+    else if (a === "lim") { document.querySelector(`[data-lim="${CSS.escape(r.email)}"]`).classList.toggle("on"); b.disabled = false; return; }
+    await load();
+  } catch (x) { toast("Não deu: " + x.message); b.disabled = false; }
+});
+document.addEventListener("submit", async e => {
+  const f = e.target.closest("[data-lim]"); if (!f) return; e.preventDefault();
+  const r = D.rows.find(x => x.email === f.dataset.lim), d = new FormData(f), limits = {};
+  for (const k of ["days", "calls_day", "live_min_day", "budget_usd"]) if (d.get(k) !== "") limits[k] = Number(d.get(k));
+  try { await call("invite_save", { email: r.email, tier: d.get("tier"), limits, note: r.note, active: true }); toast("Limites salvos"); load(); } catch (x) { toast("Não deu: " + x.message); }
+});
+
+async function load() {
+  try { D = await call("admin_board"); render(); }
+  catch (x) { $("#app").innerHTML = `<div class="gate">${x.message === "forbidden" ? "Só o Marcus vê esta página." : `Entre no <a href="/manager">Manager</a> com a sua conta e volte aqui.`}</div>`; }
+}
+document.querySelectorAll("[data-i]").forEach(el => el.outerHTML = ic(el.dataset.i));
+$("#reload").onclick = load;
+if (!TOKEN) $("#app").innerHTML = `<div class="gate">Entre no <a href="/manager">Manager</a> com a sua conta e volte aqui.</div>`; else load();
+</script>
+</body>
+</html>
