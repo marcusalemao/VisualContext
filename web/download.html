@@ -65,7 +65,7 @@ footer{border-top:1px solid var(--line);padding:22px 0 40px;color:var(--m);font-
 <body>
 <header><div class="wrap">
   <a class="logo" href="/"><img src="/brand/visualcontext-logo-transparent.png" alt="VisualContext"></a>
-  <div class="lang" role="group" aria-label="Idioma / Language"><button type="button" data-l="pt">PT</button><button type="button" data-l="en">EN</button></div>
+  <div class="lang" role="group" aria-label="Idioma / Language"><button type="button" data-l="pt">PT</button><button type="button" data-l="en">EN</button><button type="button" data-l="de">DE</button></div>
 </div></header>
 
 <main>
@@ -239,12 +239,45 @@ const T = {
     r8p: "In your browser, open the Manager: the web of people, places and things, the timeline and your day. Ask your memory a question.",
     r8s: "Last day",
     tip: "At the end of each day, tap the feedback button (the green bubble) and pick a face: tell me what worked, what got stuck and where. Errors are results too: that is what the test is for."
+  },
+  de: {
+    kicker: "Geschlossene Beta · Android", h1: "VisualContext installieren",
+    lead: "Diese Seite ist für alle mit Einladung. Noch keine? <a href=\"/test-invite/\">Hier anfragen</a>.",
+    btn: "App herunterladen", meta: "Android 11 oder neuer · etwa 90 MB · funktioniert nicht auf dem iPhone",
+    qr: "Am Computer? Richte die Handykamera auf den Code und lade die App dort herunter.",
+    h_steps: "So installierst du sie",
+    s1: "Auf dem Handy herunterladen", s1p: "Tippe auf App herunterladen. Warnt der Browser, die Datei könnte schädlich sein, tippe auf Trotzdem herunterladen: Das ist die übliche Warnung für Apps, die noch nicht im Play Store sind.",
+    s2: "Installation erlauben", s2p: "Öffne die heruntergeladene Datei. Android bittet dich, Apps „aus dieser Quelle“ zu erlauben: Tippe auf Einstellungen, schalte es ein, geh zurück und tippe auf Installieren. Warnt Play Protect, tippe auf Weitere Details → Trotzdem installieren.",
+    s3: "Mit deinem Code anmelden", s3p: "Öffne VisualContext, tippe auf Tenho um código de convite (Ich habe einen Einladungscode) und gib den Code aus der Freigabe-E-Mail ein. Kein Passwort, keine Schlüssel.",
+    s4: "Den Emulator öffnen", s4p: "Tippe auf Abrir o emulador (Emulator öffnen) und erlaube Kamera, Mikrofon und Standort. Halte das Handy auf Augenhöhe, die Rückkamera nach vorn: Der Bildschirm ist dein Brillenglas.",
+    s5: "Dem Plan folgen", s5p: "Etwa 15 Minuten am Tag, 5 Tage lang. Der Testplan kommt mit der Freigabe-E-Mail und erscheint hier, über deinen Zugangslink; alles, was du speicherst, siehst du im <a id=\"mgr\" href=\"#\">Manager</a>, im Browser, mit demselben Code.",
+    h_more: "Gut zu wissen",
+    m1: "<b>Neue Version:</b> Wenn ich Bescheid gebe, lade sie auf dieser Seite erneut herunter und installiere sie darüber. Deine Erinnerungen bleiben in deinem Konto.",
+    m2: "<b>Feedback:</b> Die grüne Blase in der Bildschirmecke öffnet die Gesichter. Erzähl mir, was funktioniert hat, was hängen blieb und wo. Fehler sind auch Ergebnisse.",
+    m3: "<b>Privatsphäre:</b> Fotos und Gespräche bleiben in deinem Konto. Im Manager kannst du jederzeit alles einzeln oder auf einmal löschen.",
+    mine_hi: n => `Hallo${n ? " " + n : ""}! Du bist in der Beta.`, mine_l: "Dein Zugangscode (für die App und den Manager):", copy: "Code kopieren", copied: "Kopiert",
+    mine_exp: (d, u) => `Gültig bis ${d}, auf bis zu ${u} Gerät${u === 1 ? "" : "en"}.`, mine_bad: "Dieser Code gilt nicht mehr. Antworte auf die Freigabe-E-Mail, um einen neuen zu bekommen.",
+    home: "Startseite",
+    k_plan: "Testplan", h_plan: "Was du testest, und wie",
+    p_plan: "Etwa 15 Minuten am Tag, über 5 Tage, in beliebiger Reihenfolge. Halte das Handy auf Augenhöhe, die Rückkamera nach vorn: Das ist dein Brillenglas. Am Bügel wählt <span class=g>●</span> aus, <span class=g>●●</span> geht zurück, und <b>langes Drücken auf <span class=g>●</span></b> öffnet den Sprachassistenten.",
+    ri: "Gesichter importieren, die du schon hast", rip: "Unter Ajustes → Importar rostos (Einstellungen → Gesichter importieren) wählst du Screenshots einer beliebigen Liste mit Gesicht und Name (Google Fotos → Personen, LinkedIn, Instagram, WhatsApp…): ein langer Screenshot oder mehrere hintereinander. Oder hol deine Handykontakte mit Foto. Du wählst, wer dazukommt.", ris: "Dann richte die Kamera auf eine dieser Personen (oder ihr Foto auf einem anderen Bildschirm)",
+    rm: "Das Lied finden", rmp: "Wenn in der Nähe Musik läuft (Bar, Radio, ein anderes Handy), frag den Assistenten. Der Titel erscheint im Glas und bleibt zum späteren Anhören gespeichert.", rms: "„welches Lied ist das?“",
+    r1: "Anmelden und einrichten", r1p: "Installiere die App (<a href=\"#top\">so geht's</a>), tippe auf Tenho um código de convite (Ich habe einen Einladungscode), gib deinen Code ein und tippe dann auf Abrir o emulador (Emulator öffnen). Erlaube Kamera, Mikrofon und Standort.", r1s: "Tag 1 · 3 Min.",
+    r2: "Ein Gesicht beibringen", r2p: "Richte die Kamera auf jemanden, der mitmacht. Wenn das Glas fragt „Neue Person. Speichern?“, öffne den Assistenten und sag den Namen. Dann richte sie noch einmal auf die Person: Der Name sollte erscheinen.", r2s: "Sag: „das ist Anna“",
+    r3: "Reden und etwas vereinbaren", r3p: "Sprich eine Minute mit der Person vor dir und vereinbare etwas mit Tag und Uhrzeit. Sieh dir dann im Manager die Zusammenfassung und den vorgeschlagenen Termin an.", r3s: "Z. B. „Mittagessen am Donnerstag um 12?“",
+    r4: "Merken, wo es liegt", r4p: "Richte die Kamera auf Schlüssel, Geldbörse oder Sonnenbrille und sag, was es ist. Stunden später fragst du, wo du es gelassen hast.", r4s: "„das sind meine Schlüssel“ · „wo habe ich meine Schlüssel gelassen?“",
+    r5: "Die Welt lesen", r5p: "Richte die Kamera auf eine Speisekarte, ein Schild, ein Etikett oder ein Dokument und lass es vorlesen, zusammenfassen oder übersetzen.", r5s: "„was steht da?“ · „übersetz das“",
+    r6: "Frag, was du willst", r6p: "Nutze den Assistenten für deinen Kalender, das Wetter, einen Ort oder etwas aus deinem Gedächtnis.", r6s: "„was habe ich morgen?“ · „wen habe ich heute getroffen?“ · „wo ist die nächste Apotheke?“",
+    r7: "Raus auf die Straße", r7p: "Mit eingeschalteten Orten (Lugares) geh einen Block: Orte in der Nähe erscheinen als Pins in der Richtung, in die du schaust.", r7s: "Tag 3 oder 4 · 10 Min.",
+    r8: "Alles im Manager sehen", r8p: "Öffne im Browser den Manager: das Netz aus Menschen, Orten und Dingen, die Zeitleiste und deinen Tag. Stell deinem Gedächtnis eine Frage.", r8s: "Letzter Tag",
+    tip: "Tippe am Ende jedes Tages auf den Feedback-Knopf (die grüne Blase) und wähle ein Gesicht: Erzähl mir, was funktioniert hat, was hängen blieb und wo. Fehler sind auch Ergebnisse: Dafür ist der Test da."
   }
 };
-let L = (() => { try { const s = localStorage.getItem("vc_lang"); if (s) return s; } catch (_) {} return /^pt/i.test(navigator.language) ? "pt" : "en"; })();
-const qs = new URLSearchParams(location.search).get("lang"); if (qs === "pt" || qs === "en") L = qs;
+let L = (() => { try { const s = localStorage.getItem("vc_lang"); if (s) return s; } catch (_) {} return /^pt/i.test(navigator.language) ? "pt" : /^de/i.test(navigator.language) ? "de" : "en"; })();
+const qs = new URLSearchParams(location.search).get("lang"); if (qs === "pt" || qs === "en" || qs === "de") L = qs;
+if (!T[L]) L = "en";
 function paint() {
-  const t = T[L]; document.documentElement.lang = L === "pt" ? "pt-BR" : "en";
+  const t = T[L]; document.documentElement.lang = L === "pt" ? "pt-BR" : L;
   document.querySelectorAll("[data-t]").forEach(el => { const v = t[el.dataset.t]; if (typeof v === "string") el.innerHTML = v; });
   mine();
   document.querySelectorAll(".lang button").forEach(b => b.classList.toggle("on", b.dataset.l === L));
@@ -274,7 +307,7 @@ function mine() {
   const lead = document.querySelector('[data-t="lead"]'); if (lead) lead.hidden = true;
   document.getElementById("roteiro").hidden = false; // already in: no "ask for an invite"
   document.getElementById("mineCode").textContent = MINE.code;
-  document.getElementById("mineExp").textContent = MINE.expires && MINE.uses_left > 0 && new Date(MINE.expires) > new Date() ? t.mine_exp(new Date(MINE.expires).toLocaleDateString(L === "pt" ? "pt-BR" : "en"), MINE.uses_left) : "";
+  document.getElementById("mineExp").textContent = MINE.expires && MINE.uses_left > 0 && new Date(MINE.expires) > new Date() ? t.mine_exp(new Date(MINE.expires).toLocaleDateString(L === "pt" ? "pt-BR" : L), MINE.uses_left) : "";
   document.getElementById("mineCopy").onclick = e => { navigator.clipboard?.writeText(MINE.code.replace(/-/g, "")).then(() => { e.target.textContent = t.copied; setTimeout(() => e.target.textContent = t.copy, 1600); }).catch(() => {}); };
 }
 paint();

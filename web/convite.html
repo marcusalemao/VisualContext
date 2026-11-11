@@ -84,7 +84,7 @@ footer{border-top:1px solid var(--line);padding:22px 0 40px;color:var(--m);font-
 <body>
 <header><div class="wrap">
   <a class="logo" href="/"><img src="/brand/visualcontext-logo-transparent.png" alt="VisualContext"></a>
-  <div class="lang" role="group" aria-label="Idioma / Language"><button type="button" data-l="pt">PT</button><button type="button" data-l="en">EN</button></div>
+  <div class="lang" role="group" aria-label="Idioma / Language"><button type="button" data-l="pt">PT</button><button type="button" data-l="en">EN</button><button type="button" data-l="de">DE</button></div>
 </div></header>
 
 <main>
@@ -242,12 +242,39 @@ const T = {
     done_h: "Request received!", done_p: n => `Thank you, ${n}. As soon as I approve it, the invite arrives in your e-mail.`,
     done_again: n => `${n}, your request was already here. As soon as I approve it, the invite arrives in your e-mail.`,
     done_demo: "Meanwhile, try the demo in your browser", home: "Home"
+  },
+  de: {
+    kicker: "Geschlossene Beta · Android", h1: "Eine Brille, die sich für dich <em>erinnert</em>.",
+    lead: "VisualContext ist das Gedächtnis smarter Brillen: Es sieht, was du siehst, hört deine Gespräche und bringt im richtigen Moment zurück, was du sonst vergessen würdest.",
+    f1: "Erkennt Menschen, die du getroffen hast, und erinnert dich, wo, wann und worüber ihr gesprochen habt.",
+    f2: "Schreibt das Gespräch mit und notiert, was ihr vereinbart habt: Termine, Aufgaben, Kontakte.",
+    f3: "Beantwortet „Wo habe ich meine Schlüssel gelassen?“ mit Ort und Uhrzeit.",
+    f4: "Liest Speisekarten, Schilder und Dokumente, übersetzt und beantwortet Fragen zu dem, was vor dir liegt.",
+    f5: "Erkennt das Lied, das gerade läuft, und merkt es sich für später.",
+    mock: "kennengelernt im Café Pop, 12.10.\nüber das Mobilitätsprojekt gesprochen",
+    cap: "Das Handy spielt die Rolle der Brille",
+    k_how: "So läuft der Test", h_how: "Du brauchst keine Brille.",
+    s1: "1 · Auf dem Handy", s1p: "Die App hat einen Emulator, der dein Android-Handy zur Brille macht: Die Rückkamera ist die Kamera der Brille, und der Bildschirm zeigt das Glas mit den Karten, die vor dir erscheinen würden.",
+    s2: "2 · Im Alltag", s2p: "Nutze sie ein paar Tage lang: Richte sie auf Menschen, Papiere und Orte, sprich mit dem Assistenten und sieh alles geordnet im Manager, in deinem Browser.",
+    s3: "3 · Deine Meinung", s3p: "Keine Kosten, kein API-Schlüssel, keine Karte. Nach der Freigabe schicke ich dir einen kurzen Testplan; im Gegenzug erzählst du mir über den Feedback-Knopf der App, was funktioniert hat und was nicht.",
+    k_form: "Ich will testen", h_form: "Fordere deine Einladung an",
+    p_form: "Die Plätze sind begrenzt, und ich gebe jede Anfrage persönlich frei. Danach bekommst du an diese E-Mail deinen Zugangscode, den Link zur App und die Schritte. Kein Passwort.",
+    privacy: "Name und E-Mail werden nur für die Einladung und die Anmeldung genutzt. Was du im Test speicherst, bleibt in deinem Konto, und du kannst jederzeit alles löschen.",
+    l_name: "Name", l_email: "E-Mail", l_phone: "Handymodell", opt: "(optional)", ph_phone: "z. B. Samsung Galaxy S23",
+    l_glasses: "Hast du eine smarte Brille?", g0: "Noch nicht", g1: "Ja, Rokid", g2: "Ja, eine andere Marke",
+    l_android: "Ich habe ein Android-Handy (Version 11 oder neuer). Auf dem iPhone funktioniert der Test noch nicht.",
+    send: "Einladung anfordern", sending: "Wird gesendet…",
+    e_fields: "Bitte gib deinen Namen und eine gültige E-Mail an.", e_android: "Der Test läuft vorerst nur auf Android: Bitte bestätige, dass du eins hast.", e_net: "Senden hat nicht geklappt. Prüfe deine Verbindung und versuche es noch einmal.",
+    done_h: "Anfrage erhalten!", done_p: n => `Danke, ${n}. Sobald ich sie freigebe, kommt die Einladung per E-Mail.`,
+    done_again: n => `${n}, deine Anfrage war schon da. Sobald ich sie freigebe, kommt die Einladung per E-Mail.`,
+    done_demo: "Probier inzwischen die Demo im Browser", home: "Startseite"
   }
 };
-let L = (() => { try { const s = localStorage.getItem("vc_lang"); if (s) return s; } catch (_) {} return /^pt/i.test(navigator.language) ? "pt" : "en"; })();
-const qs = new URLSearchParams(location.search).get("lang"); if (qs === "pt" || qs === "en") L = qs;
+let L = (() => { try { const s = localStorage.getItem("vc_lang"); if (s) return s; } catch (_) {} return /^pt/i.test(navigator.language) ? "pt" : /^de/i.test(navigator.language) ? "de" : "en"; })();
+const qs = new URLSearchParams(location.search).get("lang"); if (qs === "pt" || qs === "en" || qs === "de") L = qs;
+if (!T[L]) L = "en";
 function paint() {
-  const t = T[L]; document.documentElement.lang = L === "pt" ? "pt-BR" : "en";
+  const t = T[L]; document.documentElement.lang = L === "pt" ? "pt-BR" : L;
   document.querySelectorAll("[data-t]").forEach(el => { const v = t[el.dataset.t]; if (typeof v === "string") el.innerHTML = v.replace(/\n/g, "<br>"); });
   document.querySelectorAll("[data-ph]").forEach(el => el.placeholder = t[el.dataset.ph]);
   document.querySelectorAll(".lang button").forEach(b => b.classList.toggle("on", b.dataset.l === L));
