@@ -835,7 +835,7 @@ function gcalUrl(title, f) {
     "&ctz=" + encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone) + "&details=" + encodeURIComponent(details) + (f.local ? "&location=" + encodeURIComponent(f.local) : "");
 }
 function planCard(n, big) {
-  const f = n.fields || {}, done = f.status === "na_agenda" || evDone()[n.id];
+  const f = n.fields || {}, done = f.status === "na_agenda" || f.status === "criado" || evDone()[n.id]; // "criado": made from here (11/11: it used to read "posto pelos óculos")
   return `<div class="plan${done ? " done" : ""}"><b>${I("calendar_month")} ${esc(n.title || "Compromisso")}</b><span>${esc(evWhen(f))}</span>
     ${f.com ? `<span>com ${esc(f.com)}</span>` : ""}${f.local ? `<span>⌖ ${esc(f.local)}</span>` : ""}${f.notas ? `<span class="muted">${esc(f.notas)}</span>` : ""}
     <div class="btns" style="margin-top:6px">${done ? `<span class="btn" style="opacity:.75">✓ ${f.status === "na_agenda" ? "posto na agenda pelos óculos" : "criado na agenda"}</span>`
@@ -1516,7 +1516,7 @@ document.addEventListener("click", e => {
   else if (d.translate) translateNote(d.translate);
   else if (d.evfind) findPlans(d.evfind);
   else if (d.taskdone) taskDone(d.taskdone);
-  else if (d.evmark) { const m = evDone(); m[d.evmark] = 1; store.set("vc_evdone", JSON.stringify(m)); call("update_note", { id: d.evmark, fields: { status: "na_agenda" } }).then(() => { const n = S.notes.find(x => x.id === d.evmark); if (n) n.fields = { ...(n.fields || {}), status: "na_agenda" }; }).catch(() => {}); setTimeout(() => { const id = S.sel; render(); if (id) { const it = items().find(i => i.id === id); if (it) open(it.kind, id); } }, 400); }
+  else if (d.evmark) { const m = evDone(); m[d.evmark] = 1; store.set("vc_evdone", JSON.stringify(m)); call("update_note", { id: d.evmark, fields: { status: "criado" } }).then(() => { const n = S.notes.find(x => x.id === d.evmark); if (n) n.fields = { ...(n.fields || {}), status: "criado" }; }).catch(() => {}); setTimeout(() => { const id = S.sel; render(); if (id) { const it = items().find(i => i.id === id); if (it) open(it.kind, id); } }, 400); }
   else if (d.evskip) { (async () => { await call("update_note", { id: d.evskip, fields: { status: "ignorado" } }); S.notes = S.notes.filter(n => n.id !== d.evskip); const id = S.sel; render(); if (id && id !== d.evskip) { const it = items().find(i => i.id === id); if (it) open(it.kind, id); } else closeDetail(); toast("Ignorado"); })(); }
   else if (d.reviver) bump("reviver"), reviverDia(d.reviver === "1" ? null : d.reviver);
   else if (d.prep) prepForm(d.prep);
