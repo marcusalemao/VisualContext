@@ -9,3 +9,8 @@
 /quero-testar        /convite     301
 /beta-convite        /convite     301
 /convite             https://vc.alema.io/test-invite/  301
+# Marcus (10/11): everything under his domain. The Manager and the admin panel are published at vc.alema.io (alema-site copies them).
+/manager             https://vc.alema.io/manager  301
+/manager.html        https://vc.alema.io/manager  301
+/admin               https://vc.alema.io/admin    301
+/admin.html          https://vc.alema.io/admin    301

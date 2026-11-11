@@ -105,7 +105,7 @@ object Backend {
     }
 
     /** The Manager in the browser, already signed in with this phone (fragment: never sent to a server). */
-    const val MANAGER_URL = "https://web-visualcontext-site.visualcontext.pages.dev/manager"
+    const val MANAGER_URL = "https://vc.alema.io/manager"
     fun managerLink(ctx: Context): String {
         val g = geminiKey(ctx).takeIf { it.length > 20 }?.let { "&g=" + java.net.URLEncoder.encode(it, "UTF-8") } ?: ""
         return "$MANAGER_URL#t=${token(ctx)}$g"

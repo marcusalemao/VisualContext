@@ -81,7 +81,7 @@ async function roleOf(email: string | null) {
 // Invite codes (Marcus, 09/11): approval gives a code that goes with the download link; typed in the app or the
 // Manager it signs in without waiting for an e-mail. 14 days, up to 3 devices (phone, browser, a reinstall).
 const DOWNLOAD = "https://vc.alema.io/test-download/";
-const MANAGER = "https://web-visualcontext-site.visualcontext.pages.dev/manager";
+const MANAGER = "https://vc.alema.io/manager";
 const CODE_DAYS = 14, CODE_USES = 3;
 const normCode = (c: string) => { const n = String(c ?? "").toUpperCase().replace(/[^A-Z0-9]/g, ""); return n.length === 10 && n.startsWith("VC") ? n.slice(2) : n; };
 async function newCode(email: string) {
