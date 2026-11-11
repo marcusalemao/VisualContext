@@ -206,6 +206,7 @@ class SoloActivity : ComponentActivity(), LiveSession.Listener {
 
     private fun handle(e: LiveProtocol.Event) {
         when (e) {
+            is LiveProtocol.Event.Usage -> {} // token counts: only the phone app reports them
             is LiveProtocol.Event.SetupComplete -> {
                 if (state != State.CONNECTING && state != State.OPEN) return
                 state = State.OPEN

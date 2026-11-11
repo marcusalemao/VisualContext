@@ -167,7 +167,14 @@ class PhotosPickActivity : Activity() {
 
     private fun intro() {
         col.addView(label("Importar rostos", 20f, green))
-        col.addView(label("De qualquer lista com foto e nome: Google Fotos, contatos do celular, LinkedIn, Facebook, Instagram. O VisualContext lê a tela, com a sua permissão, e aprende os rostos. Nada sai do celular até você escolher quem entra."))
+        col.addView(label("De qualquer lista com foto e nome. O VisualContext lê, e nada sai do celular até você escolher quem entra."))
+        // Prints first (Marcus, 11/11): everybody knows how to take one, and they read better than a screen recording.
+        col.addView(label("Por prints (recomendado)", 15f, green))
+        col.addView(label("1. Abra uma lista com rosto e nome: Google Fotos → Pessoas e animais, conexões do LinkedIn, seguidores do Instagram, um grupo do WhatsApp.\n2. Tire um print longo (com rolagem), ou vários prints seguidos, rolando entre um e outro.\n3. Toque abaixo e escolha os prints de uma vez, ou compartilhe os prints com o VisualContext.\n\nBasta a tela da lista: não precisa entrar em cada pessoa. Os óculos juntam rostos melhores com o tempo, a cada encontro.", 13f))
+        col.addView(Button(this).apply { text = "Escolher prints"; setOnClickListener { source = "print"
+            startActivityForResult(Look.pickPhotos(if (android.os.Build.VERSION.SDK_INT >= 33) 30 else 12), REQ_IMAGE)
+        } })
+        col.addView(label("Rostos sem nome aparecem à parte, para você dar nome se conhecer. Desmarque o seu próprio rosto na hora de escolher.", 13f))
         // Phone contacts: the photo is already there, no screenshot needed.
         col.addView(label("Contatos do celular", 15f, green))
         col.addView(label("Os contatos com foto de rosto boa. Vêm marcados primeiro os favoritos, com quem você mais liga (se permitir ver o histórico de chamadas) e quem já está na sua memória. Fotos de grupo e muito pequenas ficam de fora.", 13f))
@@ -176,62 +183,20 @@ class PhotosPickActivity : Activity() {
             if (checkSelfPermission(android.Manifest.permission.READ_CONTACTS) != android.content.pm.PackageManager.PERMISSION_GRANTED) requestPermissions(arrayOf(android.Manifest.permission.READ_CONTACTS, android.Manifest.permission.READ_CALL_LOG), REQ_CONTACTS)
             else readContacts()
         } })
-        // LinkedIn, Facebook, Instagram: the user scrolls (their terms forbid robots), the capture reads.
-        col.addView(label("LinkedIn, Facebook, Instagram ou outro app", 15f, green))
-        col.addView(label("Abra a lista de conexões, amigos ou seguidores e role devagar; a captura lê foto e nome ao lado. Quem rola é você: esses sites proíbem robôs.", 13f))
-        listOf("LinkedIn" to "com.linkedin.android", "Facebook" to "com.facebook.katana", "Instagram" to "com.instagram.android", "Outro app" to "").forEach { (l, pkg) ->
-            col.addView(Button(this).apply { text = if (pkg.isEmpty()) "Outro app (eu abro)" else "Capturar enquanto rolo no $l"; setOnClickListener {
-                source = l; openPkg = pkg; useApp = false; auto = false
-                if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED)
-                    requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), REQ_NOTE)
-                else askCapture()
-            } })
-        }
-        col.addView(label("Google Fotos", 15f, green))
-        col.addView(label("Como funciona (recomendado: pelo navegador)", 15f, green))
-        col.addView(label("1. Toque em Começar e permita a captura de tela.\n2. O Google Fotos abre no Chrome, já em Pessoas.\n3. Vire o celular deitado e diminua o zoom para uns 80% (pinça com dois dedos): os nomes não cortam e os rostos continuam grandes.\n4. Role devagar até o fim.\n5. Toque em Terminei, na notificação, e escolha quem entra."))
-        col.addView(label("Outro jeito, sem compartilhar a tela: abra photos.google.com/people no Chrome, deitado e com zoom em 80%, e tire prints (ou um print com rolagem). Depois toque abaixo e escolha o print, ou compartilhe o print com o VisualContext.", 13f))
-        col.addView(Button(this).apply { text = "Usar um print longo"; setOnClickListener {
-            startActivityForResult(Look.pickPhotos(if (android.os.Build.VERSION.SDK_INT >= 33) 30 else 12), REQ_IMAGE)
-        } })
-        col.addView(label("Rostos sem nome aparecem à parte, para você dar nome se conhecer. Desmarque o seu próprio rosto na hora de escolher.", 13f))
         if (PhotosCaptureService.running) {
             col.addView(label("Lendo a tela agora: ${PhotosCaptureService.count} pessoas até aqui.", 15f, green))
             col.addView(Button(this).apply { text = "Terminei"; setOnClickListener { PhotosCaptureService.stop(this@PhotosPickActivity); col.postDelayed({ render() }, 800) } })
             return
         }
-        col.addView(label("Automático (recomendado)", 15f, green))
-        col.addView(label("O app abre o Google Fotos no Chrome e rola a página sozinho até o fim. Você só espera. Na primeira vez, ele pede para ligar \"VisualContext · importar do Google Fotos\" em Acessibilidade (só age no Chrome e só durante a importação).", 13f))
-        col.addView(Button(this).apply {
-            text = "Importar sozinho"
-            setOnClickListener {
-                if (!PhotosAuto.enabled(this@PhotosPickActivity)) {
-                    android.app.AlertDialog.Builder(this@PhotosPickActivity).setTitle("Ligar a rolagem automática")
-                        .setMessage("Na próxima tela, toque em \"VisualContext · importar do Google Fotos\" (em Apps instalados) e ligue. Se estiver cinza (app instalado fora da loja): Ajustes → Apps → VisualContext → ⋮ → Permitir configurações restritas, e tente de novo. Depois volte aqui e toque em Importar sozinho.")
-                        .setPositiveButton("Abrir Acessibilidade") { _, _ -> startActivity(Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
-                        .setNegativeButton("Agora não", null).show()
-                    return@setOnClickListener
-                }
-                auto = true; useApp = false; source = "Google Fotos"; openPkg = null
-                if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED)
-                    requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), REQ_NOTE)
-                else askCapture()
-            }
-        })
-        col.addView(label("Ou você mesmo rola:", 13f))
-        col.addView(Button(this).apply {
-            text = "Começar pelo navegador (recomendado)"
-            setOnClickListener {
-                useApp = false; auto = false; source = "Google Fotos"; openPkg = null
-                if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED)
-                    requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), REQ_NOTE)
-                else askCapture()
-            }
-        })
-        col.addView(Button(this).apply {
-            text = "Começar pelo app Google Fotos"
-            setOnClickListener { useApp = true; auto = false; source = "Google Fotos"; openPkg = null; askCapture() }
-        })
+        // One way to record, for any app (Marcus, 11/11): the source doesn't matter, only a face next to a name.
+        col.addView(label("Ou navegue enquanto eu leio a tela", 15f, green))
+        col.addView(label("Toque abaixo, permita a captura de tela e abra qualquer app com rostos e nomes (Google Fotos, LinkedIn, Instagram, WhatsApp…). Role devagar; eu vou guardando. No fim, toque em Terminei, na notificação, e escolha quem entra.", 13f))
+        col.addView(Button(this).apply { text = "Ler a tela enquanto navego"; setOnClickListener {
+            source = "tela"; openPkg = ""; useApp = false; auto = false
+            if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED)
+                requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), REQ_NOTE)
+            else askCapture()
+        } })
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
@@ -245,7 +210,7 @@ class PhotosPickActivity : Activity() {
     private var source = "Google Fotos"
     /** For LinkedIn/Facebook/Instagram: the app to open once the capture starts ("" = the user opens it). */
     private var openPkg: String? = null
-    private fun originLabel() = if (source == "contatos") "rosto dos contatos" else "rosto do $source"
+    private fun originLabel() = when (source) { "contatos" -> "rosto dos contatos"; "print" -> "rosto de um print"; "tela" -> "rosto lido na tela"; else -> "rosto do $source" }
     private var auto = false
 
     private fun askCapture() {
@@ -261,7 +226,7 @@ class PhotosPickActivity : Activity() {
             return
         }
         if (requestCode != REQ_CAPTURE) return
-        if (resultCode != RESULT_OK || data == null) { col.addView(label("Sem a permissão de captura não dá para ler o Google Fotos.", 14f, green)); return }
+        if (resultCode != RESULT_OK || data == null) { col.addView(label("Sem a permissão de captura não dá para ler a tela. Use os prints.", 14f, green)); return }
         PhotosGrid.last = emptyList()
         startForegroundService(Intent(this, PhotosCaptureService::class.java).putExtra(PhotosCaptureService.EXTRA_CODE, resultCode).putExtra(PhotosCaptureService.EXTRA_DATA, data))
         // Marcus, 07/11: on the web, in landscape at ~80% zoom, names are almost never cut (the app cuts them).

@@ -217,6 +217,7 @@ class LivePluginService : NexusPluginService(), LiveSession.Listener {
                 main.postDelayed(silenceCheck, 1000)
                 main.postDelayed(micMeter, 1500)
             }
+            is LiveProtocol.Event.Usage -> {} // token counts: the phone app reports them, the plugin does not
             is LiveProtocol.Event.UserText -> { lastActivity = SystemClock.elapsedRealtime(); heard = (heard + e.text).takeLast(80) }
             is LiveProtocol.Event.ModelText -> {
                 lastActivity = SystemClock.elapsedRealtime()
