@@ -123,10 +123,11 @@ const ST = { pending: "Em espera", approved: "Aprovados", declined: "Recusados",
 const PILL = { pending: "EM ESPERA", declined: "RECUSADO", off: "DESATIVADO" };
 let D = null, F = "pending", Q = "";
 
+// Same words as the approval e-mail (vc/index.ts inviteMail), for sending by WhatsApp or by hand.
 function answer(r, code) {
-  const first = (r.name || "").trim().split(/\s+/)[0];
-  if (r.lang === "en") return { subject: "Your VisualContext beta invite", text: `Hi${first ? " " + first : ""}!\n\nYou're in the VisualContext beta.\n\n1. Install the app on your Android phone: ${D.download}\n2. Open it and tap "Tenho um código de convite" (I have an invite code). Your code: ${code}\n3. The Manager, to see everything in your browser (same code): ${MANAGER}\n\nThe code works for 14 days. The test plan is on the download page. The green bubble in the app sends feedback: tell me everything, good and bad.\n\nThanks!\nMarcus` };
-  return { subject: "Seu convite para o beta do VisualContext", text: `Oi${first ? ", " + first : ""}!\n\nVocê entrou no beta do VisualContext.\n\n1. Instale o app no celular Android: ${D.download}\n2. Abra e toque em "Tenho um código de convite". Seu código: ${code}\n3. O Manager, para ver tudo no navegador (mesmo código): ${MANAGER}\n\nO código vale 14 dias. O roteiro do teste está na página de download. O balão verde no app manda feedback: conte tudo, bom e ruim.\n\nObrigado!\nMarcus` };
+  const first = (r.name || "").trim().split(/\s+/)[0], c = String(code || "").replace(/-/g, ""), link = `${D.download}#c=${c}`;
+  if (r.lang === "en") return { subject: `Your VisualContext access code: ${c}`, text: `Hi${first ? " " + first : ""}!\n\nYou're in the VisualContext beta.\n\nYour access code: ${c}\n\n1. Install the app on your Android phone: ${D.download}\n2. Open it, tap "Tenho um código de convite" (I have an invite code) and type the code.\n3. Your access page, with the steps and the test plan: ${link}\n4. The Manager, to see everything in your browser (same code): https://vc.alema.io/manager\n\nThe code works for 14 days. The green bubble in the app sends feedback: tell me everything, good and bad.\n\nThanks!\nMarcus` };
+  return { subject: `Seu código de acesso do VisualContext: ${c}`, text: `Oi${first ? ", " + first : ""}!\n\nVocê entrou no beta do VisualContext.\n\nSeu código de acesso: ${c}\n\n1. Instale o app no celular Android: ${D.download}\n2. Abra, toque em "Tenho um código de convite" e digite o código.\n3. Sua página de acesso, com o passo a passo e o roteiro do teste: ${link}\n4. O Manager, para ver tudo no navegador (mesmo código): https://vc.alema.io/manager\n\nO código vale 14 dias. O balão verde no app manda feedback: conte tudo, bom e ruim.\n\nObrigado!\nMarcus` };
 }
 
 function row(r) {

@@ -91,10 +91,13 @@ async function newCode(email: string) {
   return "VC-" + raw.slice(0, 4) + "-" + raw.slice(4);
 }
 const showCode = (raw: string | null) => raw ? "VC-" + raw.slice(0, 4) + "-" + raw.slice(4) : null;
+const flat = (code: string) => code.replace(/-/g, "");
+// The approval page (Marcus, 11/11): the e-mail's "ver no navegador" link and a return visit to the invite page show it.
+const ACCESS = (code: string) => `${DOWNLOAD}#c=${flat(code)}`;
 function inviteMail(name: string | null, email: string, code: string, lang = "pt") {
-  const first = (name ?? "").trim().split(/\s+/)[0];
-  if (lang === "en") return { subject: `Your VisualContext invite code: ${code}`, html: inviteHtml(name, code, "en"), text: `Hi${first ? " " + first : ""}!\n\nYou're in the VisualContext beta.\n\n1. Install the app on your Android phone: ${DOWNLOAD}\n2. Open it and tap "Tenho um código de convite" (I have an invite code). Your code: ${code}\n3. The Manager, to see everything in your browser (same code): ${MANAGER}\n\nThe code works for ${CODE_DAYS} days. The test plan is on the download page. The green bubble in the app sends feedback: tell me everything, good and bad.\n\nThanks!\nMarcus` };
-  return { subject: `Seu código de convite do VisualContext: ${code}`, html: inviteHtml(name, code, "pt"), text: `Oi${first ? ", " + first : ""}!\n\nVocê entrou no beta do VisualContext.\n\n1. Instale o app no celular Android: ${DOWNLOAD}\n2. Abra e toque em "Tenho um código de convite". Seu código: ${code}\n3. O Manager, para ver tudo no navegador (mesmo código): ${MANAGER}\n\nO código vale ${CODE_DAYS} dias. O roteiro do teste está na página de download. O balão verde no app manda feedback: conte tudo, bom e ruim.\n\nObrigado!\nMarcus` };
+  const first = (name ?? "").trim().split(/\s+/)[0], c = flat(code);
+  if (lang === "en") return { subject: `Your VisualContext access code: ${c}`, html: inviteHtml(name, code, "en"), text: `Hi${first ? " " + first : ""}!\n\nYou're in the VisualContext beta.\n\nYour access code: ${c}\n\n1. Install the app on your Android phone: ${DOWNLOAD}\n2. Open it, tap "Tenho um código de convite" (I have an invite code) and type the code.\n3. Open the emulator and follow the test plan: ${ACCESS(code)}\n4. The Manager, to see everything in your browser (same code): ${MANAGER}\n\nThe code works for ${CODE_DAYS} days, on up to ${CODE_USES} devices. The green bubble in the app sends feedback: tell me everything, good and bad.\n\nThanks!\nMarcus` };
+  return { subject: `Seu código de acesso do VisualContext: ${c}`, html: inviteHtml(name, code, "pt"), text: `Oi${first ? ", " + first : ""}!\n\nVocê entrou no beta do VisualContext.\n\nSeu código de acesso: ${c}\n\n1. Instale o app no celular Android: ${DOWNLOAD}\n2. Abra, toque em "Tenho um código de convite" e digite o código.\n3. Abra o emulador e siga o roteiro do teste: ${ACCESS(code)}\n4. O Manager, para ver tudo no navegador (mesmo código): ${MANAGER}\n\nO código vale ${CODE_DAYS} dias, em até ${CODE_USES} aparelhos. O balão verde no app manda feedback: conte tudo, bom e ruim.\n\nObrigado!\nMarcus` };
 }
 // The invite as an e-mail page (Marcus, 10/11): big code in its own box (selected with one tap where the client allows),
 // a download button, and the code in the subject too, so Gmail can offer "Copiar código". Plain text stays as fallback.
@@ -102,22 +105,24 @@ const esc = (s: string) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&a
 function inviteHtml(name: string | null, code: string, lang = "pt") {
   const en = lang === "en", first = esc((name ?? "").trim().split(/\s+/)[0]);
   const t = en
-    ? { hi: `Hi${first ? " " + first : ""}!`, in: "You're in the VisualContext beta.", code: "Your invite code", tap: "Tap the code to select it, then copy.", s1: "Install the app on your Android phone", btn: "Download the app", s2: 'Open it and tap <b>"Tenho um código de convite"</b> (I have an invite code), then type the code above.', s3: "To see everything in your browser, open the Manager and use the same code:", valid: `The code works for ${CODE_DAYS} days, on up to ${CODE_USES} devices. The test plan is on the download page. The green bubble in the app sends feedback: tell me everything, good and bad.`, bye: "Thanks!" }
-    : { hi: `Oi${first ? ", " + first : ""}!`, in: "Você entrou no beta do VisualContext.", code: "Seu código de convite", tap: "Toque no código para selecionar e copiar.", s1: "Instale o app no seu celular Android", btn: "Baixar o app", s2: 'Abra e toque em <b>"Tenho um código de convite"</b>, depois digite o código acima.', s3: "Para ver tudo no navegador, abra o Manager e use o mesmo código:", valid: `O código vale ${CODE_DAYS} dias, em até ${CODE_USES} aparelhos. O roteiro do teste está na página de download. O balão verde no app manda feedback: conte tudo, bom e ruim.`, bye: "Obrigado!" };
+    ? { web: "View this message in your browser", plan: "Open the emulator and follow the test plan", planl: "See the plan", hi: `Hi${first ? " " + first : ""}!`, in: "You're in the VisualContext beta.", code: "Your access code", tap: "Tap the code to select it, then copy.", s1: "Install the app on your Android phone", btn: "Download the app", s2: 'Open it and tap <b>"Tenho um código de convite"</b> (I have an invite code), then type the code above.', s3: "To see everything in your browser, open the Manager and use the same code:", valid: `The code works for ${CODE_DAYS} days, on up to ${CODE_USES} devices. The test plan is on the download page. The green bubble in the app sends feedback: tell me everything, good and bad.`, bye: "Thanks!" }
+    : { web: "Ver esta mensagem no navegador", plan: "Abra o emulador e siga o roteiro do teste", planl: "Ver o roteiro", hi: `Oi${first ? ", " + first : ""}!`, in: "Você entrou no beta do VisualContext.", code: "Seu código de acesso", tap: "Toque no código para selecionar e copiar.", s1: "Instale o app no seu celular Android", btn: "Baixar o app", s2: 'Abra e toque em <b>"Tenho um código de convite"</b>, depois digite o código acima.', s3: "Para ver tudo no navegador, abra o Manager e use o mesmo código:", valid: `O código vale ${CODE_DAYS} dias, em até ${CODE_USES} aparelhos. O roteiro do teste está na página de download. O balão verde no app manda feedback: conte tudo, bom e ruim.`, bye: "Obrigado!" };
   return `<!doctype html><html><body style="margin:0;background:#07090c;padding:24px 12px;font-family:Arial,Helvetica,sans-serif;color:#e8f0ec">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+<p style="margin:0 0 12px;font-size:12px"><a href="${ACCESS(code)}" style="color:#9aaaa2">${t.web}</a></p>
 <table role="presentation" width="100%" style="max-width:520px;background:#0d1217;border:1px solid #1f2a24;border-radius:16px" cellpadding="0" cellspacing="0"><tr><td style="padding:28px 24px">
 <p style="margin:0 0 4px;font-size:12px;letter-spacing:2px;color:#00ff88;font-weight:bold">VISUALCONTEXT · BETA</p>
 <h1 style="margin:0 0 6px;font-size:24px;color:#ffffff">${t.hi}</h1>
 <p style="margin:0 0 22px;font-size:16px;color:#8fdfb5">${t.in}</p>
 <p style="margin:0 0 8px;font-size:13px;color:#9aaaa2">${t.code}</p>
 <div style="background:#07090c;border:2px solid #00ff88;border-radius:12px;padding:16px;text-align:center">
-<span style="font-family:'Courier New',Courier,monospace;font-size:30px;font-weight:bold;letter-spacing:4px;color:#00ff88;-webkit-user-select:all;user-select:all">${esc(code)}</span></div>
+<span style="font-family:'Courier New',Courier,monospace;font-size:30px;font-weight:bold;letter-spacing:4px;color:#00ff88;-webkit-user-select:all;user-select:all">${esc(flat(code))}</span></div>
 <p style="margin:8px 0 24px;font-size:12px;color:#9aaaa2">${t.tap}</p>
 <p style="margin:0 0 10px;font-size:15px"><b style="color:#00ff88">1.</b> ${t.s1}</p>
 <a href="${DOWNLOAD}" style="display:inline-block;background:#00ff88;color:#07090c;text-decoration:none;font-weight:bold;font-size:16px;padding:14px 26px;border-radius:12px;margin:0 0 20px">${t.btn}</a>
 <p style="margin:0 0 18px;font-size:15px"><b style="color:#00ff88">2.</b> ${t.s2}</p>
-<p style="margin:0 0 6px;font-size:15px"><b style="color:#00ff88">3.</b> ${t.s3}</p>
+<p style="margin:0 0 6px;font-size:15px"><b style="color:#00ff88">3.</b> ${t.plan}: <a href="${ACCESS(code)}&go=roteiro" style="color:#00ff88">${t.planl}</a></p>
+<p style="margin:14px 0 6px;font-size:15px"><b style="color:#00ff88">4.</b> ${t.s3}</p>
 <p style="margin:0 0 22px;font-size:14px"><a href="${MANAGER}" style="color:#00ff88">${MANAGER.replace("https://", "")}</a></p>
 <p style="margin:0 0 18px;font-size:13px;color:#9aaaa2;line-height:1.5">${t.valid}</p>
 <p style="margin:0;font-size:15px">${t.bye}<br>Marcus · <a href="https://alema.io" style="color:#00ff88">alema.io</a></p>
@@ -164,6 +169,14 @@ Deno.serve(async (req) => {
   if (!req.headers.get("x-vc-token") && !bearer) {
     let b: any = {};
     try { b = await req.json(); } catch { /* empty */ }
+    if (b.action === "invite_check") {
+      const raw = normCode(b.code);
+      if (raw.length !== 8) return json({ ok: false });
+      const { data: inv } = await db.from("invites").select("email, active, code_expires, code_uses").eq("invite_code", raw).maybeSingle();
+      if (!inv || !inv.active) return json({ ok: false }); // an approved person keeps the page even after the code's uses run out
+      const { data: r } = await db.from("beta_requests").select("name").eq("email", inv.email).maybeSingle();
+      return json({ ok: true, code: "VC" + raw, first: (r?.name ?? "").trim().split(/\s+/)[0] || null, expires: inv.code_expires, uses_left: Math.max(0, CODE_USES - (inv.code_uses ?? 0)) });
+    }
     if (b.action === "redeem_code") {
       const raw = normCode(b.code);
       if (raw.length !== 8) return json({ error: "Confira o código: VC-XXXX-XXXX." }, 400);

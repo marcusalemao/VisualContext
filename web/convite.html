@@ -122,24 +122,6 @@ footer{border-top:1px solid var(--line);padding:22px 0 40px;color:var(--m);font-
   </div>
 </div></section>
 
-<section id="roteiro"><div class="wrap">
-  <p class="kicker" data-t="k_plan"></p>
-  <h2 data-t="h_plan"></h2>
-  <p data-t="p_plan"></p>
-  <ol class="plan">
-    <li><b data-t="r1"></b><p data-t="r1p"></p><p class="say" data-t="r1s"></p></li>
-    <li><b data-t="ri"></b><p data-t="rip"></p><p class="say" data-t="ris"></p></li>
-    <li><b data-t="r2"></b><p data-t="r2p"></p><p class="say" data-t="r2s"></p></li>
-    <li><b data-t="r3"></b><p data-t="r3p"></p><p class="say" data-t="r3s"></p></li>
-    <li><b data-t="r4"></b><p data-t="r4p"></p><p class="say" data-t="r4s"></p></li>
-    <li><b data-t="r5"></b><p data-t="r5p"></p><p class="say" data-t="r5s"></p></li>
-    <li><b data-t="rm"></b><p data-t="rmp"></p><p class="say" data-t="rms"></p></li>
-    <li><b data-t="r6"></b><p data-t="r6p"></p><p class="say" data-t="r6s"></p></li>
-    <li><b data-t="r7"></b><p data-t="r7p"></p><p class="say" data-t="r7s"></p></li>
-    <li><b data-t="r8"></b><p data-t="r8p"></p><p class="say" data-t="r8s"></p></li>
-  </ol>
-  <p class="tip" data-t="tip"></p>
-</div></section>
 
 <section id="pedir"><div class="wrap form">
   <div>
@@ -172,6 +154,13 @@ footer{border-top:1px solid var(--line);padding:22px 0 40px;color:var(--m);font-
 
 <footer><div class="wrap">VisualContext · <a href="https://alema.io">Alema</a> · São Paulo · <a href="/" data-t="home"></a></div></footer>
 
+<script>
+(function () {
+  var h = new URLSearchParams(location.hash.slice(1)).get("c"), saved = null;
+  try { saved = localStorage.getItem("vc_invite_code"); } catch (_) {}
+  if (h || saved) location.replace("/test-download/#c=" + encodeURIComponent(h || saved));
+})();
+</script>
 <script src="/icons.js"></script>
 <script>
 const API = "https://vzqjwhlpwvqrosoiwiin.supabase.co/functions/v1/vc";
@@ -202,9 +191,9 @@ const T = {
     k_how: "Como é o teste", h_how: "Você não precisa ter os óculos.",
     s1: "1 · No celular", s1p: "O app tem um emulador que transforma o seu celular Android nos óculos: a câmera de trás é a câmera dos óculos e a tela mostra a lente, com os cartões que apareceriam na sua frente.",
     s2: "2 · No dia a dia", s2p: "Use por alguns dias: aponte para pessoas, papéis e lugares, converse com o assistente pela voz e veja tudo organizado no Manager, pelo navegador.",
-    s3: "3 · Sua opinião", s3p: "Sem custo, sem chave de API, sem cartão. Siga o roteiro abaixo e, em troca, conte o que funcionou e o que não funcionou pelo botão de feedback do app.",
+    s3: "3 · Sua opinião", s3p: "Sem custo, sem chave de API, sem cartão. Quando aprovar, mando um roteiro curto do que testar; em troca, conte o que funcionou e o que não funcionou pelo botão de feedback do app.",
     k_form: "Quero testar", h_form: "Peça o seu convite",
-    p_form: "As vagas são poucas e eu aprovo cada pedido pessoalmente. Quando aprovar, você recebe neste e-mail o link do app e entra só com um código, sem senha.",
+    p_form: "As vagas são poucas e eu aprovo cada pedido pessoalmente. Quando aprovar, você recebe neste e-mail o seu código de acesso, o link do app e o passo a passo. Sem senha.",
     privacy: "Seu nome e e-mail servem só para o convite e o login. O que você guardar no teste fica na sua conta, e você pode apagar tudo quando quiser.",
     l_name: "Nome", l_email: "E-mail", l_phone: "Modelo do celular", opt: "(opcional)", ph_phone: "ex.: Samsung Galaxy S23",
     l_glasses: "Você tem óculos inteligentes?", g0: "Ainda não", g1: "Sim, Rokid", g2: "Sim, de outra marca",
@@ -241,9 +230,9 @@ const T = {
     k_how: "How the test works", h_how: "You don't need the glasses.",
     s1: "1 · On your phone", s1p: "The app has an emulator that turns your Android phone into the glasses: the back camera is the glasses' camera and the screen shows the lens, with the cards that would appear in front of you.",
     s2: "2 · In your day", s2p: "Use it for a few days: point at people, papers and places, talk to the assistant by voice, and see everything organized in the Manager, in your browser.",
-    s3: "3 · Your opinion", s3p: "No cost, no API key, no card. Follow the plan below and, in return, tell me what worked and what didn't with the app's feedback button.",
+    s3: "3 · Your opinion", s3p: "No cost, no API key, no card. Once approved, I send a short plan of what to try; in return, tell me what worked and what didn't with the app's feedback button.",
     k_form: "I want to try it", h_form: "Ask for your invite",
-    p_form: "Spots are few and I approve each request myself. Once approved, you get the app link at this e-mail and sign in with a code, no password.",
+    p_form: "Spots are few and I approve each request myself. Once approved, you get your access code, the app link and the steps at this e-mail. No password.",
     privacy: "Your name and e-mail are used only for the invite and sign-in. What you save during the test stays in your account, and you can delete everything at any time.",
     l_name: "Name", l_email: "E-mail", l_phone: "Phone model", opt: "(optional)", ph_phone: "e.g. Samsung Galaxy S23",
     l_glasses: "Do you have smart glasses?", g0: "Not yet", g1: "Yes, Rokid", g2: "Yes, another brand",

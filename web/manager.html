@@ -1410,7 +1410,8 @@ async function admin() {
   admin.list = d.invites;
 }
 function inviteText(email, name, code) {
-  return `Oi${name ? ", " + name.split(" ")[0] : ""}! Você entrou no beta do VisualContext, a memória para óculos inteligentes.\n\n1. Instale o app no celular Android: ${BETA_APK}\n2. Abra e toque em "Tenho um código de convite". Seu código: ${code || "(gere em Testadores → Novo código)"}\n3. O Manager, para ver tudo no navegador (mesmo código): ${location.origin}/manager\n\nO código vale 14 dias. O roteiro do teste está na página de download. No app, o balão verde manda feedback: conte tudo, bom e ruim. Obrigado!\nMarcus`;
+  const c = String(code || "").replace(/-/g, "");
+  return `Oi${name ? ", " + name.split(" ")[0] : ""}! Você entrou no beta do VisualContext, a memória para óculos inteligentes.\n\nSeu código de acesso: ${c || "(gere em Testadores → Novo código)"}\n\n1. Instale o app no celular Android: ${BETA_APK}\n2. Abra, toque em "Tenho um código de convite" e digite o código.\n3. Sua página de acesso, com o passo a passo e o roteiro: ${BETA_APK}#c=${c}\n4. O Manager, no navegador (mesmo código): https://vc.alema.io/manager\n\nO código vale 14 dias. No app, o balão verde manda feedback: conte tudo, bom e ruim. Obrigado!\nMarcus`;
 }
 async function inviteSave() {
   const f = new FormData($("#invf")), email = String(f.get("email") || "").trim();
