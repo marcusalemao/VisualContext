@@ -90,10 +90,37 @@ async function newCode(email: string) {
 const showCode = (raw: string | null) => raw ? "VC-" + raw.slice(0, 4) + "-" + raw.slice(4) : null;
 function inviteMail(name: string | null, email: string, code: string, lang = "pt") {
   const first = (name ?? "").trim().split(/\s+/)[0];
-  if (lang === "en") return { subject: "Your VisualContext beta invite", text: `Hi${first ? " " + first : ""}!\n\nYou're in the VisualContext beta.\n\n1. Install the app on your Android phone: ${DOWNLOAD}\n2. Open it and tap "Tenho um código de convite" (I have an invite code). Your code: ${code}\n3. The Manager, to see everything in your browser (same code): ${MANAGER}\n\nThe code works for ${CODE_DAYS} days. The test plan is on the download page. The green bubble in the app sends feedback: tell me everything, good and bad.\n\nThanks!\nMarcus` };
-  return { subject: "Seu convite para o beta do VisualContext", text: `Oi${first ? ", " + first : ""}!\n\nVocê entrou no beta do VisualContext.\n\n1. Instale o app no celular Android: ${DOWNLOAD}\n2. Abra e toque em "Tenho um código de convite". Seu código: ${code}\n3. O Manager, para ver tudo no navegador (mesmo código): ${MANAGER}\n\nO código vale ${CODE_DAYS} dias. O roteiro do teste está na página de download. O balão verde no app manda feedback: conte tudo, bom e ruim.\n\nObrigado!\nMarcus` };
+  if (lang === "en") return { subject: `Your VisualContext invite code: ${code}`, html: inviteHtml(name, code, "en"), text: `Hi${first ? " " + first : ""}!\n\nYou're in the VisualContext beta.\n\n1. Install the app on your Android phone: ${DOWNLOAD}\n2. Open it and tap "Tenho um código de convite" (I have an invite code). Your code: ${code}\n3. The Manager, to see everything in your browser (same code): ${MANAGER}\n\nThe code works for ${CODE_DAYS} days. The test plan is on the download page. The green bubble in the app sends feedback: tell me everything, good and bad.\n\nThanks!\nMarcus` };
+  return { subject: `Seu código de convite do VisualContext: ${code}`, html: inviteHtml(name, code, "pt"), text: `Oi${first ? ", " + first : ""}!\n\nVocê entrou no beta do VisualContext.\n\n1. Instale o app no celular Android: ${DOWNLOAD}\n2. Abra e toque em "Tenho um código de convite". Seu código: ${code}\n3. O Manager, para ver tudo no navegador (mesmo código): ${MANAGER}\n\nO código vale ${CODE_DAYS} dias. O roteiro do teste está na página de download. O balão verde no app manda feedback: conte tudo, bom e ruim.\n\nObrigado!\nMarcus` };
 }
-async function sendMail(to: string, m: { subject: string; text: string }) {
+// The invite as an e-mail page (Marcus, 10/11): big code in its own box (selected with one tap where the client allows),
+// a download button, and the code in the subject too, so Gmail can offer "Copiar código". Plain text stays as fallback.
+const esc = (s: string) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" } as any)[c]);
+function inviteHtml(name: string | null, code: string, lang = "pt") {
+  const en = lang === "en", first = esc((name ?? "").trim().split(/\s+/)[0]);
+  const t = en
+    ? { hi: `Hi${first ? " " + first : ""}!`, in: "You're in the VisualContext beta.", code: "Your invite code", tap: "Tap the code to select it, then copy.", s1: "Install the app on your Android phone", btn: "Download the app", s2: 'Open it and tap <b>"Tenho um código de convite"</b> (I have an invite code), then type the code above.', s3: "To see everything in your browser, open the Manager and use the same code:", valid: `The code works for ${CODE_DAYS} days, on up to ${CODE_USES} devices. The test plan is on the download page. The green bubble in the app sends feedback: tell me everything, good and bad.`, bye: "Thanks!" }
+    : { hi: `Oi${first ? ", " + first : ""}!`, in: "Você entrou no beta do VisualContext.", code: "Seu código de convite", tap: "Toque no código para selecionar e copiar.", s1: "Instale o app no seu celular Android", btn: "Baixar o app", s2: 'Abra e toque em <b>"Tenho um código de convite"</b>, depois digite o código acima.', s3: "Para ver tudo no navegador, abra o Manager e use o mesmo código:", valid: `O código vale ${CODE_DAYS} dias, em até ${CODE_USES} aparelhos. O roteiro do teste está na página de download. O balão verde no app manda feedback: conte tudo, bom e ruim.`, bye: "Obrigado!" };
+  return `<!doctype html><html><body style="margin:0;background:#07090c;padding:24px 12px;font-family:Arial,Helvetica,sans-serif;color:#e8f0ec">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+<table role="presentation" width="100%" style="max-width:520px;background:#0d1217;border:1px solid #1f2a24;border-radius:16px" cellpadding="0" cellspacing="0"><tr><td style="padding:28px 24px">
+<p style="margin:0 0 4px;font-size:12px;letter-spacing:2px;color:#00ff88;font-weight:bold">VISUALCONTEXT · BETA</p>
+<h1 style="margin:0 0 6px;font-size:24px;color:#ffffff">${t.hi}</h1>
+<p style="margin:0 0 22px;font-size:16px;color:#8fdfb5">${t.in}</p>
+<p style="margin:0 0 8px;font-size:13px;color:#9aaaa2">${t.code}</p>
+<div style="background:#07090c;border:2px solid #00ff88;border-radius:12px;padding:16px;text-align:center">
+<span style="font-family:'Courier New',Courier,monospace;font-size:30px;font-weight:bold;letter-spacing:4px;color:#00ff88;-webkit-user-select:all;user-select:all">${esc(code)}</span></div>
+<p style="margin:8px 0 24px;font-size:12px;color:#9aaaa2">${t.tap}</p>
+<p style="margin:0 0 10px;font-size:15px"><b style="color:#00ff88">1.</b> ${t.s1}</p>
+<a href="${DOWNLOAD}" style="display:inline-block;background:#00ff88;color:#07090c;text-decoration:none;font-weight:bold;font-size:16px;padding:14px 26px;border-radius:12px;margin:0 0 20px">${t.btn}</a>
+<p style="margin:0 0 18px;font-size:15px"><b style="color:#00ff88">2.</b> ${t.s2}</p>
+<p style="margin:0 0 6px;font-size:15px"><b style="color:#00ff88">3.</b> ${t.s3}</p>
+<p style="margin:0 0 22px;font-size:14px"><a href="${MANAGER}" style="color:#00ff88">${MANAGER.replace("https://", "")}</a></p>
+<p style="margin:0 0 18px;font-size:13px;color:#9aaaa2;line-height:1.5">${t.valid}</p>
+<p style="margin:0;font-size:15px">${t.bye}<br>Marcus · <a href="https://alema.io" style="color:#00ff88">alema.io</a></p>
+</td></tr></table></td></tr></table></body></html>`;
+}
+async function sendMail(to: string, m: { subject: string; text: string; html?: string }) {
   const rk = Deno.env.get("RESEND_API_KEY"); if (!rk) return false;
   const r = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${rk}`, "Content-Type": "application/json" },
     body: JSON.stringify({ from: Deno.env.get("INVITE_FROM") ?? Deno.env.get("FEEDBACK_FROM") ?? "VisualContext <convite@alema.io>", to: [to], reply_to: Deno.env.get("FEEDBACK_TO") ?? undefined, ...m }) }).catch(() => null);
