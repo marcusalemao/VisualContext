@@ -110,7 +110,7 @@ const $ = s => document.querySelector(s);
 const track = (e, tags) => window.vcTrack && window.vcTrack(e, tags);
 
 /* ============ language ============ */
-let lang = (() => { try { const l = localStorage.getItem("vc_lang"); if (l === "pt" || l === "en") return l; } catch {} return /^pt/i.test(navigator.language || "") ? "pt" : "en"; })();
+let lang = (() => { const ok = ["pt","en"]; try { const q = new URLSearchParams(location.search).get("lang"); if (ok.includes(q)) return q; } catch (_) {} try { const s = localStorage.getItem("vc_lang"); if (ok.includes(s)) return s; } catch (_) {} const ls = (navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ""]).map(x => String(x).toLowerCase()); for (const x of ls) { if (x.startsWith("pt")) return "pt"; if (x.startsWith("en")) break; } let tz = ""; try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (_) {} if (/^America\/(Sao_Paulo|Bahia|Fortaleza|Recife|Belem|Maceio|Araguaina|Santarem|Manaus|Cuiaba|Campo_Grande|Porto_Velho|Boa_Vista|Rio_Branco|Eirunepe|Noronha)$|^Europe\/Lisbon$|^Atlantic\/(Azores|Madeira)$|^Africa\/(Luanda|Maputo)$/.test(tz)) return "pt"; return "en"; })();
 const T = {
   pt: { h1: "Experimente nos seus olhos (ou quase)", lead: "A câmera do seu computador ou celular faz o papel dos óculos. Você fala com o assistente, ele vê o que a câmera vê e lembra do que você mostrar.",
     s1: "Toque em Falar e apresente alguém: \"essa é a Ana\". Na próxima vez, o nome aparece sobre o rosto.",

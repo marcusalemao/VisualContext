@@ -273,7 +273,7 @@ const T = {
     tip: "Tippe am Ende jedes Tages auf den Feedback-Knopf (die grüne Blase) und wähle ein Gesicht: Erzähl mir, was funktioniert hat, was hängen blieb und wo. Fehler sind auch Ergebnisse: Dafür ist der Test da."
   }
 };
-let L = (() => { try { const s = localStorage.getItem("vc_lang"); if (s) return s; } catch (_) {} return /^pt/i.test(navigator.language) ? "pt" : /^de/i.test(navigator.language) ? "de" : "en"; })();
+let L = (() => { const ok = ["pt","en","de"]; try { const q = new URLSearchParams(location.search).get("lang"); if (ok.includes(q)) return q; } catch (_) {} try { const s = localStorage.getItem("vc_lang"); if (ok.includes(s)) return s; } catch (_) {} const ls = (navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ""]).map(x => String(x).toLowerCase()); for (const x of ls) { if (x.startsWith("pt")) return "pt"; if (x.startsWith("de")) return "de"; if (x.startsWith("en")) break; } let tz = ""; try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (_) {} if (/^America\/(Sao_Paulo|Bahia|Fortaleza|Recife|Belem|Maceio|Araguaina|Santarem|Manaus|Cuiaba|Campo_Grande|Porto_Velho|Boa_Vista|Rio_Branco|Eirunepe|Noronha)$|^Europe\/Lisbon$|^Atlantic\/(Azores|Madeira)$|^Africa\/(Luanda|Maputo)$/.test(tz)) return "pt"; if (/^Europe\/(Berlin|Vienna|Zurich|Busingen|Vaduz)$/.test(tz)) return "de"; return "en"; })();
 const qs = new URLSearchParams(location.search).get("lang"); if (qs === "pt" || qs === "en" || qs === "de") L = qs;
 if (!T[L]) L = "en";
 function paint() {
