@@ -1256,6 +1256,22 @@ function parseVcf(text) {
 /* ---------- feedback everywhere ---------- */
 const appVer = () => "manager " + (($("#ver") || {}).textContent || "").split(" v")[1];
 /** Where he was when he wrote (Marcus, 09/11: the messages arrived with no reference to the page or the thing). */
+/** Everything about the moment of a feedback (Marcus, 10/11): page, view, filters, the open item, the open sheet. */
+function fbContext() {
+  const d = $("#detail"), open = d && !d.classList.contains("idle") && d.classList.contains("open") || (d && !d.classList.contains("idle") && innerWidth >= 920 && S.sel);
+  const sbox = $("#sbox"), sheetTitle = sbox && !sbox.closest(".hide") ? sbox.querySelector("h3")?.textContent.trim() : null;
+  return { page: "manager", where: where(), view: S.view, category: S.cat, search: ($("#q")?.value || "").trim() || null, only_today: !!S.dayOnly,
+    open_item: open ? { kind: d.dataset.kind || null, id: S.sel || null, title: d.querySelector("h2")?.textContent.trim().slice(0, 120) || null, image: !!d.querySelector("img.ph, img.big, .shot img") } : null,
+    sheet: sheetTitle || null, viewport: innerWidth + "x" + innerHeight, scroll: Math.round(scrollY), version: appVer(), at: new Date().toISOString() };
+}
+/** A picture of the screen at that moment (html2canvas, loaded only when needed). */
+async function fbShot() {
+  try {
+    if (!window.html2canvas) await new Promise((ok, no) => { const sc = document.createElement("script"); sc.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"; sc.onload = ok; sc.onerror = no; document.head.appendChild(sc); });
+    const c = await html2canvas(document.body, { scale: Math.min(1, 900 / innerWidth), useCORS: true, logging: false, backgroundColor: "#07090c", height: innerHeight, y: scrollY, windowHeight: innerHeight });
+    return c.toDataURL("image/jpeg", 0.6);
+  } catch (_) { return null; }
+}
 function where() {
   const d = $("#detail"), h = d && !d.classList.contains("idle") && d.querySelector("h2");
   if (h) return "detalhe: " + h.textContent.trim().slice(0, 80);
@@ -1266,7 +1282,7 @@ const rate = what => `<span class="rate" data-what="${esc(what)}"><span>Útil?</
 async function sendRate(btn) {
   const box = btn.closest(".rate"), what = box.dataset.what, v = btn.dataset.rate;
   box.querySelectorAll("button").forEach(b => b.classList.toggle("on", b === btn));
-  call("feedback", { text: `[${v === "up" ? "útil" : "não ajudou"}] ${what}`, app: appVer(), usage: { kind: "rate", what, v, where: where() } }).catch(() => {});
+  call("feedback", { text: `[${v === "up" ? "útil" : "não ajudou"}] ${what}`, app: appVer(), usage: { kind: "rate", what, v, where: where() }, context: fbContext() }).catch(() => {});
   if (v === "down" && !box.querySelector("input")) {
     box.insertAdjacentHTML("beforeend", `<input placeholder="O que faltou? (opcional)" data-clarity-mask="true"><button data-ratewhy="1" aria-label="Enviar">${I("check")}</button>`);
     box.querySelector("input").focus();
@@ -1279,9 +1295,11 @@ function sendWhy(btn) {
 }
 /** Google's five faces instead of NPS (Marcus, 09/11: "NPS é muito chato"). */
 const FACES = [["sentiment_very_dissatisfied", "Muito ruim"], ["sentiment_dissatisfied", "Ruim"], ["sentiment_neutral", "Mais ou menos"], ["sentiment_satisfied", "Bom"], ["sentiment_very_satisfied", "Muito bom"]];
-function feedbackSheet() {
-  feedbackSheet.where = where();
-  sheet(`<h3>Como está sendo usar o VisualContext?</h3>
+async function feedbackSheet() {
+  feedbackSheet.where = where(); feedbackSheet.ctx = fbContext(); feedbackSheet.shot = null;
+  toast("Guardando este momento…");
+  feedbackSheet.shot = await fbShot();
+  sheet(`<h3>Como está sendo usar o VisualContext?</h3>${feedbackSheet.shot ? `<label style="display:flex;gap:10px;align-items:center;margin:4px 0 10px;font-size:13px;color:var(--m)"><img src="${feedbackSheet.shot}" alt="" style="width:72px;height:auto;border:1px solid var(--line);border-radius:6px"><span><input type="checkbox" id="fbshot" checked style="accent-color:var(--g)"> Enviar a imagem desta tela, para eu ver o que você estava vendo</span></label>` : ""}
     <div class="faces" role="radiogroup" aria-label="Sua experiência">${FACES.map(([n, l], i) => `<button type="button" role="radio" aria-checked="false" data-face5="${i + 1}" title="${l}">${I(n)}<small>${l}</small></button>`).join("")}</div>
     <p class="sub" style="margin-top:12px">Quer contar mais? Ideia, problema, elogio: vai direto para quem faz o app, sem abrir e-mail.</p>
     <form class="f" onsubmit="return false"><textarea id="fbt" data-clarity-mask="true" placeholder="O que você achou do app?"></textarea>
@@ -1327,6 +1345,7 @@ function features() {
   ];
 }
 function usage() {
+  feedbackSheet.shot = null; feedbackSheet.ctx = null;
   feedbackSheet.where = null;
   const fs = features(), done = fs.filter(f => f[1] > 0).length, max = Math.max(1, ...fs.map(f => f[1])), pct = done / fs.length;
   const R = 70, len = Math.PI * R, arc = `M ${90 - R} 86 A ${R} ${R} 0 0 1 ${90 + R} 86`;
@@ -1346,11 +1365,12 @@ async function sendFeedback() {
   if (face) t = `[${face}/5 ${FACES[face - 1][1]}] ` + t;
   const at = feedbackSheet.where || where();
   m.textContent = "Enviando…";
-  try { await call("feedback", { text: t, app: appVer(), usage: { where: typeof at === "string" ? at : where(), uso: Object.fromEntries(features().map(f => [f[0], f[1]])) } }); $("#fbt").value = ""; m.textContent = "✓ Recebido. Obrigado!"; }
+  const shots = feedbackSheet.shot && $("#fbshot")?.checked ? [feedbackSheet.shot] : [];
+  try { await call("feedback", { text: t, app: appVer(), context: feedbackSheet.ctx || fbContext(), shots, usage: { where: typeof at === "string" ? at : where(), uso: Object.fromEntries(features().map(f => [f[0], f[1]])) } }); $("#fbt").value = ""; m.textContent = "✓ Recebido. Obrigado!"; feedbackSheet.shot = null; }
   catch (e) { m.textContent = "Não deu: " + e.message; }
 }
 async function feedbackList() {
-  try { const l = await call("feedback_list"); sheet(`<h3>Recados recebidos</h3>${l.length ? l.map(f => `<div class="feat"><b>${esc(f.owner_email || "?")}</b><span class="n no">${esc(fmtWhen(f.at))}</span><span class="hint" style="color:var(--t);white-space:pre-wrap">${esc(f.text)}${f.usage && f.usage.where ? `<br><small class="muted">${esc(f.app || "")} · ${esc(f.usage.where)}</small>` : ""}</span></div>`).join("") : `<p class="muted">Nenhum ainda.</p>`}<div class="btns"><button class="btn" data-x="1">Fechar</button></div>`); }
+  try { const l = await call("feedback_list"); sheet(`<h3>Recados recebidos</h3>${l.length ? l.map(f => `<div class="feat"><b>${esc(f.owner_email || "?")}</b><span class="n no">${esc(fmtWhen(f.at))}</span><span class="hint" style="color:var(--t);white-space:pre-wrap">${esc(f.text)}${f.usage && f.usage.where ? `<br><small class="muted">${esc(f.app || "")} · ${esc(f.usage.where)}</small>` : ""}${(f.shots || []).map(x => `<a href="${x}" target="_blank"><img src="${x}" alt="tela no momento" style="display:block;max-width:100%;margin-top:6px;border:1px solid var(--line);border-radius:6px"></a>`).join("")}</span></div>`).join("") : `<p class="muted">Nenhum ainda.</p>`}<div class="btns"><button class="btn" data-x="1">Fechar</button></div>`); }
   catch (e) { toast("Não deu: " + e.message); }
 }
 

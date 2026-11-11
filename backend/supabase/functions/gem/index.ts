@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
 
   // Who may spend, and how much is left today / in total.
   const { data: acc } = await db.from("accounts").select("plan").eq("owner_email", email).maybeSingle();
-  const founder = acc?.plan === "founder";
+  const founder = acc?.plan === "founder" || acc?.plan === "admin"; // admins (10/11) are not limited
   if (!founder) {
     const { data: inv } = await db.from("invites").select("*").eq("email", email).maybeSingle();
     if (!inv || !inv.active) return json({ error: { code: 403, message: "convite inativo" } }, 403);

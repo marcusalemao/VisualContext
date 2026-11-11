@@ -45,6 +45,13 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     private lateinit var talk: Button
     private lateinit var placesBtn: Button
     private lateinit var earsBtn: Button
+    private lateinit var lensView: FrameLayout
+    // The last seconds of the lens (camera + HUD), small JPEGs, for a feedback (Marcus, 10/11): "captar os frames do momento".
+    private val frames = java.util.ArrayDeque<String>()
+    private val frameTick = object : Runnable { override fun run() {
+        if (::lensView.isInitialized && !isFinishing) work.execute { snapshot()?.let { f -> main.post { frames.addLast(f); while (frames.size > 2) frames.removeFirst() } } }
+        main.postDelayed(this, 3000)
+    } }
     private lateinit var facesBtn: Button
     private val main = Handler(Looper.getMainLooper())
     private val work = Executors.newSingleThreadExecutor()
@@ -125,6 +132,7 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         }
         // Lens on top, buttons in their own strip below it (never under the Android navigation bar).
         val lens = FrameLayout(this).apply { setBackgroundColor(Color.BLACK); addView(preview); addView(hud) }
+        lensView = lens
         Heat.mask(lens) // camera video and HUD: never recorded
         // The only thing this phone test has that the glasses don't: which camera. A bare icon on the video (Marcus, 09/11),
         // top right, out of the lens cards' way; no pill, a dark halo gives the contrast.
@@ -931,11 +939,12 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
 
     override fun onResume() {
         super.onResume()
+        main.removeCallbacks(frameTick); main.postDelayed(frameTick, 3000)
         if (::ears.isInitialized) { ears.enabled = Backend.earsOn(this); ears.standby = Backend.standby(this); paintToggles(); paintMic() } // Ajustes changed it
         val sm = getSystemService(Context.SENSOR_SERVICE) as SensorManager
         sm.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)?.let { sm.registerListener(this, it, SensorManager.SENSOR_DELAY_UI) }
     }
-    override fun onPause() { super.onPause(); (getSystemService(Context.SENSOR_SERVICE) as SensorManager).unregisterListener(this) }
+    override fun onPause() { super.onPause(); main.removeCallbacks(frameTick); frames.clear(); (getSystemService(Context.SENSOR_SERVICE) as SensorManager).unregisterListener(this) }
     /** Heading of where the back camera points, whatever the phone's orientation (the device's −Z axis on the map). */
     override fun onSensorChanged(e: SensorEvent) {
         val r = FloatArray(9); SensorManager.getRotationMatrixFromVector(r, e.values)
@@ -949,8 +958,41 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
     }
     override fun onAccuracyChanged(s: Sensor?, a: Int) = Unit
 
+    /** Camera frame + HUD as drawn now, 480 px wide JPEG as a data URL; null when there is nothing to grab. */
+    private fun snapshot(): String? = try {
+        val w = lensView.width; val h = lensView.height
+        if (w <= 0 || h <= 0) null else {
+            val full = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
+            val c = android.graphics.Canvas(full)
+            c.drawColor(Color.BLACK)
+            val cam = java.util.concurrent.FutureTask { preview.bitmap }.also { main.post(it) }.get(800, java.util.concurrent.TimeUnit.MILLISECONDS)
+            cam?.let { c.drawBitmap(it, null, android.graphics.Rect(0, 0, w, h), null) }
+            java.util.concurrent.FutureTask { hud.draw(c) }.also { main.post(it) }.get(800, java.util.concurrent.TimeUnit.MILLISECONDS)
+            val sc = 480f / w
+            val small = android.graphics.Bitmap.createScaledBitmap(full, 480, (h * sc).toInt().coerceAtLeast(1), true)
+            val out = java.io.ByteArrayOutputStream(); small.compress(android.graphics.Bitmap.CompressFormat.JPEG, 60, out)
+            "data:image/jpeg;base64," + android.util.Base64.encodeToString(out.toByteArray(), android.util.Base64.NO_WRAP)
+        }
+    } catch (_: Exception) { null }
+
+    /** What was going on (Marcus, 10/11): assistant state, what the lens showed, the last words, the switches. */
+    private fun moment(): org.json.JSONObject = org.json.JSONObject()
+        .put("page", "emulator")
+        .put("state", when { liveOn -> "assistente aberto ($liveState)"; hearing -> "escuta offline ouvindo"; qrOn -> "lendo QR"; else -> "parado" })
+        .put("card", listOfNotNull(hud.cardTitle, hud.cardLines.takeIf { it.isNotEmpty() }?.joinToString(" / ")).joinToString(": ").ifEmpty { hud.faces.joinToString(", ") { it.title }.ifEmpty { null } })
+        .put("transcript", hud.transcript.joinToString(" ").ifEmpty { null })
+        .put("toggles", listOf("pessoas" to facesOn, "lugares" to placesOn, "escuta" to Backend.earsOn(this), "QR" to qrOn).joinToString(", ") { (n, on) -> n + (if (on) " ligado" else " desligado") })
+        .put("pins", hud.pins.count { !it.hidden })
+        .put("device", android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL + " · Android " + android.os.Build.VERSION.RELEASE)
+        .put("at", java.time.OffsetDateTime.now().toString())
+
     private fun feedback() {
         val dp = resources.displayMetrics.density
+        // The moment is grabbed before the dialog covers the lens.
+        val ctx = moment()
+        val older = frames.toList()
+        val shots = ArrayList<String>(older)
+        work.execute { snapshot()?.let { now -> main.post { shots.add(now); thumb?.let { iv -> runCatching { val b = android.util.Base64.decode(now.substringAfter(","), 0); iv.setImageBitmap(android.graphics.BitmapFactory.decodeByteArray(b, 0, b.size)) } } } } }
         val faces = listOf(R.drawable.ic_sentiment_very_dissatisfied to "Muito ruim", R.drawable.ic_sentiment_dissatisfied to "Ruim", R.drawable.ic_sentiment_neutral to "Mais ou menos", R.drawable.ic_sentiment_satisfied to "Bom", R.drawable.ic_sentiment_very_satisfied to "Muito bom")
         var pick = 0
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding((20 * dp).toInt(), (8 * dp).toInt(), (20 * dp).toInt(), 0) }
@@ -962,17 +1004,28 @@ class EmulatorActivity : ComponentActivity(), LiveBrain.Host, SensorEventListene
         } }
         btns.forEachIndexed { i, b -> b.setOnClickListener { pick = i + 1; btns.forEachIndexed { j, o -> o.alpha = if (j == i) 1f else 0.4f; o.background = if (j == i) android.graphics.drawable.GradientDrawable().apply { cornerRadius = 12 * dp; setStroke((1.5f * dp).toInt(), green) } else null } }; row.addView(b) }
         col.addView(row)
-        val txt = android.widget.EditText(this).apply { hint = "Quer contar mais? (opcional)"; minLines = 2; setTextColor(Color.WHITE); setHintTextColor(Color.GRAY) }
+        val txt = android.widget.EditText(this).apply { hint = "O que aconteceu? (opcional)"; minLines = 2; setTextColor(Color.WHITE); setHintTextColor(Color.GRAY) }
         col.addView(txt)
-        android.app.AlertDialog.Builder(this).setTitle("Como está sendo usar o emulador?").setView(col)
+        // The lens at that moment, with a switch to leave it out (people may be in the picture).
+        val shotRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, (8 * dp).toInt(), 0, 0) }
+        thumb = android.widget.ImageView(this).apply { layoutParams = LinearLayout.LayoutParams((96 * dp).toInt(), (54 * dp).toInt()); scaleType = android.widget.ImageView.ScaleType.CENTER_CROP; setBackgroundColor(Color.DKGRAY) }
+        older.lastOrNull()?.let { o -> runCatching { val b = android.util.Base64.decode(o.substringAfter(","), 0); thumb?.setImageBitmap(android.graphics.BitmapFactory.decodeByteArray(b, 0, b.size)) } }
+        val sendShots = android.widget.Switch(this).apply { text = "Enviar as imagens da lente destes segundos"; isChecked = true; setTextColor(Color.LTGRAY); textSize = 13f
+            thumbTintList = android.content.res.ColorStateList.valueOf(green); setPadding((10 * dp).toInt(), 0, 0, 0)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) }
+        shotRow.addView(thumb); shotRow.addView(sendShots); col.addView(shotRow)
+        android.app.AlertDialog.Builder(this).setTitle("O que aconteceu agora?").setView(col)
             .setPositiveButton("Enviar") { _, _ ->
                 val t = txt.text.toString().trim()
                 if (pick == 0 && t.length < 2) return@setPositiveButton
                 val body = org.json.JSONObject().put("action", "feedback").put("text", (if (pick > 0) "[$pick/5 ${faces[pick - 1].second}] " else "") + t)
                     .put("app", "emulador " + runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrDefault(""))
-                Thread { val ok = Backend.post(this, body) != null; runOnUiThread { Toast.makeText(this, if (ok) "Obrigado! Recebido." else "Sem rede: tente de novo depois.", Toast.LENGTH_SHORT).show() } }.start()
-            }.setNegativeButton("Fechar", null).show()
+                    .put("context", ctx).put("usage", org.json.JSONObject().put("where", "emulador · " + ctx.optString("state")))
+                if (sendShots.isChecked) body.put("shots", org.json.JSONArray(shots.takeLast(3)))
+                Thread { val ok = Backend.post(this, body) != null; runOnUiThread { Toast.makeText(this, if (ok) "Obrigado! Recebido, com o momento." else "Sem rede: tente de novo depois.", Toast.LENGTH_SHORT).show() } }.start()
+            }.setNegativeButton("Fechar", null).setOnDismissListener { thumb = null }.show()
     }
+    private var thumb: android.widget.ImageView? = null
 
     override fun onDestroy() { ears.finish(); ears.close(); voice.close(); main.removeCallbacksAndMessages(null); live.destroy(); faces.close(); legacy?.destroy(); work.shutdownNow(); super.onDestroy() }
     private fun toast(t: String) = Toast.makeText(this, t, Toast.LENGTH_SHORT).show()
