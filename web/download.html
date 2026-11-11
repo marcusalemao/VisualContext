@@ -99,7 +99,7 @@ footer{border-top:1px solid var(--line);padding:22px 0 40px;color:var(--m);font-
   </ol>
 </div></section>
 
-<section id="roteiro"><div class="wrap">
+<section id="roteiro" hidden><div class="wrap">
   <p class="kicker" data-t="k_plan"></p>
   <h2 data-t="h_plan"></h2>
   <p data-t="p_plan"></p>
@@ -144,7 +144,7 @@ const T = {
     s2: "Permita a instalação", s2p: "Abra o arquivo baixado. O Android pede para permitir apps \"desta fonte\": toque em Configurações, ligue a permissão, volte e toque em Instalar. Se o Play Protect avisar, toque em Mais detalhes → Instalar mesmo assim.",
     s3: "Entre com o seu código", s3p: "Abra o VisualContext, toque em Tenho um código de convite e digite o código do e-mail de aprovação. Não tem senha nem chave para configurar.",
     s4: "Abra o emulador", s4p: "Toque em Abrir o emulador e libere câmera, microfone e localização. Segure o celular na altura dos olhos, com a câmera de trás para a frente: a tela é a sua lente.",
-    s5: "Siga o roteiro", s5p: "Uns 15 minutos por dia, durante 5 dias. O roteiro do que testar está <a href=\"#roteiro\">logo abaixo</a>, e tudo o que você guardar aparece no <a id=\"mgr\" href=\"#\">Manager</a>, no navegador, com o mesmo e-mail.",
+    s5: "Siga o roteiro", s5p: "Uns 15 minutos por dia, durante 5 dias. O roteiro do que testar vem no e-mail de aprovação e aparece aqui, no seu link de acesso, e tudo o que você guardar aparece no <a id=\"mgr\" href=\"#\">Manager</a>, no navegador, com o mesmo e-mail.",
     h_more: "Bom saber",
     m1: "<b>Versão nova:</b> quando eu avisar, baixe de novo por esta mesma página e instale por cima. Suas memórias ficam na sua conta e não se perdem.",
     m2: "<b>Feedback:</b> o balão verde no canto da tela abre as carinhas. Conte o que funcionou, o que travou e onde. Erro também é resultado.",
@@ -156,7 +156,7 @@ const T = {
     h_plan: "O que testar, e como",
     p_plan: "Uns 15 minutos por dia, em 5 dias, na ordem que preferir. Segure o celular na altura dos olhos, com a câmera de trás para a frente: é a sua lente. Na barra da haste, <span class=g>●</span> escolhe, <span class=g>●●</span> volta, e o <b>toque longo no <span class=g>●</span></b> abre o assistente de voz.",
     ri: "Importe rostos que você já tem",
-    rip: "Em Ajustes → Importar rostos, traga quem tem foto e nome: Google Fotos (Pessoas), contatos do celular, LinkedIn, Facebook, Instagram ou a lista de conversas do WhatsApp (\"Outro app\"). Você rola a tela, o app lê, e você escolhe quem entra. Também dá para compartilhar um print com o VisualContext.",
+    rip: "Em Ajustes → Importar rostos, escolha prints de qualquer lista com rosto e nome (Google Fotos → Pessoas, LinkedIn, Instagram, WhatsApp…): um print longo ou vários seguidos. Ou traga os contatos do celular com foto. Você escolhe quem entra.",
     ris: "Depois, aponte para uma dessas pessoas (ou para a foto dela em outra tela)",
     rm: "Descubra a música",
     rmp: "Com uma música tocando perto (bar, rádio, outro celular), pergunte ao assistente. O nome aparece na lente e fica guardado para ouvir depois.",
@@ -197,7 +197,7 @@ const T = {
     s2: "Allow the install", s2p: "Open the downloaded file. Android asks you to allow apps \"from this source\": tap Settings, turn it on, go back and tap Install. If Play Protect warns you, tap More details → Install anyway.",
     s3: "Sign in with your code", s3p: "Open VisualContext, tap Tenho um código de convite (I have an invite code) and type the code from the approval e-mail. No password, no keys to set up.",
     s4: "Open the emulator", s4p: "Tap Abrir o emulador (Open the emulator) and allow camera, microphone and location. Hold the phone at eye level with the back camera facing forward: the screen is your lens.",
-    s5: "Follow the plan", s5p: "About 15 minutes a day, for 5 days. The test plan is <a href=\"#roteiro\">right below</a>, and everything you save shows up in the <a id=\"mgr\" href=\"#\">Manager</a>, in your browser, with the same e-mail.",
+    s5: "Follow the plan", s5p: "About 15 minutes a day, for 5 days. The test plan comes in the approval e-mail and shows here, on your access link, and everything you save shows up in the <a id=\"mgr\" href=\"#\">Manager</a>, in your browser, with the same e-mail.",
     h_more: "Good to know",
     m1: "<b>New version:</b> when I let you know, download again from this same page and install over it. Your memories stay in your account and are not lost.",
     m2: "<b>Feedback:</b> the green bubble in the corner of the screen opens the faces. Tell me what worked, what got stuck and where. Errors are results too.",
@@ -209,7 +209,7 @@ const T = {
     h_plan: "What to test, and how",
     p_plan: "About 15 minutes a day, over 5 days, in any order. Hold the phone at eye level with the back camera facing forward: it is your lens. On the temple bar, <span class=g>●</span> chooses, <span class=g>●●</span> goes back, and a <b>long press on <span class=g>●</span></b> opens the voice assistant.",
     ri: "Import faces you already have",
-    rip: "In Settings → Import faces, bring in people with a photo and a name: Google Photos (People), phone contacts, LinkedIn, Facebook, Instagram or your WhatsApp chat list (\"Other app\"). You scroll, the app reads, and you choose who comes in. You can also share a screenshot with VisualContext.",
+    rip: "In Settings → Import faces, pick screenshots of any list with faces and names (Google Photos → People, LinkedIn, Instagram, WhatsApp…): one long screenshot or several in a row. Or bring in your phone contacts with a photo. You choose who gets in.",
     ris: "Then point at one of them (or at their photo on another screen)",
     rm: "Find the song",
     rmp: "With music playing nearby (a bar, the radio, another phone), ask the assistant. The name shows on the lens and is saved to listen to later.",
@@ -271,7 +271,8 @@ function mine() {
   const box = document.getElementById("mine"); if (!MINE) return; const t = T[L]; box.hidden = false;
   if (!MINE.ok) { document.getElementById("mineHi").textContent = t.mine_bad; box.querySelector(".code").hidden = true; document.getElementById("mineExp").textContent = ""; try { localStorage.removeItem("vc_invite_code"); } catch (_) {} return; }
   document.getElementById("mineHi").textContent = t.mine_hi(MINE.first || "");
-  const lead = document.querySelector('[data-t="lead"]'); if (lead) lead.hidden = true; // already in: no "ask for an invite"
+  const lead = document.querySelector('[data-t="lead"]'); if (lead) lead.hidden = true;
+  document.getElementById("roteiro").hidden = false; // already in: no "ask for an invite"
   document.getElementById("mineCode").textContent = MINE.code;
   document.getElementById("mineExp").textContent = MINE.expires && MINE.uses_left > 0 && new Date(MINE.expires) > new Date() ? t.mine_exp(new Date(MINE.expires).toLocaleDateString(L === "pt" ? "pt-BR" : "en"), MINE.uses_left) : "";
   document.getElementById("mineCopy").onclick = e => { navigator.clipboard?.writeText(MINE.code.replace(/-/g, "")).then(() => { e.target.textContent = t.copied; setTimeout(() => e.target.textContent = t.copy, 1600); }).catch(() => {}); };
