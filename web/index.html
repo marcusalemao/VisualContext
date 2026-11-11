@@ -36,8 +36,8 @@ h2{font-size:clamp(26px,4vw,38px);line-height:1.15;margin:0 0 12px;letter-spacin
 @media (max-width:860px){.hero{grid-template-columns:1fr}}
 /* the lens mock */
 .lens{position:relative;aspect-ratio:4/3;border-radius:26px;overflow:hidden;border:2px solid #1d4a33;background:radial-gradient(120% 90% at 30% 20%,#2b3a33 0%,#141c18 45%,#0a0f0c 100%)}
-.lens .person{position:absolute;left:46%;top:22%;width:30%;height:52%;border-radius:46% 46% 40% 40%;background:linear-gradient(180deg,#5d4a40,#3a2c25 60%,#2a201b);filter:blur(1px);opacity:.85}
-.lens .person::after{content:"";position:absolute;left:-30%;right:-30%;top:78%;height:70%;border-radius:40% 40% 0 0;background:#24302b}
+.lens{background:#141c18 url(/faces/ana-souza-scene.jpg) 50% 12%/cover no-repeat}
+.lens::before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.35),rgba(0,0,0,0) 40%)}
 .lens .box{position:absolute;left:43%;top:18%;width:36%;height:44%}
 .lens .box i{position:absolute;width:22%;height:22%;border:3px solid var(--g)}
 .lens .box i:nth-child(1){left:0;top:0;border-right:0;border-bottom:0}.lens .box i:nth-child(2){right:0;top:0;border-left:0;border-bottom:0}.lens .box i:nth-child(3){left:0;bottom:0;border-right:0;border-top:0}.lens .box i:nth-child(4){right:0;bottom:0;border-left:0;border-top:0}
@@ -86,7 +86,6 @@ footer button{background:none;border:0;color:var(--g2);text-decoration:underline
     <div class="btns"><a class="btn pri" href="/demo" data-i18n="cta_demo" data-ev="cta_demo"></a><a class="btn" href="/demo-film" data-i18n="cta_film" data-ev="cta_film"></a></div>
   </div>
   <div class="lens" role="img" data-i18n-aria="lens_alt">
-    <div class="person"></div>
     <div class="box"><i></i><i></i><i></i><i></i></div>
     <div class="tag">Ana Souza</div>
     <div class="rec" data-i18n="lens_rec"></div>

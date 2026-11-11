@@ -158,8 +158,11 @@ const nowIso = () => new Date().toISOString();
 function sample() {
   const d = (h, m, back = 0) => { const x = new Date(); x.setDate(x.getDate() - back); x.setHours(h, m, 0, 0); return x.toISOString(); };
   const pt = lang === "pt";
-  M.people.push({ id: "s1", name: "Ana Souza", note: pt ? "designer na Nubank · conheceu na feira de UX" : "designer at Nubank · met at the UX fair", desc: null, thumb: null, t: d(10, 5, 3) },
-                { id: "s2", name: "Rafael Lima", note: pt ? "irmão do Bruno · deve um orçamento" : "Bruno's brother · owes you a quote", desc: null, thumb: null, t: d(19, 30, 1) });
+  M.people.push({ id: "s1", name: "Ana Souza", note: pt ? "designer na Nubank · conheceu na feira de UX" : "designer at Nubank · met at the UX fair", desc: null, thumb: "/faces/ana-souza.jpg", t: d(10, 5, 3) },
+                { id: "s2", name: "Rafael Lima", note: pt ? "irmão do Bruno · deve um orçamento" : "Bruno's brother · owes you a quote", desc: null, thumb: "/faces/rafael-lima.jpg", t: d(19, 30, 1) },
+                { id: "s3", name: "Bruno Lima", note: pt ? "amigo da faculdade · corre no Ibirapuera" : "college friend · runs in Ibirapuera park", desc: null, thumb: "/faces/bruno.jpg", t: d(7, 40, 6) },
+                // imported from LinkedIn (CSV): a name without a face until the glasses see the person
+                { id: "s4", name: "Fernanda Costa", note: pt ? "importada do LinkedIn · ainda sem rosto" : "imported from LinkedIn · no face yet", desc: null, thumb: null, t: d(9, 0, 9) });
   M.things.push({ name: pt ? "moto" : "motorbike", where: pt ? "Rua Augusta, 1500 · vaga em frente à farmácia" : "Rua Augusta 1500 · spot in front of the pharmacy", t: d(19, 40, 1), photo: null },
                 { name: pt ? "chaves" : "keys", where: pt ? "mesa da sala, ao lado do carregador" : "living-room table, next to the charger", t: d(8, 10, 0), photo: null });
   M.notes.push({ text: pt ? "Ligar para o Rafael sobre o orçamento até sexta" : "Call Rafael about the quote by Friday", t: d(19, 50, 1) });

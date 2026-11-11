@@ -121,8 +121,11 @@ var LANGS=['en','de','pt'], lang=0;
 try{ var m=location.hash.match(/^#(en|de|pt)$/); if(m) lang=LANGS.indexOf(m[1]); }catch(e){}
 
 // ---- world drawings (simple outlines; this is a concept film, not footage) ----
-function person(x,y,s,id){ s=s||1; return '<g transform="translate('+x+','+y+') scale('+s+')" class="person" data-p="'+(id||'')+'">'+
- '<circle cx="0" cy="0" r="52"/><path d="M-120 230 C-120 120 -60 90 0 90 C60 90 120 120 120 230 Z"/></g>'; }
+// Fictional faces (made with AI, 11/11): photo in the head when given
+var PN=0;
+function person(x,y,s,id,photo){ s=s||1; var c='pc'+(PN++); return '<g transform="translate('+x+','+y+') scale('+s+')" class="person" data-p="'+(id||'')+'">'+
+ '<path d="M-120 230 C-120 120 -60 90 0 90 C60 90 120 120 120 230 Z"/>'+
+ (photo ? '<clipPath id="'+c+'"><circle cx="0" cy="0" r="58"/></clipPath><image href="/faces/'+photo+'.jpg" x="-58" y="-58" width="116" height="116" preserveAspectRatio="xMidYMid slice" clip-path="url(#'+c+')"/><circle cx="0" cy="0" r="58" fill="none" stroke="#4a524d" stroke-width="2"/>' : '<circle cx="0" cy="0" r="52"/>')+'</g>'; }
 function room(){ return '<svg viewBox="0 0 1280 720"><path class="world-ground" d="M0 560 L1280 560 M100 560 L100 300 L420 300 L420 560 M640 300 L640 200 L900 200 L900 300 L640 300"/></svg>'; }
 function street(){ return '<svg viewBox="0 0 1920 720" style="width:1920px"><path class="world-ground" d="M0 600 L1920 600 M0 600 L420 380 L420 120 L700 120 L700 600 M700 380 L1920 380 M760 600 L760 240 L1100 240 L1100 600 M1180 600 L1180 300 L1500 300 L1500 600 M1560 600 L1560 200 L1900 200 L1900 600"/></svg>'; }
 function hand(){ return '<svg viewBox="0 0 1280 720"><path class="world-ground" d="M0 560 L1280 560"/><g transform="translate(640,470)"><path class="person" d="M-150 200 C-150 60 -90 20 -20 10 L80 -10 L120 -40 L140 -20 L110 20 L200 60 L190 90 L80 70 L60 110 L130 150 L110 180 L0 140 L-20 200 Z"/><path d="M60 -30 L190 -120 M190 -120 l12 -10 M190 -120 l-6 -14" fill="none" stroke="#6a7a70" stroke-width="5" stroke-linecap="round"/><circle cx="196" cy="-128" r="16" fill="none" stroke="#6a7a70" stroke-width="5"/></g></svg>'; }
@@ -180,7 +183,7 @@ var T={
       de:['VisualContext','Gebaut auf Rokid Glasses · visualcontext.alema.io','Marcus de Magalhães · São Paulo · 2026'],
       pt:['VisualContext','Feito nos Rokid Glasses · visualcontext.alema.io','Marcus de Magalhães · São Paulo · 2026']},
  x:{en:{sup:'supplier · Torra Fina',last:'last time: 12/09, the budget',rec:'Recording encounter',swipe:'swipe to cancel',enc:'encounter',newp:'New person',keep:'tap: keep · double tap: ignore',
-        nn1:'Man with the beard',nn2:'blue jacket · first time, here',nn3:'Café da Paim · yesterday 10:40 · the pilot',nnf:'listening for the name',nns:'"…nice to meet you, I\'m Pedro Reis, from Torra Fina"',nnb:'badge read: PEDRO REIS · Torra Fina',nnn:'Pedro Reis',nnl:'Torra Fina · met now, here',sayKey:'"this is my key"',keyReg:'Key · registered',askKey:'"where is my key?"',keyT:'Key',keyL:'bedroom · on the bed',keyW:'today 9:10',
+        nn1:'Man with the beard',nn2:'plaid shirt · first time, here',nn3:'Café da Paim · yesterday 10:40 · the pilot',nnf:'listening for the name',nns:'"…nice to meet you, I\'m Pedro Reis, from Torra Fina"',nnb:'badge read: PEDRO REIS · Torra Fina',nnn:'Pedro Reis',nnl:'Torra Fina · met now, here',sayKey:'"this is my key"',keyReg:'Key · registered',askKey:'"where is my key?"',keyT:'Key',keyL:'bedroom · on the bed',keyW:'today 9:10',
         park:'Parking moment',parkL:'spot saved · 2 photos',warn:'Did the key come with you?',warnL:'it seems to be on the bike',askBike:'"where did I leave the motorbike?"',bikeT:'Motorbike',bikeL:'Rua Paim, 210 · in front of Padaria Boa',bikeW:'today 8:30 · 240 m',map:'',goQ:'Want to go there? On foot it\'s 4 minutes.',goY:'"yes"',nav1:'turn right in 50 m',nav2:'straight on · 180 m',nav3:'it\'s ahead, next to the bakery',far:'Want to go there? It\'s 6 km: metro 15 min, motorbike or car?',
         p1:'MASP',p1l:'art museum · 120 m',p2:'Trianon Park',p2l:'park · behind the building',
         askPl:'"what\'s on at MASP today?"',aiPl:'Live assistant, web search: "MASP, by Lina Bo Bardi, opened in 1968. Today the collection is on the glass easels, open until 6 pm. Free on Tuesdays."',
@@ -192,7 +195,7 @@ var T={
         s1:'bathroom → <b>paused</b>',s2:'nudity → <b>one neutral sentence</b>, on the phone, no image, no cloud',s3:'intimacy → <b>nothing</b>',s4:'children: moments are kept, <b>faces never enrolled</b> automatically',s5:'strangers: <b>never identified</b>',
         pr1:'Faces recognised <b>on the device</b>',pr2:'Recording <b>announces itself</b>, cancel any time',pr3:'Glasses off → <b>locked</b>',pr4:'Your memory, <b>never shared</b>',pr5:'<b>Forget everything</b>: one button'},
     de:{sup:'Lieferant · Torra Fina',last:'zuletzt: 12.09., das Budget',rec:'Begegnung wird aufgezeichnet',swipe:'wischen zum Abbrechen',enc:'Begegnung',newp:'Neue Person',keep:'tippen: behalten · doppelt: ignorieren',
-        nn1:'Mann mit Bart',nn2:'blaue Jacke · erstes Mal, hier',nn3:'Café da Paim · gestern 10:40 · der Pilot',nnf:'hört auf den Namen',nns:'„…freut mich, ich bin Pedro Reis, von Torra Fina“',nnb:'Namensschild gelesen: PEDRO REIS · Torra Fina',nnn:'Pedro Reis',nnl:'Torra Fina · gerade kennengelernt, hier',sayKey:'„das ist mein Schlüssel“',keyReg:'Schlüssel · registriert',askKey:'„wo ist mein Schlüssel?“',keyT:'Schlüssel',keyL:'Schlafzimmer · auf dem Bett',keyW:'heute 9:10',
+        nn1:'Mann mit Bart',nn2:'kariertes Hemd · erstes Mal, hier',nn3:'Café da Paim · gestern 10:40 · der Pilot',nnf:'hört auf den Namen',nns:'„…freut mich, ich bin Pedro Reis, von Torra Fina“',nnb:'Namensschild gelesen: PEDRO REIS · Torra Fina',nnn:'Pedro Reis',nnl:'Torra Fina · gerade kennengelernt, hier',sayKey:'„das ist mein Schlüssel“',keyReg:'Schlüssel · registriert',askKey:'„wo ist mein Schlüssel?“',keyT:'Schlüssel',keyL:'Schlafzimmer · auf dem Bett',keyW:'heute 9:10',
         park:'Abstell-Moment',parkL:'Ort gespeichert · 2 Fotos',warn:'Ist der Schlüssel mitgekommen?',warnL:'er scheint am Motorrad zu sein',askBike:'„wo habe ich das Motorrad abgestellt?“',bikeT:'Motorrad',bikeL:'Rua Paim 210 · vor der Padaria Boa',bikeW:'heute 8:30 · 240 m',map:'',goQ:'Willst du hin? Zu Fuß sind es 4 Minuten.',goY:'„ja“',nav1:'in 50 m rechts',nav2:'geradeaus · 180 m',nav3:'es ist vorn, neben der Bäckerei',far:'Willst du hin? 6 km: U-Bahn 15 Min, Motorrad oder Auto?',
         p1:'MASP',p1l:'Kunstmuseum · 120 m',p2:'Trianon-Park',p2l:'Park · hinter dem Gebäude',
         askPl:'„was läuft heute im MASP?“',aiPl:'Live-Assistent, Websuche: „MASP, von Lina Bo Bardi, eröffnet 1968. Heute die Sammlung auf den Glasstaffeleien, bis 18 Uhr. Dienstags frei.“',
@@ -204,7 +207,7 @@ var T={
         s1:'Bad → <b>Pause</b>',s2:'Nacktheit → <b>ein neutraler Satz</b>, auf dem Telefon, kein Bild, keine Cloud',s3:'Intimität → <b>nichts</b>',s4:'Kinder: Momente bleiben, <b>Gesichter nie automatisch</b> erfasst',s5:'Fremde: <b>nie identifiziert</b>',
         pr1:'Gesichter <b>auf dem Gerät</b> erkannt',pr2:'Aufnahme <b>kündigt sich an</b>, jederzeit abbrechen',pr3:'Brille ab → <b>gesperrt</b>',pr4:'Dein Gedächtnis, <b>nie geteilt</b>',pr5:'<b>Alles vergessen</b>: ein Knopf'},
     pt:{sup:'fornecedor · Torra Fina',last:'última vez: 12/09, o orçamento',rec:'Gravando encontro',swipe:'deslize para cancelar',enc:'encontro',newp:'Pessoa nova',keep:'toque: guardar · toque duplo: ignorar',
-        nn1:'Homem de barba',nn2:'jaqueta azul · primeira vez, aqui',nn3:'Café da Paim · ontem 10:40 · o piloto',nnf:'ouvindo o nome',nns:'"…prazer, eu sou o Pedro Reis, da Torra Fina"',nnb:'crachá lido: PEDRO REIS · Torra Fina',nnn:'Pedro Reis',nnl:'Torra Fina · conheceu agora, aqui',sayKey:'"essa é a minha chave"',keyReg:'Chave · cadastrada',askKey:'"onde está minha chave?"',keyT:'Chave',keyL:'quarto · em cima da cama',keyW:'hoje 9:10',
+        nn1:'Homem de barba',nn2:'camisa xadrez · primeira vez, aqui',nn3:'Café da Paim · ontem 10:40 · o piloto',nnf:'ouvindo o nome',nns:'"…prazer, eu sou o Pedro Reis, da Torra Fina"',nnb:'crachá lido: PEDRO REIS · Torra Fina',nnn:'Pedro Reis',nnl:'Torra Fina · conheceu agora, aqui',sayKey:'"essa é a minha chave"',keyReg:'Chave · cadastrada',askKey:'"onde está minha chave?"',keyT:'Chave',keyL:'quarto · em cima da cama',keyW:'hoje 9:10',
         park:'Hora de estacionar',parkL:'local guardado · 2 fotos',warn:'A chave veio com você?',warnL:'parece que ficou na moto',askBike:'"onde deixei a moto?"',bikeT:'Moto',bikeL:'Rua Paim, 210 · em frente à Padaria Boa',bikeW:'hoje 8:30 · 240 m',map:'',goQ:'Quer ir até lá? A pé são 4 minutos.',goY:'"sim"',nav1:'vire à direita em 50 m',nav2:'em frente · 180 m',nav3:'é ali na frente, do lado da padaria',far:'Quer ir até lá? São 6 km: metrô 15 min, moto ou carro?',
         p1:'MASP',p1l:'museu de arte · 120 m',p2:'Parque Trianon',p2l:'parque · atrás do prédio',
         askPl:'"o que está em cartaz no MASP hoje?"',aiPl:'Assistente ao vivo, busca na web: "MASP, da Lina Bo Bardi, inaugurado em 1968. Hoje o acervo está nos cavaletes de vidro, aberto até as 18h. Terça é grátis."',
@@ -234,16 +237,16 @@ function rafaelCard(x,y,delay){ return add(card('Rafael Souza',[X('sup'),X('last
 var scenes=[
  {dur:7000,run:function(){ world.innerHTML=''; var t=T.title[L()]; add('<img src="'+LOGO+'" alt="VisualContext" style="width:520px;display:block;margin:0 0 6px -10px"><div class="sub" style="max-width:820px;margin-top:0">'+t[1]+'</div><div class="tiny">'+t[2]+'</div>',190,40); cap.innerHTML=''; }},
  {dur:7000,key:'standby',run:function(){ world.innerHTML=room(); dot(); }},
- {dur:17000,key:'meet',run:function(){ world.innerHTML=room()+'<svg viewBox="0 0 1280 720">'+person(760,300,1)+'</svg>'; dot();
+ {dur:17000,key:'meet',run:function(){ world.innerHTML=room()+'<svg viewBox="0 0 1280 720">'+person(760,300,1,'','rafael-souza')+'</svg>'; dot();
    add('<div class="tag">Rafael Souza</div>',830,250,'',1200);
    at(2400,function(){ rafaelCard(180,90); });
    at(5200,function(){ var r=add('<div class="rec">'+X('rec')+': <b>5</b> · '+X('swipe')+'</div>',180,300); var n=5; var iv=setInterval(function(){ n--; if(n<0){ clearInterval(iv); r.classList.remove('on'); add('<div class="rec" style="font-size:16px"><span class="dot" style="display:inline-block;margin-right:8px"></span>'+X('enc')+'</div>',180,300,'',200); return; } r.querySelector('b').textContent=n; },1000); timers.push(iv); });
  }},
- {dur:10000,key:'three',run:function(){ world.innerHTML=room()+'<svg viewBox="0 0 1280 720">'+person(420,320,.85)+person(760,290,1)+person(1060,330,.8)+'</svg>'; dot();
+ {dur:10000,key:'three',run:function(){ world.innerHTML=room()+'<svg viewBox="0 0 1280 720">'+person(420,320,.85,'','juliana')+person(760,290,1,'','rafael-souza')+person(1060,330,.8,'','bruno')+'</svg>'; dot();
    add('<div class="tag">Ana Lima</div>',470,275,'',900); add('<div class="tag">Rafael Souza</div>',830,245,'',1200); add('<div class="tag">Pedro Reis</div>',1105,285,'',1500);
    at(2500,function(){ rafaelCard(150,90); });
  }},
- {dur:22000,key:'unknown',run:function(){ world.innerHTML=room()+'<svg viewBox="0 0 1280 720">'+person(760,300,1)+'</svg>'; dot();
+ {dur:22000,key:'unknown',run:function(){ world.innerHTML=room()+'<svg viewBox="0 0 1280 720">'+person(760,300,1,'','rafael-lima')+'</svg>'; dot();
    var tg=add('<div class="tag">'+X('nn1')+'</div>',830,250,'',1200);
    var c=add(card(X('nn1'),[X('nn2')],X('nnf')),180,90,'',2500);
    at(6500,function(){ add('<div class="say">'+X('nns')+'</div>',180,330); });
@@ -296,7 +299,7 @@ var scenes=[
    add('<div class="mods"><div class="mod on"><div class="t">'+X('m1')+'</div><div class="l">'+X('m1l')+'</div></div><div class="mod"><div class="t">'+X('m2')+'</div><div class="l">'+X('m2l')+'</div></div><div class="mod" id="m3"><div class="t">'+X('m3')+'</div><div class="l">'+X('m3l')+'</div></div><div class="mod"><div class="t">'+X('m4')+'</div><div class="l">'+X('m4l')+'</div></div></div>',180,90);
    at(6000,function(){ var m=document.getElementById('m3'); if(m) m.classList.add('on'); add('<div class="sp">'+X('spoken')+'</div>',180,420); });
  }},
- {dur:16000,key:'keep',run:function(){ world.innerHTML=room()+'<svg viewBox="0 0 1280 720">'+person(900,330,.9)+'</svg>'; dot();
+ {dur:16000,key:'keep',run:function(){ world.innerHTML=room()+'<svg viewBox="0 0 1280 720">'+person(900,330,.9,'','camila')+'</svg>'; dot();
    add('<div class="list">'+['k1','k2','k3','k4','k5'].map(function(k){return '· '+X(k);}).join('<br>')+'</div>',180,110);
    var f=add('<div class="card small" style="width:150px;height:110px"></div>',820,250,'',1500); at(4000,function(){ f.innerHTML='<div class="l" style="font-size:13px">“two people at a table, talking about the pilot”</div>'; }); at(7000,function(){ f.classList.remove('on'); });
  }},
