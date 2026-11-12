@@ -1,0 +1,164 @@
+package io.alema.zap
+
+import android.content.Context
+import android.service.notification.NotificationListenerService
+import android.service.notification.StatusBarNotification
+import io.alema.zap.core.PhoneNumbers
+import io.alema.zap.core.WhatsAppLink
+import io.alema.zap.core.ZapContact
+import org.json.JSONObject
+
+/**
+ * People who messaged the wearer on WhatsApp, learned from WhatsApp's own
+ * notifications: a name and a number, nothing else. Message text is never
+ * stored. This is the contact list Zap works from when the wearer has not
+ * imported the address book.
+ */
+internal class ZapPeople(context: Context) {
+    private val prefs = context.getSharedPreferences("zap_people", Context.MODE_PRIVATE)
+
+    fun remember(waDigits: String, name: String, nowMs: Long = System.currentTimeMillis()) {
+        val clean = cleanName(name)
+        if (clean.isEmpty() || waDigits.isEmpty()) return
+        prefs.edit().putString(waDigits, JSONObject().put("name", clean).put("seen", nowMs).toString()).apply()
+        trim()
+    }
+
+    fun forget(waDigits: String) {
+        prefs.edit().remove(waDigits).apply()
+    }
+
+    fun forgetAll() {
+        prefs.edit().clear().apply()
+    }
+
+    fun all(recents: ZapRecents): List<ZapContact> = prefs.all.mapNotNull { (digits, raw) ->
+        val json = (raw as? String)?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return@mapNotNull null
+        val id = idFor(digits)
+        ZapContact(
+            id = id,
+            name = json.optString("name"),
+            waIds = listOf(digits),
+            lastUsedMs = maxOf(recents.lastUsed(id), json.optLong("seen")),
+        )
+    }
+
+    private fun trim() {
+        if (prefs.all.size <= MAX) return
+        val oldest = prefs.all.mapNotNull { (k, v) ->
+            (v as? String)?.let { runCatching { JSONObject(it).optLong("seen") }.getOrNull() }?.let { k to it }
+        }.sortedBy { it.second }
+        val editor = prefs.edit()
+        oldest.take(prefs.all.size - MAX).forEach { editor.remove(it.first) }
+        editor.apply()
+    }
+
+    companion object {
+        private const val MAX = 300
+        private val COUNT_SUFFIX = Regex("\\s*\\(\\d+[^)]*\\)\\s*$")
+
+        fun idFor(waDigits: String) = "wa:$waDigits"
+
+        /** "Bruno Costa (3 mensagens)" -> "Bruno Costa". */
+        fun cleanName(name: String): String = name.replace(COUNT_SUFFIX, "").trim()
+    }
+}
+
+/**
+ * People from a contacts file the wearer imported (vCard or CSV): name and
+ * number only. Kept apart from [ZapPeople] so an import never shows up as
+ * "recent" and can be removed on its own.
+ */
+internal class ZapImported(context: Context) {
+    private val prefs = context.getSharedPreferences("zap_imported", Context.MODE_PRIVATE)
+
+    fun add(entries: List<io.alema.zap.core.ContactFile.Entry>): Int {
+        val editor = prefs.edit()
+        val room = (MAX - prefs.all.size).coerceAtLeast(0)
+        val fresh = entries.filter { !prefs.contains(it.digits) }.take(room)
+        fresh.forEach { editor.putString(it.digits, it.name) }
+        entries.filter { prefs.contains(it.digits) }.forEach { editor.putString(it.digits, it.name) }
+        editor.apply()
+        return fresh.size
+    }
+
+    fun count(): Int = prefs.all.size
+
+    fun clear() = prefs.edit().clear().apply()
+
+    fun all(recents: ZapRecents): List<ZapContact> = prefs.all.mapNotNull { (digits, name) ->
+        val id = ZapPeople.idFor(digits)
+        (name as? String)?.let { ZapContact(id, it, waIds = listOf(digits), lastUsedMs = recents.lastUsed(id)) }
+    }
+
+    private companion object {
+        const val MAX = 5000
+    }
+}
+
+/**
+ * Watches WhatsApp notifications (and only WhatsApp's) to build the inbox
+ * and learn who wrote.
+ *
+ * WhatsApp gives each chat a conversation shortcut whose id is the WhatsApp id
+ * ("5511…@s.whatsapp.net"; groups end in "@g.us"). One-to-one chats feed the
+ * people list with name and number; their messages go to the encrypted
+ * inbox. To confirm on the device: if a WhatsApp build stops exposing that
+ * id, chats are keyed by title and Reply works only while the notification
+ * is live.
+ */
+class ZapNotificationListener : NotificationListenerService() {
+    private var photos: ZapPhotoWatcher? = null
+
+    override fun onListenerConnected() {
+        photos?.stop()
+        photos = ZapPhotoWatcher(applicationContext).also { it.start() }
+        // After a restart the live reply tokens are gone; rebuild them from what is still showing.
+        runCatching { activeNotifications }.getOrNull()?.forEach { capture(it) }
+    }
+
+    override fun onListenerDisconnected() {
+        photos?.stop()
+        photos = null
+        ZapInbox.releaseAll()
+        super.onListenerDisconnected()
+    }
+
+    override fun onNotificationPosted(sbn: StatusBarNotification?) {
+        capture(sbn ?: return)
+    }
+
+    override fun onNotificationRemoved(sbn: StatusBarNotification?) {
+        ZapInbox.released(this, sbn ?: return)
+    }
+
+    private fun capture(sbn: StatusBarNotification) {
+        if (sbn.packageName != WhatsAppLink.PACKAGE && sbn.packageName != WhatsAppLink.BUSINESS_PACKAGE) return
+        val health = ZapHealth(this)
+        health.sawWhatsApp()
+        val id = sbn.notification?.shortcutId
+        health.sawIdKind(
+            when {
+                id == null -> "title"
+                id.endsWith("@s.whatsapp.net") -> "phone"
+                id.endsWith("@lid") -> "lid"
+                id.endsWith("@g.us") -> "group"
+                else -> "other"
+            },
+        )
+        val captured = try {
+            ZapInbox.capture(this, sbn)
+        } catch (e: RuntimeException) {
+            // Never let one odd notification take the listener down; keep the reason for the Check card.
+            health.failed("${e.javaClass.simpleName}: ${e.message}")
+            return
+        } ?: return health.failed("unreadable notification (${sbn.notification?.extras?.keySet()?.sorted()?.joinToString()})")
+        health.captured()
+        val chat = captured.chat
+        if (!chat.isGroup) chat.waDigits?.let { ZapPeople(this).remember(it, chat.title) }
+        captured.fresh?.let { message ->
+            val sender = if (chat.isGroup) "${chat.title} · ${message.sender}" else chat.title
+            ZapNotifier.announce(this, sender, message.text, chat.recipient().takeIf { chat.canReply || ZapInbox.canReplyLive(chat.key) })
+        }
+    }
+}

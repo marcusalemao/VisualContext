@@ -1,0 +1,167 @@
+{
+  "version": 1,
+  "operations": [
+    {
+      "id": "list_chats",
+      "version": 1,
+      "label": "List WhatsApp chats",
+      "description": "Lists the wearer's recent WhatsApp chats as Zap saw them arrive on the phone, newest first, at most twelve, each with the last message, who sent it, and how long ago. Only chats that arrived while Zap was on are known. Pass a returned chat to read_chat or send_message.",
+      "examples": ["Who wrote to me on WhatsApp?", "Do I have new messages?"],
+      "effect": "read",
+      "cancellable": false,
+      "deduplicates": true,
+      "requires": [],
+      "prerequisites": ["notification_access"],
+      "data": ["text"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "filter": {"type": "string", "minLength": 1, "maxLength": 60, "description": "Optional part of a chat name to keep."}
+        }
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "chats": {
+            "type": "array",
+            "maxItems": 12,
+            "items": {
+              "type": "object",
+              "properties": {
+                "chat": {"type": "string", "nexusRef": "chat"},
+                "name": {"type": "string", "maxLength": 80},
+                "group": {"type": "boolean"},
+                "last_from": {"type": "string", "maxLength": 80},
+                "last_text": {"type": "string", "maxLength": 160},
+                "last_time": {"type": "string", "maxLength": 16},
+                "minutes_ago": {"type": "integer", "minimum": 0, "maximum": 20160},
+                "can_reply": {"type": "boolean"}
+              },
+              "required": ["chat", "name", "group", "can_reply"]
+            }
+          },
+          "total": {"type": "integer", "minimum": 0, "maximum": 1000}
+        },
+        "required": ["chats", "total"]
+      }
+    },
+    {
+      "id": "read_chat",
+      "version": 1,
+      "label": "Read a WhatsApp chat",
+      "description": "Reads the latest messages of one WhatsApp chat, oldest first, each in full with sender and time. Give a chat returned earlier, or a name as the wearer said it; when the name fits several chats it asks the wearer which one. A message shown as [mandou uma foto] or [sent a photo] is a photo. Sender Você or You is the wearer.",
+      "examples": ["What did Leo say?", "Read me the family group"],
+      "effect": "read",
+      "cancellable": false,
+      "deduplicates": true,
+      "requires": [],
+      "prerequisites": ["notification_access"],
+      "data": ["text"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "chat": {"type": "string", "nexusRef": "chat"},
+          "name": {"type": "string", "minLength": 1, "maxLength": 60, "description": "Chat or person name as the wearer said it, when no chat was returned yet."},
+          "count": {"type": "integer", "minimum": 1, "maximum": 30, "description": "How many of the latest messages; 15 if left out."}
+        }
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "chat": {"type": "string", "nexusRef": "chat"},
+          "name": {"type": "string", "maxLength": 80},
+          "group": {"type": "boolean"},
+          "messages": {
+            "type": "array",
+            "maxItems": 30,
+            "items": {
+              "type": "object",
+              "properties": {
+                "from": {"type": "string", "maxLength": 80},
+                "time": {"type": "string", "maxLength": 16},
+                "text": {"type": "string", "maxLength": 800},
+                "photo": {"type": "boolean"}
+              },
+              "required": ["from", "time", "text", "photo"]
+            }
+          },
+          "older_left_out": {"type": "boolean"}
+        },
+        "required": ["chat", "name", "group", "messages", "older_left_out"]
+      }
+    },
+    {
+      "id": "recent_messages",
+      "version": 1,
+      "label": "Recent WhatsApp messages",
+      "description": "Messages other people sent the wearer on WhatsApp in the last hours, across all chats, newest first, at most thirty. Use it to catch the wearer up or summarize what they missed. The wearer's own messages are left out.",
+      "examples": ["What did I miss on WhatsApp?", "Summarize my messages from this morning"],
+      "effect": "read",
+      "cancellable": false,
+      "deduplicates": true,
+      "requires": [],
+      "prerequisites": ["notification_access"],
+      "data": ["text"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "hours": {"type": "integer", "minimum": 1, "maximum": 48, "description": "How far back; 12 if left out."}
+        }
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "messages": {
+            "type": "array",
+            "maxItems": 30,
+            "items": {
+              "type": "object",
+              "properties": {
+                "chat": {"type": "string", "nexusRef": "chat"},
+                "name": {"type": "string", "maxLength": 80},
+                "from": {"type": "string", "maxLength": 80},
+                "time": {"type": "string", "maxLength": 16},
+                "text": {"type": "string", "maxLength": 300}
+              },
+              "required": ["chat", "name", "from", "time", "text"]
+            }
+          },
+          "truncated": {"type": "boolean"}
+        },
+        "required": ["messages", "truncated"]
+      }
+    },
+    {
+      "id": "send_message",
+      "version": 1,
+      "label": "Send a WhatsApp message",
+      "description": "Sends a text message on WhatsApp, always in two steps. The first call, without confirm, sends nothing: it asks the wearer with a Send choice showing the exact text. Only when the wearer picks Send, call again with the same chat (or contact) and the same text, and that choice's reference as confirm. Never pass confirm without the wearer having picked Send. A changed text needs a new confirmation. Give a chat or contact returned earlier, or a name; an ambiguous name asks which person.",
+      "examples": ["Tell Leo I'm on my way", "Reply to Ana that I'll call later"],
+      "effect": "action",
+      "cancellable": false,
+      "deduplicates": true,
+      "requires": [],
+      "prerequisites": ["notification_access"],
+      "data": ["text", "status"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "chat": {"type": "string", "nexusRef": "chat"},
+          "contact": {"type": "string", "nexusRef": "contact"},
+          "name": {"type": "string", "minLength": 1, "maxLength": 60, "description": "Person or chat name as the wearer said it."},
+          "text": {"type": "string", "minLength": 1, "maxLength": 1000, "description": "The message exactly as it will be sent."},
+          "confirm": {"type": "string", "nexusRef": "send_confirmation"}
+        },
+        "required": ["text"]
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "outcome": {"type": "string", "enum": ["sent", "opened_for_thumb", "waiting_for_unlock"]},
+          "to": {"type": "string", "maxLength": 80}
+        },
+        "required": ["outcome", "to"]
+      }
+    }
+  ]
+}

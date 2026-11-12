@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Zap's mark: a single Z. Stroke only, like every Nexus glyph; additive optics turn fills into slabs. -->
+<resources>
+    <string-array name="nexus_glyphs">
+        <item>zap|M6.5,6 L17.5,6 L6.5,18 L17.5,18</item>
+    </string-array>
+</resources>
