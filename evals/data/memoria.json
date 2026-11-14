@@ -1,0 +1,28 @@
+{
+  "today": "2026-11-09T18:30:00-03:00",
+  "me": "Rafa",
+  "encounters": [
+    {"at": "2026-11-09T09:10:00-03:00", "capture_mode": "encounter", "person_name": "Ana Souza", "place": "Café Pop (Rua Augusta, 1200)", "summary": "Café com Ana: projeto de mobilidade urbana. Ela pediu o orçamento revisado até quinta-feira 12/11. Combinaram almoço na sexta 13/11 ao meio-dia no Pop Vegan."},
+    {"at": "2026-11-09T12:40:00-03:00", "capture_mode": "live", "summary": "Música do bar: Garota de Ipanema, de Tom Jobim (Pop Vegan)."},
+    {"at": "2026-11-09T15:05:00-03:00", "capture_mode": "encounter", "person_name": "Bruno Lima", "place": "Escritório (Av. Paulista, 900)", "summary": "Reunião com Bruno sobre o app de entregas: ele vai mandar os acessos do Figma amanhã. Bruno mudou de empresa, agora está na Rota Logística."},
+    {"at": "2026-11-08T10:00:00-03:00", "capture_mode": "encounter", "person_name": "Carla Mendes", "place": "Parque Ibirapuera", "summary": "Corrida com Carla. Ela indicou o fisioterapeuta Dr. Paulo, da clínica Miofascial."},
+    {"at": "2026-11-08T20:30:00-03:00", "capture_mode": "live", "summary": "Cardápio do restaurante Jun Sakamoto lido pelo assistente; pedi o omakase."},
+    {"at": "2026-11-07T14:00:00-03:00", "capture_mode": "encounter", "person_name": "Diego Alves", "place": "Coworking Cubo (Itaim)", "summary": "Diego apresentou a startup de óculos inteligentes; quer marcar uma demo na semana que vem. Pediu o portfólio por e-mail."},
+    {"at": "2026-11-06T19:00:00-03:00", "capture_mode": "encounter", "person_name": "Ana Souza", "place": "Livraria Cultura (Paulista)", "summary": "Lançamento do livro da Ana. Conversa rápida sobre o projeto de mobilidade."},
+    {"at": "2026-11-05T11:30:00-03:00", "capture_mode": "encounter", "person_name": "Mariana Costa", "place": "SmartFit Penaforte", "summary": "Mariana, personal trainer: novo treino de três dias por semana, segunda, quarta e sexta às 7h."},
+    {"at": "2026-11-03T16:00:00-03:00", "capture_mode": "live", "summary": "Tradução de uma placa em alemão no museu: 'Bitte nicht berühren' = 'Por favor, não toque'."},
+    {"at": "2026-10-30T09:00:00-03:00", "capture_mode": "encounter", "person_name": "Bruno Lima", "place": "Café Pop (Rua Augusta, 1200)", "summary": "Primeira conversa com Bruno sobre o app de entregas; ele ainda trabalhava na Entrega Já."}
+  ],
+  "notes": [
+    {"at": "2026-11-09T09:40:00-03:00", "title": "Orçamento revisado para a Ana até quinta 12/11"},
+    {"at": "2026-11-09T15:30:00-03:00", "title": "Pedir ao Bruno os acessos do Figma se não chegarem amanhã"},
+    {"at": "2026-11-08T21:15:00-03:00", "title": "Comprar presente de aniversário da Carol (dia 20/11)"},
+    {"at": "2026-11-07T14:40:00-03:00", "title": "Mandar o portfólio para o Diego por e-mail"},
+    {"at": "2026-11-04T08:00:00-03:00", "title": "Renovar o seguro do carro até 15/11"}
+  ],
+  "things": [
+    {"seen_at": "2026-11-09T17:55:00-03:00", "name": "chaves", "location_description": "na mesa da sala, ao lado do vaso azul"},
+    {"seen_at": "2026-11-09T08:20:00-03:00", "name": "óculos de sol", "location_description": "no porta-luvas do carro"},
+    {"seen_at": "2026-11-06T22:00:00-03:00", "name": "carregador do notebook", "location_description": "na mochila preta, bolso da frente"}
+  ]
+}

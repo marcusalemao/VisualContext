@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel VisualContext</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="/brand/visualcontext-symbol.svg" type="image/svg+xml">
+<meta name="theme-color" content="#07090c">
+<style>
+:root{--bg:#07090c;--s1:#0d1217;--s2:#121a20;--line:rgba(255,255,255,.1);--line2:rgba(255,255,255,.2);--g:#00ff88;--g2:#8fdfb5;--t:#e8f0ec;--m:#9aaaa2;--warn:#ffcf5a;--err:#ff8a8a;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--t);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:var(--g)}
+.wrap{max-width:1100px;margin:0 auto;padding:0 16px}
+header{border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5}
+header .wrap{display:flex;align-items:center;gap:12px;min-height:60px}
+header img{height:34px}
+header h1{font-size:18px;margin:0;color:var(--g)}
+header .sp{margin-left:auto;display:flex;gap:8px}
+@media (max-width:600px){header .lbl{display:none}header h1{font-size:16px}}
+html,body{overflow-x:hidden}
+button,.b{min-height:38px;padding:0 14px;border-radius:10px;border:1px solid var(--line2);background:transparent;color:var(--g);font:600 14px system-ui;cursor:pointer;display:inline-flex;align-items:center;gap:6px;text-decoration:none}
+button:hover,.b:hover{border-color:var(--g)}
+button.pri{background:var(--g);color:var(--bg);border-color:var(--g)}
+button.dan{color:var(--err)}
+button:disabled{opacity:.5;cursor:wait}
+.ic{width:18px;height:18px;flex:none}
+.top{padding:22px 0 8px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media (max-width:700px){.stats{grid-template-columns:repeat(2,1fr)}}
+.stat{background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:12px 14px;cursor:pointer;text-align:left;min-height:auto;display:block;color:var(--t)}
+.stat b{display:block;font:700 26px system-ui;color:var(--t)}
+.stat span{color:var(--m);font-size:13px}
+.stat.on{border-color:var(--g)}.stat.on b{color:var(--g)}
+.stat.pend b{color:var(--warn)}
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:16px 0 6px}
+.bar input{flex:1;min-width:200px;min-height:40px;background:var(--s1);color:var(--t);border:1px solid var(--line2);border-radius:10px;padding:0 12px;font:inherit}
+.mail{font-size:13px;color:var(--m);margin:4px 0 10px}
+.mail b{color:var(--warn)}
+.list{display:grid;gap:10px;padding-bottom:60px}
+.row{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:14px 16px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:8px 24px;align-items:start}
+@media (max-width:860px){.row{grid-template-columns:1fr}}
+.who b{font-size:16px}.who .e{color:var(--m);word-break:break-all;font-size:14px}
+.meta{color:var(--m);font-size:13px}
+.meta span{display:block}
+.pill{display:inline-block;font:700 11px var(--mono);letter-spacing:.06em;padding:3px 8px;border-radius:99px;border:1px solid currentColor;margin-left:6px;vertical-align:2px}
+.p-pending{color:var(--warn)}.p-approved{color:var(--g)}.p-declined{color:var(--err)}.p-off{color:var(--m)}
+.code{font:700 15px var(--mono);color:var(--g);letter-spacing:.06em}
+.warn{color:var(--warn)}
+.acts{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:10px;margin-top:2px}
+.lim{grid-column:1/-1;display:none;background:var(--s2);border-radius:12px;padding:12px;gap:8px;grid-template-columns:repeat(5,1fr) auto;align-items:end}
+.lim.on{display:grid}
+@media (max-width:860px){.lim{grid-template-columns:1fr 1fr}}
+.lim label{font-size:12px;color:var(--m);display:grid;gap:4px}
+.lim input,.lim select,.add input,.add select{min-height:38px;background:var(--bg);color:var(--t);border:1px solid var(--line2);border-radius:8px;padding:0 10px;font:inherit;width:100%}
+details.add{background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:10px 14px;margin-top:12px}
+details.add summary{cursor:pointer;color:var(--g);font-weight:600}
+details.add form{display:grid;grid-template-columns:2fr 1.3fr 1.3fr auto;gap:8px;margin-top:10px}
+@media (max-width:700px){details.add form{grid-template-columns:1fr}}
+.empty{color:var(--m);padding:30px 0;text-align:center}
+.gate{max-width:420px;margin:80px auto;text-align:center;color:var(--m)}
+/* Painel (Marcus, 10/11): a desktop dashboard with its own login — sidebar on wide screens, tabs on the phone */
+.shell{display:grid;grid-template-columns:220px minmax(0,1fr);min-height:calc(100vh - 61px)}
+nav.side{border-right:1px solid var(--line);padding:16px 10px;display:flex;flex-direction:column;gap:4px;position:sticky;top:61px;height:calc(100vh - 61px)}
+nav.side button{justify-content:flex-start;text-align:left;border:0;color:var(--t);min-height:42px;font-weight:600;width:100%}
+nav.side button.on{background:var(--s2);color:var(--g)}
+nav.side .badge{margin-left:auto;background:var(--warn);color:var(--bg);border-radius:99px;font:700 11px system-ui;padding:1px 7px}
+nav.side .who{margin-top:auto;color:var(--m);font-size:12px;word-break:break-all;padding:8px}
+.shell main{padding:0 24px;max-width:1200px}
+@media (max-width:860px){.shell{grid-template-columns:1fr}nav.side{position:static;height:auto;flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);padding:8px}nav.side button{width:auto;white-space:nowrap}nav.side .who{display:none}.shell main{padding:0 16px}}
+.fbgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:16px;padding-bottom:60px}
+@media (max-width:1000px){.fbgrid{grid-template-columns:1fr}}
+.fbgrid>.list{align-self:start;align-content:start;display:grid;gap:8px}
+.fbitem{height:auto;align-items:start;background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:10px;display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px;cursor:pointer;text-align:left;color:var(--t);width:100%;min-height:auto;font:inherit}
+.fbitem.on{border-color:var(--g)}
+.fbitem .th{width:96px;height:64px;border-radius:8px;background:var(--s2) center/cover no-repeat}
+.fbitem b{display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.fbdetail{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:16px;position:sticky;top:76px;align-self:start}
+.fbdetail img{width:100%;max-height:70vh;object-fit:contain;background:#000;border-radius:10px;border:1px solid var(--line2);display:block;margin-top:10px}
+.fbfilters{display:flex;gap:6px;flex-wrap:wrap;margin:16px 0 10px}
+.fbfilters button.on{background:var(--g);color:var(--bg)}
+.loginbox{max-width:380px;margin:60px auto;background:var(--s1);border:1px solid var(--line);border-radius:18px;padding:24px;display:grid;gap:12px}
+.loginbox input{min-height:46px;background:var(--bg);color:var(--t);border:1px solid var(--line2);border-radius:10px;padding:0 12px;font:inherit}
+.heat a.card{display:block;background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:16px;text-decoration:none;color:var(--t);margin-top:10px}
+.heat a.card b{color:var(--g)}
+.cts{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.ct{background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:grid;gap:4px}
+.ct b{font-size:26px;color:var(--t)}.ct small{font-size:14px;color:var(--m);font-weight:500}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(80px);background:var(--g);color:var(--bg);font-weight:700;padding:10px 16px;border-radius:12px;transition:.25s;max-width:92vw;z-index:9;opacity:0;pointer-events:none}
+#toast.on{transform:translateX(-50%) translateY(0);opacity:1}
+</style>
+</head>
+<body>
+<header><div class="wrap" style="max-width:none">
+  <a href="/manager"><img src="/brand/visualcontext-logo-transparent.png" alt="VisualContext"></a>
+  <h1>Painel</h1>
+  <div class="sp"><a class="b" aria-label="Página de pedido" href="https://vc.alema.io/test-invite/" target="_blank" rel="noopener"><span data-i="open_in_new"></span><span class="lbl">Página de pedido</span></a><button id="reload" aria-label="Atualizar"><span data-i="history"></span><span class="lbl">Atualizar</span></button><button id="logout" aria-label="Sair"><span data-i="close"></span><span class="lbl">Sair</span></button></div>
+</div></header>
+<div class="shell" id="shell"><nav class="side" id="side"></nav><main id="app"></main></div>
+<div id="toast" role="status"></div>
+<script src="/icons.js"></script>
+<script>
+const API = "https://vzqjwhlpwvqrosoiwiin.supabase.co/functions/v1/vc";
+const AUTH = "https://vzqjwhlpwvqrosoiwiin.supabase.co/auth/v1", PUB = "sb_publishable_EA_WlXKNQ9aiCQjknR8b3A_Z1qMuRxp";
+const st = { get: k => { try { return localStorage.getItem(k); } catch (_) { return null; } }, set: (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (_) {} } };
+let TOKEN = st.get("vc_admin_token") || st.get("vc_token");
+let SEC = st.get("vc_admin_sec") || "pedidos", ME = null;
+const MANAGER = location.origin + "/manager";
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const ic = n => window.I ? I(n) : "";
+const when = d => d ? new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
+const day = d => d ? new Date(d).toLocaleDateString("pt-BR") : "";
+function toast(t) { const el = $("#toast"); el.textContent = t; el.classList.add("on"); clearTimeout(toast.h); toast.h = setTimeout(() => el.classList.remove("on"), 3200); }
+async function call(action, extra = {}) {
+  const r = await fetch(API, { method: "POST", headers: { "content-type": "application/json", "x-vc-token": TOKEN }, body: JSON.stringify({ action, ...extra }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.detail || j.error || r.status);
+  return j;
+}
+const ST = { pending: "Em espera", approved: "Aprovados", declined: "Recusados", off: "Desativados" };
+const PILL = { pending: "EM ESPERA", declined: "RECUSADO", off: "DESATIVADO" };
+let D = null, F = "pending", Q = "";
+
+// Same words as the approval e-mail (vc/index.ts inviteMail), for sending by WhatsApp or by hand.
+function answer(r, code) {
+  const first = (r.name || "").trim().split(/\s+/)[0], c = String(code || "").replace(/-/g, ""), link = `${D.download}#c=${c}`;
+  if (r.lang === "en") return { subject: `Your VisualContext access code: ${c}`, text: `Hi${first ? " " + first : ""}!\n\nYou're in the VisualContext beta.\n\nYour access code: ${c}\n\n1. Install the app on your Android phone: ${D.download}\n2. Open it, tap "Tenho um código de convite" (I have an invite code) and type the code.\n3. Your access page, with the steps and the test plan: ${link}\n4. The Manager, to see everything in your browser (same code): https://vc.alema.io/manager\n\nThe code works for 14 days. The green bubble in the app sends feedback: tell me everything, good and bad.\n\nThanks!\nMarcus` };
+  if (r.lang === "de") return { subject: `Dein Zugangscode für VisualContext: ${c}`, text: `Hallo${first ? " " + first : ""}!\n\nDu bist in der Beta von VisualContext.\n\nDein Zugangscode: ${c}\n\n1. Installiere die App auf deinem Android-Handy: ${D.download}\n2. Öffne sie, tippe auf "Tenho um código de convite" (Ich habe einen Einladungscode) und gib den Code ein.\n3. Deine Zugangsseite, mit den Schritten und dem Testplan: ${link}\n4. Der Manager, um alles im Browser zu sehen (gleicher Code): https://vc.alema.io/manager\n\nDer Code gilt 14 Tage. Die grüne Blase in der App schickt Feedback: Erzähl mir alles, Gutes und Schlechtes.\n\nDanke!\nMarcus` };
+  return { subject: `Seu código de acesso do VisualContext: ${c}`, text: `Oi${first ? ", " + first : ""}!\n\nVocê entrou no beta do VisualContext.\n\nSeu código de acesso: ${c}\n\n1. Instale o app no celular Android: ${D.download}\n2. Abra, toque em "Tenho um código de convite" e digite o código.\n3. Sua página de acesso, com o passo a passo e o roteiro do teste: ${link}\n4. O Manager, para ver tudo no navegador (mesmo código): https://vc.alema.io/manager\n\nO código vale 14 dias. O balão verde no app manda feedback: conte tudo, bom e ruim.\n\nObrigado!\nMarcus` };
+}
+
+function row(r) {
+  const tier = r.tier === "super" ? "SUPER" : "BETA";
+  const pill = r.status === "approved" ? `<span class="pill p-approved">${tier}</span>` : `<span class="pill p-${r.status}">${PILL[r.status]}</span>`;
+  const ask = r.from_site ? `pediu em ${esc(when(r.asked_at))}` : "convidado direto, sem pedido";
+  const info = [r.phone && "Celular: " + esc(r.phone), r.glasses && "Óculos: " + esc(r.glasses === "outros" ? "outra marca" : r.glasses), r.note && !r.from_site && esc(r.note)].filter(Boolean);
+  let mid = "", acts = "";
+  if (r.status === "approved") {
+    const sent = r.notified_at ? `Resposta ${r.notified_how === "email" ? "enviada por e-mail" : r.notified_how === "mailto" ? "aberta no seu e-mail" : "copiada"} em ${esc(when(r.notified_at))}` : `<span class="warn">Resposta ainda não enviada</span>`;
+    const used = r.devices.length ? `Entrou · ${r.devices.length} ${r.devices.length === 1 ? "aparelho" : "aparelhos"}${r.last_day ? " · último uso " + esc(r.last_day.split("-").reverse().join("/")) : ""}` : "Ainda não entrou";
+    mid = `<div class="meta"><span>Código <span class="code">${esc(r.code || "—")}</span></span><span>usado em ${r.code_uses} de 3 aparelhos · vale até ${esc(day(r.code_expires))}</span><span>${sent}</span><span>${used}</span><span>${r.calls} pedidos · ${r.live_min} min de assistente · US$ ${r.spent.toFixed(2)} de ${Number(r.limits.budget_usd).toFixed(2)}</span>${r.live_real ? `<span>Voz medida: ${r.live_real.minutes} min · US$ ${r.live_real.usd.toFixed(3)} (US$ ${r.live_real.usd_per_min?.toFixed(3)}/min)</span>` : ""}</div>`;
+    acts = `<button class="pri" data-a="copy" data-e="${esc(r.email)}">${ic("content_copy")}Copiar resposta</button><button data-a="mail" data-e="${esc(r.email)}">${ic("mail")}Abrir no e-mail</button><button data-a="code" data-e="${esc(r.email)}">Novo código</button><button data-a="lim" data-e="${esc(r.email)}">Limites</button>${r.from_site ? `<button class="dan" data-a="pending" data-e="${esc(r.email)}">Tirar acesso</button>` : `<button class="dan" data-a="off" data-e="${esc(r.email)}">Desativar</button>`}`;
+  } else if (r.status === "pending") {
+    mid = `<div class="meta"><span>Sem resposta: a pessoa só viu "Pedido recebido".</span></div>`;
+    acts = `<button class="pri" data-a="beta" data-e="${esc(r.email)}">Aprovar Beta</button><button data-a="super" data-e="${esc(r.email)}">Aprovar Super</button><button class="dan" data-a="no" data-e="${esc(r.email)}">Recusar</button>`;
+  } else if (r.status === "declined") {
+    mid = `<div class="meta"><span>Recusado em ${esc(when(r.decided_at))}. Nada foi enviado.</span></div>`;
+    acts = `<button data-a="beta" data-e="${esc(r.email)}">Aprovar Beta</button><button data-a="super" data-e="${esc(r.email)}">Aprovar Super</button><button data-a="pending" data-e="${esc(r.email)}">Voltar para espera</button>`;
+  } else {
+    mid = `<div class="meta"><span>Sem acesso.</span></div>`;
+    acts = r.from_site ? `<button data-a="beta" data-e="${esc(r.email)}">Aprovar Beta</button><button data-a="super" data-e="${esc(r.email)}">Aprovar Super</button>` : `<button data-a="on" data-e="${esc(r.email)}">Reativar</button>`;
+  }
+  const L = r.limits, C = r.custom || {};
+  const lim = r.status === "approved" ? `<form class="lim" data-lim="${esc(r.email)}"><label>Tipo<select name="tier"><option value="beta"${r.tier !== "super" ? " selected" : ""}>Beta</option><option value="super"${r.tier === "super" ? " selected" : ""}>Super (chaves próprias)</option></select></label>
+    <label>Dias de teste<input name="days" type="number" min="1" value="${C.days ?? ""}" placeholder="${L.days}"></label><label>Pedidos por dia<input name="calls_day" type="number" min="1" value="${C.calls_day ?? ""}" placeholder="${L.calls_day}"></label>
+    <label>Min de assistente/dia<input name="live_min_day" type="number" min="0" value="${C.live_min_day ?? ""}" placeholder="${L.live_min_day}"></label><label>Crédito total (US$)<input name="budget_usd" type="number" min="0" step="0.5" value="${C.budget_usd ?? ""}" placeholder="${L.budget_usd}"></label>
+    <button class="pri">Salvar</button></form>` : "";
+  return `<div class="row"><div class="who"><b>${esc(r.name || r.email.split("@")[0])}</b>${pill}<div class="e">${esc(r.email)}</div><div class="meta"><span>${ask}</span>${info.map(x => `<span>${x}</span>`).join("")}</div></div>${mid}<div class="acts">${acts}</div>${lim}</div>`;
+}
+
+// What the voice assistant really costs, measured from the tokens Google reports (Marcus, 10/11).
+function liveCard(l) {
+  if (!l) return "";
+  const line = (t, x) => x.sessions ? `<span><b>${t}:</b> ${x.sessions} ${x.sessions === 1 ? "conversa" : "conversas"} · ${x.minutes} min · US$ ${x.usd.toFixed(3)} · <b>US$ ${x.usd_per_min?.toFixed(3)}/min</b></span>` : `<span><b>${t}:</b> nada medido ainda</span>`;
+  const tk = l.all.tokens || {}, parts = Object.entries(tk).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k.replace("in:", "entrada ").replace("out:", "saída ").toLowerCase()} ${Math.round(v / 1000)}k`).join(" · ");
+  return `<div class="stat" style="cursor:default;margin-top:10px"><span style="color:var(--g);font-weight:700">Assistente de voz: custo real medido</span><div class="meta" style="margin-top:6px">${line("Você", l.founder)}${line("Testadores", l.testers)}${parts ? `<span>Tokens: ${esc(parts)}</span>` : ""}<span>Conta só conversas do app 0.19.5 em diante, com os preços de tabela do Google.</span></div></div>`;
+}
+
+function render() {
+  const rows = D.rows, n = k => rows.filter(r => r.status === k).length;
+  const q = Q.trim().toLowerCase();
+  const shown = rows.filter(r => (F === "all" || r.status === F) && (!q || (r.email + " " + (r.name || "")).toLowerCase().includes(q)))
+    .sort((a, b) => F === "pending" ? new Date(a.asked_at) - new Date(b.asked_at) : new Date(b.asked_at || b.accepted_at || 0) - new Date(a.asked_at || a.accepted_at || 0));
+  nav();
+  $("#app").innerHTML = `<div class="top"><h2 style="margin:0 0 12px">Pedidos e testadores</h2><div class="stats">${["pending", "approved", "declined", "off"].map(k => `<button class="stat ${k === "pending" && n(k) ? "pend" : ""} ${F === k ? "on" : ""}" data-f="${k}"><b>${n(k)}</b><span>${ST[k]}</span></button>`).join("")}</div>
+    <div class="bar"><input id="q" type="search" placeholder="Buscar nome ou e-mail" value="${esc(Q)}"><button data-f="all" class="${F === "all" ? "pri" : ""}">Todos (${rows.length})</button></div>
+    <p class="mail">${D.mail ? "As respostas saem por e-mail sozinhas quando você aprova." : "<b>Sem e-mail automático ainda:</b> quem você aprova não recebe nada até você mandar. Use Copiar resposta (WhatsApp) ou Abrir no e-mail. Quem está em espera ou recusado nunca recebe nada."}</p>
+    <details class="add"><summary>Convidar alguém direto, sem pedido</summary><form id="addf"><input name="email" type="email" placeholder="e-mail" required><input name="name" placeholder="nome (para a resposta)"><select name="tier"><option value="beta">Beta tester</option><option value="super">Super tester</option></select><button class="pri">Convidar</button></form></details></div>
+    <div class="list">${shown.map(row).join("") || `<p class="empty">${F === "pending" ? "Nenhum pedido esperando." : "Nada aqui."}</p>`}</div>`;
+  const qi = $("#q"); qi.oninput = () => { Q = qi.value; const pos = qi.selectionStart; render(); const n2 = $("#q"); n2.focus(); n2.setSelectionRange(pos, pos); };
+  $("#addf").onsubmit = async e => {
+    e.preventDefault(); const f = new FormData(e.target), email = String(f.get("email")).trim().toLowerCase();
+    try { const r = await call("invite_save", { email, tier: f.get("tier"), limits: {}, note: f.get("name") ? "convite direto: " + f.get("name") : null }); await copyAnswer({ email, name: f.get("name"), lang: "pt" }, r.code); load(); }
+    catch (x) { toast("Não deu: " + x.message); }
+  };
+}
+
+async function copyAnswer(r, code) {
+  const a = answer(r, code);
+  try { await navigator.clipboard.writeText(a.text); await call("mark_notified", { email: r.email, how: "copiado" }); toast("Resposta com o código " + code + " copiada: cole no WhatsApp ou e-mail"); }
+  catch (_) { toast("Não deu para copiar"); }
+}
+
+document.addEventListener("click", async e => {
+  const sc = e.target.closest("[data-sec]"); if (sc) { SEC = sc.dataset.sec; show(); return; }
+  const ff = e.target.closest("[data-fbf]"); if (ff) { FBF = ff.dataset.fbf; renderFeedback(); return; }
+  const fi = e.target.closest("[data-fbid]"); if (fi) { FBSEL = fi.dataset.fbid; renderFeedback(); if (innerWidth < 1000) $(".fbdetail")?.scrollIntoView({ behavior: "smooth" }); return; }
+  const ao = e.target.closest("[data-adm-off]"); if (ao) { if (confirm("Tirar o acesso de " + ao.dataset.admOff + " ao painel?")) { try { await call("admin_set", { email: ao.dataset.admOff, on: false }); renderAdmins(); } catch (x) { toast("Não deu: " + x.message); } } return; }
+  const f = e.target.closest("[data-f]"); if (f) { F = f.dataset.f; render(); return; }
+  const b = e.target.closest("[data-a]"); if (!b) return;
+  const r = D.rows.find(x => x.email === b.dataset.e), a = b.dataset.a;
+  try {
+    b.disabled = true;
+    if (a === "beta" || a === "super") {
+      const j = await call("request_decide", { email: r.email, decision: a });
+      if (j.mailed) toast(`${a === "super" ? "Super" : "Beta"} aprovado · resposta enviada por e-mail`);
+      else await copyAnswer(r, j.code);
+    } else if (a === "no") { if (confirm(`Recusar ${r.email}? A pessoa não recebe nada.`)) await call("request_decide", { email: r.email, decision: "no" }); }
+    else if (a === "pending") { if (confirm(`Voltar ${r.email} para a espera? ${r.status === "approved" ? "O acesso e o código param de funcionar na hora." : ""}`)) await call("request_decide", { email: r.email, decision: "pending" }); }
+    else if (a === "off") { if (confirm(`Desativar ${r.email}? Sai do app na hora.`)) await call("invite_remove", { email: r.email }); }
+    else if (a === "on") await call("invite_save", { email: r.email, tier: r.tier || "beta", limits: r.custom, note: r.note, active: true });
+    else if (a === "copy") { await copyAnswer(r, r.code); }
+    else if (a === "mail") { const m = answer(r, r.code); location.href = `mailto:${encodeURIComponent(r.email)}?subject=${encodeURIComponent(m.subject)}&body=${encodeURIComponent(m.text)}`; await call("mark_notified", { email: r.email, how: "mailto" }); }
+    else if (a === "code") { if (confirm(`Gerar um código novo para ${r.email}? O anterior para de funcionar.`)) { const j = await call("invite_code", { email: r.email, send: true }); if (j.mailed) toast("Código novo enviado por e-mail"); else await copyAnswer(r, j.code); } }
+    else if (a === "lim") { document.querySelector(`[data-lim="${CSS.escape(r.email)}"]`).classList.toggle("on"); b.disabled = false; return; }
+    await load();
+  } catch (x) { toast("Não deu: " + x.message); b.disabled = false; }
+});
+document.addEventListener("submit", async e => {
+  const f = e.target.closest("[data-lim]"); if (!f) return; e.preventDefault();
+  const r = D.rows.find(x => x.email === f.dataset.lim), d = new FormData(f), limits = {};
+  for (const k of ["days", "calls_day", "live_min_day", "budget_usd"]) if (d.get(k) !== "") limits[k] = Number(d.get(k));
+  try { await call("invite_save", { email: r.email, tier: d.get("tier"), limits, note: r.note, active: true }); toast("Limites salvos"); load(); } catch (x) { toast("Não deu: " + x.message); }
+});
+
+// Feedback with the moment it was sent (Marcus, 10/11): who, where in the app, what was open, and the screen / lens frames.
+let FB = null;
+function ctxLines(c, u) {
+  if (!c && !u) return "";
+  const x = [];
+  if (c?.page === "manager") x.push(`Manager · ${c.where || ""}`, c.open_item ? `Aberto: ${c.open_item.title || c.open_item.id || ""}${c.open_item.image ? " (com imagem)" : ""}` : null, c.sheet ? `Janela: ${c.sheet}` : null, c.search ? `Busca: "${c.search}"` : null, c.only_today ? "Filtro: só hoje" : null, c.viewport ? `Tela ${c.viewport}` : null);
+  else if (c?.page === "emulator") x.push(`Emulador · ${c.state || ""}`, c.card ? `Na lente: ${c.card}` : null, c.transcript ? `Última fala: ${c.transcript}` : null, c.toggles ? `Chaves: ${c.toggles}` : null, c.device ? `Aparelho: ${c.device}` : null);
+  else if (u?.where) x.push(u.where);
+  return x.filter(Boolean).map(l => `<span>${esc(l)}</span>`).join("");
+}
+let FBF = "all", FBSEL = null;
+function renderFeedback() {
+  const all = FB || [];
+  const face = f => +((f.text.match(/^\[(\d)\/5/) || [])[1] || 0);
+  const list = all.filter(f => FBF === "all" || (FBF === "emu" && /emulador/.test(f.app || "")) || (FBF === "web" && !/emulador/.test(f.app || "")) || (FBF === "shots" && (f.shots || []).length) || (FBF === "bad" && face(f) && face(f) <= 2));
+  const sel = list.find(f => f.id === FBSEL) || list[0];
+  const fl = (k, l) => `<button data-fbf="${k}" class="${FBF === k ? "on" : ""}">${l}</button>`;
+  $("#app").innerHTML = `<div class="top"><h2 style="margin:0">Feedback</h2><p class="meta">Cada recado com o momento: onde a pessoa estava, o que estava aberto e as imagens da tela ou da lente.</p>
+    <div class="fbfilters">${fl("all", `Todos (${all.length})`)}${fl("shots", "Com imagem")}${fl("bad", "Ruim / muito ruim")}${fl("emu", "Emulador")}${fl("web", "Manager")}</div></div>
+    <div class="fbgrid"><div class="list" style="padding:0">${list.map(f => `<button class="fbitem ${sel && f.id === sel.id ? "on" : ""}" data-fbid="${esc(f.id)}"><span class="th" style="${(f.shots || [])[0] ? `background-image:url('${f.shots[f.shots.length - 1]}')` : ""}"></span><span><b>${esc(f.text)}</b><span class="meta">${esc(f.owner_email || "?")} · ${esc(when(f.at))}<br>${esc(/emulador/.test(f.app || "") ? "Emulador" : "Manager")}${f.context?.where ? " · " + esc(f.context.where) : f.usage?.where ? " · " + esc(f.usage.where) : ""}</span></span></button>`).join("") || `<p class="empty">Nada aqui.</p>`}</div>
+    <div>${sel ? `<div class="fbdetail"><b style="font-size:17px;white-space:pre-wrap">${esc(sel.text)}</b><div class="meta" style="margin-top:6px"><span>${esc(sel.owner_email || "?")} · ${esc(when(sel.at))} · ${esc(sel.app || "")}</span>${ctxLines(sel.context, sel.usage)}</div>
+      ${(sel.shots || []).map((x, i, a) => [x, a.length - 1 - i]).reverse().map(([x, k]) => `<p class="meta" style="margin:12px 0 0">${k ? `${k * 3} s antes` : "No momento do feedback"}</p><a href="${x}" target="_blank" rel="noopener"><img src="${x}" alt="tela no momento do feedback"></a>`).join("") || `<p class="meta" style="margin-top:12px">Sem imagem: veio de uma versão antiga, ou a pessoa preferiu não mandar.</p>`}</div>` : ""}</div></div>`;
+}
+async function loadFeedback() { try { FB = await call("feedback_list", { limit: 100 }); renderFeedback(); } catch (x) { toast("Não deu: " + x.message); } }
+
+// Costs, heatmaps and admins
+function renderCosts() {
+  const l = D.live, rows = D.rows.filter(r => r.status === "approved" || r.calls || r.spent);
+  $("#app").innerHTML = `<div class="top"><h2 style="margin:0">Custos</h2><p class="meta">O que cada pessoa gastou da sua conta do Google (preços de tabela). Compare com a fatura do Google AI Studio.</p>${costTiles(l)}</div>
+    <div class="list">${rows.sort((a, b) => b.spent - a.spent).map(r => `<div class="row"><div class="who"><b>${esc(r.name || r.email)}</b><div class="e">${esc(r.email)}</div></div><div class="meta"><span>US$ ${r.spent.toFixed(2)} de ${Number(r.limits.budget_usd).toFixed(2)} · ${r.calls} pedidos · ${r.live_min} min de voz</span>${r.live_real ? `<span>Voz medida: US$ ${r.live_real.usd.toFixed(3)} (${r.live_real.usd_per_min?.toFixed(3)}/min)</span>` : ""}</div></div>`).join("") || `<p class="empty">Ninguém gastou nada ainda.</p>`}</div>`;
+}
+function costTiles(l) {
+  if (!l) return "";
+  const t = (k, x) => `<div class="ct"><span class="meta" style="margin:0">${k}</span><b>${x.sessions ? "US$ " + (x.usd_per_min ?? 0).toFixed(3) + "<small>/min</small>" : "—"}</b><span class="meta" style="margin:0">${x.sessions ? `${x.sessions} ${x.sessions === 1 ? "conversa" : "conversas"} · ${x.minutes} min · US$ ${x.usd.toFixed(2)}` : "nada medido ainda"}</span></div>`;
+  const tk = l.all?.tokens || {}, parts = Object.entries(tk).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k.replace("in:", "entrada ").replace("out:", "saída ").toLowerCase()} ${Math.round(v / 1000)}k`).join(" · ");
+  return `<h3 style="margin:18px 0 8px;font-size:15px;color:var(--g)">Assistente de voz: custo real medido</h3><div class="cts">${t("Você", l.founder)}${t("Testadores", l.testers)}</div><p class="meta">${parts ? "Tokens: " + esc(parts) + ". " : ""}Conta só conversas do app 0.19.5 em diante.</p>`;
+}
+const CLARITY = "zb1tjyx4v2";
+function renderHeat() {
+  const u = p => `https://clarity.microsoft.com/projects/view/${CLARITY}/${p}`;
+  $("#app").innerHTML = `<div class="top heat"><h2 style="margin:0">Mapas de calor e gravações</h2><p class="meta">Ficam no Microsoft Clarity, com a sua conta. O Clarity não deixa mostrar os mapas dentro de outra página, então os atalhos abrem lá. Os dados pessoais (lista, detalhes, respostas, a lente) são escondidos nas gravações.</p>
+    <a class="card" href="${u("heatmaps")}" target="_blank" rel="noopener"><b>Mapas de calor</b><br><span class="meta">Onde as pessoas tocam e rolam no Manager e no app, por página.</span></a>
+    <a class="card" href="${u("impressions")}" target="_blank" rel="noopener"><b>Gravações de sessão</b><br><span class="meta">Assista a uma visita do começo ao fim. Filtre por "rage clicks" (cliques de raiva) e "dead clicks" (cliques sem resposta) para achar onde travou.</span></a>
+    <a class="card" href="${u("dashboard")}" target="_blank" rel="noopener"><b>Painel do Clarity</b><br><span class="meta">Visitas, tempo, rolagem, cliques de raiva, por dia.</span></a>
+    <p class="meta" style="margin-top:14px">Dica: no Clarity, compare celular e computador com o filtro de dispositivo.</p></div>`;
+}
+async function renderAdmins() {
+  let a; try { a = await call("admin_list"); } catch (x) { $("#app").innerHTML = `<p class="empty">Não deu: ${esc(x.message)}</p>`; return; }
+  $("#app").innerHTML = `<div class="top"><h2 style="margin:0">Administradores</h2><p class="meta">Quem pode abrir este painel, aprovar e recusar pedidos e ler o feedback. Entram com o próprio e-mail e um código, sem senha.</p></div>
+    <div class="list">${a.admins.map(x => `<div class="row"><div class="who"><b>${esc(x.email)}</b><span class="pill ${x.plan === "founder" ? "p-approved" : "p-off"}">${x.plan === "founder" ? "FUNDADOR" : "ADMIN"}</span></div><div class="acts" style="border:0;padding:0;margin:0;grid-column:auto;justify-content:flex-end">${a.founder && x.plan !== "founder" ? `<button class="dan" data-adm-off="${esc(x.email)}">Tirar acesso</button>` : ""}</div></div>`).join("")}</div>
+    ${a.founder ? `<details class="add" open><summary>Adicionar administrador</summary><form id="admf"><input name="email" type="email" placeholder="e-mail" required><button class="pri">Adicionar</button></form></details>` : ""}`;
+  const f = $("#admf"); if (f) f.onsubmit = async e => { e.preventDefault(); try { await call("admin_set", { email: new FormData(f).get("email"), on: true }); toast("Administrador adicionado: ele entra aqui com o e-mail e um código"); renderAdmins(); } catch (x) { toast("Não deu: " + x.message); } };
+}
+function nav() {
+  const pend = D ? D.rows.filter(r => r.status === "pending").length : 0;
+  const items = [["pedidos", "badge", "Pedidos e testadores", pend], ["feedback", "rate_review", "Feedback"], ["custos", "speed", "Custos"], ["calor", "hub", "Mapas de calor"], ["admins", "person", "Administradores"]];
+  $("#side").innerHTML = items.map(([k, i, l, n]) => `<button data-sec="${k}" class="${SEC === k ? "on" : ""}">${ic(i)}${l}${n ? `<span class="badge">${n}</span>` : ""}</button>`).join("") + `<span class="who">${esc(ME || "")}</span>`;
+}
+function show() {
+  st.set("vc_admin_sec", SEC); nav();
+  if (SEC === "feedback") return FB ? renderFeedback() : loadFeedback();
+  if (SEC === "custos") return renderCosts();
+  if (SEC === "calor") return renderHeat();
+  if (SEC === "admins") return renderAdmins();
+  render();
+}
+
+async function load() {
+  try {
+    const me = await call("me"); ME = me.email;
+    if (!me.admin) { loginBox("Esta conta (" + me.email + ") não é administradora do painel. Entre com outro e-mail."); return; }
+    D = await call("admin_board"); FB = null; $("#logout").style.display = $("#reload").style.display = ""; show();
+  } catch (x) { if (/token/.test(x.message)) { TOKEN = null; st.set("vc_admin_token", null); loginBox(); } else $("#app").innerHTML = `<p class="empty">Não deu: ${esc(x.message)}</p>`; }
+}
+// Login of its own (Marcus, 10/11): e-mail + code, for the founder and the admins he names.
+function loginBox(msg) {
+  $("#side").innerHTML = ""; $("#logout").style.display = $("#reload").style.display = "none";
+  $("#app").innerHTML = `<form class="loginbox" id="lf"><h2 style="margin:0">Entrar no painel</h2><p class="meta" style="margin:0">Só para o fundador e os administradores. Chega um código no seu e-mail; não tem senha.</p>
+    <input name="e" type="email" placeholder="seu e-mail" autocomplete="email" required><input name="c" inputmode="numeric" placeholder="código de 6 números" class="hide" style="display:none" autocomplete="one-time-code">
+    <button class="pri" id="lb">Enviar código</button><p class="meta" id="lm" style="margin:0">${esc(msg || "")}</p></form>`;
+  const f = $("#lf"), m = $("#lm"), b = $("#lb"), ci = f.elements.c; let sent = false;
+  const post = (u, body, bearer) => fetch(u, { method: "POST", headers: { "content-type": "application/json", apikey: PUB, ...(bearer ? { authorization: "Bearer " + bearer } : {}) }, body: JSON.stringify(body) });
+  f.onsubmit = async e => {
+    e.preventDefault(); const email = f.elements.e.value.trim().toLowerCase(); b.disabled = true;
+    try {
+      if (!sent) {
+        m.textContent = "Enviando…";
+        const r = await post(AUTH + "/otp?redirect_to=" + encodeURIComponent(location.origin + location.pathname), { email, create_user: true });
+        if (!r.ok) throw new Error(r.status === 429 ? "Muitos pedidos. Espere um minuto." : "Não deu para enviar o código.");
+        sent = true; ci.style.display = "block"; ci.focus(); b.textContent = "Entrar"; m.textContent = "Enviamos um e-mail para " + email + ". Toque no link (abre aqui) ou digite o código. Veja também o spam.";
+      } else {
+        const code = ci.value.replace(/\D/g, ""); if (code.length < 6) throw new Error("Digite os 6 números.");
+        m.textContent = "Entrando…";
+        const r = await post(AUTH + "/verify", { type: "email", email, token: code });
+        if (!r.ok) throw new Error("Código errado ou vencido.");
+        await finish((await r.json()).access_token);
+      }
+    } catch (x) { m.textContent = x.message; }
+    b.disabled = false;
+  };
+}
+async function finish(access) {
+  const d = await fetch(API, { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + access }, body: JSON.stringify({ action: "register_device", name: "painel " + (navigator.userAgentData?.platform || navigator.platform || "") }) });
+  const j = await d.json().catch(() => ({}));
+  if (!d.ok || !j.token) throw new Error(d.status === 403 ? "Este e-mail não tem acesso ao painel." : "Não deu para entrar.");
+  TOKEN = j.token; st.set("vc_admin_token", j.token); load();
+}
+document.querySelectorAll("[data-i]").forEach(el => el.outerHTML = ic(el.dataset.i));
+$("#reload").onclick = () => { FB = null; load(); };
+$("#logout").onclick = () => { st.set("vc_admin_token", null); TOKEN = null; loginBox("Você saiu do painel."); };
+// The magic link from the e-mail lands here with the session in the address.
+const H = new URLSearchParams(location.hash.slice(1));
+if (H.get("access_token")) { history.replaceState(null, "", location.pathname); finish(H.get("access_token")).catch(x => loginBox(x.message)); }
+else if (!TOKEN) loginBox(); else load();
+</script>
+</body>
+</html>

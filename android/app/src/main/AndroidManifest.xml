@@ -2,16 +2,51 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.WRITE_CONTACTS" />
+    <uses-permission android:name="android.permission.READ_CALL_LOG" />
+    <!-- Zap's "who you talk to most" (counts only), when Zap is installed and the switch is on there. -->
+    <uses-permission android:name="io.alema.permission.FREQUENT_CONTACTS" />
 
     <queries>
+        <package android:name="com.google.android.apps.photos" />
+        <package android:name="com.google.android.keep" />
+        <package android:name="com.samsung.android.app.notes" />
+        <package android:name="com.spotify.music" />
+        <package android:name="com.google.android.apps.youtube.music" />
+        <package android:name="deezer.android.app" />
+        <package android:name="com.amazon.mp3" />
+        <package android:name="com.apple.android.music" />
+        <intent><action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" /></intent>
+        <package android:name="com.android.chrome" />
+        <provider android:authorities="io.alema.zap.frequent" />
+        <package android:name="com.linkedin.android" />
+        <package android:name="com.facebook.katana" />
+        <package android:name="com.instagram.android" />
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <package android:name="com.samsung.android.app.notes" />
         <intent>
             <action android:name="com.anezium.rokidbus.action.HUB" />
         </intent>
     </queries>
 
     <application
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
         android:allowBackup="false"
         android:label="@string/app_name"
         android:supportsRtl="true"
@@ -20,12 +55,69 @@
         <activity
             android:name=".SettingsActivity"
             android:exported="true"
+            android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- "Conectar óculos" in the Manager: visualcontext://conectar?t=TOKEN -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="visualcontext" android:host="conectar" />
+            </intent-filter>
         </activity>
+
+        <!-- The glasses on the phone: camera, mic, GPS and the same HUD. -->
+        <activity
+            android:name=".EmulatorActivity"
+            android:exported="false"
+            android:supportsPictureInPicture="true"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden" />
+
+        <!-- Spec 1o: check the calendar for meetings with people from the memory. -->
+        <receiver android:name=".Prep$Check" android:exported="false" />
+
+        <!-- Spec 5b: import named faces from Google Photos by reading the screen. -->
+        <activity
+            android:name=".PhotosPickActivity"
+            android:exported="true"
+            android:label="VisualContext: rostos do print"
+            android:launchMode="singleTask">
+            <!-- A long screenshot of Google Photos' "People and pets", shared from the gallery. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+        </activity>
+        <!-- Who you talk to most: counts only, never the text. Off until notification access is turned on. -->
+        <service
+            android:name=".TalkCounter"
+            android:exported="false"
+            android:label="VisualContext · com quem você mais fala"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".PhotosAuto"
+            android:exported="false"
+            android:label="@string/photos_auto_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data android:name="android.accessibilityservice" android:resource="@xml/photos_auto" />
+        </service>
+        <service
+            android:name=".PhotosCaptureService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
 
         <service
             android:name=".VisualContextPluginService"
@@ -41,8 +133,8 @@
             <meta-data android:name="com.anezium.rokidbus.plugin.DISPLAY_NAME" android:value="VisualContext" />
             <meta-data android:name="com.anezium.rokidbus.plugin.ICON" android:value="star" />
             <meta-data android:name="com.anezium.rokidbus.plugin.API_VERSION" android:value="3" />
-            <!-- v0.1: display only. camera, microphone, stt come in the next steps. -->
-            <meta-data android:name="com.anezium.rokidbus.plugin.CAPABILITIES" android:value="surfaces" />
+            <!-- v0.2: camera snapshots for "Quem é?". microphone and stt come next. -->
+            <meta-data android:name="com.anezium.rokidbus.plugin.CAPABILITIES" android:value="surfaces,camera" />
             <meta-data android:name="com.anezium.rokidbus.plugin.RECEIVE_PREFIXES" android:value="/plugin/visualcontext,/system/plugin" />
             <meta-data android:name="com.anezium.rokidbus.plugin.SETTINGS_ACTIVITY" android:value=".SettingsActivity" />
             <meta-data android:name="com.anezium.rokidbus.plugin.LAUNCHABLE" android:value="true" />

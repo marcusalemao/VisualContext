@@ -58,6 +58,27 @@ Status: proposal (10/10). Decided: privacy by default; the most sensitive guards
 - **Remote:** "erase everything" from the Manager on another device.
 - **Selective:** by voice, "forget the last 5 minutes", "forget this conversation", "forget [person]".
 
+### 5b. Only the owner: voice lock (decided 06/11)
+Taking the glasses off already locks them. On top of that, unlocking on the glasses asks for **the owner's voice saying the passphrase**:
+- **Two checks at once:** the words (the passphrase the user chose) and the voice (a voice signature of the owner, recorded once in setup with 3 phrases, kept on the phone like the face signatures). Both must match.
+- **Runs on the device,** never in the cloud (a small speaker-verification model, like the face engine).
+- **Fallback:** in a noisy place or with a cold, unlock on the phone with fingerprint or face, as before.
+- **Developer mode can turn it off** (Marcus, 06/11), so other people can try the glasses in tests. Like the other guards, it turns itself back on after 1 hour and the status line shows DEV meanwhile.
+- **Limits, said plainly:** a recording of the owner's voice could fool it; that is why it is combined with the worn sensor (off the face = locked again) and why the phone fallback exists.
+
+### 5c. SOS for the wearer (decided 06/11)
+For when **you** are in danger (a robbery, an accident). **Optional and off by default** (Marcus, 06/11: some people would be confused); turned on in Settings, with a test mode that sends nothing.
+- **Two triggers, the user picks one or both:**
+  - **a code phrase,** different from the unlock passphrase, something you would say naturally to a robber ("calma, eu entrego tudo"), so nothing looks suspicious. The user chooses it; the app warns if it is too common;
+  - **a tap pattern on the temple:** 5 quick taps, like Android's emergency SOS on the power button.
+- **What happens:** 5 seconds to cancel with a hidden tap; then your location goes to your trusted contacts (SMS and WhatsApp), and camera and microphone record to a copy that is uploaded at once, so the evidence survives if the glasses and phone are taken. Calling 190 is one more tap or the phrase again.
+- An app cannot trigger Android's own SOS; this does the same job.
+- **Not part of this:** the app never watches what the wearer does in order to report it. Proposed and declined on 06/11: it would break "your memory, only yours", it is a legal risk (LGPD, Lei 9.296/96 on interception, ECA art. 241-B on holding abuse material) and it makes the company a target. Misuse is handled by the guards, the terms of use, a public abuse channel and court orders.
+
+### 5d. Emergencies around you (proposal, 06/11)
+If an encounter looks like violence or an emergency (the scene and the words), the glasses **ask the wearer**: "Quer ligar para o 190?" / "Avisar o seu contato de confiança?". One tap or "sim" calls. **The app never reports to anyone on its own:** a false alarm about a private moment would be its own harm. The wearer decides.
+- **Misuse of the product** (using it to watch someone): forbidden in the terms of use, with a public channel to report abuse; accounts can be closed. We cannot see anyone's memory (local first, encrypted), so this rests on reports, not on watching users.
+
 ### 6. Sensitive situations (guardrails)
 
 **Privacy by default (decided 10/10):** everything starts on.
@@ -71,7 +92,7 @@ Status: proposal (10/10). Decided: privacy by default; the most sensitive guards
 | Bathroom, locker room, shower | Camera and microphone pause, pre-roll discarded | On-device image labels (toilet, urinal, shower) |
 | Nudity (a child at the pool, the beach) | The moment is kept **as text only**: a neutral scene description ("the kids running around the pool"), with no body or sexual detail. **No image of that moment is ever saved.** | On-device nudity classifier |
 | Sexual intimacy | Immediate pause, pre-roll discarded, nothing recorded | Same classifier + context |
-| Children | Moments with children are recorded like any other. Only **automatic face enrollment** of a child is blocked: your own children you add once by hand ("esse é o meu filho"), and a stranger's child at the park never becomes a record. | Age estimate under 18 |
+| Children | Moments with children are recorded like any other. Only **automatic face enrollment** of a child is blocked: your own children you add once by hand ("esse é o meu filho") or bring from your Google Photos (06/11: imported like anyone else, ticked), and a stranger's child at the park never becomes a record. | Age estimate under 18 |
 | Cards, passwords, documents on screen or paper | Numbers are masked before saving ("Registra isso", OCR) | Card/password/ID patterns |
 | Health, clinic, therapy | Option: keep only locally, never send to cloud AI | Place (calendar/GPS) or topic in the conversation |
 | Places you choose | Never record at home, at the doctor's, in a temple, etc. | Your geofences |
@@ -191,6 +212,27 @@ Status: proposta (10/10). Decidido: privacidade por padrão; as proteções mais
 - **Remota:** "apagar tudo" pelo Manager, de outro aparelho.
 - **Seletiva:** por voz, "esquece os últimos 5 minutos", "esquece essa conversa", "esquece o [pessoa]".
 
+### 5b. Só o dono: trava por voz (decidido em 06/11)
+Tirar os óculos já trava. Além disso, destravar nos óculos pede **a voz do dono dizendo a frase-senha**:
+- **Duas conferências juntas:** as palavras (a frase que o usuário escolheu) e a voz (uma assinatura de voz do dono, gravada uma vez na configuração com 3 frases, guardada no celular como as assinaturas de rosto). As duas precisam bater.
+- **Roda no aparelho,** nunca na nuvem (um modelo pequeno de verificação de voz, como o de rosto).
+- **Alternativa:** em lugar barulhento ou com gripe, destravar no celular com digital ou rosto, como antes.
+- **O modo desenvolvedor pode desligar** (Marcus, 06/11), para outras pessoas testarem os óculos. Como as outras proteções, volta a ligar sozinha depois de 1 hora, e a linha de status mostra DEV enquanto isso.
+- **Limites, sem enfeite:** uma gravação da voz do dono poderia enganar; por isso ela se soma ao sensor de uso (tirou do rosto = trava de novo) e existe a alternativa pelo celular.
+
+### 5c. SOS de quem usa (decidido em 06/11)
+Para quando **você** está em perigo (um assalto, um acidente). **Opcional e desligado por padrão** (Marcus, 06/11: tem gente que se confundiria); liga nos Ajustes, com um modo de teste que não envia nada.
+- **Dois gatilhos, o usuário escolhe um ou os dois:**
+  - **uma frase-código,** diferente da frase de desbloqueio, algo que você diria naturalmente para um ladrão ("calma, eu entrego tudo"), para nada parecer suspeito. O usuário escolhe; o app avisa se for comum demais;
+  - **um padrão de toques na haste:** 5 toques rápidos, como o SOS do Android no botão de ligar.
+- **O que acontece:** 5 segundos para cancelar com um toque escondido; depois a sua localização vai para os seus contatos de confiança (SMS e WhatsApp), e câmera e microfone gravam numa cópia que sobe na hora, para a prova sobreviver se levarem os óculos e o celular. Ligar para o 190 é mais um toque ou a frase de novo.
+- Um app não consegue acionar o SOS do próprio Android; isto faz o mesmo papel.
+- **Fora disto:** o app nunca vigia o que quem usa faz para denunciar. Proposto e recusado em 06/11: quebraria "a sua memória, só sua", é risco jurídico (LGPD, Lei 9.296/96 de interceptação, ECA art. 241-B sobre guardar material de abuso) e torna a empresa um alvo. Mau uso se resolve com as proteções, os termos de uso, um canal público de denúncia e ordens judiciais.
+
+### 5d. Emergências em volta (proposta, 06/11)
+Se um encontro parece violência ou emergência (a cena e as palavras), os óculos **perguntam a quem usa**: "Quer ligar para o 190?" / "Avisar o seu contato de confiança?". Um toque ou "sim" liga. **O app nunca denuncia ninguém sozinho:** um alarme falso sobre um momento privado seria um dano por si só. Quem decide é quem usa.
+- **Mau uso do produto** (usar para vigiar alguém): proibido nos termos de uso, com um canal público para denunciar abuso; contas podem ser encerradas. Nós não vemos a memória de ninguém (local primeiro, criptografada), então isso depende de denúncias, não de vigiar usuários.
+
 ### 6. Situações sensíveis (proteções)
 
 **Privacidade por padrão (decidido em 10/10):** tudo começa ligado.
@@ -204,7 +246,7 @@ Status: proposta (10/10). Decidido: privacidade por padrão; as proteções mais
 | Banheiro, vestiário, chuveiro | Câmera e microfone pausam; a pré-gravação é descartada | Rótulos de imagem no aparelho (vaso, mictório, chuveiro) |
 | Nudez (criança na piscina, na praia) | O momento fica **só como texto**: uma descrição neutra da cena ("as crianças correndo em volta da piscina"), sem nenhum detalhe de corpo ou sexual. **Nenhuma imagem desse momento é guardada.** | Classificador de nudez no aparelho |
 | Intimidade sexual | Pausa imediata, pré-gravação descartada, nada é registrado | Mesmo classificador + contexto |
-| Crianças | Momentos com crianças são registrados como qualquer outro. Só o **cadastro automático do rosto** de uma criança é bloqueado: os seus filhos você cadastra uma vez, à mão ("esse é o meu filho"), e o filho de um estranho no parque nunca vira registro. | Idade estimada abaixo de 18 |
+| Crianças | Momentos com crianças são registrados como qualquer outro. Só o **cadastro automático do rosto** de uma criança é bloqueado: os seus filhos você cadastra uma vez, à mão ("esse é o meu filho"), ou traz do seu Google Fotos (06/11: importadas como qualquer pessoa, já marcadas), e o filho de um estranho no parque nunca vira registro. | Idade estimada abaixo de 18 |
 | Cartões, senhas, documentos na tela ou no papel | Os números são mascarados antes de salvar ("Registra isso", OCR) | Padrões de cartão, senha e documento |
 | Saúde, clínica, terapia | Opção: guardar só no aparelho, nunca mandar para a IA na nuvem | Local (agenda/GPS) ou assunto da conversa |
 | Lugares que você escolher | Nunca grava em casa, no médico, no templo etc. | As suas cercas geográficas |

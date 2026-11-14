@@ -1,4 +1,16 @@
-/manager        /webapp               301
-/manager.html   /webapp               301
-/emulator       /emulator-standalone  301
-/emulator.html  /emulator-standalone  301
+/webapp              /manager     301
+/webapp.html         /manager     301
+/emulator            /demo        301
+/emulator.html       /demo        301
+/emulator-standalone /demo        301
+/hud-editor          /manager     301
+/filme               /demo-film   301
+/film                /demo-film   301
+/quero-testar        /convite     301
+/beta-convite        /convite     301
+/convite             https://vc.alema.io/test-invite/  301
+# Marcus (10/11): everything under his domain. The Manager and the admin panel are published at vc.alema.io (alema-site copies them).
+/manager             https://vc.alema.io/manager  301
+/manager.html        https://vc.alema.io/manager  301
+/admin               https://vc.alema.io/admin    301
+/admin.html          https://vc.alema.io/admin    301

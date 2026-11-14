@@ -1,0 +1,40 @@
+<!doctype html>
+<meta charset="utf-8">
+<!-- Face engine for the VisualContext plugin. Runs only on the phone; nothing leaves it.
+     face-api.js (MIT, @vladmandic/face-api 1.7.15): SSD MobileNet v1 + 68 landmarks + 128-d recognition. -->
+<script src="face-api.js"></script>
+<script>
+let ready = null;
+function load() {
+  if (!ready) ready = (async () => {
+    try { await faceapi.tf.setBackend('webgl'); } catch (e) { await faceapi.tf.setBackend('cpu'); }
+    await faceapi.tf.ready();
+    await faceapi.nets.ssdMobilenetv1.loadFromUri('model');
+    await faceapi.nets.faceLandmark68Net.loadFromUri('model');
+    await faceapi.nets.faceRecognitionNet.loadFromUri('model');
+    return faceapi.tf.getBackend();
+  })();
+  return ready;
+}
+function reply(id, obj) { (window.VC ? VC.result(id, JSON.stringify(obj)) : console.log(id, JSON.stringify(obj))); }
+async function warm(id) {
+  try { reply(id, { ok: true, backend: await load() }); } catch (e) { reply(id, { ok: false, error: String(e) }); }
+}
+// jpegB64: JPEG without the data: prefix. Answers every face, biggest first.
+async function describe(id, jpegB64) {
+  try {
+    await load();
+    const img = new Image();
+    img.src = 'data:image/jpeg;base64,' + jpegB64;
+    await img.decode();
+    const opts = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 });
+    const found = await faceapi.detectAllFaces(img, opts).withFaceLandmarks().withFaceDescriptors();
+    const faces = found.map(f => ({
+      score: f.detection.score,
+      box: { x: f.detection.box.x, y: f.detection.box.y, w: f.detection.box.width, h: f.detection.box.height },
+      descriptor: Array.from(f.descriptor).map(v => Math.round(v * 1e5) / 1e5),
+    })).sort((a, b) => b.box.w * b.box.h - a.box.w * a.box.h);
+    reply(id, { ok: true, w: img.naturalWidth, h: img.naturalHeight, faces });
+  } catch (e) { reply(id, { ok: false, error: String(e) }); }
+}
+</script>

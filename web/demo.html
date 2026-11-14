@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>VisualContext — Demo</title>
+<meta name="description" content="Try VisualContext in your browser: your camera plays the glasses. Faces, objects and memory, with the Gemini assistant.">
+<meta property="og:title" content="VisualContext — try it in your browser">
+<meta property="og:description" content="Your camera plays the glasses: say who someone is, show your keys, then ask where you left them.">
+<meta property="og:image" content="/brand/visualcontext-icon-512.png">
+<link rel="icon" href="/brand/visualcontext-symbol.svg" type="image/svg+xml">
+<meta name="theme-color" content="#07090c">
+<style>
+:root{--bg:#07090c;--s1:#0d1217;--s2:#121a20;--line:rgba(255,255,255,.1);--line2:rgba(255,255,255,.2);--g:#00ff88;--g2:#8fdfb5;--t:#e8f0ec;--m:#93a39b;--red:#ff7a6a;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);color:var(--t);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button{font:inherit;cursor:pointer}a{color:var(--g)}
+.hide{display:none!important}
+/* intro */
+#intro{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 16px;text-align:center;gap:14px}
+#intro img{width:min(280px,70vw)}#intro h1{font-size:clamp(24px,5vw,34px);margin:6px 0 0;line-height:1.15}
+#intro p{max-width:560px;margin:0 auto;color:var(--g2)}
+.steps{display:grid;gap:10px;max-width:560px;width:100%;text-align:left;margin:6px auto}
+.steps div{background:var(--s1);border:1px solid var(--line2);border-radius:14px;padding:12px 14px}.steps b{color:var(--g)}
+.btn{min-height:48px;padding:0 20px;border-radius:14px;border:2px solid var(--g);background:transparent;color:var(--g);font-weight:700;font-size:16px}
+.btn.pri{background:var(--g);color:var(--bg)}.btn:disabled{opacity:.45;cursor:default}
+.row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.small{font-size:13px;color:var(--m);max-width:560px}
+.lang{position:fixed;top:12px;right:12px;display:flex;gap:6px;z-index:5}.lang button{min-height:36px;padding:0 10px;border-radius:10px;border:1px solid var(--line2);background:var(--s1);color:var(--t)}.lang button.on{border-color:var(--g);color:var(--g)}
+/* stage */
+#stage{position:fixed;inset:0;background:#000;display:flex;flex-direction:column}
+#view{position:relative;flex:1;overflow:hidden}
+#cam,#hud{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#cam.mirror{transform:scaleX(-1)}
+#bar{display:flex;gap:4px;justify-content:space-around;align-items:stretch;background:#000;padding:6px 4px calc(6px + env(safe-area-inset-bottom));border-top:1px solid #11331f}
+#bar button{flex:1;min-height:56px;background:none;border:0;color:var(--g);font-weight:600;font-size:13px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-radius:12px}
+#bar button .i{font-size:20px;line-height:1}#bar button.on{background:#0c2a1a}
+#clock{position:absolute;top:10px;left:10px;font:600 14px var(--mono);color:var(--g);background:rgba(0,0,0,.55);padding:4px 8px;border-radius:8px}
+#status{position:absolute;left:12px;right:12px;bottom:8px;font:13px var(--mono);color:var(--g);text-shadow:0 1px 2px #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#hint{position:absolute;left:50%;top:14px;transform:translateX(-50%);max-width:min(92vw,560px);background:#0d1217;border:2px solid var(--g);color:var(--t);border-radius:14px;padding:10px 14px;font-size:14px;text-align:center}
+/* sheets */
+.sheet{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center}
+.sheet>div{background:var(--s1);border:1px solid var(--line2);border-radius:20px 20px 0 0;width:min(720px,100%);max-height:88vh;overflow:auto;padding:18px 16px calc(18px + env(safe-area-inset-bottom))}
+.sheet h2{margin:0 0 6px;font-size:20px}.sheet h3{margin:16px 0 8px;font:600 12px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--m)}
+.ask{display:flex;gap:8px}.ask input{flex:1;min-height:48px;border-radius:12px;border:1.5px solid var(--line2);background:var(--bg);color:var(--t);padding:0 12px;font-size:16px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.chips button{min-height:40px;border-radius:99px;border:1px dashed #1f6b44;background:none;color:var(--g);padding:0 12px;font-size:14px}
+.ans{margin-top:10px;background:#0a1f14;border:1.5px solid var(--g);border-radius:12px;padding:12px;font-size:16px}
+.items{display:grid;gap:8px}.it{display:flex;gap:12px;align-items:center;background:var(--s2);border:1px solid var(--line);border-radius:12px;padding:8px}
+.it .av{width:56px;height:56px;border-radius:12px;flex:0 0 auto;background:#0a1f14;display:flex;align-items:center;justify-content:center;font-size:22px;overflow:hidden}.it .av.round{border-radius:50%}
+.it .av img{width:100%;height:100%;object-fit:cover}.it b{display:block;font-size:16px}.it small{color:var(--m);font-size:13px}
+.stars{display:flex;gap:6px}.stars button{width:52px;height:52px;border-radius:12px;border:2px solid var(--line2);background:var(--bg);color:var(--g);font-size:24px}.stars button.on{border-color:var(--g);background:#0c2a1a}
+.opts{display:flex;gap:8px;flex-wrap:wrap}.opts button{min-height:48px;padding:0 18px;border-radius:12px;border:2px solid var(--line2);background:var(--bg);color:var(--t);font-weight:600}.opts button.on{border-color:var(--g);color:var(--g);background:#0c2a1a}
+textarea{width:100%;min-height:90px;border-radius:12px;border:1.5px solid var(--line2);background:var(--bg);color:var(--t);padding:10px 12px;font:16px system-ui}
+.err{color:var(--red)}
+/* the accessibility button must not cover the bottom bar of the stage */
+#vc-a11y-btn{bottom:auto!important;top:calc(58px + env(safe-area-inset-top))!important}#vc-a11y{bottom:auto!important;top:calc(118px + env(safe-area-inset-top))!important}
+</style>
+</head>
+<body>
+<div class="lang" id="lang"><button data-l="pt">PT</button><button data-l="en">EN</button></div>
+
+<!-- 1. Intro -->
+<main id="intro">
+  <img src="/brand/visualcontext-logo-transparent.png" alt="VisualContext">
+  <h1 data-t="h1"></h1>
+  <p data-t="lead"></p>
+  <div class="steps">
+    <div><b>1.</b> <span data-t="s1"></span></div>
+    <div><b>2.</b> <span data-t="s2"></span></div>
+    <div><b>3.</b> <span data-t="s3"></span></div>
+  </div>
+  <div id="ts" class="hide"></div>
+  <div class="row">
+    <button class="btn pri" id="goEmpty" data-t="goEmpty"></button>
+    <button class="btn" id="goSample" data-t="goSample"></button>
+  </div>
+  <p class="small" id="introMsg" aria-live="polite"></p>
+  <p class="small" data-t="privacy"></p>
+  <p class="small"><a href="/" data-t="back"></a> · <a href="/demo-film" data-t="film"></a></p>
+</main>
+
+<!-- 2. Stage -->
+<section id="stage" class="hide" aria-label="Demo">
+  <div id="view">
+    <video id="cam" playsinline muted autoplay data-clarity-mask="true"></video>
+    <canvas id="hud" data-clarity-mask="true" aria-hidden="true"></canvas>
+    <div id="clock" aria-live="off">10:00</div>
+    <div id="hint" class="hide" role="status"></div>
+    <div id="status" role="status" aria-live="polite"></div>
+  </div>
+  <nav id="bar">
+    <button id="bTalk"><span class="i">🎙</span><span data-t="talk"></span></button>
+    <button id="bMem"><span class="i">✦</span><span data-t="memory"></span></button>
+    <button id="bFlip"><span class="i">⟲</span><span data-t="flip"></span></button>
+    <button id="bEnd"><span class="i">✕</span><span data-t="end"></span></button>
+  </nav>
+</section>
+
+<div id="sheet" class="sheet hide" role="dialog" aria-modal="true"><div id="sbox"></div></div>
+<canvas id="grab" class="hide"></canvas>
+
+<script src="/consent.js" defer></script>
+<script src="/a11y.js" defer></script>
+<script type="module">
+/* ============ settings ============ */
+const API = "https://vzqjwhlpwvqrosoiwiin.supabase.co/functions/v1/vc-demo";
+const TURNSTILE_SITEKEY = ""; // ← Marcus: Cloudflare Turnstile site key (optional; the server checks only when its secret is set)
+const FACEAPI = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13";
+const WS = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained";
+const $ = s => document.querySelector(s);
+const track = (e, tags) => window.vcTrack && window.vcTrack(e, tags);
+
+/* ============ language ============ */
+let lang = (() => { const ok = ["pt","en"]; try { const q = new URLSearchParams(location.search).get("lang"); if (ok.includes(q)) return q; } catch (_) {} try { const s = localStorage.getItem("vc_lang"); if (ok.includes(s)) return s; } catch (_) {} const ls = (navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ""]).map(x => String(x).toLowerCase()); for (const x of ls) { if (x.startsWith("pt")) return "pt"; if (x.startsWith("en")) break; } let tz = ""; try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (_) {} if (/^America\/(Sao_Paulo|Bahia|Fortaleza|Recife|Belem|Maceio|Araguaina|Santarem|Manaus|Cuiaba|Campo_Grande|Porto_Velho|Boa_Vista|Rio_Branco|Eirunepe|Noronha)$|^Europe\/Lisbon$|^Atlantic\/(Azores|Madeira)$|^Africa\/(Luanda|Maputo)$/.test(tz)) return "pt"; return "en"; })();
+const T = {
+  pt: { h1: "Experimente nos seus olhos (ou quase)", lead: "A câmera do seu computador ou celular faz o papel dos óculos. Você fala com o assistente, ele vê o que a câmera vê e lembra do que você mostrar.",
+    s1: "Toque em Falar e apresente alguém: \"essa é a Ana\". Na próxima vez, o nome aparece sobre o rosto.",
+    s2: "Mostre um objeto: \"essas são minhas chaves, ficam na mesa\". Depois pergunte: \"onde deixei minhas chaves?\"",
+    s3: "Abra a Memória e pergunte o que quiser: \"quem eu encontrei hoje?\", \"onde estacionei a moto?\"",
+    goEmpty: "Começar com memória vazia", goSample: "Começar com dados de exemplo",
+    privacy: "Demo de 10 minutos. Nada desta sessão vai para a memória de ninguém: rostos e fotos ficam só nesta aba e somem quando você fecha. Durante a conversa, a voz e imagens da câmera vão ao Google Gemini para ele responder.",
+    back: "Voltar ao início", film: "Ver o filme de 1 minuto",
+    talk: "Falar", stop: "Pausar", memory: "Memória", flip: "Câmera", end: "Terminar",
+    off: "A demo ao vivo está desligada agora. Veja o filme enquanto isso.", limit_ip: "Você já usou as demos de hoje. Volte amanhã!", limit_day: "As demos de hoje acabaram. Volte amanhã!", human: "Confirme que você é humano.",
+    camErr: "Não consegui abrir a câmera e o microfone. Libere nas permissões do navegador.", conn: "Conectando ao assistente…", listening: "ouvindo · fale à vontade", paused: "assistente em pausa · toque em Falar", loadingFaces: "carregando o reconhecimento de rostos…",
+    faceOn: "pessoas: ligado", unknown: "pessoa nova", saved: "guardado", ask: "Pergunte à sua memória", askPh: "onde deixei minhas chaves?", send: "Perguntar",
+    chips: ["onde deixei minhas chaves?", "quem eu encontrei hoje?", "onde estacionei a moto?", "o que eu anotei?"],
+    people: "Pessoas", things: "Coisas", timeline: "Linha do tempo", notes: "Notas", empty: "Nada ainda. Fale com o assistente: apresente alguém ou mostre um objeto.", close: "Fechar", sampleOn: "Carregar dados de exemplo",
+    review: "Como foi?", q1: "Funcionou como você esperava?", q2: "Você usaria isso em óculos?", yes: "Sim", maybe: "Talvez", no: "Não", q3: "O que mais gostou, ou o que faltou? (opcional)", sendRev: "Enviar", skip: "Pular", thanks: "Obrigado! Isso me ajuda a decidir o que vem a seguir.", again: "Ver o VisualContext",
+    timeUp: "Os 10 minutos acabaram.", ago: "há", now: "agora", today: "hoje", yesterday: "ontem", encounter: "encontro com", convo: "conversa com o assistente", objectAt: "em", noRecord: "sem registro" },
+  en: { h1: "Try it on your own eyes (almost)", lead: "Your computer's or phone's camera plays the glasses. You talk to the assistant, it sees what the camera sees and remembers what you show it.",
+    s1: "Tap Talk and introduce someone: \"this is Ana\". Next time, the name appears over the face.",
+    s2: "Show an object: \"these are my keys, they stay on the table\". Then ask: \"where did I leave my keys?\"",
+    s3: "Open Memory and ask anything: \"who did I meet today?\", \"where did I park the bike?\"",
+    goEmpty: "Start with an empty memory", goSample: "Start with sample data",
+    privacy: "10-minute demo. Nothing from this session goes into anyone's memory: faces and photos stay in this tab and are gone when you close it. During the conversation, your voice and camera frames go to Google Gemini so it can answer.",
+    back: "Back to the home page", film: "Watch the 1-minute film",
+    talk: "Talk", stop: "Pause", memory: "Memory", flip: "Camera", end: "Finish",
+    off: "The live demo is off right now. Watch the film meanwhile.", limit_ip: "You've used today's demos. Come back tomorrow!", limit_day: "Today's demos are over. Come back tomorrow!", human: "Please confirm you're human.",
+    camErr: "Couldn't open the camera and microphone. Allow them in the browser's permissions.", conn: "Connecting to the assistant…", listening: "listening · go ahead", paused: "assistant paused · tap Talk", loadingFaces: "loading face recognition…",
+    faceOn: "people: on", unknown: "new person", saved: "saved", ask: "Ask your memory", askPh: "where did I leave my keys?", send: "Ask",
+    chips: ["where did I leave my keys?", "who did I meet today?", "where did I park the bike?", "what did I note?"],
+    people: "People", things: "Things", timeline: "Timeline", notes: "Notes", empty: "Nothing yet. Talk to the assistant: introduce someone or show an object.", close: "Close", sampleOn: "Load sample data",
+    review: "How was it?", q1: "Did it work as you expected?", q2: "Would you use this on glasses?", yes: "Yes", maybe: "Maybe", no: "No", q3: "What did you like most, or what was missing? (optional)", sendRev: "Send", skip: "Skip", thanks: "Thank you! This helps me decide what comes next.", again: "See VisualContext",
+    timeUp: "The 10 minutes are up.", ago: "", now: "now", today: "today", yesterday: "yesterday", encounter: "met", convo: "talk with the assistant", objectAt: "at", noRecord: "no record" },
+};
+const t = k => T[lang][k] ?? T.en[k] ?? k;
+function applyLang() {
+  document.documentElement.lang = lang === "pt" ? "pt-BR" : "en";
+  document.querySelectorAll("[data-t]").forEach(e => e.textContent = t(e.dataset.t));
+  document.querySelectorAll("#lang button").forEach(b => b.classList.toggle("on", b.dataset.l === lang));
+}
+$("#lang").onclick = e => { const l = e.target.dataset.l; if (!l) return; lang = l; try { localStorage.setItem("vc_lang", l); } catch {} applyLang(); };
+applyLang();
+
+/* ============ session memory (this tab only) ============ */
+const M = { people: [], things: [], notes: [], events: [] };
+const nowIso = () => new Date().toISOString();
+function sample() {
+  const d = (h, m, back = 0) => { const x = new Date(); x.setDate(x.getDate() - back); x.setHours(h, m, 0, 0); return x.toISOString(); };
+  const pt = lang === "pt";
+  M.people.push({ id: "s1", name: "Ana Souza", note: pt ? "designer na Nubank · conheceu na feira de UX" : "designer at Nubank · met at the UX fair", desc: null, thumb: "/faces/ana-souza.jpg", t: d(10, 5, 3) },
+                { id: "s2", name: "Rafael Lima", note: pt ? "irmão do Bruno · deve um orçamento" : "Bruno's brother · owes you a quote", desc: null, thumb: "/faces/rafael-lima.jpg", t: d(19, 30, 1) },
+                { id: "s3", name: "Bruno Lima", note: pt ? "amigo da faculdade · corre no Ibirapuera" : "college friend · runs in Ibirapuera park", desc: null, thumb: "/faces/bruno.jpg", t: d(7, 40, 6) },
+                // imported from LinkedIn (CSV): a name without a face until the glasses see the person
+                { id: "s4", name: "Fernanda Costa", note: pt ? "importada do LinkedIn · ainda sem rosto" : "imported from LinkedIn · no face yet", desc: null, thumb: null, t: d(9, 0, 9) });
+  M.things.push({ name: pt ? "moto" : "motorbike", where: pt ? "Rua Augusta, 1500 · vaga em frente à farmácia" : "Rua Augusta 1500 · spot in front of the pharmacy", t: d(19, 40, 1), photo: null },
+                { name: pt ? "chaves" : "keys", where: pt ? "mesa da sala, ao lado do carregador" : "living-room table, next to the charger", t: d(8, 10, 0), photo: null });
+  M.notes.push({ text: pt ? "Ligar para o Rafael sobre o orçamento até sexta" : "Call Rafael about the quote by Friday", t: d(19, 50, 1) });
+  M.events.push({ kind: "encounter", who: "Rafael Lima", place: pt ? "Café Floresta" : "Floresta Café", t: d(19, 30, 1), text: pt ? "falaram do orçamento da reforma" : "talked about the renovation quote" },
+                { kind: "encounter", who: "Ana Souza", place: pt ? "Feira de UX, Expo Center" : "UX Fair, Expo Center", t: d(10, 5, 3), text: pt ? "trocaram contato; ela quer ver o VisualContext" : "swapped contacts; she wants to see VisualContext" });
+}
+function memoryJson() {
+  return { pessoas: M.people.map(p => ({ nome: p.name, nota: p.note || "", desde: p.t })), coisas: M.things.map(x => ({ objeto: x.name, onde: x.where, quando: x.t })),
+    notas: M.notes.map(n => ({ texto: n.text, quando: n.t })), eventos: M.events.map(e => ({ tipo: e.kind, pessoa: e.who || "", lugar: e.place || "", quando: e.t, resumo: e.text || "" })) };
+}
+const norm = s => String(s || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").trim();
+function when(iso) {
+  const d = new Date(iso), n = new Date(), hm = d.toLocaleTimeString(lang === "pt" ? "pt-BR" : "en-US", { hour: "2-digit", minute: "2-digit" });
+  if (d.toDateString() === n.toDateString()) return t("today") + " " + hm;
+  const y = new Date(n); y.setDate(n.getDate() - 1); if (d.toDateString() === y.toDateString()) return t("yesterday") + " " + hm;
+  return d.toLocaleDateString(lang === "pt" ? "pt-BR" : "en-US", { weekday: "short", day: "2-digit", month: "2-digit" }) + " " + hm;
+}
+
+/* ============ camera, HUD ============ */
+const cam = $("#cam"), hud = $("#hud"), hx = hud.getContext("2d"), grab = $("#grab");
+let stream = null, facing = "user", faces = [], card = null, transcript = "", transcriptAt = 0, statusText = "";
+async function openCamera() {
+  if (stream) stream.getTracks().forEach(x => x.stop());
+  stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 } });
+  cam.srcObject = stream; await cam.play().catch(() => {});
+  cam.classList.toggle("mirror", facing === "user");
+}
+function videoRect() { // where the video is drawn inside the element (object-fit: cover)
+  const W = hud.clientWidth, H = hud.clientHeight, vw = cam.videoWidth || 16, vh = cam.videoHeight || 9;
+  const s = Math.max(W / vw, H / vh); return { s, ox: (W - vw * s) / 2, oy: (H - vh * s) / 2, W, H };
+}
+function wrap(text, max, font) { hx.font = font; const out = []; let line = ""; for (const w of String(text).split(/\s+/)) { const tr = line ? line + " " + w : w; if (hx.measureText(tr).width > max && line) { out.push(line); line = w; } else line = tr; } if (line) out.push(line); return out; }
+function draw() {
+  const dpr = devicePixelRatio || 1, W = hud.clientWidth, H = hud.clientHeight;
+  if (hud.width !== W * dpr) { hud.width = W * dpr; hud.height = H * dpr; }
+  hx.setTransform(dpr, 0, 0, dpr, 0, 0); hx.clearRect(0, 0, W, H);
+  const r = videoRect(), mirror = facing === "user";
+  for (const f of faces) {
+    let x = f.box.x * r.s + r.ox, y = f.box.y * r.s + r.oy; const w = f.box.width * r.s, h = f.box.height * r.s;
+    if (mirror) x = W - x - w;
+    hx.strokeStyle = f.name ? "#00ff88" : "#8fdfb5"; hx.lineWidth = 3; const c = Math.min(w, h) * .22;
+    for (const [px, py, dx, dy] of [[x, y, 1, 1], [x + w, y, -1, 1], [x, y + h, 1, -1], [x + w, y + h, -1, -1]]) { hx.beginPath(); hx.moveTo(px, py + dy * c); hx.lineTo(px, py); hx.lineTo(px + dx * c, py); hx.stroke(); }
+    const label = f.name || t("unknown"); hx.font = "600 17px system-ui"; const lw = hx.measureText(label).width + 16;
+    hx.fillStyle = "rgba(0,0,0,.72)"; hx.fillRect(x, y - 30, lw, 26); hx.fillStyle = f.name ? "#00ff88" : "#cfe"; hx.fillText(label, x + 8, y - 11);
+    if (f.sub) { hx.font = "13px ui-monospace,monospace"; hx.fillStyle = "rgba(0,0,0,.72)"; const sw = hx.measureText(f.sub).width + 12; hx.fillRect(x, y + h + 4, sw, 20); hx.fillStyle = "#8fdfb5"; hx.fillText(f.sub, x + 6, y + h + 18); }
+  }
+  if (card) { // the lens card: title + lines (+ photo), bottom-left, like the glasses
+    const cw = Math.min(W - 24, 420), pad = 14, img = card.img;
+    const lines = card.lines.flatMap(l => wrap(l, cw - 2 * pad - (img ? 86 : 0), "15px ui-monospace,monospace")).slice(0, 6);
+    const ch = Math.max(46 + lines.length * 21 + pad, img ? 108 : 0), x = 12, y = H - ch - 40;
+    hx.fillStyle = "rgba(4,14,9,.86)"; hx.strokeStyle = "#00ff88"; hx.lineWidth = 2;
+    hx.beginPath(); hx.roundRect(x, y, cw, ch, 14); hx.fill(); hx.stroke();
+    hx.fillStyle = "#00ff88"; hx.font = "700 19px system-ui"; hx.fillText(card.title, x + pad, y + 30);
+    hx.fillStyle = "#cfeedd"; hx.font = "15px ui-monospace,monospace"; lines.forEach((l, i) => hx.fillText(l, x + pad, y + 56 + i * 21));
+    if (img && img.complete) { hx.save(); hx.beginPath(); hx.roundRect(x + cw - 86, y + 14, 72, 72, 10); hx.clip(); hx.drawImage(img, x + cw - 86, y + 14, 72, 72); hx.restore(); }
+  }
+  if (transcript && performance.now() - transcriptAt < 9000) {
+    const ls = wrap(transcript, Math.min(W - 40, 640), "17px ui-monospace,monospace").slice(-2);
+    ls.forEach((l, i) => { const y = H * .62 + i * 26; hx.font = "17px ui-monospace,monospace"; const w = hx.measureText(l).width; hx.fillStyle = "rgba(0,0,0,.66)"; hx.fillRect(20, y - 19, w + 16, 25); hx.fillStyle = "#bff5d8"; hx.fillText(l, 28, y); });
+  }
+  requestAnimationFrame(draw);
+}
+function showCard(title, lines, photo, ms = 14000) {
+  let img = null; if (photo) { img = new Image(); img.src = photo; }
+  card = { title, lines: lines.filter(Boolean), img }; clearTimeout(showCard.t); showCard.t = setTimeout(() => card = null, ms);
+}
+function status(s) { statusText = s; $("#status").textContent = s; }
+function hint(s, ms = 6000) { const h = $("#hint"); h.textContent = s; h.classList.remove("hide"); clearTimeout(hint.t); hint.t = setTimeout(() => h.classList.add("hide"), ms); }
+function frameJpeg(max = 512, q = .6) {
+  const vw = cam.videoWidth, vh = cam.videoHeight; if (!vw) return null;
+  const s = Math.min(1, max / Math.max(vw, vh)); grab.width = vw * s; grab.height = vh * s;
+  grab.getContext("2d").drawImage(cam, 0, 0, grab.width, grab.height); return grab.toDataURL("image/jpeg", q);
+}
+
+/* ============ faces (face-api, in the browser) ============ */
+let faceapi = null, faceReady = false;
+const seenSince = new Map(), lastEnc = new Map();
+async function loadFaces() {
+  status(t("loadingFaces"));
+  faceapi = await import(FACEAPI + "/dist/face-api.esm.js");
+  await faceapi.nets.tinyFaceDetector.loadFromUri(FACEAPI + "/model");
+  await faceapi.nets.faceLandmark68TinyNet.loadFromUri(FACEAPI + "/model");
+  await faceapi.nets.faceRecognitionNet.loadFromUri(FACEAPI + "/model");
+  faceReady = true; status(t("faceOn")); scanLoop();
+}
+async function scanLoop() {
+  if (!faceReady || $("#stage").classList.contains("hide")) return setTimeout(scanLoop, 800);
+  try {
+    const r = await faceapi.detectAllFaces(cam, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: .5 })).withFaceLandmarks(true).withFaceDescriptors();
+    const now = performance.now();
+    faces = r.slice(0, 4).map(d => {
+      let best = null, dist = 1;
+      for (const p of M.people) if (p.desc) for (const v of p.desc) { const e = faceapi.euclideanDistance(v, d.descriptor); if (e < dist) { dist = e; best = p; } }
+      const p = dist < .5 ? best : null;
+      return { box: d.detection.box, desc: d.descriptor, name: p ? p.name : null, person: p, sub: p ? (p.note || "") : "" };
+    });
+    for (const f of faces) if (f.person) { // a known face for 3 s = an encounter (at most one every 2 min per person)
+      const k = f.person.id; if (!seenSince.has(k)) seenSince.set(k, now);
+      if (now - seenSince.get(k) > 3000 && now - (lastEnc.get(k) || -1e9) > 120000) { lastEnc.set(k, now); M.events.unshift({ kind: "encounter", who: f.person.name, place: lang === "pt" ? "aqui (demo)" : "here (demo)", t: nowIso() }); track("recognized"); }
+    }
+    for (const k of [...seenSince.keys()]) if (!faces.some(f => f.person && f.person.id === k)) seenSince.delete(k);
+  } catch (e) { /* a frame failed; next one */ }
+  setTimeout(scanLoop, 600);
+}
+function biggestFace() { return faces.slice().sort((a, b) => b.box.width * b.box.height - a.box.width * a.box.height)[0] || null; }
+function faceThumb(f) {
+  const c = document.createElement("canvas"), m = f.box.width * .25; c.width = c.height = 160;
+  c.getContext("2d").drawImage(cam, f.box.x - m, f.box.y - m, f.box.width + 2 * m, f.box.height + 2 * m, 0, 0, 160, 160); return c.toDataURL("image/jpeg", .75);
+}
+
+/* ============ Gemini Live (single-use token from the server; the key never comes here) ============ */
+let S = null, ws = null, setup = null, talking = false, audioCtx = null, mic = null, playAt = 0, frameTimer = null, convo = [];
+async function api(body) {
+  const r = await fetch(API, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ lang, ...body }) });
+  const j = await r.json().catch(() => ({})); if (!r.ok) { const e = new Error(j.error || r.status); e.code = j.error; throw e; } return j;
+}
+function wsSetup(c) { // LiveConnectConfig (flat, as locked by the token) → BidiGenerateContent setup message
+  const { model, responseModalities, speechConfig, ...rest } = c;
+  return { setup: { model, generationConfig: { responseModalities, speechConfig }, ...rest } };
+}
+function connect(token) {
+  return new Promise((ok, fail) => {
+    ws = new WebSocket(`${WS}?access_token=${encodeURIComponent(token)}`);
+    ws.onopen = () => ws.send(JSON.stringify(wsSetup(setup)));
+    ws.onmessage = async ev => {
+      const m = JSON.parse(typeof ev.data === "string" ? ev.data : await ev.data.text());
+      if (m.setupComplete) { ok(); return; }
+      if (m.toolCall) return onTools(m.toolCall.functionCalls || []);
+      const sc = m.serverContent; if (!sc) return;
+      if (sc.interrupted) { playAt = 0; stopPlayback(); }
+      for (const p of sc.modelTurn?.parts || []) if (p.inlineData?.data) play(p.inlineData.data);
+      if (sc.outputTranscription?.text) { say(sc.outputTranscription.text, true); }
+      if (sc.inputTranscription?.text) { say(sc.inputTranscription.text, false); }
+    };
+    ws.onerror = () => fail(new Error("ws"));
+    ws.onclose = () => { if (talking) { talking = false; paintTalk(); reconnectLater(); } };
+  });
+}
+let lastWho = null;
+function say(txt, model) {
+  const who = model ? "ai" : "me";
+  if (who !== lastWho) { transcript = ""; lastWho = who; }
+  transcript = (transcript + txt).slice(-260); transcriptAt = performance.now();
+  if (model) { if (!convo.length || convo.at(-1).w !== "ai") convo.push({ w: "ai", s: "" }); convo.at(-1).s += txt; }
+  else { if (!convo.length || convo.at(-1).w !== "me") convo.push({ w: "me", s: "" }); convo.at(-1).s += txt; }
+}
+async function reconnectLater() {
+  if (!S || ended) return;
+  try { const j = await api({ action: "renew", session: S.session }); setup = j.setup; await connect(j.token); } catch { status(t("paused")); }
+}
+/* audio in: 16 kHz PCM16 */
+const WORKLET = `class P extends AudioWorkletProcessor{constructor(){super();this.b=[];this.r=sampleRate/16000;this.a=0}process(i){const c=i[0][0];if(!c)return true;for(let k=0;k<c.length;k++){this.a+=1;if(this.a>=this.r){this.a-=this.r;const s=Math.max(-1,Math.min(1,c[k]));this.b.push(s<0?s*0x8000:s*0x7fff)}}if(this.b.length>=1600){this.port.postMessage(new Int16Array(this.b).buffer);this.b=[]}return true}}registerProcessor("pcm16",P)`;
+async function startMic() {
+  audioCtx = audioCtx || new AudioContext();
+  await audioCtx.resume();
+  if (!mic) {
+    if (!startMic.added) { await audioCtx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET], { type: "text/javascript" }))); startMic.added = true; }
+    const src = audioCtx.createMediaStreamSource(new MediaStream(stream.getAudioTracks()));
+    mic = new AudioWorkletNode(audioCtx, "pcm16"); src.connect(mic);
+    mic.port.onmessage = e => { if (talking && ws?.readyState === 1) ws.send(JSON.stringify({ realtimeInput: { audio: { mimeType: "audio/pcm;rate=16000", data: b64(e.data) } } })); };
+  }
+}
+const b64 = buf => { let s = ""; const u = new Uint8Array(buf); for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); };
+/* audio out: 24 kHz PCM16 */
+let sources = [];
+function play(data) {
+  const bin = atob(data), n = bin.length / 2, f = new Float32Array(n);
+  for (let i = 0; i < n; i++) { let v = bin.charCodeAt(2 * i) | (bin.charCodeAt(2 * i + 1) << 8); if (v >= 0x8000) v -= 0x10000; f[i] = v / 0x8000; }
+  const b = audioCtx.createBuffer(1, n, 24000); b.copyToChannel(f, 0);
+  const s = audioCtx.createBufferSource(); s.buffer = b; s.connect(audioCtx.destination);
+  playAt = Math.max(playAt, audioCtx.currentTime + .05); s.start(playAt); playAt += b.duration;
+  sources.push(s); s.onended = () => sources = sources.filter(x => x !== s);
+}
+function stopPlayback() { sources.forEach(s => { try { s.stop(); } catch {} }); sources = []; }
+
+/* ============ tools: what the assistant can do in this tab ============ */
+function onTools(calls) {
+  const responses = calls.map(c => ({ id: c.id, name: c.name, response: tool(c.name, c.args || {}) }));
+  ws?.readyState === 1 && ws.send(JSON.stringify({ toolResponse: { functionResponses: responses } }));
+}
+function tool(name, a) {
+  const pt = lang === "pt";
+  if (name === "quem_e") {
+    if (!faces.length) return { resultado: pt ? "não há rosto na câmera" : "no face on camera" };
+    return { pessoas: faces.map(f => f.name ? { nome: f.name, nota: f.sub } : { nome: null, desconhecido: true, dica: pt ? "pessoa nova; se o usuário disser o nome, chame guardar_pessoa" : "new person; if the user says the name, call guardar_pessoa" }) };
+  }
+  if (name === "guardar_pessoa") {
+    const f = biggestFace(), nome = String(a.nome || "").trim();
+    if (!f) return { erro: pt ? "não vejo nenhum rosto agora; peça para a pessoa olhar para a câmera" : "no face visible now; ask the person to face the camera" };
+    let p = M.people.find(x => norm(x.name) === norm(nome));
+    if (!p) { p = { id: "p" + Date.now(), name: nome, note: "", desc: [], thumb: null, t: nowIso() }; M.people.push(p); }
+    p.desc = (p.desc || []).concat([f.desc]).slice(-8); p.thumb = faceThumb(f);
+    M.events.unshift({ kind: "encounter", who: nome, place: pt ? "aqui (demo)" : "here (demo)", t: nowIso() });
+    showCard("✓ " + nome, [t("saved")], p.thumb); track("capture", { capture_kind: "person" });
+    return { ok: true, diga: pt ? `Guardei o rosto de ${nome}.` : `I saved ${nome}'s face.` };
+  }
+  if (name === "guardar_objeto") {
+    const photo = frameJpeg(360, .7), nome = String(a.nome || (pt ? "objeto" : "object")), onde = String(a.onde || (pt ? "aqui" : "here"));
+    M.things.unshift({ name: nome, where: onde, t: nowIso(), photo });
+    M.events.unshift({ kind: "object", who: "", place: onde, t: nowIso(), text: nome });
+    showCard("⌖ " + nome, [onde, t("saved")], photo); track("capture", { capture_kind: "object" });
+    return { ok: true, diga: pt ? `Guardei: ${nome}, ${onde}.` : `Saved: ${nome}, ${onde}.` };
+  }
+  if (name === "onde_deixei") {
+    const q = norm(a.objeto).replace(/^(o|a|os|as|meu|minha|meus|minhas|my|the)\s+/, "");
+    const x = M.things.find(i => norm(i.name).includes(q) || q.includes(norm(i.name)));
+    track("recall_question", { recall_kind: "object" });
+    if (!x) { showCard("⌖ " + a.objeto, [t("noRecord")]); return { resultado: pt ? "nenhum registro" : "no record" }; }
+    showCard("⌖ " + x.name, [x.where, when(x.t)], x.photo); track("recall_answer");
+    return { objeto: x.name, onde: x.where, quando: when(x.t) };
+  }
+  if (name === "consultar_memoria") {
+    track("recall_question", { recall_kind: "memory" }); showCard("✦ " + (pt ? "Lembrando…" : "Remembering…"), [String(a.pergunta || "").slice(0, 60)], null, 6000);
+    setTimeout(() => track("recall_answer"), 1500);
+    return { agora: new Date().toString(), memoria: memoryJson() };
+  }
+  if (name === "guardar_nota") {
+    M.notes.unshift({ text: String(a.texto || ""), t: nowIso() }); showCard("✎ " + (pt ? "Nota" : "Note"), [String(a.texto || "")]); track("capture", { capture_kind: "note" });
+    return { ok: true };
+  }
+  return { erro: "?" };
+}
+
+/* ============ session ============ */
+let ended = false, deadline = 0, clockTimer = null, turnstileToken = "";
+async function begin(withSample) {
+  $("#introMsg").textContent = ""; $("#introMsg").classList.remove("err");
+  $("#goEmpty").disabled = $("#goSample").disabled = true;
+  try { await openCamera(); } catch { $("#introMsg").textContent = t("camErr"); $("#introMsg").classList.add("err"); $("#goEmpty").disabled = $("#goSample").disabled = false; track("error_camera"); return; }
+  $("#introMsg").textContent = t("conn");
+  try { S = await api({ action: "start", turnstile: turnstileToken }); setup = S.setup; }
+  catch (e) {
+    const msg = { demo_off: "off", limit_ip: "limit_ip", limit_day: "limit_day", human: "human" }[e.code] || "off";
+    $("#introMsg").innerHTML = t(msg) + (msg === "off" || msg.startsWith("limit") ? ` <a href="/demo-film">${t("film")}</a>` : "");
+    $("#introMsg").classList.add("err"); $("#goEmpty").disabled = $("#goSample").disabled = false; stream?.getTracks().forEach(x => x.stop()); track("error_" + (e.code || "start")); return;
+  }
+  if (withSample) sample();
+  $("#intro").classList.add("hide"); $("#lang").classList.add("hide"); $("#stage").classList.remove("hide");
+  track("demo_start", { sample: withSample ? "yes" : "no" });
+  requestAnimationFrame(draw);
+  deadline = Date.now() + (S.minutes || 10) * 60_000;
+  clockTimer = setInterval(() => { const s = Math.max(0, Math.round((deadline - Date.now()) / 1000)); $("#clock").textContent = String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0"); if (s <= 0) finish(true); }, 500);
+  loadFaces().catch(() => { status(lang === "pt" ? "reconhecimento de rostos indisponível neste navegador" : "face recognition unavailable in this browser"); track("error_faces"); });
+  try { await startMic(); await connect(S.token); talking = true; paintTalk(); startFrames(); hint(t("s1"), 9000); }
+  catch { status(t("paused")); track("error_live"); }
+}
+function startFrames() { clearInterval(frameTimer); frameTimer = setInterval(() => { if (!talking || ws?.readyState !== 1) return; const j = frameJpeg(); if (j) ws.send(JSON.stringify({ realtimeInput: { video: { mimeType: "image/jpeg", data: j.split(",")[1] } } })); }, 1000); }
+function paintTalk() { const b = $("#bTalk"); b.classList.toggle("on", talking); b.querySelector("[data-t]").textContent = talking ? t("stop") : t("talk"); b.querySelector(".i").textContent = talking ? "■" : "🎙"; status(talking ? t("listening") : t("paused")); }
+$("#bTalk").onclick = async () => {
+  if (talking) { talking = false; stopPlayback(); paintTalk(); return; }
+  if (ws?.readyState !== 1) { status(t("conn")); await reconnectLater(); }
+  if (ws?.readyState === 1) { talking = true; paintTalk(); startFrames(); }
+};
+$("#bFlip").onclick = async () => { facing = facing === "user" ? "environment" : "user"; try { await openCamera(); } catch { facing = "user"; await openCamera(); } try { mic?.disconnect(); } catch {} mic = null; if (audioCtx) await startMic(); };
+$("#bEnd").onclick = () => finish(false);
+$("#bMem").onclick = () => { track("manager_open"); memorySheet(); };
+
+/* ============ the demo's Manager ============ */
+function closeSheet() { $("#sheet").classList.add("hide"); }
+$("#sheet").onclick = e => { if (e.target.id === "sheet") closeSheet(); };
+function memorySheet() {
+  const pt = lang === "pt", esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const people = M.people.map(p => `<div class="it"><span class="av round">${p.thumb ? `<img src="${p.thumb}" alt="" data-clarity-mask="true">` : "👤"}</span><span><b>${esc(p.name)}</b><small>${esc(p.note || "")}</small></span></div>`).join("");
+  const things = M.things.map(x => `<div class="it"><span class="av">${x.photo ? `<img src="${x.photo}" alt="" data-clarity-mask="true">` : "⌖"}</span><span><b>${esc(x.name)}</b><small>${esc(x.where)} · ${esc(when(x.t))}</small></span></div>`).join("");
+  const evs = M.events.slice().sort((a, b) => b.t.localeCompare(a.t)).map(e => { const p = e.who && M.people.find(x => x.name === e.who);
+    return `<div class="it"><span class="av round">${p?.thumb ? `<img src="${p.thumb}" alt="" data-clarity-mask="true">` : e.kind === "object" ? "⌖" : e.kind === "talk" ? "✦" : "👤"}</span><span><b>${esc(e.kind === "object" ? e.text : e.kind === "talk" ? t("convo") : t("encounter") + " " + e.who)}</b><small>${esc(when(e.t))}${e.place ? " · " + esc(e.place) : ""}${e.text && e.kind !== "object" ? " · " + esc(e.text) : ""}</small></span></div>`; }).join("");
+  const notes = M.notes.map(n => `<div class="it"><span class="av">✎</span><span><b>${esc(n.text)}</b><small>${esc(when(n.t))}</small></span></div>`).join("");
+  const nothing = !M.people.length && !M.things.length && !M.events.length && !M.notes.length;
+  $("#sbox").innerHTML = `<h2>✦ ${t("memory")}</h2>
+    <form class="ask" id="askF"><input id="askQ" placeholder="${esc(t("askPh"))}" aria-label="${esc(t("ask"))}" data-clarity-mask="true" autocomplete="off"><button class="btn pri">${t("send")}</button></form>
+    <div class="chips">${t("chips").map(c => `<button type="button" data-q="${esc(c)}">${esc(c)}</button>`).join("")}</div>
+    <div id="askA" aria-live="polite"></div>
+    ${nothing ? `<p class="small">${t("empty")}</p><button class="btn" id="loadSample">${t("sampleOn")}</button>` : ""}
+    ${people ? `<h3>${t("people")}</h3><div class="items">${people}</div>` : ""}
+    ${things ? `<h3>${t("things")}</h3><div class="items">${things}</div>` : ""}
+    ${evs ? `<h3>${t("timeline")}</h3><div class="items">${evs}</div>` : ""}
+    ${notes ? `<h3>${t("notes")}</h3><div class="items">${notes}</div>` : ""}
+    <div class="row" style="margin-top:16px"><button class="btn" id="closeS">${t("close")}</button></div>`;
+  $("#sheet").classList.remove("hide");
+  $("#closeS").onclick = closeSheet;
+  if ($("#loadSample")) $("#loadSample").onclick = () => { sample(); memorySheet(); };
+  const ask = async q => {
+    if (!q.trim()) return; $("#askA").innerHTML = `<div class="ans">…</div>`; track("recall_question", { recall_kind: "manager" });
+    try { const j = await api({ action: "ask", session: S.session, question: q, memory: memoryJson(), now: new Date().toString() }); $("#askA").innerHTML = `<div class="ans">${esc(j.answer)}</div>`; track("recall_answer"); }
+    catch (e) { $("#askA").innerHTML = `<div class="ans err">${esc(e.code === "limit_ask" ? (pt ? "Limite de perguntas desta demo atingido." : "This demo's question limit was reached.") : (pt ? "Não consegui perguntar agora." : "Couldn't ask right now."))}</div>`; track("error_ask"); }
+  };
+  $("#askF").onsubmit = e => { e.preventDefault(); ask($("#askQ").value); };
+  $("#sbox").querySelectorAll("[data-q]").forEach(b => b.onclick = () => { $("#askQ").value = b.dataset.q; ask(b.dataset.q); });
+}
+
+/* ============ end + review ============ */
+async function finish(timeUp) {
+  if (ended) return; ended = true; talking = false;
+  clearInterval(clockTimer); clearInterval(frameTimer); stopPlayback();
+  try { ws?.close(); } catch {} stream?.getTracks().forEach(x => x.stop()); faceReady = false;
+  if (convo.length) M.events.unshift({ kind: "talk", t: nowIso(), text: convo.map(c => c.s).join(" ").slice(0, 200) });
+  api({ action: "end", session: S?.session }).catch(() => {});
+  track("demo_end", { time_up: timeUp ? "yes" : "no", people: M.people.length, things: M.things.length });
+  let rating = 0, wu = "";
+  $("#sbox").innerHTML = `<h2>${timeUp ? t("timeUp") + " " : ""}${t("review")}</h2>
+    <h3>${t("q1")}</h3><div class="stars" role="radiogroup" aria-label="${t("q1")}">${[1, 2, 3, 4, 5].map(n => `<button type="button" role="radio" aria-checked="false" aria-label="${n}/5" data-r="${n}">★</button>`).join("")}</div>
+    <h3>${t("q2")}</h3><div class="opts" role="radiogroup">${[["sim", t("yes")], ["talvez", t("maybe")], ["nao", t("no")]].map(([k, l]) => `<button type="button" role="radio" aria-checked="false" data-w="${k}">${l}</button>`).join("")}</div>
+    <h3>${t("q3")}</h3><textarea id="rc" data-clarity-mask="true" maxlength="2000"></textarea>
+    <div class="row" style="margin-top:16px;justify-content:flex-start"><button class="btn pri" id="rs">${t("sendRev")}</button><button class="btn" id="rk">${t("skip")}</button></div>`;
+  $("#sheet").classList.remove("hide");
+  $("#sbox").querySelectorAll("[data-r]").forEach(b => b.onclick = () => { rating = +b.dataset.r; $("#sbox").querySelectorAll("[data-r]").forEach(x => { const on = +x.dataset.r <= rating; x.classList.toggle("on", on); x.setAttribute("aria-checked", +x.dataset.r === rating); }); });
+  $("#sbox").querySelectorAll("[data-w]").forEach(b => b.onclick = () => { wu = b.dataset.w; $("#sbox").querySelectorAll("[data-w]").forEach(x => { x.classList.toggle("on", x === b); x.setAttribute("aria-checked", x === b); }); });
+  const done = () => { $("#sbox").innerHTML = `<h2>${t("thanks")}</h2><div class="row" style="justify-content:flex-start;margin-top:12px"><a class="btn pri" href="/" style="display:inline-flex;align-items:center;text-decoration:none">${t("again")}</a></div>`; };
+  $("#rs").onclick = async () => { if (rating || wu || $("#rc").value.trim()) { api({ action: "feedback", session: S?.session, rating: rating || undefined, would_use: wu || undefined, comment: $("#rc").value.trim() || undefined }).catch(() => {}); track("review_sent", { rating, would_use: wu }); } done(); };
+  $("#rk").onclick = () => { track("review_skipped"); done(); };
+}
+addEventListener("pagehide", () => { if (S && !ended) navigator.sendBeacon?.(API, new Blob([JSON.stringify({ action: "end", session: S.session, lang })], { type: "application/json" })); });
+
+/* ============ start ============ */
+$("#goEmpty").onclick = () => begin(false);
+$("#goSample").onclick = () => begin(true);
+(async () => {
+  try { const s = await api({ action: "status" }); if (!s.on) { $("#introMsg").innerHTML = `${t("off")} <a href="/demo-film">${t("film")}</a>`; $("#goEmpty").disabled = $("#goSample").disabled = true; } }
+  catch { /* offline: try on click */ }
+  if (TURNSTILE_SITEKEY) {
+    $("#ts").classList.remove("hide");
+    const sc = document.createElement("script"); sc.src = "https://challenges.cloudflare.com/turnstile/v0/api.js"; sc.async = true;
+    sc.onload = () => window.turnstile.render("#ts", { sitekey: TURNSTILE_SITEKEY, callback: tok => { turnstileToken = tok; }, theme: "dark", language: lang === "pt" ? "pt-br" : "en" });
+    document.head.appendChild(sc);
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.VcLive" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">monospace</item>
+        <item name="android:colorAccent">#00FF88</item>
+        <item name="android:windowBackground">#030C06</item>
+        <item name="android:statusBarColor">#030C06</item>
+        <item name="android:navigationBarColor">#030C06</item>
+    </style>
+</resources>

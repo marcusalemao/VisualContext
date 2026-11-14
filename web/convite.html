@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<!-- Source of the beta invite form. Published at vc.alema.io/test-invite/ by the alema-site repo (copy it to vc-demo/test-invite.html there, with icons.js and consent.js). -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VisualContext · Quero testar</title>
+<meta name="description" content="Peça um convite para o beta fechado do VisualContext: a memória dos óculos inteligentes, testada no seu celular Android.">
+<meta property="og:title" content="VisualContext · beta fechado">
+<meta property="og:description" content="Sua memória, na sua frente. Teste no celular Android, sem precisar dos óculos.">
+<meta property="og:image" content="https://vc.alema.io/brand/visualcontext-icon-512.png">
+<link rel="icon" href="/brand/visualcontext-symbol.svg" type="image/svg+xml">
+<meta name="theme-color" content="#07090c">
+<style>
+:root{--bg:#07090c;--s1:#0d1217;--s2:#121a20;--line:rgba(255,255,255,.1);--line2:rgba(255,255,255,.2);--g:#00ff88;--g2:#8fdfb5;--t:#e8f0ec;--m:#9aaaa2;--err:#ff8a8a;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--t);font:17px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:var(--g)}
+.wrap{max-width:1000px;margin:0 auto;padding:0 16px}
+header{border-bottom:1px solid var(--line)}
+header .wrap{display:flex;align-items:center;gap:12px;min-height:64px}
+header .logo img{height:40px;width:auto;display:block}
+.lang{margin-left:auto;display:flex;gap:4px}
+.lang button{min-height:36px;min-width:40px;border-radius:10px;border:1px solid var(--line2);background:var(--s1);color:var(--t);font:600 13px system-ui;cursor:pointer}
+.lang button.on{border-color:var(--g);color:var(--g)}
+.kicker{font:600 12px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--g);margin:0 0 12px}
+h1{font-size:clamp(32px,5.4vw,52px);line-height:1.06;margin:0 0 16px;letter-spacing:-.02em}
+h1 em{font-style:normal;color:var(--g)}
+h2{font-size:clamp(22px,3vw,28px);line-height:1.2;margin:0 0 10px}
+.lead{font-size:clamp(17px,2vw,20px);color:var(--g2);margin:0 0 22px;max-width:620px}
+.top{display:grid;grid-template-columns:1.15fr .85fr;gap:40px;align-items:center;padding:48px 16px 56px}
+@media (max-width:820px){.top{grid-template-columns:1fr;gap:28px;padding-top:32px;padding-bottom:64px}}
+.feats{list-style:none;padding:0;margin:0;display:grid;gap:10px}
+.feats li{display:flex;gap:12px;align-items:flex-start;color:var(--t)}
+.feats .ic{color:var(--g);width:22px;height:22px;margin-top:2px}
+/* the phone that becomes the glasses */
+.phone{justify-self:center;width:min(270px,78vw);aspect-ratio:9/18;border-radius:34px;border:2px solid #1d4a33;background:#030806;padding:12px;position:relative}
+.screen{position:absolute;inset:12px;border-radius:24px;overflow:hidden;background:radial-gradient(120% 80% at 35% 25%,#2d3b34 0%,#151d19 50%,#0a0f0c 100%)}
+.screen{background:#151d19 url(/faces/ana-souza-scene.jpg) 50% 0/auto 100% no-repeat}
+.screen::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.15),rgba(0,0,0,.05) 40%,rgba(0,0,0,.45))}
+.screen .box{position:absolute;left:24%;top:20%;width:52%;height:36%;border:2px solid var(--g);border-radius:12px}
+.screen .tag{position:absolute;left:24%;top:13%;background:rgba(0,0,0,.75);color:var(--g);font:700 13px system-ui;padding:2px 8px;border-radius:6px}
+.screen .card{position:absolute;left:7%;right:7%;bottom:16%;background:rgba(4,14,9,.9);border:2px solid var(--g);border-radius:12px;padding:8px 10px;font:11px/1.45 var(--mono);color:#cfeedd}
+.screen .card b{display:block;font:700 14px system-ui;color:var(--g)}
+.screen .mic{position:absolute;left:10px;top:10px;color:var(--g)}
+.screen .bar{position:absolute;left:0;right:0;bottom:0;height:11%;background:rgba(0,0,0,.7);display:flex;justify-content:space-around;align-items:center;color:var(--g);font:600 10px system-ui}
+.phone .cap{position:absolute;bottom:-34px;left:0;right:0;text-align:center;color:var(--m);font-size:13px}
+section{padding:40px 0;border-top:1px solid var(--line)}
+.film{display:block;width:100%;max-width:880px;margin:16px auto 0;aspect-ratio:16/9;border-radius:18px;border:2px solid #1d4a33;background:#000}.filmnote{max-width:880px;margin:10px auto 0;color:var(--m);font-size:14px}
+.how{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px}
+@media (max-width:820px){.how{grid-template-columns:1fr}}
+.how div{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:16px 18px}
+.how b{display:block;color:var(--g);font:700 13px var(--mono);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
+.how p{margin:0;color:var(--t)}
+.plan{list-style:none;padding:0;margin:20px 0 0;display:grid;grid-template-columns:1fr 1fr;gap:12px;counter-reset:r}
+@media (max-width:820px){.plan{grid-template-columns:1fr}}
+.plan li{counter-increment:r;display:grid;align-content:start;grid-auto-rows:min-content;grid-template-columns:44px 1fr;gap:4px 12px;background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:16px 18px}
+.plan li::before{content:counter(r);grid-row:1 / span 3;width:36px;height:36px;border-radius:50%;border:2px solid var(--g);color:var(--g);display:flex;align-items:center;justify-content:center;font:700 16px var(--mono)}
+.plan b{color:var(--t);font-size:17px}
+.plan p{margin:0;color:var(--g2)}
+.plan .say{margin-top:6px;font:13px/1.5 var(--mono);color:var(--m)}
+.g{color:var(--g)}
+.tip{margin:18px 0 0;color:var(--m);font-size:15px}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start}
+@media (max-width:820px){.form{grid-template-columns:1fr}}
+form{background:var(--s1);border:1px solid var(--line2);border-radius:18px;padding:22px 20px;display:grid;gap:14px}
+label{display:grid;gap:6px;font-weight:600;font-size:15px}
+label small{font-weight:400;color:var(--m)}
+input,select,textarea{width:100%;min-height:48px;background:var(--bg);color:var(--t);border:1px solid var(--line2);border-radius:12px;padding:10px 12px;font:inherit}
+textarea{min-height:84px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--g);outline-offset:1px;border-color:var(--g)}
+.chk{display:flex;gap:10px;align-items:flex-start;font-weight:400}
+.chk input{width:22px;min-height:22px;height:22px;accent-color:var(--g);margin:2px 0 0}
+.hp{position:absolute;left:-5000px;width:1px;height:1px;overflow:hidden}
+button.send{min-height:52px;border-radius:14px;border:2px solid var(--g);background:var(--g);color:var(--bg);font:700 17px system-ui;cursor:pointer}
+button.send:disabled{opacity:.6;cursor:wait}
+.msg{margin:0;font-size:15px}.msg.err{color:var(--err)}
+.done{display:none;background:var(--s1);border:2px solid var(--g);border-radius:18px;padding:24px 22px}
+.done .ic{color:var(--g);width:34px;height:34px}
+.done h2{margin-top:8px}
+.note{color:var(--m);font-size:14px;margin:12px 0 0}
+footer{border-top:1px solid var(--line);padding:22px 0 40px;color:var(--m);font-size:14px}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <a class="logo" href="/"><img src="/brand/visualcontext-logo-transparent.png" alt="VisualContext"></a>
+  <div class="lang" role="group" aria-label="Idioma / Language"><button type="button" data-l="pt">PT</button><button type="button" data-l="en">EN</button><button type="button" data-l="de">DE</button></div>
+</div></header>
+
+<main>
+<div class="wrap top">
+  <div>
+    <p class="kicker" data-t="kicker"></p>
+    <h1 data-t="h1"></h1>
+    <p class="lead" data-t="lead"></p>
+    <ul class="feats">
+      <li><span data-i="person"></span><span data-t="f1"></span></li>
+      <li><span data-i="edit_note"></span><span data-t="f2"></span></li>
+      <li><span data-i="key"></span><span data-t="f3"></span></li>
+      <li><span data-i="restaurant_menu"></span><span data-t="f4"></span></li>
+      <li><span data-i="music_note"></span><span data-t="f5"></span></li>
+    </ul>
+  </div>
+  <div class="phone" aria-hidden="true">
+    <div class="screen">
+      <span class="mic" data-i="auto_awesome"></span>
+      <div class="box"></div><span class="tag">Ana</span>
+      <div class="card"><b>Ana Souza</b><span data-t="mock"></span></div>
+      <div class="bar"><span>Pessoas</span><span>Lugares</span><span>Escuta</span></div>
+    </div>
+    <p class="cap" data-t="cap"></p>
+  </div>
+</div>
+
+<section id="film"><div class="wrap">
+  <p class="kicker" data-t="k_film"></p>
+  <h2 data-t="h_film"></h2>
+  <video class="film" controls preload="metadata" playsinline poster="/film/vc-comercial-poster.jpg"><source src="/film/vc-comercial.mp4" type="video/mp4"></video>
+  <p class="filmnote" data-t="film_note"></p>
+</div></section>
+
+<section><div class="wrap">
+  <p class="kicker" data-t="k_how"></p>
+  <h2 data-t="h_how"></h2>
+  <div class="how">
+    <div><b data-t="s1"></b><p data-t="s1p"></p></div>
+    <div><b data-t="s2"></b><p data-t="s2p"></p></div>
+    <div><b data-t="s3"></b><p data-t="s3p"></p></div>
+  </div>
+</div></section>
+
+
+<section id="pedir"><div class="wrap form">
+  <div>
+    <p class="kicker" data-t="k_form"></p>
+    <h2 data-t="h_form"></h2>
+    <p data-t="p_form"></p>
+    <p class="note" data-t="privacy"></p>
+  </div>
+  <div>
+    <form id="f" novalidate>
+      <label><span data-t="l_name"></span><input name="name" autocomplete="name" required maxlength="120"></label>
+      <label><span data-t="l_email"></span><input name="email" type="email" autocomplete="email" required maxlength="200"></label>
+      <label><span><span data-t="l_phone"></span> <small data-t="opt"></small></span><input name="phone" maxlength="80" data-ph="ph_phone"></label>
+      <label><span data-t="l_glasses"></span>
+        <select name="glasses"><option value="" data-t="g0"></option><option value="Rokid" data-t="g1"></option><option value="outros" data-t="g2"></option></select></label>
+      <label class="chk"><input type="checkbox" name="android" required><span data-t="l_android"></span></label>
+      <div class="hp" aria-hidden="true"><label>Site <input name="site" tabindex="-1" autocomplete="off"></label></div>
+      <p class="msg err" id="err" role="alert" hidden></p>
+      <button class="send" type="submit" data-t="send"></button>
+    </form>
+    <div class="done" id="done" role="status" tabindex="-1">
+      <span data-i="check"></span>
+      <h2 data-t="done_h"></h2>
+      <p id="doneP"></p>
+      <p class="note"><a href="/demo" data-t="done_demo"></a></p>
+    </div>
+  </div>
+</div></section>
+</main>
+
+<footer><div class="wrap">VisualContext · <a href="https://alema.io">Alema</a> · São Paulo · <a href="/" data-t="home"></a></div></footer>
+
+<script>
+(function () {
+  var h = new URLSearchParams(location.hash.slice(1)).get("c"), saved = null;
+  try { saved = localStorage.getItem("vc_invite_code"); } catch (_) {}
+  if (h || saved) location.replace("/test-download/#c=" + encodeURIComponent(h || saved));
+})();
+</script>
+<script src="/icons.js"></script>
+<script>
+const API = "https://vzqjwhlpwvqrosoiwiin.supabase.co/functions/v1/vc";
+const T = {
+  pt: {
+    k_film: "O filme · 2 min", h_film: "Um dia da Ana, com o VisualContext.", film_note: "Algumas cenas mostram funções ainda em desenvolvimento.",
+    kicker: "Beta fechado · Android", h1: "Sua memória, <em>na sua frente</em>.",
+    lead: "O VisualContext é a memória dos óculos inteligentes: ele vê o que você vê, ouve o que você conversa e devolve na hora certa o que você esqueceria.",
+    f1: "Reconhece quem você já conheceu e lembra de onde, quando e o que vocês falaram.",
+    f2: "Transcreve a conversa e anota o que foi combinado: datas, tarefas, contatos.",
+    f3: "Responde \"onde deixei as chaves?\" com o lugar e a hora em que você deixou.",
+    f4: "Lê cardápios, placas e documentos, traduz e responde perguntas sobre o que está na sua frente.",
+    f5: "Identifica a música que está tocando e guarda para ouvir depois.",
+    mock: "conheceu no Café Pop, 12/10\nfalaram do projeto de mobilidade",
+    cap: "O celular faz o papel dos óculos",
+    k_plan: "Roteiro do teste", h_plan: "O que testar, e como",
+    p_plan: "Uns 15 minutos por dia, em 5 dias, na ordem que preferir. Segure o celular na altura dos olhos, com a câmera de trás para a frente: é a sua lente. Na barra da haste, <span class=g>●</span> escolhe, <span class=g>●●</span> volta, e o <b>toque longo no <span class=g>●</span></b> abre o assistente de voz.",
+    ri: "Importe rostos que você já tem", rip: "Em Ajustes → Importar rostos, traga quem tem foto e nome: Google Fotos (Pessoas), contatos do celular, LinkedIn, Facebook, Instagram ou a lista de conversas do WhatsApp (\"Outro app\"). Você rola a tela, o app lê, e você escolhe quem entra. Também dá para compartilhar um print com o VisualContext.", ris: "Depois, aponte para uma dessas pessoas (ou para a foto dela em outra tela)",
+    rm: "Descubra a música", rmp: "Com uma música tocando perto (bar, rádio, outro celular), pergunte ao assistente. O nome aparece na lente e fica guardado para ouvir depois.", rms: "\"que música é essa?\"",
+    r1: "Entre e prepare", r1p: "Instale o app (<a href=\"/test-download/\">como instalar</a>), entre com o seu e-mail (chega um código) e toque em Abrir o emulador. Libere câmera, microfone e localização.", r1s: "Dia 1 · 3 min",
+    r2: "Ensine um rosto", r2p: "Aponte para alguém que topa participar. Quando a lente perguntar \"Pessoa nova. Guardar?\", abra o assistente e diga o nome. Depois aponte de novo: o nome deve aparecer.", r2s: "Diga: \"essa é a Ana\"",
+    r3: "Converse e combine algo", r3p: "Com a pessoa na frente, converse um minuto e combine alguma coisa com dia e hora. Depois veja no Manager o resumo do encontro e o compromisso sugerido.", r3s: "Ex.: \"almoço quinta ao meio-dia?\"",
+    r4: "Guarde onde deixou", r4p: "Aponte para as chaves, a carteira ou os óculos de sol e diga o que é. Horas depois, pergunte onde deixou.", r4s: "\"essas são minhas chaves\" · \"onde deixei as chaves?\"",
+    r5: "Leia o mundo", r5p: "Aponte para um cardápio, placa, rótulo ou documento e peça para ler, resumir ou traduzir.", r5s: "\"o que está escrito aqui?\" · \"traduz isso\"",
+    r6: "Pergunte qualquer coisa", r6p: "Use o assistente para a agenda, o tempo, um lugar ou algo da sua memória.", r6s: "\"o que eu tenho amanhã?\" · \"quem eu encontrei hoje?\" · \"onde fica a farmácia mais perto?\"",
+    r7: "Saia na rua", r7p: "Com Lugares ligado, ande um quarteirão: os lugares por perto aparecem como pinos na direção em que você olha.", r7s: "Dia 3 ou 4 · 10 min",
+    r8: "Veja tudo no Manager", r8p: "No navegador, abra o Manager: a teia de pessoas, lugares e coisas, a linha do tempo e o seu dia. Faça uma pergunta à sua memória.", r8s: "Último dia",
+    tip: "Ao fim de cada dia, toque no botão de feedback (o balão verde) e escolha uma carinha: conte o que funcionou, o que travou e onde. Erro também é resultado: é para isso que serve o teste.",
+    k_how: "Como é o teste", h_how: "Você não precisa ter os óculos.",
+    s1: "1 · No celular", s1p: "O app tem um emulador que transforma o seu celular Android nos óculos: a câmera de trás é a câmera dos óculos e a tela mostra a lente, com os cartões que apareceriam na sua frente.",
+    s2: "2 · No dia a dia", s2p: "Use por alguns dias: aponte para pessoas, papéis e lugares, converse com o assistente pela voz e veja tudo organizado no Manager, pelo navegador.",
+    s3: "3 · Sua opinião", s3p: "Sem custo, sem chave de API, sem cartão. Quando aprovar, mando um roteiro curto do que testar; em troca, conte o que funcionou e o que não funcionou pelo botão de feedback do app.",
+    k_form: "Quero testar", h_form: "Peça o seu convite",
+    p_form: "As vagas são poucas e eu aprovo cada pedido pessoalmente. Quando aprovar, você recebe neste e-mail o seu código de acesso, o link do app e o passo a passo. Sem senha.",
+    privacy: "Seu nome e e-mail servem só para o convite e o login. O que você guardar no teste fica na sua conta, e você pode apagar tudo quando quiser.",
+    l_name: "Nome", l_email: "E-mail", l_phone: "Modelo do celular", opt: "(opcional)", ph_phone: "ex.: Samsung Galaxy S23",
+    l_glasses: "Você tem óculos inteligentes?", g0: "Ainda não", g1: "Sim, Rokid", g2: "Sim, de outra marca",
+    l_android: "Tenho um celular Android (versão 11 ou mais nova). No iPhone o teste ainda não funciona.",
+    send: "Pedir o convite", sending: "Enviando…",
+    e_fields: "Escreva seu nome e um e-mail válido.", e_android: "O teste por enquanto é só para Android: confirme que você tem um.", e_net: "Não deu para enviar. Confira a internet e tente de novo.",
+    done_h: "Pedido recebido!", done_p: n => `Obrigado, ${n}. Assim que eu aprovar, o convite chega no seu e-mail.`,
+    done_again: n => `${n}, seu pedido já estava aqui. Assim que eu aprovar, o convite chega no seu e-mail.`,
+    done_demo: "Enquanto isso, veja a demonstração no navegador", home: "Página inicial"
+  },
+  en: {
+    k_film: "The film · 2 min", h_film: "A day in Ana's life, with VisualContext.", film_note: "Some scenes show features still in development. The film is in Portuguese; an English version is coming.",
+    kicker: "Private beta · Android", h1: "Your memory, <em>right in front of you</em>.",
+    lead: "VisualContext is the memory of smart glasses: it sees what you see, hears your conversations and brings back, at the right moment, what you would forget.",
+    f1: "Recognizes people you have met and recalls where, when and what you talked about.",
+    f2: "Transcribes the conversation and notes what was agreed: dates, tasks, contacts.",
+    f3: "Answers \"where did I leave my keys?\" with the place and time you left them.",
+    f4: "Reads menus, signs and documents, translates, and answers questions about what is in front of you.",
+    f5: "Identifies the song that is playing and saves it for later.",
+    mock: "met at Café Pop, Oct 12\ntalked about the mobility project",
+    cap: "The phone plays the part of the glasses",
+    k_plan: "Test plan", h_plan: "What to test, and how",
+    p_plan: "About 15 minutes a day, over 5 days, in any order. Hold the phone at eye level with the back camera facing forward: it is your lens. On the temple bar, <span class=g>●</span> chooses, <span class=g>●●</span> goes back, and a <b>long press on <span class=g>●</span></b> opens the voice assistant.",
+    ri: "Import faces you already have", rip: "In Settings → Import faces, bring in people with a photo and a name: Google Photos (People), phone contacts, LinkedIn, Facebook, Instagram or your WhatsApp chat list (\"Other app\"). You scroll, the app reads, and you choose who comes in. You can also share a screenshot with VisualContext.", ris: "Then point at one of them (or at their photo on another screen)",
+    rm: "Find the song", rmp: "With music playing nearby (a bar, the radio, another phone), ask the assistant. The name shows on the lens and is saved to listen to later.", rms: "\"what song is this?\"",
+    r1: "Sign in and set up", r1p: "Install the app (<a href=\"/test-download/\">how to install</a>), sign in with your e-mail (you get a code) and tap Abrir o emulador (Open the emulator). Allow camera, microphone and location.", r1s: "Day 1 · 3 min",
+    r2: "Teach a face", r2p: "Point at someone who agrees to take part. When the lens asks \"New person. Save?\", open the assistant and say the name. Then point again: the name should appear.", r2s: "Say: \"this is Anna\"",
+    r3: "Talk and agree on something", r3p: "With the person in front of you, talk for a minute and agree on something with a day and time. Then see the summary and the suggested appointment in the Manager.", r3s: "E.g. \"lunch Thursday at noon?\"",
+    r4: "Remember where you left it", r4p: "Point at your keys, wallet or sunglasses and say what they are. Hours later, ask where you left them.", r4s: "\"these are my keys\" · \"where did I leave my keys?\"",
+    r5: "Read the world", r5p: "Point at a menu, sign, label or document and ask it to read, summarize or translate.", r5s: "\"what does this say?\" · \"translate this\"",
+    r6: "Ask anything", r6p: "Use the assistant for your calendar, the weather, a place or something from your memory.", r6s: "\"what do I have tomorrow?\" · \"who did I meet today?\" · \"where is the nearest pharmacy?\"",
+    r7: "Go out", r7p: "With Places on, walk a block: nearby places show up as pins in the direction you are looking.", r7s: "Day 3 or 4 · 10 min",
+    r8: "See it all in the Manager", r8p: "In your browser, open the Manager: the web of people, places and things, the timeline and your day. Ask your memory a question.", r8s: "Last day",
+    tip: "At the end of each day, tap the feedback button (the green bubble) and pick a face: tell me what worked, what got stuck and where. Errors are results too: that is what the test is for.",
+    k_how: "How the test works", h_how: "You don't need the glasses.",
+    s1: "1 · On your phone", s1p: "The app has an emulator that turns your Android phone into the glasses: the back camera is the glasses' camera and the screen shows the lens, with the cards that would appear in front of you.",
+    s2: "2 · In your day", s2p: "Use it for a few days: point at people, papers and places, talk to the assistant by voice, and see everything organized in the Manager, in your browser.",
+    s3: "3 · Your opinion", s3p: "No cost, no API key, no card. Once approved, I send a short plan of what to try; in return, tell me what worked and what didn't with the app's feedback button.",
+    k_form: "I want to try it", h_form: "Ask for your invite",
+    p_form: "Spots are few and I approve each request myself. Once approved, you get your access code, the app link and the steps at this e-mail. No password.",
+    privacy: "Your name and e-mail are used only for the invite and sign-in. What you save during the test stays in your account, and you can delete everything at any time.",
+    l_name: "Name", l_email: "E-mail", l_phone: "Phone model", opt: "(optional)", ph_phone: "e.g. Samsung Galaxy S23",
+    l_glasses: "Do you have smart glasses?", g0: "Not yet", g1: "Yes, Rokid", g2: "Yes, another brand",
+    l_android: "I have an Android phone (version 11 or newer). The test does not work on iPhone yet.",
+    send: "Ask for the invite", sending: "Sending…",
+    e_fields: "Please write your name and a valid e-mail.", e_android: "For now the test is Android only: please confirm you have one.", e_net: "Couldn't send. Check your connection and try again.",
+    done_h: "Request received!", done_p: n => `Thank you, ${n}. As soon as I approve it, the invite arrives in your e-mail.`,
+    done_again: n => `${n}, your request was already here. As soon as I approve it, the invite arrives in your e-mail.`,
+    done_demo: "Meanwhile, try the demo in your browser", home: "Home"
+  },
+  de: {
+    k_film: "Der Film · 2 Min.", h_film: "Ein Tag im Leben von Ana, mit VisualContext.", film_note: "Einige Szenen zeigen Funktionen, die noch in Entwicklung sind. Der Film ist auf Portugiesisch; eine englische Fassung folgt.",
+    kicker: "Geschlossene Beta · Android", h1: "Dein Gedächtnis, <em>direkt vor dir</em>.",
+    lead: "VisualContext ist das Gedächtnis smarter Brillen: Es sieht, was du siehst, hört deine Gespräche und bringt im richtigen Moment zurück, was du sonst vergessen würdest.",
+    f1: "Erkennt Menschen, die du getroffen hast, und erinnert dich, wo, wann und worüber ihr gesprochen habt.",
+    f2: "Schreibt das Gespräch mit und notiert, was ihr vereinbart habt: Termine, Aufgaben, Kontakte.",
+    f3: "Beantwortet „Wo habe ich meine Schlüssel gelassen?“ mit Ort und Uhrzeit.",
+    f4: "Liest Speisekarten, Schilder und Dokumente, übersetzt und beantwortet Fragen zu dem, was vor dir liegt.",
+    f5: "Erkennt das Lied, das gerade läuft, und merkt es sich für später.",
+    mock: "kennengelernt im Café Pop, 12.10.\nüber das Mobilitätsprojekt gesprochen",
+    cap: "Das Handy spielt die Rolle der Brille",
+    k_how: "So läuft der Test", h_how: "Du brauchst keine Brille.",
+    s1: "1 · Auf dem Handy", s1p: "Die App hat einen Emulator, der dein Android-Handy zur Brille macht: Die Rückkamera ist die Kamera der Brille, und der Bildschirm zeigt das Glas mit den Karten, die vor dir erscheinen würden.",
+    s2: "2 · Im Alltag", s2p: "Nutze sie ein paar Tage lang: Richte sie auf Menschen, Papiere und Orte, sprich mit dem Assistenten und sieh alles geordnet im Manager, in deinem Browser.",
+    s3: "3 · Deine Meinung", s3p: "Keine Kosten, kein API-Schlüssel, keine Karte. Nach der Freigabe schicke ich dir einen kurzen Testplan; im Gegenzug erzählst du mir über den Feedback-Knopf der App, was funktioniert hat und was nicht.",
+    k_form: "Ich will testen", h_form: "Fordere deine Einladung an",
+    p_form: "Die Plätze sind begrenzt, und ich gebe jede Anfrage persönlich frei. Danach bekommst du an diese E-Mail deinen Zugangscode, den Link zur App und die Schritte. Kein Passwort.",
+    privacy: "Name und E-Mail werden nur für die Einladung und die Anmeldung genutzt. Was du im Test speicherst, bleibt in deinem Konto, und du kannst jederzeit alles löschen.",
+    l_name: "Name", l_email: "E-Mail", l_phone: "Handymodell", opt: "(optional)", ph_phone: "z. B. Samsung Galaxy S23",
+    l_glasses: "Hast du eine smarte Brille?", g0: "Noch nicht", g1: "Ja, Rokid", g2: "Ja, eine andere Marke",
+    l_android: "Ich habe ein Android-Handy (Version 11 oder neuer). Auf dem iPhone funktioniert der Test noch nicht.",
+    send: "Einladung anfordern", sending: "Wird gesendet…",
+    e_fields: "Bitte gib deinen Namen und eine gültige E-Mail an.", e_android: "Der Test läuft vorerst nur auf Android: Bitte bestätige, dass du eins hast.", e_net: "Senden hat nicht geklappt. Prüfe deine Verbindung und versuche es noch einmal.",
+    done_h: "Anfrage erhalten!", done_p: n => `Danke, ${n}. Sobald ich sie freigebe, kommt die Einladung per E-Mail.`,
+    done_again: n => `${n}, deine Anfrage war schon da. Sobald ich sie freigebe, kommt die Einladung per E-Mail.`,
+    done_demo: "Probier inzwischen die Demo im Browser", home: "Startseite"
+  }
+};
+let L = (() => { const ok = ["pt","en","de"]; try { const q = new URLSearchParams(location.search).get("lang"); if (ok.includes(q)) return q; } catch (_) {} try { const s = localStorage.getItem("vc_lang"); if (ok.includes(s)) return s; } catch (_) {} const ls = (navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ""]).map(x => String(x).toLowerCase()); for (const x of ls) { if (x.startsWith("pt")) return "pt"; if (x.startsWith("de")) return "de"; if (x.startsWith("en")) break; } let tz = ""; try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (_) {} if (/^America\/(Sao_Paulo|Bahia|Fortaleza|Recife|Belem|Maceio|Araguaina|Santarem|Manaus|Cuiaba|Campo_Grande|Porto_Velho|Boa_Vista|Rio_Branco|Eirunepe|Noronha)$|^Europe\/Lisbon$|^Atlantic\/(Azores|Madeira)$|^Africa\/(Luanda|Maputo)$/.test(tz)) return "pt"; if (/^Europe\/(Berlin|Vienna|Zurich|Busingen|Vaduz)$/.test(tz)) return "de"; return "en"; })();
+const qs = new URLSearchParams(location.search).get("lang"); if (qs === "pt" || qs === "en" || qs === "de") L = qs;
+if (!T[L]) L = "en";
+function paint() {
+  const t = T[L]; document.documentElement.lang = L === "pt" ? "pt-BR" : L;
+  document.querySelectorAll("[data-t]").forEach(el => { const v = t[el.dataset.t]; if (typeof v === "string") el.innerHTML = v.replace(/\n/g, "<br>"); });
+  document.querySelectorAll("[data-ph]").forEach(el => el.placeholder = t[el.dataset.ph]);
+  document.querySelectorAll(".lang button").forEach(b => b.classList.toggle("on", b.dataset.l === L));
+}
+document.querySelectorAll("[data-i]").forEach(el => el.innerHTML = window.I ? I(el.dataset.i) : "");
+document.querySelectorAll(".lang button").forEach(b => b.onclick = () => { L = b.dataset.l; try { localStorage.setItem("vc_lang", L); } catch (_) {} paint(); });
+paint();
+
+const f = document.getElementById("f"), err = document.getElementById("err");
+f.addEventListener("submit", async e => {
+  e.preventDefault();
+  const t = T[L], d = Object.fromEntries(new FormData(f));
+  const show = m => { err.textContent = m; err.hidden = false; };
+  err.hidden = true;
+  if (String(d.name || "").trim().length < 2 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(d.email || "").trim())) return show(t.e_fields);
+  if (!d.android) return show(t.e_android);
+  const btn = f.querySelector(".send"); btn.disabled = true; btn.textContent = t.sending;
+  try {
+    const r = await fetch(API, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "beta_request", name: d.name, email: d.email, phone: d.phone, glasses: d.glasses, lang: L, site: d.site }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || t.e_net);
+    const first = String(d.name).trim().split(/\s+/)[0];
+    document.getElementById("doneP").textContent = (j.again ? t.done_again : t.done_p)(first);
+    f.style.display = "none"; const done = document.getElementById("done"); done.style.display = "block"; done.focus();
+  } catch (x) { show(x.message || t.e_net); btn.disabled = false; btn.textContent = t.send; }
+});
+</script>
+<script src="/consent.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,1628 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07090c">
+<meta name="robots" content="noindex">
+<title>VisualContext Manager</title>
+<link rel="icon" href="/brand/visualcontext-icon-512.png">
+<script src="/icons.js"></script>
+<script src="/consent.js" defer></script>
+<style>
+:root{--bg:#07090c;--s1:#0d1217;--s2:#121a20;--line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.16);--g:#00ff88;--g2:#8fdfb5;--gdim:rgba(0,255,136,.12);
+--t:#e8f0ec;--m:#7f8c86;--red:#ff6b6b;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--r:14px}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--bg);color:var(--t);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0}
+a{color:var(--g)}
+.wrap{max-width:1240px;margin:0 auto;padding:0 16px calc(32px + env(safe-area-inset-bottom))}
+header{display:flex;align-items:center;gap:12px;padding:calc(14px + env(safe-area-inset-top)) 0 10px}
+header img{height:40px;width:auto}
+html,body{overflow-x:hidden}
+header .sp{flex:1}
+.badge{font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--g);border:1.5px solid var(--g);border-radius:99px;padding:4px 10px;white-space:nowrap}
+.badge.warn{color:#ffd166;border-color:#ffd166}
+.icon{width:40px;height:40px;border-radius:12px;border:1.5px solid var(--line2);display:grid;place-items:center;font-size:18px;color:var(--g)}
+.icon:hover{border-color:var(--g)}
+.icon.lbl{width:auto;padding:0 12px;display:flex;gap:7px;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--t)}.icon.lbl svg{color:var(--g)}
+@media (max-width:360px){.icon.lbl{width:40px;padding:0;justify-content:center}.icon.lbl span{display:none}}
+
+/* ask */
+.ask{position:relative;margin:18px auto 0;max-width:760px}
+.ask input{width:100%;background:var(--s1);border:2px solid var(--line2);border-radius:18px;padding:16px 18px 16px 50px;font-size:17px;outline:none}
+.ask input:focus{border-color:var(--g)}
+.ask .spark{position:absolute;left:18px;top:15px;color:var(--g);font-size:20px;pointer-events:none}
+.scope{position:absolute;left:0;right:0;top:calc(100% + 6px);background:var(--s2);border:1.5px solid var(--line2);border-radius:16px;overflow:hidden;z-index:20;display:none}
+.scope.on{display:block}
+.scope button{display:flex;width:100%;text-align:left;padding:13px 16px;gap:10px;border-bottom:1px solid var(--line)}
+.scope button:last-child{border-bottom:0}
+.scope button:hover,.scope button:focus{background:var(--gdim);outline:none}
+.scope .q{color:var(--g)}
+.scope .n{margin-left:auto;color:var(--m);font:12px var(--mono)}
+.chips{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:12px auto 0;max-width:760px}
+.chip{border:1.5px dashed rgba(0,255,136,.5);color:var(--g2);border-radius:99px;padding:7px 13px;font-size:13.5px}
+.chip:hover{border-color:var(--g);color:var(--g)}
+
+/* answer */
+.answer{max-width:760px;margin:16px auto 0;border:2px solid var(--g);border-radius:var(--r);padding:16px 18px;background:var(--s1);display:none}
+.answer.on{display:block}
+.answer h3{font:600 11px var(--mono);letter-spacing:.08em;color:var(--g);text-transform:uppercase;margin-bottom:8px;display:flex;gap:8px}
+.answer h3 button{margin-left:auto;color:var(--m)}
+.answer p{white-space:pre-wrap}
+.src{margin-top:12px;display:flex;flex-wrap:wrap;gap:6px}
+.src button,.act{font-size:13px;border:1.5px solid var(--line2);border-radius:10px;padding:6px 10px;color:var(--g2)}
+.src button:hover,.act:hover{border-color:var(--g)}
+.acts{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px}
+.act{color:var(--bg);background:var(--g);border-color:var(--g);font-weight:600;text-decoration:none}
+.dots::after{content:"…";animation:d 1s steps(3) infinite}
+
+/* bar */
+.bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:26px 0 12px}
+@media(max-width:700px){.bar .pills{flex:1 1 100%}.chips{flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start;scrollbar-width:none;padding-bottom:2px}.chip{white-space:nowrap}}
+.pills{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}
+.pill{white-space:nowrap;border-radius:99px;padding:7px 13px;background:var(--s2);border:1.5px solid var(--line);font-size:14px}
+.pill b{font:600 12px var(--mono);color:var(--m);margin-left:5px}
+.pill.on{background:var(--g);color:var(--bg);border-color:var(--g)}
+.pill.on b{color:rgba(0,0,0,.6)}
+.plan{display:flex;flex-direction:column;gap:3px;border:1.5px solid var(--g);border-radius:14px;padding:12px 14px;margin:0 0 10px;background:var(--gdim)}.plan.done{border-color:var(--line2);background:transparent}.plan b{font-size:15px}.plan span{font-size:13.5px}
+.seg{display:flex;border:1.5px solid var(--line2);border-radius:11px;overflow:hidden}
+.seg button{padding:6px 11px;font-size:13px;color:var(--m)}
+.seg button.on{background:var(--s2);color:var(--g)}
+.tools{display:flex;gap:8px;align-items:center}
+
+/* layout */
+.main{display:grid;gap:18px}
+@media(min-width:920px){.main{grid-template-columns:minmax(360px,440px) 1fr;align-items:start}.detail{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}}
+.list{min-width:0}
+.grp{font:600 11px var(--mono);letter-spacing:.1em;color:var(--m);text-transform:uppercase;margin:18px 4px 8px}
+.grp:first-child{margin-top:4px}
+.row{display:flex;gap:12px;align-items:center;width:100%;text-align:left;padding:11px 12px;border-radius:12px;border:1.5px solid transparent}
+.row:hover{background:var(--s1)}
+.row.sel{border-color:var(--g);background:var(--s1)}
+.row .tx{min-width:0;flex:1}
+.row .t1{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;font-weight:600;line-height:1.3}
+.row .t2{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;color:var(--m);font-size:13.5px;margin-top:2px}
+/* who took part, as circles side by side (Marcus, 09/11): you + the assistant, you + Bruno, you + the photo of the keys */
+.stk{display:flex;flex:none;align-items:center}
+.stk .av{width:44px!important;height:44px!important;border:2px solid var(--bg);margin-left:-14px;font-size:20px}
+.stk .av:first-child{margin-left:0}
+.stk .av:not(.sym){font-size:12px}
+.stk.n3 .av{width:40px!important;height:40px!important;margin-left:-18px}
+.av.sym{color:var(--g);font-size:22px;font-family:inherit;background:#0f1d17}
+.av.cov{border-radius:10px;padding:0}.av.cov img{border-radius:9px}
+.av.k{font-size:26px;font-family:inherit}
+.row.mini{padding:3px 12px;gap:10px;align-items:center}
+.row.mini .t1{font-weight:400;font-size:13.5px!important;color:var(--m);-webkit-line-clamp:1}
+.row.mini .mi{width:22px;text-align:center;color:var(--m);font-size:13px;flex:none}
+/* waiting for Gemini: a bar and a percentage, not three grey dots (Marcus, 09/11) */
+.prog{display:grid;gap:8px;padding:4px 0}
+.prog .pl{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.prog .pt{color:var(--t);font-size:14.5px}
+.prog .pp{font:700 20px var(--mono);color:var(--g)}
+.prog .pb{height:6px;border-radius:9px;background:var(--s2);overflow:hidden}
+.prog .pb i{display:block;height:100%;width:0;background:var(--g);border-radius:9px;box-shadow:0 0 10px rgba(0,255,136,.6);transition:width .25s linear}
+.ver{display:flex;justify-content:center;margin-top:28px}
+.ver span{font:600 11px var(--mono);color:var(--m);border:1px solid var(--line2);border-radius:99px;padding:3px 10px}
+.pill.off{opacity:.35;pointer-events:none}
+.lnk{color:var(--g);text-decoration:underline;text-underline-offset:3px;display:inline-flex;gap:6px;align-items:center;font:inherit}.lnk .ic{width:16px;height:16px;vertical-align:0}
+/* feedback (Marcus, 09/11): a thumb on everything the AI made, a floating button, one question about the views */
+.rate{display:inline-flex;gap:4px;align-items:center;margin-top:8px;color:var(--m);font-size:12px}
+.rate button{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;color:var(--m);border:1px solid transparent}
+.rate button:hover{color:var(--g)}.rate button.on{color:var(--g);border-color:var(--g)}
+.rate .ic{width:18px;height:18px;vertical-align:0}
+.rate input{background:var(--s1);border:1px solid var(--line2);border-radius:9px;color:var(--t);padding:6px 9px;font:inherit;font-size:13px;min-width:0;flex:1}
+.faces{display:flex;justify-content:space-between;gap:4px;margin-top:14px}
+.faces button{flex:1;display:grid;justify-items:center;gap:4px;padding:8px 2px;border-radius:12px;color:var(--m);border:1.5px solid transparent}
+.faces button .ic{width:40px;height:40px;vertical-align:0}.faces button small{font-size:11px;line-height:1.2;text-align:center}
+.faces button:hover,.faces button.on{color:var(--g)}.faces button.on{border-color:var(--g)}
+.fab{position:fixed;right:16px;bottom:16px;z-index:40;display:flex;gap:7px;align-items:center;padding:10px 14px;border-radius:99px;background:var(--s1);border:1.5px solid var(--g);color:var(--g);font-weight:600;font-size:13.5px;box-shadow:0 6px 24px rgba(0,0,0,.5)}
+.fab .ic{width:18px;height:18px;vertical-align:0}
+.choice{display:grid;gap:10px;margin:12px 0}.choice button{display:flex;gap:12px;align-items:center;text-align:left;padding:14px;border:1.5px solid var(--line2);border-radius:14px}
+.choice button:hover{border-color:var(--g)}.choice .ic{width:30px;height:30px;color:var(--g)}.choice small{display:block;color:var(--m);font-size:13px}
+.row .when{color:var(--m);font:12px var(--mono);white-space:nowrap}
+.av{width:42px;height:42px;border-radius:50%;flex:none;display:grid;place-items:center;font:600 14px var(--mono);border:1.5px solid var(--line2);color:var(--g2);overflow:hidden;background:var(--s2)}
+.av img{width:100%;height:100%;object-fit:cover}
+.av.k{border-radius:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.card{border:1.5px solid var(--line);border-radius:var(--r);padding:14px;text-align:left;background:var(--s1);display:flex;flex-direction:column;gap:8px;min-height:140px}
+.card:hover,.card.sel{border-color:var(--g)}
+.card .av{width:54px;height:54px}
+.card .t1{font-weight:600}.card .t2{color:var(--m);font-size:13px}
+.empty{color:var(--m);padding:24px 8px;text-align:center}
+.dup{display:flex;gap:10px;align-items:center;border:1.5px dashed #ffd166;color:#ffd166;border-radius:12px;padding:10px 12px;margin-bottom:8px;width:100%;text-align:left;font-size:14px}
+
+/* my day */
+.day{border:1.5px solid var(--line2);border-radius:var(--r);padding:14px 16px;margin-bottom:6px;background:linear-gradient(180deg,rgba(0,255,136,.06),transparent)}
+.day h4{font:600 11px var(--mono);letter-spacing:.1em;color:var(--g);text-transform:uppercase}
+.day p{margin:6px 0 8px}
+.day .stops{display:flex;flex-direction:column;gap:3px;font-size:13.5px;color:var(--g2)}
+.day .stops span{font-family:var(--mono);color:var(--m);margin-right:6px}
+.day .stop{display:flex;gap:8px;align-items:flex-start;margin-top:4px}.day .stop>span{flex:0 0 auto;padding-top:2px}.day .stopb{min-width:0;flex:1}
+.day .who{display:flex;flex-wrap:wrap;gap:6px;margin-top:5px}.day .whoa{display:inline-flex;align-items:center;gap:6px;padding:3px 10px 3px 3px;border-radius:99px;background:var(--s2);border:1px solid var(--line);font-size:13px;color:var(--g1)}
+.day .whom{display:flex;align-items:center;gap:10px;margin-top:6px}.day .whom .names{font-size:13.5px;color:var(--m)}.day .whom .stk .av{width:36px!important;height:36px!important;margin-left:-10px;font-size:16px}.day .whom .stk .av:first-child{margin-left:0}.day .stopn{font-size:16px;font-weight:600;color:var(--g0,#fff)}
+.day .how{font-family:var(--mono);font-size:12px;color:var(--m);padding:6px 0 2px 14px;border-left:2px dashed var(--line);margin:2px 0 2px 28px}
+.row>.av{width:56px;height:56px}.row .t1{font-size:16px}
+.day .foot{display:flex;justify-content:space-between;margin-top:10px;font:12px var(--mono);color:var(--m)}
+.day .foot button{color:var(--g)}
+
+/* detail (HUD card format) */
+.detail{border:2px solid var(--g);border-radius:18px;background:var(--s1);padding:20px;min-height:200px}
+.detail .ph{display:flex;gap:14px;align-items:center}
+.detail .ph .av{width:72px;height:72px;font-size:20px}
+.detail h2{font-size:22px;line-height:1.2}
+.hook{color:var(--g2);font-size:14px;margin-top:3px}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.tag{font:12px var(--mono);border:1.5px solid var(--line2);border-radius:8px;padding:3px 8px;color:var(--g2)}
+.sec{margin-top:20px}
+.sec h5{font:600 11px var(--mono);letter-spacing:.1em;color:var(--m);text-transform:uppercase;border-bottom:1.5px solid var(--line);padding-bottom:6px;margin-bottom:10px}
+.kv{display:grid;grid-template-columns:110px 1fr;gap:6px 12px;font-size:14.5px}
+.kv dt{color:var(--m)}
+.kv dd{word-break:break-word}
+.enc{border-left:2px solid var(--g);padding:2px 0 2px 12px;margin-bottom:14px}
+.enc .d{font:12px var(--mono);color:var(--m)}
+.enc ul{margin:6px 0 0 18px;color:var(--g2);font-size:14px}
+.trans{font-size:13.5px;color:var(--m);white-space:pre-wrap;max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:8px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:22px}
+.btn{border:1.5px solid var(--line2);border-radius:12px;padding:10px 14px;font-weight:600;font-size:14px;text-decoration:none;display:inline-flex;align-items:center}
+.btn:hover{border-color:var(--g)}
+.btn.pri{background:var(--g);color:var(--bg);border-color:var(--g)}
+.btn.on{border-color:var(--g);color:var(--g);gap:10px}.btn .minus{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--g);font-size:16px;line-height:1}
+/* Meu uso */
+.gauge{display:grid;place-items:center;margin:8px 0 4px}.gauge b{display:block;text-align:center;font:700 26px var(--mono);color:var(--t)}.gauge small{display:block;text-align:center;color:var(--m);font:600 11px var(--mono);letter-spacing:.08em;text-transform:uppercase}
+.feat{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:11px 0;border-bottom:1px solid var(--line)}.feat:last-child{border-bottom:0}
+.feat b{font-size:15px}.feat .n{font:600 13px var(--mono);color:var(--g);align-self:center}.feat .n.no{color:var(--m)}
+.feat .hint{grid-column:1/-1;color:var(--m);font-size:13px}.feat .bar{grid-column:1/-1;height:4px;border-radius:9px;background:var(--s2);overflow:hidden;margin-top:4px}.feat .bar i{display:block;height:100%;background:var(--g)}
+.btn.dan{color:var(--red);border-color:rgba(255,107,107,.4)}
+.btn.dan:hover{border-color:var(--red)}
+.back{display:none;color:var(--g);margin-bottom:12px;font-weight:600}
+@media(max-width:919px){
+  .detail{display:none;position:fixed;inset:0;z-index:30;border-radius:0;border:0;overflow:auto;padding:calc(16px + env(safe-area-inset-top)) 16px calc(32px + env(safe-area-inset-bottom))}
+  .detail.open{display:block}.back{display:inline-block}.detail.idle{display:none!important}
+}
+@media(min-width:920px){.detail.idle{display:grid;place-items:center;color:var(--m);border-color:var(--line);border-style:dashed}}
+
+/* forms & sheets */
+.f{display:grid;gap:12px;margin-top:14px}
+.f label{display:grid;gap:5px;font-size:13px;color:var(--m)}
+.f input,.f textarea,.f select{background:var(--bg);border:1.5px solid var(--line2);border-radius:11px;padding:11px 12px;font-size:15px;color:var(--t);outline:none;width:100%}
+.f input:focus,.f textarea:focus{border-color:var(--g)}
+.f textarea{min-height:90px;resize:vertical}
+.sheet{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.6);display:none;align-items:flex-end;justify-content:center}
+.sheet.on{display:flex}
+.sheet .box{background:var(--s1);border:1.5px solid var(--line2);border-bottom:0;border-radius:20px 20px 0 0;width:100%;max-width:620px;max-height:92vh;overflow:auto;padding:20px 18px calc(22px + env(safe-area-inset-bottom))}
+@media(min-width:700px){.sheet{align-items:center}.sheet .box{border-radius:20px;border-bottom:1.5px solid var(--line2)}}
+.sheet h3{font-size:19px;margin-bottom:6px}
+.sheet .sub{color:var(--m);font-size:14px}
+.opt{display:flex;gap:12px;align-items:center;width:100%;text-align:left;border:1.5px solid var(--line2);border-radius:14px;padding:14px;margin-top:10px}
+.opt:hover{border-color:var(--g)}
+.opt .ic{font-size:22px;width:30px;text-align:center}
+.opt small{display:block;color:var(--m)}
+.pv{margin-top:14px;max-height:46vh;overflow:auto;border:1px solid var(--line);border-radius:12px}
+.pv label{display:flex;gap:10px;align-items:center;padding:9px 12px;border-bottom:1px solid var(--line);font-size:14px}
+.pv label:last-child{border-bottom:0}
+.pv input{accent-color:var(--g);width:18px;height:18px}
+.pv .st{margin-left:auto;font:11px var(--mono);color:var(--m);white-space:nowrap}
+.pv .st.new{color:var(--g)}
+.pick{max-height:40vh;overflow:auto;margin-top:10px}
+.chat{display:flex;flex-direction:column;gap:6px}.chat .msg{max-width:88%;padding:8px 12px;border-radius:14px;font-size:15px;line-height:1.4}
+.chat .me{align-self:flex-end;background:#0f2a1c;border:1px solid #1f6b44;color:var(--t)}.chat .ai{align-self:flex-start;background:var(--s2);border:1px solid var(--line);color:var(--t)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--g);color:var(--bg);font-weight:600;padding:10px 16px;border-radius:12px;z-index:60;display:none;max-width:90vw}
+.toast.on{display:block}
+.gate{max-width:460px;margin:12vh auto 0;text-align:center}
+.gate img{height:44px;margin-bottom:28px}
+.gate h1{font-size:22px;margin-bottom:10px}
+.gate p{color:var(--m)}
+.gate .steps{text-align:left;border:1.5px solid var(--line2);border-radius:var(--r);padding:16px 18px;margin:22px 0;display:grid;gap:8px}
+.gate .steps b{color:var(--g);font-family:var(--mono);margin-right:8px}
+.muted{color:var(--m)}
+.hide{display:none!important}
+@keyframes d{0%{content:""}33%{content:"."}66%{content:".."}100%{content:"…"}}
+</style>
+</head>
+<body>
+<div id="gate" class="wrap hide">
+  <div class="gate">
+    <img src="/brand/visualcontext-logo-transparent.png" alt="VisualContext">
+    <h1>Entrar no Manager</h1>
+    <p>Digite o e-mail com que você pediu o convite. Mandamos o seu código de acesso por e-mail; não precisa de senha. Ainda não pediu? <a href="https://vc.alema.io/test-invite/" style="color:var(--g)">Peça o convite aqui</a>.</p>
+    <form class="f" id="lf" style="text-align:left;margin-top:18px">
+      <input name="e" type="email" autocomplete="email" placeholder="seu@email.com" required>
+      <input name="c" autocomplete="one-time-code" autocapitalize="characters" maxlength="14" placeholder="código do e-mail (VC-XXXX-XXXX)" class="hide" style="font-family:var(--mono,monospace);letter-spacing:.08em">
+      <div class="btns" style="margin-top:0"><button class="btn pri" id="lb">Enviar código</button></div>
+      <p class="muted" id="lm" style="font-size:13px;min-height:1.2em"></p>
+    </form>
+    <p class="muted" style="font-size:13px">Ou abra pelo app do celular: Ajustes → Abrir o Manager.<br><button id="gInv" style="color:var(--g);text-decoration:underline;margin-top:10px;margin-right:14px">Tenho um código de convite</button><button id="gTok" style="color:var(--m);text-decoration:underline;margin-top:10px">Tenho um código de aparelho</button></p>
+  </div>
+</div>
+
+<div id="app" class="wrap hide">
+  <header>
+    <img src="/brand/visualcontext-logo-transparent.png" alt="VisualContext">
+    <span class="sp"></span>
+    <span id="plan" class="badge"></span>
+    <button class="icon lbl" id="bImport" title="Importar pessoas e contatos" aria-label="Importar pessoas e contatos"><svg viewBox="0 -960 960 960" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg><span>Importar</span></button>
+    <button class="icon" data-usage="1" title="Meu uso" aria-label="Meu uso"><svg viewBox="0 -960 960 960" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M418-340q24 24 62 23.5t56-27.5l224-336-336 224q-27 18-28.5 55t22.5 61Zm62-460q59 0 113.5 16.5T696-734l-76 48q-33-17-68.5-25.5T480-720q-133 0-226.5 93.5T160-400q0 42 11.5 83t32.5 77h552q23-38 33.5-79t10.5-85q0-36-8.5-70T766-540l48-76q30 47 47.5 100T880-406q1 57-13 109t-41 99q-11 18-30 28t-40 10H204q-21 0-40-10t-30-28q-26-45-40-95.5T80-400q0-83 31.5-155.5t86-127Q252-737 325-768.5T480-800Zm7 313Z"/></svg></button>
+    <button class="icon" id="bSet" title="Ajustes" aria-label="Ajustes"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+  </header>
+
+  <div class="ask">
+    <span class="spark">✦</span>
+    <input id="q" placeholder="Pergunte qualquer coisa à sua memória" autocomplete="off" enterkeyhint="send">
+    <div class="scope" id="scope"></div>
+  </div>
+  <div class="chips" id="chips"></div>
+  <div class="answer" id="ans" data-clarity-mask="true"></div>
+
+  <div class="bar">
+    <div class="pills" id="pills"></div>
+    <div class="pills hide" id="pills2" style="flex:1 1 100%"></div>
+    <div class="tools">
+      <div class="seg" id="views"><button data-v="teia"><svg viewBox="0 -960 960 960" width="15" height="15" style="vertical-align:-3px" aria-hidden="true"><path fill="currentColor" d="M240-40q-50 0-85-35t-35-85q0-50 35-85t85-35q14 0 26 3t23 8l57-71q-28-31-39-70t-5-78l-81-27q-17 25-43 40t-58 15q-50 0-85-35T0-580q0-50 35-85t85-35q50 0 85 35t35 85v8l81 28q20-36 53.5-61t75.5-32v-87q-39-11-64.5-42.5T360-840q0-50 35-85t85-35q50 0 85 35t35 85q0 42-26 73.5T510-724v87q42 7 75.5 32t53.5 61l81-28v-8q0-50 35-85t85-35q50 0 85 35t35 85q0 50-35 85t-85 35q-32 0-58.5-15T739-515l-81 27q6 39-5 77.5T614-340l57 70q11-5 23-7.5t26-2.5q50 0 85 35t35 85q0 50-35 85t-85 35q-50 0-85-35t-35-85q0-20 6.5-38.5T624-232l-57-71q-41 23-87.5 23T392-303l-56 71q11 15 17.5 33.5T360-160q0 50-35 85t-85 35ZM120-540q17 0 28.5-11.5T160-580q0-17-11.5-28.5T120-620q-17 0-28.5 11.5T80-580q0 17 11.5 28.5T120-540Zm120 420q17 0 28.5-11.5T280-160q0-17-11.5-28.5T240-200q-17 0-28.5 11.5T200-160q0 17 11.5 28.5T240-120Zm240-680q17 0 28.5-11.5T520-840q0-17-11.5-28.5T480-880q-17 0-28.5 11.5T440-840q0 17 11.5 28.5T480-800Zm0 440q42 0 71-29t29-71q0-42-29-71t-71-29q-42 0-71 29t-29 71q0 42 29 71t71 29Zm240 240q17 0 28.5-11.5T760-160q0-17-11.5-28.5T720-200q-17 0-28.5 11.5T680-160q0 17 11.5 28.5T720-120Zm120-420q17 0 28.5-11.5T880-580q0-17-11.5-28.5T840-620q-17 0-28.5 11.5T800-580q0 17 11.5 28.5T840-540ZM480-840ZM120-580Zm360 120Zm360-120ZM240-160Zm480 0Z"/></svg> Teia</button><button data-v="time">Linha do tempo</button><button data-v="grid">Grade</button><button data-v="az">A–Z</button></div>
+      <div class="seg" id="order"><button data-o="new" class="on" title="Mais novos primeiro">↓</button><button data-o="old" title="Mais antigos primeiro">↑</button></div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="list" id="list" data-clarity-mask="true"></div>
+    <div class="detail idle" id="detail" data-clarity-mask="true">Escolha algo na lista</div>
+  </div>
+  <button class="fab" data-fb="1" aria-label="Enviar feedback"><span id="fabic"></span>Feedback</button>
+  <div class="ver"><span id="ver">VisualContext · Manager v0.19.4</span></div>
+</div>
+
+<div class="sheet" id="sheet"><div class="box" id="sbox"></div></div>
+<div class="toast" id="toast"></div>
+<input type="file" id="file" accept=".csv,.vcf,.txt,text/csv,text/vcard,text/x-vcard" class="hide">
+
+<script>
+"use strict";
+const API = "https://vzqjwhlpwvqrosoiwiin.supabase.co/functions/v1/vc";
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const store = { get(k) { try { return localStorage.getItem(k) } catch { return null } }, set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v) } catch {} } };
+const norm = s => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+
+let LINK = null;
+/* ---------- login: the app opens /manager#t=TOKEN&g=GEMINI_KEY; the fragment never reaches a server ---------- */
+(function readHash() {
+  const h = new URLSearchParams(location.hash.slice(1));
+  if (h.get("t") && /^vc_[A-Za-z0-9]{16,128}$/.test(h.get("t"))) store.set("vc_token", h.get("t"));
+  if (h.get("g") && h.get("g").length > 20) store.set("vc_gemini", h.get("g"));
+  // The sign-in e-mail's link comes back here with a Supabase session (#access_token=…) or an error.
+  if (h.get("access_token")) LINK = { at: h.get("access_token"), app: new URLSearchParams(location.search).get("app") === "1" };
+  else if (h.get("error_description")) LINK = { err: h.get("error_description") };
+  if (h.get("p")) { try { sessionStorage.setItem("vc_open", h.get("p") + (h.get("prep") ? "|prep" : "")) } catch {} }
+  if (location.hash || location.search.includes("app=")) history.replaceState(null, "", location.pathname);
+})();
+let TOKEN = store.get("vc_token");
+
+async function call(action, extra = {}) {
+  const r = await fetch(API, { method: "POST", headers: { "content-type": "application/json", "x-vc-token": TOKEN }, body: JSON.stringify({ action, ...extra }) });
+  if (r.status === 401) { store.set("vc_token", null); TOKEN = null; showGate(); throw new Error("token"); }
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.detail || j.error || r.status);
+  return j;
+}
+function toast(t) { const el = $("#toast"); el.textContent = t; el.classList.add("on"); clearTimeout(toast.h); toast.h = setTimeout(() => el.classList.remove("on"), 2600); }
+
+/* ---------- data ---------- */
+const S = { me: null, people: [], enc: [], things: [], notes: [], cat: "all", view: store.get("vc_view_pref") || "teia", order: "new", sel: null, filter: null, dayOnly: false, face: "all", pick: null };
+async function load() {
+  S.myPlaces = await call("places").catch(() => []);
+  const [me, people, enc, things, notes] = await Promise.all([call("me"), call("list", { entity: "person", thumbs: true }), call("list", { entity: "encounter" }), call("list", { entity: "thing" }), call("list", { entity: "note" })]);
+  Object.assign(S, { me, people, enc, things, notes });
+  render();
+  refreshTopics();
+  $("#fabic").innerHTML = I("rate_review");
+  let o = null; try { o = sessionStorage.getItem("vc_open"); sessionStorage.removeItem("vc_open") } catch {}
+  if (o) { const [pid, what] = o.split("|"); if (S.people.some(p => p.id === pid)) { open("person", pid); if (what === "prep") prep(pid); } }
+}
+
+const fmtWhen = d => {
+  if (!d) return "";
+  const t = new Date(d), now = new Date(), diff = (now - t) / 6e4;
+  if (diff < 60) return Math.max(1, Math.round(diff)) + " min";
+  if (sameDay(t, now)) return t.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const y = new Date(now); y.setDate(y.getDate() - 1);
+  if (sameDay(t, y)) return "ontem";
+  return t.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", ...(t.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}) }).replace(".", "");
+};
+const fmtFull = d => d ? new Date(d).toLocaleString("pt-BR", { weekday: "short", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+const initials = n => String(n || "?").split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join("").toUpperCase();
+const photo = p => p && p.photo_url && !/ui-avatars\.com/.test(p.photo_url) ? p.photo_url : p && p.thumb ? "data:image/jpeg;base64," + p.thumb : null;
+const avatar = (p, cls = "") => { const u = photo(p); return `<span class="av ${cls}">${u ? `<img src="${esc(u)}" alt="" loading="lazy" onerror="this.remove()">` : esc(initials(p.name))}</span>`; };
+/** You, as a circle: the photo of the person marked "Sou eu", or your initials. */
+const meAv = () => { const p = S.people.find(x => isMe(x.name)); return p ? avatar(p) : `<span class="av">${esc(initials((S.me && S.me.me_name) || "Eu"))}</span>`; };
+const sym = (c, title = "") => `<span class="av sym" title="${esc(title)}">${I(c) || esc(c)}</span>`;
+/** An icon in a rounded square (lists, detail headers). */
+const icAv = (n, style = "") => `<span class="av k" ${style ? `style="${style}"` : ""}>${I(n) || esc(n)}</span>`;
+const imgAv = u => `<span class="av"><img src="${esc(u)}" alt="" loading="lazy" onerror="this.remove()"></span>`;
+/** Who took part, side by side; past three they overlap more (Marcus, 09/11). */
+const stack = parts => `<span class="stk ${parts.length > 2 ? "n3" : ""}">${parts.join("")}</span>`;
+
+/* ---------- topics (Marcus, 09/11): a conversation's title starts with its subject ("Gastos a pagar"), never
+   "O usuário pediu para…"; a talk that was only about a song folds into the song; a plain look-up (agenda, time)
+   is not a memory and becomes a small line. Gemini names them once; the names stay in this browser. ---------- */
+const TOP = (() => { try { return JSON.parse(store.get("vc_topics") || "{}") } catch { return {} } })();
+const userLines = e => String(e.transcript || "").split("\n").filter(l => /^Você:/.test(l)).map(l => l.replace(/^Você:\s*/, "").trim());
+const cap = t => t ? t[0].toUpperCase() + t.slice(1) : t;
+function cleanSaid(t) {
+  t = String(t || "").trim().replace(/\.$/, "");
+  t = t.replace(/^(o|a) usu[aá]ri[oa]\s+(pediu|perguntou|quis saber|tentou|solicitou|queria|identificou|disse|falou|comentou|mencionou|buscou|procurou)\s+(para\s+|ao assistente\s+(para\s+|sobre\s+|se\s+)?|sobre\s+|se\s+|que\s+|a\s+|o\s+|qual\s+|quais\s+|onde\s+)?/iu, "");
+  t = t.replace(/^(você|vc)\s+(pediu|perguntou)\s+(para\s+|sobre\s+|se\s+)?/iu, "");
+  return cap(t);
+}
+function guessKind(e) {
+  const u = userLines(e); if (!u.length) return "outro";
+  const music = /m[uú]sica|letra|tocando|toca |spotify|cantor|banda|essa can[cç][aã]o/i, look = /(o que|que) .*(tenho|tem)|agenda|compromisso|que horas|amanh[aã]|para fazer|meu dia/i;
+  if (u.every(l => music.test(l) || l.split(/\s+/).length < 4)) return "musica";
+  if (u.every(l => look.test(l) || l.split(/\s+/).length < 4)) return "consulta";
+  return "outro";
+}
+const topicOf = e => TOP[e.id] || { t: cleanSaid(said(e)) || "Conversa com o assistente", k: guessKind(e) };
+const dayPt = d => new Date(d).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" }).replace(".", "");
+async function refreshTopics() {
+  const key = gkey(); if (!key) return;
+  const todo = S.enc.filter(e => e.capture_mode === "live" && !TOP[e.id] && e.transcript).slice(0, 30);
+  if (!todo.length) return;
+  const items = todo.map(e => ({ id: e.id, quando: new Date(e.at).toLocaleString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }), conversa: String(e.transcript).slice(0, 900) }));
+  const prompt = `Para cada conversa do usuário com o assistente dos óculos, dê um título e um tipo. Responda em JSON: [{"id": string, "titulo": string, "tipo": "musica"|"consulta"|"outro"}].
+Título: até 6 palavras, começando pelo assunto ("Gastos a pagar até sexta", "Onde deixei a moto", "Calorias do prato do Bruno"). Nunca "O usuário…", "Você pediu…" nem verbo de pedir. Datas relativas (hoje, amanhã, sexta) viram a data real a partir de "quando" ("Agenda de seg 09/11").
+Tipo: "musica" se a conversa foi só para identificar, tocar ou ver a letra de música; "consulta" se ele só consultou agenda, tarefas, hora ou clima e nada novo foi dito ou decidido; senão "outro".
+CONVERSAS: ${JSON.stringify(items)}`;
+  try {
+    const j = await gemini(key, { contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.1, maxOutputTokens: 4096, responseMimeType: "application/json" } });
+    const txt = (j.candidates?.[0]?.content?.parts || []).filter(p => !p.thought && p.text).map(p => p.text).join("");
+    for (const r of JSON.parse(txt.replace(/^```json|```$/g, ""))) if (r.id && r.titulo) TOP[r.id] = { t: cleanSaid(r.titulo), k: ["musica", "consulta"].includes(r.tipo) ? r.tipo : "outro" };
+    store.set("vc_topics", JSON.stringify(TOP)); render();
+  } catch {}
+}
+
+/* ---------- album covers (iTunes search, free, no key; JSONP because it sends no CORS header) ---------- */
+const COV = (() => { try { return JSON.parse(store.get("vc_cov") || "{}") } catch { return {} } })();
+function coverFor(t, a, cb) {
+  const k = norm(t + " " + a); if (k in COV) return cb(COV[k]);
+  const fn = "vcCov" + Math.random().toString(36).slice(2), sc = document.createElement("script");
+  const end = u => { COV[k] = u; store.set("vc_cov", JSON.stringify(COV)); delete window[fn]; sc.remove(); cb(u); };
+  window[fn] = j => end(j?.results?.[0]?.artworkUrl100?.replace("100x100bb", "300x300bb") || "");
+  sc.onerror = () => { delete window[fn]; sc.remove(); cb(""); };
+  sc.src = `https://itunes.apple.com/search?media=music&entity=song&limit=1&callback=${fn}&term=${encodeURIComponent(a + " " + t)}`;
+  document.head.appendChild(sc);
+}
+function hydrateCovers(root = document) {
+  root.querySelectorAll("[data-cover]").forEach(el => { const [t, a] = el.dataset.cover.split("\u0001"); el.removeAttribute("data-cover"); coverFor(t, a, u => { if (u) el.innerHTML = `<img src="${esc(u)}" alt="">`; }); });
+}
+const coverAv = (r, big) => { const s = songOf(r); return `<span class="av k cov" ${big ? 'style="width:96px;height:96px"' : ""} data-cover="${esc(s.title + "\u0001" + s.artist)}">${I("music_note")}</span>`; };
+
+/** Conversations that were only about a song, and the song note each belongs to (identified within 15 min). */
+function musicChats() {
+  const m = new Map();
+  for (const e of S.enc) {
+    if (e.capture_mode !== "live" || topicOf(e).k !== "musica") continue;
+    const t = new Date(e.at).getTime();
+    const n = S.notes.find(n => n.kind === "musica" && Math.abs(new Date(n.at) - t) < 15 * 6e4);
+    if (n) m.set(e.id, n.id);
+  }
+  return m;
+}
+/** Everything as one catalog: people, places, things, memories (moments and notes). */
+function items() {
+  const out = [];
+  for (const p of S.people) out.push({ kind: "person", id: p.id, title: isMe(p.name) ? p.name + " ★ você" : p.name, sub: isMe(p.name) ? "você mesmo · nunca vira encontro" : [p.relation, p.company, p.role].filter(Boolean).join(" · ") || (p.faces ? "rosto guardado" : "sem rosto ainda"), date: p.last_seen_date || p.created_at, ref: p, av: avatar(p) });
+  const folded = musicChats();
+  for (const e of S.enc) {
+    const live = e.capture_mode === "live";
+    if (folded.has(e.id)) continue; // only about a song: it lives inside the song's card
+    const p = e.person_name && !isMe(e.person_name) ? S.people.find(x => nameKey(x.name) === nameKey(e.person_name)) : null;
+    if (live) {
+      const tp = topicOf(e);
+      out.push({ kind: "memory", id: e.id, title: tp.t, sub: placeName(e) || "", date: e.at, ref: e, sub2: "enc", mini: tp.k === "consulta",
+        av: stack([meAv(), sym(tp.k === "musica" ? "music_off" : "auto_awesome", tp.k === "musica" ? "música não reconhecida" : "assistente"), ...(p ? [avatar(p)] : [])]) });
+      continue;
+    }
+    const what = said(e);
+    out.push({ kind: "memory", id: e.id, title: isMe(e.person_name) ? "Você mesmo (teste ou espelho)" : e.person_name ? e.person_name : (e.context || "Momento"), sub: [what, placeName(e)].filter(Boolean).join(" · "), date: e.at, ref: e, sub2: "enc",
+      av: stack([meAv(), p && photo(p) ? avatar(p) : e.person_name ? sym("handshake", e.person_name) : sym("help", "não sei o que é")]) });
+  }
+  const PK = { pix: ["qr_code", "Pix"], link: ["link", "link"], cartao: ["contact_page", "cartão de visita"], cracha: ["badge", "crachá"], receita: ["medication", "receita"], formulario: ["list_alt", "formulário"], cardapio: ["restaurant_menu", "cardápio"], musica: ["music_note", "música"], ouvir_depois: ["playlist_add_check", "ouvir depois"], traducao: ["translate", "tradução"], evento: ["calendar_month", "compromisso"], outro: ["description", "papel"] };
+  // To-dos (Marcus, 09/11): their own category; done ones (a "tarefa_feita" note points to them) and the "feita" markers stay out.
+  const doneT = tasksDone();
+  for (const n of S.notes) if (n.kind === "tarefa" && !doneT.has(n.id)) { const f = n.fields || {}; out.push({ kind: "task", id: n.id, title: n.title || n.text, sub: [TACT[f.acao]?.[1], f.pessoa, f.quando && "até " + fmtShort(f.quando)].filter(Boolean).join(" · ") || "tarefa", date: f.quando || n.at, ref: n, av: icAv(TACT[f.acao]?.[0] || "check") }); }
+  for (const n of S.notes) {
+    if (["tarefa", "tarefa_feita", "ligacao"].includes(n.kind)) continue;
+    const k = PK[n.kind];
+    if (n.kind === "musica" || n.kind === "ouvir_depois") { const sg = songOf(n); out.push({ kind: "memory", id: n.id, title: sg.title || n.title, sub: [n.kind === "ouvir_depois" ? "ouvir depois" : "", sg.artist, n.place].filter(Boolean).join(" · "), date: n.at, ref: n, sub2: "note", av: coverAv(n) }); continue; }
+    out.push({ kind: "memory", id: n.id, title: n.title || n.text, sub: k ? k[1] + (n.place ? " · " + n.place : "") : "nota" + (n.source === "voice" ? " por voz" : ""), date: n.at, ref: n, sub2: "note", av: stack([meAv(), sym(k ? k[0] : "edit_note")]) });
+  }
+  for (const t of S.things) out.push({ kind: "thing", id: t.id, title: t.name, sub: t.location_description || "", date: t.seen_at, ref: t, av: stack([meAv(), t.snapshot_url ? imgAv(t.snapshot_url) : sym(/chave/i.test(t.name) ? "key" : "category")]) });
+  const places = new Map();
+  const addPlace = (name, date, lat, lng) => { if (!name) return; const k = norm(name); const p = places.get(k) || { name, n: 0, date: null, lat, lng }; p.n++; if (!p.date || date > p.date) p.date = date; if (lat && !p.lat) { p.lat = lat; p.lng = lng; } places.set(k, p); };
+  S.enc.forEach(e => { const m = myPlaceAt(e.lat, e.lng); addPlace(m ? m.name : e.place, e.at, m ? m.lat : e.lat, m ? m.lng : e.lng); });
+  for (const [k, p] of places) { const mp = (S.myPlaces || []).find(x => norm(x.name) === k); out.push({ kind: "place", id: "pl:" + k, title: p.name, sub: (mp ? ({ casa: "sua casa", trabalho: "seu trabalho" }[mp.kind] || "seu lugar") + " · " : "") + p.n + (p.n === 1 ? " momento" : " momentos"), date: p.date, ref: p, av: icAv(mp ? ({ casa: "home", trabalho: "work" }[mp.kind] || "star") : "location_on") }); }
+  return out;
+}
+const CATS = [["all", "Todos"], ["task", "Tarefas"], ["person", "Pessoas"], ["place", "Lugares"], ["thing", "Coisas"], ["memory", "Lembranças"]];
+function matches(it, q) { if (!q) return true; const n = norm(q); return norm(it.title + " " + it.sub + " " + (it.ref.notes || "") + " " + (it.ref.source || "") + " " + (it.ref.tags || []).join(" ")).includes(n); }
+// "Marcus Magalhães" and "Marcus de Magalhães" are the same person: particles and accents do not count.
+const nameKey = n => norm(n).split(" ").filter(w => w && !["de", "da", "do", "dos", "das", "e"].includes(w)).join(" ");
+// What a conversation was about (Marcus, 08/11: "me interessa o que eu conversei, não o endereço"):
+// the summary, or the first real question he asked. Lines the recognizer garbled (other alphabets, one word) are skipped.
+const said = e => {
+  if (e.summary) return e.summary;
+  const lines = String(e.transcript || "").split("\n").filter(l => /^Você:/.test(l)).map(l => l.replace(/^Você:\s*/, "").trim());
+  const ok = lines.find(l => l.split(/\s+/).length >= 3 && /^[\p{Script=Latin}\p{N}\p{P}\s]+$/u.test(l));
+  if (ok) return ok;
+  const a = String(e.transcript || "").split("\n").find(l => /^Assistente:/.test(l));
+  return a ? a.replace(/^Assistente:\s*/, "").slice(0, 90) : "";
+};
+const chat = t => String(t || "").split("\n").filter(Boolean).map(l => { const m = l.match(/^(Você|Assistente):\s*(.*)$/); return m ? `<div class="msg ${m[1] === "Você" ? "me" : "ai"}">${esc(m[2])}</div>` : `<div class="msg ai">${esc(l)}</div>`; }).join("");
+const geo = (a, b) => { const R = 6371000, p = Math.PI / 180, dl = (b.lat - a.lat) * p, dg = (b.lng - a.lng) * p, x = Math.sin(dl / 2) ** 2 + Math.cos(a.lat * p) * Math.cos(b.lat * p) * Math.sin(dg / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); };
+/** The saved place ("Casa", "Pop Vegan") this point falls in, with some slack because GPS indoors drifts. */
+const myPlaceAt = (lat, lng) => { if (lat == null) return null; let best = null, bd = 1e9; for (const p of S.myPlaces || []) { const d = geo(p, { lat, lng }); if (d < (p.radius_m || 120) + 40 && d < bd) { bd = d; best = p; } } return best; };
+const placeName = e => { const m = myPlaceAt(e.lat, e.lng); return m ? m.name : e.place; };
+const isMe = n => !!n && (norm(n) === "voce" || (!!(S.me && S.me.me_name) && nameKey(n) === nameKey(S.me.me_name)));
+const faceOk = it => it.kind !== "person" || S.face === "all" || (S.face === "yes" ? it.ref.faces > 0 : !it.ref.faces);
+
+/* ---------- duplicates ---------- */
+function lev(a, b) { const m = a.length, n = b.length; if (Math.abs(m - n) > 2) return 9; const d = Array.from({ length: m + 1 }, (_, i) => [i]); for (let j = 1; j <= n; j++) d[0][j] = j; for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); return d[m][n]; }
+function dupPairs() {
+  let skip; try { skip = new Set(JSON.parse(store.get("vc_notdup") || "[]")) } catch { skip = new Set() }
+  const ps = S.people.map(p => ({ p, n: norm(p.name), w: norm(p.name).split(" ") })), out = [];
+  for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) {
+    const a = ps[i], b = ps[j], key = [a.p.id, b.p.id].sort().join("|");
+    if (skip.has(key) || !a.n || !b.n) continue;
+    const same = a.n === b.n || (a.w.length > 1 && b.w.length > 1 && a.w[0] === b.w[0] && a.w.at(-1) === b.w.at(-1)) || (a.n.length > 6 && lev(a.n, b.n) <= 2);
+    if (same) out.push([a.p, b.p, key]);
+  }
+  return out;
+}
+const richness = p => ["company", "role", "relation", "contact_email", "contact_phone", "contact_linkedin", "notes", "photo_url"].filter(k => p[k]).length + (p.faces || 0) * 3 + (p.tags || []).length;
+
+/* ---------- render ---------- */
+function render() {
+  const m = S.me || {};
+  const pl = $("#plan");
+  if (m.plan === "trial") { const d = Math.max(0, Math.ceil((new Date(m.trial_ends_at) - new Date()) / 864e5)); pl.textContent = d ? `Teste · ${d} ${d === 1 ? "dia" : "dias"}` : "Teste acabou"; pl.classList.toggle("warn", d <= 2); }
+  else pl.textContent = ({ founder: "Fundador", essential: "Essencial", plus: "Plus", byok: "Sua chave", paused: "Só leitura" })[m.plan] || "";
+  const all = items(), q = S.filter;
+  // Counts follow what the list shows (Marcus, 09/11: "Coisas 5" but only 2 listed — the list was on "só hoje").
+  const today = i => !S.dayOnly || (i.date && sameDay(new Date(i.date), new Date()));
+  const counts = Object.fromEntries(CATS.map(([k]) => [k, all.filter(i => (k === "all" || i.kind === k) && matches(i, q) && today(i)).length]));
+  if (S.view === "teia" && S.cat === "task") S.cat = "all"; // tasks have no place in the web: the pill goes grey, not silent
+  $("#pills").innerHTML = (S.dayOnly ? `<button class="pill on" data-clearday="1">Só hoje ✕</button>` : "") + CATS.map(([k, l]) => `<button class="pill ${S.cat === k ? "on" : ""} ${S.view === "teia" && k === "task" ? "off" : ""}" data-c="${k}">${l}<b>${counts[k]}</b></button>`).join("") + (q ? `<button class="pill" data-clear="1">✕ “${esc(q)}”</button>` : "") + "";
+  $("#order").classList.toggle("hide", S.view === "az" || S.view === "teia");
+  // A–Z only makes sense for people (Marcus, 09/11); anywhere else the list goes back to the timeline.
+  if (S.view === "az" && S.cat !== "person") S.view = "time";
+  document.querySelectorAll("#views button").forEach(b => { b.classList.toggle("on", b.dataset.v === S.view); if (b.dataset.v === "az") b.classList.toggle("hide", S.cat !== "person"); });
+  document.querySelectorAll("#order button").forEach(b => b.classList.toggle("on", b.dataset.o === S.order));
+  renderChips();
+
+  let list = all.filter(i => (S.cat === "all" || i.kind === S.cat) && matches(i, q) && faceOk(i));
+  $("#pills2").classList.add("hide");
+  if (S.cat === "person") { // Marcus, 07/11: with / without a face, and a way to delete many (LinkedIn imports without photo)
+    const ppl = all.filter(i => i.kind === "person" && matches(i, q)), withF = ppl.filter(i => i.ref.faces > 0).length;
+    const srcs = [...new Set(ppl.map(i => i.ref.source).filter(Boolean))];
+    $("#pills2").classList.remove("hide");
+    $("#pills2").innerHTML = [["all", "Todas", ppl.length], ["yes", "Com rosto", withF], ["no", "Sem rosto", ppl.length - withF]].map(([k, l, n]) => `<button class="pill ${S.face === k ? "on" : ""}" data-face="${k}">${l}<b>${n}</b></button>`).join("")
+      + (S.pick ? `<button class="pill on" data-pickall="1">Marcar todas da lista</button><button class="pill" data-pickdel="1" style="color:var(--danger,#ff7a6a)">Apagar ${S.pick.size} marcadas</button><button class="pill" data-pickoff="1">✕ Sair</button>` : `<button class="pill" data-pickon="1">Selecionar…</button>`)
+      + (srcs.length > 1 ? `<span class="muted" style="font-size:12px;align-self:center;white-space:nowrap">origem: ${srcs.map(x => `<button data-ask-src="${esc(x)}" style="text-decoration:underline">${esc(srcName(x))}</button>`).join(", ")}</span>` : "");
+  }
+  if (S.dayOnly) list = list.filter(i => i.date && sameDay(new Date(i.date), new Date()));
+  const dir = S.order === "new" ? -1 : 1;
+  let html = "";
+  if (S.cat === "person" || S.cat === "all") { const d = dupPairs(); if (d.length && !q) html += `<button class="dup" data-dups="1">${I("warning")} ${d.length} ${d.length === 1 ? "possível pessoa repetida" : "possíveis pessoas repetidas"} · revisar</button>`; }
+  if (S.view === "teia") { if (render.lastView !== "teia") bump("teia"); render.lastView = "teia"; $("#list").innerHTML = html + teiaHtml(); teiaMount(); return; }
+  render.lastView = S.view;
+  if (!list.length) html += `<div class="empty">${q ? "Nada encontrado para “" + esc(q) + "”." : `<b style="color:var(--t,inherit);font-size:16px">Ainda não há nada aqui.</b><br>O Manager mostra o que o app do celular guardou. Para começar:<br>1. <a href="https://vc.alema.io/test-download/" target="_blank" rel="noopener" style="color:var(--g)">baixe o app no celular Android</a>;<br>2. toque em “Tenho um código de convite” e digite o código do e-mail;<br>3. grave um encontro de teste e volte aqui.<div id="emqr" style="margin:16px auto 0;max-width:340px;display:none;align-items:center;gap:14px;text-align:left"><span style="background:#fff;padding:7px;border-radius:10px;display:block;line-height:0"><img id="emqrimg" alt="QR code para baixar o app" style="width:120px;height:120px;image-rendering:pixelated"></span><span style="font-size:13px">No computador? Aponte a câmera do celular para o código e baixe o app por lá.</span></div>`}</div>`;
+  else if (S.view === "az") {
+    list.sort((a, b) => norm(a.title).localeCompare(norm(b.title)));
+    let L = ""; for (const i of list) { const l = (norm(i.title)[0] || "#").toUpperCase(); if (l !== L) { L = l; html += `<div class="grp">${esc(l)}</div>`; } html += row(i); }
+  } else if (S.view === "grid") {
+    list.sort((a, b) => dir * (new Date(a.date || 0) - new Date(b.date || 0)));
+    html += `<div class="grid">${list.map(card).join("")}</div>`;
+  } else {
+    list.sort((a, b) => dir * (new Date(a.date || 0) - new Date(b.date || 0)));
+    if (S.order === "new" && !q && !S.dayOnly) html += myDay();
+    const groups = new Map();
+    for (const i of list) { const g = bucket(i.date); if (!groups.has(g)) groups.set(g, []); groups.get(g).push(i); }
+    for (const [g, xs] of groups) html += `<div class="grp">${g}</div>` + xs.map(row).join("");
+  }
+  $("#list").innerHTML = html;
+  fillPhoneQR();
+  hydrateCovers($("#list"));
+}
+function bucket(d) {
+  if (!d) return "Sem data";
+  const t = new Date(d), now = new Date(), y = new Date(now); y.setDate(y.getDate() - 1);
+  if (sameDay(t, now)) return "Hoje"; if (sameDay(t, y)) return "Ontem";
+  if ((now - t) / 864e5 < 7) return "Esta semana";
+  if (t.getFullYear() === now.getFullYear()) return t.toLocaleDateString("pt-BR", { month: "long" }).replace(/^./, c => c.toUpperCase());
+  return String(t.getFullYear());
+}
+const srcName = x => ({ import_linkedin: "LinkedIn", import_contatos: "contatos", import_google_fotos: "Google Fotos", import: "importação", glasses: "óculos", base44: "antigo", manual: "você" })[x] || String(x).replace(/^import_/, "");
+const row = i => S.pick && i.kind === "person" ? `<button class="row ${S.pick.has(i.id) ? "sel" : ""}" data-pick="${esc(i.id)}"><span class="av" style="font-size:18px">${S.pick.has(i.id) ? "☑" : "☐"}</span>${i.av}<span class="tx"><span class="t1">${esc(i.title)}</span><span class="t2">${esc(i.sub)}${i.ref.source ? " · " + esc(srcName(i.ref.source)) : ""}</span></span></button>` : i.mini ? `<button class="row mini ${S.sel === i.id ? "sel" : ""}" data-k="${i.kind}" data-id="${esc(i.id)}"><span class="mi">✦</span><span class="tx"><span class="t1">Consultou: ${esc(i.title)}</span></span><span class="when">${esc(fmtWhen(i.date))}</span></button>`
+  : `<button class="row ${S.sel === i.id ? "sel" : ""}" data-k="${i.kind}" data-id="${esc(i.id)}">${i.av}<span class="tx"><span class="t1">${esc(i.title)}</span>${i.sub ? `<span class="t2">${esc(i.sub)}</span>` : ""}</span><span class="when">${esc(fmtWhen(i.date))}</span></button>`;
+const card = i => `<button class="card ${S.sel === i.id ? "sel" : ""}" data-k="${i.kind}" data-id="${esc(i.id)}">${i.av}<span class="t1">${esc(i.title)}</span><span class="t2">${esc(i.sub)}</span><span class="t2" style="margin-top:auto;font-family:var(--mono);font-size:11px">${esc(fmtWhen(i.date))}</span></button>`;
+
+/** Spec 1b: "My day", built only from what is already recorded. */
+function myDay() {
+  const now = new Date(), today = d => d && sameDay(new Date(d), now);
+  const enc = S.enc.filter(e => today(e.at)).sort((a, b) => new Date(a.at) - new Date(b.at));
+  const th = S.things.filter(t => today(t.seen_at)), no = S.notes.filter(n => today(n.at) && !["tarefa", "tarefa_feita", "evento"].includes(n.kind));
+  if (!enc.length && !th.length && !no.length) { const t = tasksBlock(), pp = pendingPlans(); return t || pp ? `<div class="day"><h4>✦ Hoje</h4>${t}${pp}</div>` : ""; }
+  const people = [...new Set(enc.map(e => e.person_name).filter(n => n && !isMe(n)))];
+  let places = []; // filled from the grouped stops below (one name per place, "Pop Vegan" rather than its address)
+  const follow = enc.reduce((n, e) => n + ((e.follow_ups || []).length || 0), 0);
+  // Stops grouped by place (Marcus, 07/11: the same address five times says nothing): one line per place,
+  // the time span, and the faces of who was there.
+  const byPlace = [];
+  const dist = (a, b) => { if (!a || !b || a.lat == null || b.lat == null) return Infinity; const R = 6371000, p = Math.PI / 180, dl = (b.lat - a.lat) * p, dg = (b.lng - a.lng) * p, x = Math.sin(dl / 2) ** 2 + Math.cos(a.lat * p) * Math.cos(b.lat * p) * Math.sin(dg / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); };
+  const stem = k => k.split(" · ")[0].replace(/,\s*\d+[^·]*$/, ""); // "Rua X, 830" and "Rua X, 844" are the same street
+  for (const e of enc.filter(e => !isMe(e.person_name))) {
+    const key = e.place || "—"; const last = byPlace.at(-1);
+    const who = e.person_name ? { name: e.person_name, p: S.people.find(x => nameKey(x.name) === nameKey(e.person_name)) } : e.capture_mode === "live" ? { name: "assistente" } : null;
+    const same = last && (last.key === key || dist(last, e) < 150 || (stem(last.key) === stem(key) && dist(last, e) < 400));
+    if (same) { last.to = e.at; if (who && !last.who.some(w => w.name === who.name)) last.who.push(who); if (key.includes(" · ") && !last.key.includes(" · ")) last.key = key; }
+    else byPlace.push({ key, from: e.at, to: e.at, lat: e.lat, lng: e.lng, who: who ? [who] : [] });
+  }
+  // How you got from one stop to the next: distance over time (Marcus, 07/11: "fomos de carro, depois a pé").
+  for (let i = 1; i < byPlace.length; i++) {
+    const a = byPlace[i - 1], b = byPlace[i], d = dist(a, b), h = (new Date(b.from) - new Date(a.to)) / 3.6e6;
+    b.how = d === Infinity || d < 250 ? null : h <= 0 ? null : (d / 1000 / h > 11 ? "de carro" : "a pé") + " · " + (d < 950 ? Math.round(d / 50) * 50 + " m" : (d / 1000).toFixed(1) + " km");
+  }
+  places = [...new Set(byPlace.map(b => b.key.split(" · ")[0]).filter(k => k && k !== "—"))];
+  const bits = [];
+  if (people.length) bits.push("encontrou " + listPt(people) + (places.length ? " (" + listPt(places.slice(0, 2)) + ")" : ""));
+  if (enc.some(e => e.capture_mode === "live")) bits.push("conversou com o assistente");
+  if (th.length) bits.push("guardou onde deixou " + listPt(th.map(t => t.name.toLowerCase())));
+  if (no.length) bits.push("anotou " + no.length + (no.length === 1 ? " lembrete" : " lembretes"));
+  const tm = d => new Date(d).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const stopsHtml = byPlace.map(b => (b.how ? `<div class="how">${esc(b.how)}</div>` : "") + `<div class="stop"><span>${esc(tm(b.from))}${b.to !== b.from ? "–" + esc(tm(b.to)) : ""}</span><div class="stopb"><div class="stopn">${esc(b.key.split(" · ")[0])}</div>${b.key.includes(" · ") ? `<div class="muted" style="font-size:12.5px">${esc(b.key.split(" · ").slice(1).join(" · "))}</div>` : ""}${b.who.length ? `<div class="whom">${stack([meAv(), ...b.who.map(w => w.p ? avatar(w.p) : w.name === "assistente" ? sym("auto_awesome") : `<span class="av">${esc(initials(w.name))}</span>`)])}<span class="names">${esc(listPt(b.who.map(w => w.name === "assistente" ? "assistente" : w.name.split(" ")[0])))}</span></div>` : ""}</div></div>`)
+    .concat(th.map(t => `<div class="stop"><span>${esc(tm(t.seen_at))}</span><div class="stopb"><div>${esc(t.name)} → ${esc(t.location_description || "")}</div></div></div>`)).slice(0, 6).join("");
+  return `<div class="day"><h4 style="display:flex;justify-content:space-between;align-items:center;gap:8px">✦ Meu dia · hoje<button class="btn pri" data-reviver="1" style="min-height:36px;padding:0 14px;font-size:13px">${I("play_arrow")} Reviver</button></h4><p>Hoje você ${esc(listPt(bits))}.</p>${rate("meu dia")}<div class="stops">${stopsHtml}</div>${tasksBlock()}${pendingPlans()}
+  <div class="foot"><span>${[[people.length, "pessoa", "pessoas"], [places.length, "lugar", "lugares"], [no.length, "nota", "notas"], [follow, "pendência", "pendências"]].filter(x => x[0]).map(([n, a, b]) => n + " " + (n === 1 ? a : b)).join(" · ")}</span><button data-day="1">Ver o dia →</button></div></div>`;
+}
+/** Suggestions still waiting (any day): one tap opens each. */
+function pendingPlans() {
+  const done = evDone(), ps = S.notes.filter(n => n.kind === "evento" && (n.fields || {}).status === "sugerido" && !done[n.id] && (!n.fields.inicio || new Date(n.fields.inicio) > Date.now() - 864e5));
+  if (!ps.length) return "";
+  return `<div class="sec" style="margin-top:10px"><h5>${I("calendar_month")} ${ps.length === 1 ? "1 compromisso para confirmar" : ps.length + " compromissos para confirmar"}</h5>${ps.slice(0, 4).map(n => planCard(n)).join("")}</div>`;
+}
+const listPt = a => a.length <= 1 ? (a[0] || "") : a.slice(0, -1).join(", ") + " e " + a.at(-1);
+
+/* ---------- suggested questions (spec 1c), changing with context ---------- */
+function suggestions() {
+  const h = new Date().getHours(), out = [];
+  const last = [...S.enc].filter(e => e.person_name && !isMe(e.person_name)).sort((a, b) => new Date(b.at) - new Date(a.at))[0];
+  if (h < 11) out.push("O que eu tenho para hoje?"); else out.push("Como foi o meu dia?");
+  if (openTasks().length) out.push("O que eu tenho para fazer?");
+  if (last) out.push("Resumo do encontro com " + last.person_name.split(" ")[0]);
+  if (S.enc.some(e => (e.follow_ups || []).length)) out.push("O que ainda está pendente?");
+  const key = S.things.find(t => /chave|moto|carro/i.test(t.name));
+  out.push(key ? "Onde deixei a " + key.name.toLowerCase().replace(/^a |^o /, "") + "?" : "Onde deixei a chave?");
+  if (out.length < 4) out.push("Quem eu conheci esta semana?");
+  return out.slice(0, 4);
+}
+/** Prep for someone not in the memory yet (an interviewer, a new client): they come in, then the prep opens. */
+function prepNew() {
+  sheet(`<h3>Preparar uma conversa</h3><p class="sub">Com alguém que ainda não está na sua memória: um entrevistador, um cliente novo.</p>
+  <form class="f" id="nf"><label>Nome da pessoa<input name="name" required></label><label>Empresa<input name="company"></label><label>Cargo<input name="role"></label>
+  <div class="btns" style="margin-top:0"><button class="btn pri">Continuar</button><button class="btn" type="button" data-x="1">Cancelar</button></div></form>`);
+  $("#nf").onsubmit = async e => {
+    e.preventDefault();
+    const fd = new FormData(e.target), name = String(fd.get("name")).trim(); if (!name) return;
+    try {
+      await call("add_people", { people: [{ name, company: fd.get("company"), role: fd.get("role"), source: "preparacao" }] });
+      closeSheet(); await load();
+      const p = S.people.find(x => norm(x.name) === norm(name));
+      if (p) { open("person", p.id); prepForm(p.id); }
+    } catch (err) { toast("Não consegui: " + err.message); }
+  };
+}
+function renderChips() { $("#chips").innerHTML = $("#q").value ? "" : suggestions().map(s => `<button class="chip" data-ask="${esc(s)}">✦ ${esc(s)}</button>`).join("") + `<button class="chip" data-prepnew="1">✦ Preparar uma conversa</button>`; }
+
+/* ---------- scope box while typing ---------- */
+$("#q").addEventListener("input", () => {
+  const v = $("#q").value.trim(), sc = $("#scope");
+  renderChips();
+  if (!v) { sc.classList.remove("on"); return; }
+  const all = items();
+  const n = k => all.filter(i => i.kind === k && matches(i, v)).length;
+  sc.innerHTML = `<button data-ask="${esc(v)}"><span class="q">✦</span><span>Pergunte à sua memória: “${esc(v)}”</span></button>` +
+    [["person", "pessoas"], ["place", "lugares"], ["thing", "coisas"], ["memory", "lembranças"]].map(([k, l]) => `<button data-scope="${k}"><span>${I("search")}</span><span>Buscar em ${l}</span><span class="n">${n(k)}</span></button>`).join("");
+  sc.classList.add("on");
+});
+$("#q").addEventListener("keydown", e => { if (e.key === "Enter" && $("#q").value.trim()) { e.preventDefault(); ask($("#q").value.trim()); } if (e.key === "Escape") $("#scope").classList.remove("on"); });
+document.addEventListener("click", e => { if (!e.target.closest(".ask")) $("#scope").classList.remove("on"); });
+
+/* ---------- ask anything (Gemini, called from this browser with the user's own key) ---------- */
+/**
+ * generateContent with the best text model this key can use. Google retires models per account (Marcus, 08/11:
+ * "gemini-2.5-flash is no longer available to new users"), so a model that refuses goes on a skip list and the
+ * next one from the key's own list is tried — never a fixed name.
+ */
+/** His own key, or — for a tester — the app's Gemini through our server (Marcus, 09/11). */
+const GEM = API.replace(/\/vc$/, "/gem/v1beta/");
+const tester = () => !!(S.me && S.me.role && S.me.role !== "founder");
+const gkey = () => store.get("vc_gemini") || (tester() ? "vcproxy" : null);
+const gfetch = (key, path, init = {}) => key === "vcproxy"
+  ? fetch(GEM + path, { ...init, headers: { ...(init.headers || {}), "x-vc-token": TOKEN } })
+  : fetch("https://generativelanguage.googleapis.com/v1beta/" + path, { ...init, headers: { ...(init.headers || {}), "x-goog-api-key": key } });
+async function gemini(key, body) {
+  const bad = store.get("vc_gbad") ? JSON.parse(store.get("vc_gbad")) : [];
+  let last = "";
+  for (let i = 0; i < 4; i++) {
+    const model = await geminiModel(key, bad);
+    if (!model) break;
+    const r = await gfetch(key, `${model}:generateContent`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok) return j;
+    last = j.error?.message || String(r.status);
+    if (r.status === 404 || r.status === 400 || r.status === 403 || /no longer available|Interactions API|not supported|not found|deprecated/i.test(last)) {
+      bad.push(model); store.set("vc_gbad", JSON.stringify(bad)); store.set("vc_gmodel", ""); continue;
+    }
+    throw new Error(last);
+  }
+  throw new Error(last || "nenhum modelo disponível para esta chave");
+}
+async function geminiModel(key, bad = []) {
+  const c = store.get("vc_gmodel"); if (c && !bad.includes(c)) return c;
+  try {
+    const r = await gfetch(key, "models?pageSize=200");
+    const j = await r.json();
+    const ok = (j.models || []).filter(m => (m.supportedGenerationMethods || []).includes("generateContent")).map(m => m.name)
+      .filter(n => /flash/.test(n) && !/live|image|tts|audio|lite|think|interaction|robotics|computer/.test(n) && !bad.includes(n));
+    // The "latest" alias follows Google's current model; then stable before preview, newest first.
+    const score = n => (/flash-latest$/.test(n) ? 2 : 0) + (/preview|exp/.test(n) ? 0 : 1);
+    const pick = ok.sort((a, b) => (score(b) - score(a)) || (b > a ? 1 : -1))[0];
+    if (pick) store.set("vc_gmodel", pick);
+    return pick || null;
+  } catch { return null; }
+}
+function memoryText() {
+  const P = S.people.map(p => ({ id: p.id, nome: p.name, relacao: p.relation, empresa: p.company, cargo: p.role, tags: p.tags, ultima_vez: p.last_seen_date, onde: p.last_seen_context, notas: p.notes }));
+  const E = S.enc.map(e => ({ id: e.id, tipo: e.capture_mode === "live" ? (topicOf(e).k === "consulta" ? "consulta" : "conversa com o assistente") : "encontro", quando: new Date(e.at).toLocaleString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }), lugar: placeName(e), endereco: placeName(e) !== e.place ? e.place : undefined, pessoa: e.person_name, contexto: e.context, resumo: e.summary, pendencias: e.follow_ups, trecho: (e.transcript || "").slice(0, 600) }));
+  const T = S.things.map(t => ({ id: t.id, coisa: t.name, onde: t.location_description, quando: t.seen_at, lat: t.lat, lng: t.lng }));
+  const N = S.notes.filter(n => n.kind !== "ligacao").map(n => ({ id: n.id, tipo: n.kind || "nota", titulo: n.title, nota: (n.text || "").slice(0, 1500), campos: n.fields, lugar: n.place, quando: n.at }));
+  return JSON.stringify({ pessoas: P, momentos: E, coisas: T, notas: N });
+}
+/**
+ * A bar and a percentage while Gemini works (Marcus, 09/11: "parece que minha pergunta não foi respondida").
+ * Gemini does not say how much is left, so the bar walks the real steps and, inside each, the time that step
+ * usually takes; it slows near the end and never reaches 100 % before the answer arrives.
+ */
+function progress(el, steps) {
+  el.innerHTML = `<div class="prog" role="progressbar" aria-valuemin="0" aria-valuemax="100"><div class="pl"><span class="pt"></span><b class="pp">0%</b></div><div class="pb"><i></i></div></div>`;
+  const pg = el.querySelector(".prog"), lab = el.querySelector(".pt"), pp = el.querySelector(".pp"), bar = el.querySelector(".pb i");
+  let i = 0, t0 = performance.now(), from = 0, pct = 0, stop = false;
+  const tick = () => {
+    if (stop || !pg.isConnected) return;
+    const [l, end, ms] = steps[i];
+    pct = Math.max(pct, from + (end - from) * (1 - Math.exp(-(performance.now() - t0) / ms)));
+    lab.textContent = l; pp.textContent = Math.floor(pct) + "%"; bar.style.width = pct.toFixed(1) + "%"; pg.setAttribute("aria-valuenow", Math.floor(pct));
+    setTimeout(tick, 120);
+  };
+  tick();
+  return { next(label) { if (i < steps.length - 1) { from = pct; i++; t0 = performance.now(); if (label) steps[i][0] = label; } }, done() { stop = true; } };
+}
+async function ask(question) {
+  bump("ask");
+  $("#scope").classList.remove("on"); $("#q").blur();
+  const box = $("#ans"), key = gkey();
+  box.classList.add("on");
+  if (!key) { box.innerHTML = `<h3>✦ Resposta</h3><p>Para perguntar, falta a chave do Gemini. Abra o Manager pelo app (ele traz a chave junto) ou cole a chave em Ajustes.</p><div class="acts"><button class="act" data-open-set="1">Abrir Ajustes</button></div>`; return; }
+  box.innerHTML = `<h3>✦ ${esc(question)}</h3><div id="ansp"></div>`;
+  const pr = progress($("#ansp"), [["Procurando na sua memória", 12, 400], ["Lendo", 30, 900], ["Escrevendo a resposta", 96, 7000]]);
+  const now = new Date(), tom = new Date(now); tom.setDate(tom.getDate() + 1);
+  const nMom = S.enc.length + S.notes.length + S.things.length;
+  setTimeout(() => pr.next(`Lendo ${nMom} ${nMom === 1 ? "lembrança" : "lembranças"}`), 350);
+  setTimeout(() => pr.next(), 1300);
+  const prompt = `Você é a memória pessoal do usuário (app VisualContext). Agora: ${now.toLocaleString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })} (${Intl.DateTimeFormat().resolvedOptions().timeZone}). Hoje = ${dayPt(now)}; amanhã = ${dayPt(tom)}.
+DATAS (Marcus, 09/11): "hoje", "amanhã", "sexta" na PERGUNTA contam a partir de agora. Nos DADOS, uma data relativa dita numa conversa conta a partir do "quando" daquela conversa (ex.: "amanhã" dito no domingo 08/11 é segunda 09/11). Na resposta, sempre o dia da semana e a data (ex.: "seg 09/11, 19:00").
+Para "o que eu tenho para hoje/amanhã/fazer": responda com os compromissos (notas tipo "evento") e tarefas ("tarefa") daquele dia, ao vivo. Conversas em que ele só consultou a agenda ("consulta") não são fonte: nunca as cite nem as use como resposta.
+Responda em português, curto e direto (no máximo 4 frases), usando SÓ os dados abaixo. Se não houver dado, diga que não encontrou e sugira o que guardar. Nunca invente.
+Responda em JSON: {"resposta": string, "fontes": [{"tipo": "pessoa"|"momento"|"coisa"|"nota", "id": string}], "acoes": [{"tipo": "agenda"|"mapa", "titulo": string, "inicio": "ISO 8601 opcional", "busca": "endereço ou lugar, para mapa", "lat": number?, "lng": number?}]}
+Inclua "acoes" só quando fizer sentido (um compromisso ou pendência com data → agenda; um lugar ou coisa com endereço → mapa).
+PERGUNTA: ${question}
+DADOS: ${memoryText()}`;
+  try {
+    const j = await gemini(key, { contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.2, maxOutputTokens: 4096, responseMimeType: "application/json" } });
+    const txt = (j.candidates?.[0]?.content?.parts || []).filter(p => !p.thought && p.text).map(p => p.text).join("");
+    const a = JSON.parse(txt.replace(/^```json|```$/g, ""));
+    pr.done();
+    const srcs = (a.fontes || []).map(s => source(s)).filter(Boolean);
+    const acts = (a.acoes || []).map(action).filter(Boolean);
+    box.innerHTML = `<h3>✦ ${esc(question)}<button data-close-ans="1" aria-label="Fechar">✕</button></h3><p>${esc(a.resposta)}</p>` + rate("resposta: " + question) +
+      (srcs.length ? `<div class="src"><span class="muted" style="font-size:12px;align-self:center">Fonte:</span>${srcs.join("")}</div>` : "") + (acts.length ? `<div class="acts">${acts.join("")}</div>` : "");
+  } catch (e) {
+    pr.done();
+    box.innerHTML = `<h3>✦ ${esc(question)}<button data-close-ans="1">✕</button></h3><p>Não consegui perguntar agora (${esc(String(e.message).slice(0, 90))}). Confira a chave em Ajustes.</p>`;
+  }
+}
+function source(s) {
+  const kind = { pessoa: "person", momento: "memory", nota: "memory", coisa: "thing" }[s.tipo];
+  const it = items().find(i => i.id === s.id && i.kind === kind); if (!it) return null;
+  const label = it.kind === "memory" ? (it.title.replace(/^✦ /, "") + " · " + fmtWhen(it.date)) : it.title;
+  return `<button data-k="${it.kind}" data-id="${esc(it.id)}">${esc(label)}</button>`;
+}
+function action(a) {
+  if (a.tipo === "mapa") { const q = a.lat && a.lng ? `${a.lat},${a.lng}` : a.busca; if (!q) return null; return `<a class="act" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}">Abrir no mapa</a>`; }
+  if (a.tipo === "agenda") {
+    const s = a.inicio ? new Date(a.inicio) : null, f = d => d.toISOString().replace(/[-:]|\.\d{3}/g, "");
+    const dates = s && !isNaN(s) ? `&dates=${f(s)}/${f(new Date(+s + 36e5))}` : "";
+    return `<a class="act" target="_blank" rel="noopener" href="https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(a.titulo || "Lembrete")}${dates}">Adicionar à agenda${a.titulo ? ": " + esc(a.titulo) : ""}</a>`;
+  }
+  return null;
+}
+
+/* ---------- detail ---------- */
+function open(kind, id) {
+  S.sel = id;
+  const d = $("#detail"); const wasOpen = d.classList.contains("open"); d.classList.remove("idle"); d.classList.add("open");
+  const it = items().find(i => i.kind === kind && i.id === id); if (!it) return;
+  if (!d.classList.contains("open") || innerWidth < 920) { if (!wasOpen) pushNav("detail"); }
+  d.innerHTML = `<button class="back" data-back="1">← Voltar</button>` + ({ person: personHtml, memory: memHtml, thing: thingHtml, place: placeHtml, task: taskHtml })[kind](it.ref, it);
+  hydrateCovers(d);
+  document.querySelectorAll(".row.sel,.card.sel").forEach(e => e.classList.remove("sel"));
+  document.querySelectorAll(`[data-id="${CSS.escape(id)}"]`).forEach(e => { if (e.closest("#list")) e.classList.add("sel"); });
+  if (innerWidth < 920) d.scrollTop = 0;
+}
+function closeDetail() { const d = $("#detail"); d.classList.remove("open"); S.sel = null; if (innerWidth >= 920) { d.classList.add("idle"); d.innerHTML = "Escolha algo na lista"; } render(); }
+const kv = rows => `<dl class="kv">${rows.filter(r => r[1]).map(([k, v, raw]) => `<dt>${k}</dt><dd>${raw ? v : esc(v)}</dd>`).join("")}</dl>`;
+function personHtml(p) {
+  const encs = S.enc.filter(e => e.person_id === p.id).sort((a, b) => new Date(b.at) - new Date(a.at));
+  const link = (u, t) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)}</a>`;
+  return `<div class="ph">${avatar(p)}<div><h2>${esc(p.name)}</h2><div class="hook">${esc([p.relation, p.role, p.company].filter(Boolean).join(" · ") || "Sem descrição ainda")}</div></div></div>
+  ${(p.tags || []).length ? `<div class="tags">${p.tags.map(t => `<span class="tag">${esc(t)}</span>`).join("")}</div>` : ""}
+  <div class="sec"><h5>Sobre</h5>${kv([["Última vez", p.last_seen_date ? fmtFull(p.last_seen_date) + (p.last_seen_context ? " · " + p.last_seen_context : "") : ""], ["Rosto", p.faces ? (p.faces === 1 ? "1 rosto guardado" : p.faces + " rostos guardados") : "Ainda sem rosto: será reconhecida no próximo encontro"],
+    ["Apelido", p.nickname], ["E-mail", p.contact_email && link("mailto:" + p.contact_email, p.contact_email), 1], ["Telefone", p.contact_phone && link("tel:" + p.contact_phone, p.contact_phone), 1],
+    ["WhatsApp", p.contact_whatsapp && `<button class="lnk" data-copy="${esc(p.contact_whatsapp)}" title="Copiar o número">${esc(p.contact_whatsapp)} ${I("content_copy") || ""}</button>`, 1], ["LinkedIn", p.contact_linkedin && link(p.contact_linkedin, "perfil"), 1], ["Notas", p.notes], ["Origem", { base44: "app antigo", import: "importado", glasses: "óculos", teste: "teste" }[p.source] || p.source]])}</div>
+  <div class="sec"><h5>Encontros (${encs.length})</h5>${encs.length ? encs.map(encHtml).join("") : `<p class="muted">Nenhum encontro gravado ainda.</p>`}</div>
+  <div id="prep"></div>
+  <div class="btns">${chatBtn(p)}<button class="btn pri" data-prep="${p.id}">✦ Preparar conversa</button><button class="btn" data-teia="person:${p.id}">${I("hub")} Teia</button><button class="btn" data-edit="${p.id}">Editar</button><button class="btn" data-me="${p.id}">${isMe(p.name) ? "★ Sou eu (desmarcar)" : "Sou eu"}</button><button class="btn" data-merge="${p.id}">Juntar com outra pessoa</button><button class="btn dan" data-del-person="${p.id}">Apagar</button></div>`;
+}
+const encHtml = e => `<div class="enc"><div class="d">${esc(fmtFull(e.at))}${e.place ? " · " + esc(e.place) : ""}</div><div>${esc(e.summary || e.context || "")}</div>${(e.follow_ups || []).length ? `<ul>${e.follow_ups.map(f => `<li>${esc(typeof f === "string" ? f : f.text || JSON.stringify(f))}</li>`).join("")}</ul>` : ""}</div>`;
+function memHtml(r, it) {
+  if (it.sub2 === "note") return noteHtml(r, it);
+  const p = S.people.find(x => x.id === r.person_id) || (r.person_name ? S.people.find(x => nameKey(x.name) === nameKey(r.person_name)) : null);
+  const live = r.capture_mode === "live";
+  return `<div class="ph">${it.av}<div><h2>${live ? "✦ " : ""}${esc(it.mini ? "Consultou: " + it.title : it.title)}</h2><div class="hook">${esc(fmtFull(r.at))}${placeName(r) ? " · " + esc(placeName(r)) : ""}</div></div></div>
+  ${r.summary && norm(cleanSaid(r.summary)) !== norm(it.title) ? `<div class="sec"><h5>Resumo</h5><p>${esc(cleanSaid(r.summary))}</p>${rate("resumo de " + it.title)}</div>` : ""}
+  ${(r.follow_ups || []).length ? `<div class="sec"><h5>Pendências</h5><ul style="margin-left:18px">${r.follow_ups.map(f => `<li>${esc(typeof f === "string" ? f : f.text || "")}</li>`).join("")}</ul></div>` : ""}
+  ${plansBlock(r)}
+  ${p ? `<div class="sec"><h5>Pessoa</h5><button class="row" data-k="person" data-id="${p.id}">${avatar(p)}<span class="tx"><span class="t1">${esc(p.name)}</span></span></button></div>` : ""}
+  ${r.transcript ? `<div class="sec"><h5>${r.capture_mode === "live" ? "A conversa" : "Transcrição"}</h5>${/^(Você|Assistente):/m.test(r.transcript) ? `<div class="chat">${chat(r.transcript)}</div>` : `<div class="trans">${esc(r.transcript)}</div>`}</div>` : ""}
+  ${r.ocr ? `<div class="sec"><h5>Texto lido</h5><div class="trans">${esc(r.ocr)}</div></div>` : ""}
+  <div class="btns">${r.lat ? `<a class="btn" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${r.lat},${r.lng}">Abrir no mapa</a>` : ""}<button class="btn dan" data-del-row="encounter:${r.id}">Apagar este momento</button></div>`;
+}
+function noteHtml(r, it) {
+  if (r.kind === "evento") return `<h2>${I("calendar_month")} ${esc(r.title || "Compromisso")}</h2><div class="hook">${esc(evWhen(r.fields || {}))}</div>${planCard(r, true)}`;
+  const f = r.fields || {}, pe = f.pessoa, rx = f.receita;
+  const person = pe && pe.nome ? S.people.find(p => norm(p.name) === norm(pe.nome)) : null;
+  if (r.kind === "musica" || r.kind === "ouvir_depois") {
+    const sg = songOf(r), chatId = [...musicChats()].find(([, n]) => n === r.id)?.[0], conv = chatId && S.enc.find(e => e.id === chatId);
+    return `<div class="ph">${coverAv(r, true)}<div><h2>${esc(sg.title)}</h2><div class="hook">${esc([sg.artist, sg.album].filter(Boolean).join(" · "))}</div><div class="hook" style="color:var(--m)">${esc(fmtFull(r.at))}${r.place ? " · " + esc(r.place) : ""}</div></div></div>
+    ${musicBtns(r)}
+    ${conv ? `<div class="sec"><details><summary style="cursor:pointer;color:var(--g2)">Ver a conversa com o assistente</summary><div class="chat" style="margin-top:10px">${chat(conv.transcript)}</div></details></div>` : ""}
+    <div class="btns"><button class="btn" data-share="${r.id}">Enviar para Notas</button><button class="btn dan" data-del-row="note:${r.id}">Apagar</button></div>`;
+  }
+  return `<div class="ph">${it.av}<div><h2>${esc(r.title || "Nota")}</h2><div class="hook">${esc(fmtFull(r.at))}${r.place ? " · " + esc(r.place) : ""}</div></div></div>
+  ${pe ? `<div class="sec"><h5>${r.kind === "cracha" ? "Crachá" : "Cartão de visita"}</h5>${kv([["Nome", pe.nome], ["Empresa", pe.empresa], ["Cargo", pe.cargo], ["Telefone", pe.telefone], ["E-mail", pe.email], ["Site", pe.site]])}${person ? `<button class="row" style="margin-top:10px" data-k="person" data-id="${person.id}">${avatar(person)}<span class="tx"><span class="t1">Ver ${esc(person.name)}</span></span></button>` : ""}</div>` : ""}
+  ${rx ? `<div class="sec"><h5>Receita</h5>${kv([["Médico", rx.medico], ["Data", rx.data]])}<ul style="margin:10px 0 0 18px">${(rx.itens || []).map(i => `<li>${esc([i.remedio, i.dose, i.quando].filter(Boolean).join(" · "))}</li>`).join("")}</ul></div>` : ""}
+  ${r.kind === "musica" ? musicBtns(r) : ""}
+  ${r.kind === "traducao" && r.fields?.original ? `<div class="sec"><h5>Original${r.fields.idioma_original ? " (" + esc(r.fields.idioma_original) + ")" : ""}</h5><div class="trans" style="max-height:none">${esc(r.fields.original)}</div></div>
+  <div class="sec"><h5>Tradução${r.fields.idioma ? " (" + esc(r.fields.idioma) + ")" : ""}</h5><div class="trans" style="color:var(--t);font-size:15px;max-height:none">${esc(r.fields.traducao || r.text)}</div></div>`
+  : `<div class="sec"><h5>${r.kind ? "Texto" : "Nota"}</h5><div class="trans" style="color:var(--t);font-size:15px;max-height:none">${esc(r.text)}</div></div>`}
+  ${(r.text || r.fields?.original) && r.kind !== "musica" && r.kind !== "ouvir_depois" ? translateBox(r.id) : ""}
+  <div class="btns"><button class="btn pri" data-share="${r.id}">Enviar para Notas</button><button class="btn dan" data-del-row="note:${r.id}">Apagar</button></div>`;
+}
+/* ---------- Commitments from conversations (Marcus, 09/11): the glasses put clear ones in the calendar by themselves;
+   the rest wait here as suggestions, next to the conversation they came from. "Criar na agenda" opens Google Agenda
+   with everything filled (title, day, time, place, who, notes); "Procurar compromissos" reads any old conversation. ---------- */
+const evDone = () => { try { /* this browser's marks; the server state (fields.status) wins elsewhere */ return JSON.parse(store.get("vc_evdone") || "{}"); } catch { return {}; } };
+function evWhen(f) {
+  if (!f.inicio) return "";
+  const d = new Date(f.inicio);
+  return d.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" }) + (f.dia_inteiro ? " · dia inteiro" : " · " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) + " · " + (f.duracao_min || 60) + " min");
+}
+function gcalUrl(title, f) {
+  const z = d => d.getFullYear() + String(d.getMonth() + 1).padStart(2, "0") + String(d.getDate()).padStart(2, "0") + (f.dia_inteiro ? "" : "T" + String(d.getHours()).padStart(2, "0") + String(d.getMinutes()).padStart(2, "0") + "00");
+  const a = new Date(f.inicio), b = f.dia_inteiro ? new Date(a.getTime() + 864e5) : new Date(a.getTime() + (f.duracao_min || 60) * 6e4);
+  const details = [f.com && "Com: " + f.com, f.notas, "— VisualContext"].filter(Boolean).join("\n");
+  return "https://calendar.google.com/calendar/render?action=TEMPLATE&text=" + encodeURIComponent(title) + "&dates=" + z(a) + "/" + z(b) +
+    "&ctz=" + encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone) + "&details=" + encodeURIComponent(details) + (f.local ? "&location=" + encodeURIComponent(f.local) : "");
+}
+function planCard(n, big) {
+  const f = n.fields || {}, done = f.status === "na_agenda" || f.status === "criado" || evDone()[n.id]; // "criado": made from here (11/11: it used to read "posto pelos óculos")
+  return `<div class="plan${done ? " done" : ""}"><b>${I("calendar_month")} ${esc(n.title || "Compromisso")}</b><span>${esc(evWhen(f))}</span>
+    ${f.com ? `<span>com ${esc(f.com)}</span>` : ""}${f.local ? `<span>⌖ ${esc(f.local)}</span>` : ""}${f.notas ? `<span class="muted">${esc(f.notas)}</span>` : ""}
+    <div class="btns" style="margin-top:6px">${done ? `<span class="btn" style="opacity:.75">✓ ${f.status === "na_agenda" ? "posto na agenda pelos óculos" : "criado na agenda"}</span>`
+      : `<a class="btn pri" target="_blank" rel="noopener" href="${esc(gcalUrl(n.title || "Compromisso", f))}" data-evmark="${n.id}">${I("calendar_month")} Criar na agenda</a><button class="btn" data-evskip="${n.id}">Ignorar</button>`}</div></div>`;
+}
+/** The commitments that came out of this conversation (notes of kind "evento" saved right after it, same person). */
+function plansOf(r) {
+  const t = new Date(r.at).getTime(), linked = (JSON.parse(store.get("vc_evlink") || "{}")[r.id] || []);
+  return S.notes.filter(n => n.kind === "evento" && (linked.includes(n.id) || ( (n.fields || {}).status !== "ignorado" && n.at && new Date(n.at) - t >= -6e4 && new Date(n.at) - t < 3 * 3.6e6 && (!r.person_name || !n.fields?.de || nameKey(n.fields.de) === nameKey(r.person_name)))));
+}
+function plansBlock(r) {
+  if (!r.transcript) return "";
+  const ps = plansOf(r);
+  return `<div class="sec"><h5>Compromissos combinados</h5>${ps.map(n => planCard(n)).join("") || `<p class="muted" style="margin:0 0 8px">Nenhum encontrado ainda.</p>`}
+    <button class="btn" data-evfind="${r.id}">${I("calendar_month")} Procurar compromissos nesta conversa</button></div>`;
+}
+async function findPlans(id) {
+  const r = S.enc.find(x => x.id === id); if (!r) return;
+  const key = gkey(); if (!key) { toast("Falta a chave do Gemini em Ajustes"); return; }
+  const btn = document.querySelector(`[data-evfind="${CSS.escape(id)}"]`), slot = document.createElement("div");
+  if (btn) btn.replaceWith(slot);
+  const pr = progress(slot, [["Lendo a conversa", 25, 800], ["Procurando compromissos", 96, 6000]]); setTimeout(() => pr.next(), 900);
+  const when = new Date(r.at).toLocaleString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  try {
+    const j = await gemini(key, { contents: [{ parts: [{ text: `Conversa gravada em ${when}${r.person_name ? " com " + r.person_name : ""}.\nListe só compromissos FUTUROS combinados nela (reunião, encontro, consulta, ligação, entrega), com dia definido; datas relativas a partir da data acima. Responda só JSON: [{"titulo":"curto","inicio":"AAAA-MM-DDTHH:MM","duracao_min":60,"dia_inteiro":false,"local":"","com":"","notas":"assunto e demais detalhes ditos"}]. Sem hora dita: dia_inteiro true. Nenhum: []. Não invente.\n\n${String(r.transcript).slice(0, 12000)}` }] }], generationConfig: { temperature: 0.1, maxOutputTokens: 1500, responseMimeType: "application/json" } });
+    const txt = (j.candidates?.[0]?.content?.parts || []).filter(p => p.text && !p.thought).map(p => p.text).join("").trim();
+    const list = JSON.parse(txt.replace(/^```json|```$/g, ""));
+    pr.done();
+    if (!Array.isArray(list) || !list.length) { slot.innerHTML = `<p class="muted">Nenhum compromisso nessa conversa.</p>`; return; }
+    for (const e of list.slice(0, 3)) await call("note", { kind: "evento", title: e.titulo || "Compromisso", text: [e.titulo, e.com, e.local, e.notas].filter(Boolean).join("\n"), source: "manager",
+      fields: { inicio: e.inicio, duracao_min: e.duracao_min || 60, dia_inteiro: !!e.dia_inteiro, local: e.local || "", com: e.com || r.person_name || "", notas: e.notas || "", status: "sugerido", de: r.person_name || "" } });
+    S.notes = await call("list", { entity: "note" });
+    // A note made now would not sit right after an old conversation: keep the link in this browser.
+    const link = JSON.parse(store.get("vc_evlink") || "{}"); S.notes.filter(n => n.kind === "evento" && n.source === "manager" && !Object.values(link).flat().includes(n.id) && Date.now() - new Date(n.at) < 6e4).forEach(n => { (link[id] = link[id] || []).push(n.id); });
+    store.set("vc_evlink", JSON.stringify(link)); render(); open("memory", id); toast(list.length === 1 ? "1 compromisso encontrado" : list.length + " compromissos encontrados");
+  } catch (e) { pr.done(); slot.innerHTML = `<p class="muted">Não deu: ${esc(e.message || e)}</p>`; }
+}
+
+/* ---------- Tarefas (Marcus, 09/11): "o que eu tenho para fazer?" — what was agreed and not done, what someone
+   asked, "me lembra de…". Each one comes with the action that does it. ---------- */
+const TACT = { whatsapp: ["chat", "WhatsApp"], email: ["mail", "e-mail"], ligar: ["call", "ligar"], agenda: ["calendar_month", "agenda"], comprar: ["shopping_cart", "comprar"], lembrete: ["alarm", "lembrete"], outro: ["check", "tarefa"] };
+const fmtShort = d => { const t = new Date(d); return isNaN(t) ? "" : t.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" }) + (/T\d/.test(d) ? " " + t.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : ""); };
+const tasksDone = () => new Set(S.notes.filter(n => n.kind === "tarefa_feita").map(n => (n.fields || {}).ref).filter(Boolean));
+const openTasks = () => { const d = tasksDone(); return S.notes.filter(n => n.kind === "tarefa" && !d.has(n.id)).sort((a, b) => new Date((a.fields || {}).quando || "9999") - new Date((b.fields || {}).quando || "9999")); };
+function taskActions(n) {
+  const f = n.fields || {}, p = f.pessoa ? S.people.find(x => nameKey(x.name) === nameKey(f.pessoa) || nameKey(x.name).startsWith(nameKey(f.pessoa))) : null;
+  const phone = p && brPhone(p.contact_whatsapp || p.contact_phone), mail = p && p.contact_email;
+  const body = [n.title, f.detalhes].filter(Boolean).join("\n\n");
+  const b = [];
+  if (f.acao === "whatsapp" || (phone && f.acao !== "email")) b.push(phone ? `<a class="btn pri" href="${waHref(phone, f.detalhes || "")}" target="_blank" rel="noopener">💬 WhatsApp${p ? " para " + esc(p.name.split(" ")[0]) : ""}</a>` : `<span class="btn" style="opacity:.6">💬 sem número de ${esc(f.pessoa || "?")}</span>`);
+  if (f.acao === "email") b.push(`<a class="btn pri" href="mailto:${esc(mail || "")}?subject=${encodeURIComponent(n.title)}&body=${encodeURIComponent(f.detalhes || "")}">${I("mail")} Escrever e-mail${p ? " para " + esc(p.name.split(" ")[0]) : ""}</a>`);
+  if (f.acao === "ligar" && phone) b.push(`<a class="btn pri" href="tel:+${phone}">${I("call")} Ligar${p ? " para " + esc(p.name.split(" ")[0]) : ""}</a>`);
+  if (f.acao === "agenda" || f.quando) b.push(`<a class="btn" target="_blank" rel="noopener" href="${esc(gcalUrl(n.title, { inicio: f.quando || new Date(Date.now() + 864e5).toISOString().slice(0, 10) + "T09:00", duracao_min: 30, dia_inteiro: !f.quando, notas: f.detalhes, com: f.pessoa }))}">${I("calendar_month")} Pôr na agenda</a>`);
+  if (f.acao === "comprar") b.push(`<a class="btn" target="_blank" rel="noopener" href="https://www.google.com/search?tbm=shop&q=${encodeURIComponent(n.title.replace(/^comprar\s+/i, ""))}">${I("shopping_cart")} Procurar</a>`);
+  b.push(`<button class="btn" data-taskdone="${n.id}">✓ Feito</button>`);
+  return b.join("");
+}
+function taskHtml(n) {
+  const f = n.fields || {};
+  return `<h2>${I(TACT[f.acao]?.[0] || "check")} ${esc(n.title || n.text)}</h2><div class="hook">${[f.quando && "até " + esc(fmtShort(f.quando)), f.pessoa && "com " + esc(f.pessoa), f.de && "de uma conversa" + (f.de !== "conversa" ? " com " + esc(f.de) : "")].filter(Boolean).join(" · ") || "tarefa"}</div>
+    ${f.detalhes ? `<div class="sec"><h5>Detalhes</h5><p>${esc(f.detalhes)}</p></div>` : ""}<div class="btns">${taskActions(n)}</div>`;
+}
+function tasksBlock() {
+  const ts = openTasks(); if (!ts.length) return "";
+  const late = ts.filter(n => (n.fields || {}).quando && new Date(n.fields.quando) < Date.now()).length;
+  return `<div class="sec" style="margin-top:10px"><h5>✓ ${ts.length === 1 ? "1 coisa para fazer" : ts.length + " coisas para fazer"}${late ? ` · <span style="color:var(--danger,#ff7a6a)">${late} atrasada${late > 1 ? "s" : ""}</span>` : ""}</h5>
+    ${ts.slice(0, 4).map(n => `<button class="row" data-k="task" data-id="${n.id}">${icAv(TACT[(n.fields || {}).acao]?.[0] || "check")}<span class="tx"><span class="t1">${esc(n.title)}</span><span class="t2">${esc([(n.fields || {}).pessoa, (n.fields || {}).quando && "até " + fmtShort(n.fields.quando)].filter(Boolean).join(" · "))}</span></span></button>`).join("")}
+    ${ts.length > 4 ? `<button class="pill" data-c="task">ver as ${ts.length}</button>` : ""}</div>`;
+}
+async function taskDone(id) {
+  const n = S.notes.find(x => x.id === id); if (!n) return;
+  await call("note", { kind: "tarefa_feita", title: "Feito: " + (n.title || "").slice(0, 100), text: "Feito: " + (n.title || ""), fields: { ref: id }, source: "manager" });
+  S.notes = await call("list", { entity: "note" }); closeDetail(); render(); toast("Feito ✓");
+}
+
+/**
+ * A Brazilian number as WhatsApp wants it, 55 + DDD + number (Marcus, 09/11: "11977880888" went to +55 19 7788-0888).
+ * Drops 00/0/carrier prefixes, adds 55 to a DDD + number, and the 9 to an old 8-digit mobile. Anything else (abroad,
+ * no DDD) goes as typed — better than guessing.
+ */
+function brPhone(raw) {
+  let d = String(raw || "").replace(/\D/g, "");
+  if (!d) return "";
+  d = d.replace(/^00/, "");
+  if (/^0\d{12,13}$/.test(d)) d = d.slice(3);        // 0 + carrier (2) + DDD + number
+  else if (/^0\d{10,11}$/.test(d)) d = d.slice(1);   // 0 + DDD + number
+  if (/^55\d{10,11}$/.test(d)) d = d.slice(2);
+  if (!/^\d{10,11}$/.test(d)) return d;
+  const ddd = d.slice(0, 2); let n = d.slice(2);
+  if (n.length === 8 && /^[6-9]/.test(n)) n = "9" + n;
+  return "55" + ddd + n;
+}
+/** Opens the WhatsApp app itself on Android (wa.me opened the web version), the site elsewhere. */
+function waHref(num, text = "") {
+  const n = brPhone(num), web = "https://wa.me/" + n + (text ? "?text=" + encodeURIComponent(text) : "");
+  return /Android/i.test(navigator.userAgent) ? `intent://send?phone=${n}${text ? "&text=" + encodeURIComponent(text) : ""}#Intent;scheme=whatsapp;S.browser_fallback_url=${encodeURIComponent(web)};end` : web;
+}
+
+/* Talk to the person (Marcus, 09/11): on the phone the Zap opens the conversation (zap://chat); without it, WhatsApp;
+   without a number, nothing to offer. The Zap link is the contract the Zap app answers from 0.16 on. */
+function chatBtn(p) {
+  const raw = p.contact_whatsapp || p.contact_phone;
+  if (!brPhone(raw)) return "";
+  // The Zap answers zap://chat only from its next version; until then the WhatsApp app opens straight away.
+  return `<a class="btn pri" href="${waHref(raw)}" ${/Android/i.test(navigator.userAgent) ? "" : 'target="_blank" rel="noopener"'}>${I("chat")} Conversar no WhatsApp</a>`;
+}
+/* Translate any text the glasses read (Marcus, 09/11): the original stays; the translation is asked to Gemini here. */
+const LANGS = [["pt", "português"], ["en", "inglês"], ["de", "alemão"], ["es", "espanhol"], ["fr", "francês"], ["it", "italiano"], ["zh", "chinês"], ["ja", "japonês"], ["ko", "coreano"], ["th", "tailandês"], ["ar", "árabe"], ["ru", "russo"]];
+function translateBox(id) {
+  return `<div class="sec"><h5>Traduzir</h5><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <select id="tr-lang" style="min-height:40px;border-radius:10px;background:var(--s1);color:var(--t);border:1px solid var(--line);padding:0 10px">${LANGS.map(([c, n]) => `<option value="${c}">${n}</option>`).join("")}</select>
+    <button class="btn" data-translate="${id}">Traduzir</button></div><div id="tr-out" class="trans" style="display:none;margin-top:10px;color:var(--t);font-size:15px;max-height:none"></div></div>`;
+}
+async function translateNote(id) {
+  const n = S.notes.find(x => x.id === id); if (!n) return;
+  const key = gkey(); if (!key) { toast("Falta a chave do Gemini em Ajustes"); return; }
+  const lang = $("#tr-lang").value, name = (LANGS.find(l => l[0] === lang) || [])[1] || lang, out = $("#tr-out");
+  out.style.display = "block"; const pr = progress(out, [["Traduzindo para " + name, 96, 5000]]);
+  try {
+    const src = n.fields?.original || n.text || "";
+    const j = await gemini(key, { contents: [{ parts: [{ text: `Traduza para ${name} o texto abaixo, fiel e natural, mantendo quebras de linha. Responda só com a tradução.\n\n${src.slice(0, 6000)}` }] }], generationConfig: { temperature: 0.2, maxOutputTokens: 4000 } });
+    pr.done(); out.textContent = (j.candidates?.[0]?.content?.parts || []).filter(p => p.text && !p.thought).map(p => p.text).join("").trim() || "Sem resposta.";
+  } catch (e) { pr.done(); out.textContent = "Não deu: " + (e.message || e); }
+}
+
+/* A song the glasses heard (Marcus, 09/11): open it where he listens, or keep it for later. */
+function songOf(r) {
+  const f = r.fields || {}, parts = String(r.title || "").split(" · "), m = parts[0].split(" — ");
+  const title = f.titulo || m[0] || "", artist = f.artista || m[1] || "", album = parts[1] && norm(parts[1]) !== norm(title) ? parts[1] : "";
+  return { title, artist, album };
+}
+function musicBtns(r) {
+  const s = songOf(r), q = encodeURIComponent([s.title, s.artist].filter(Boolean).join(" "));
+  const later = S.notes.some(n => n.kind === "ouvir_depois" && n.title === r.title);
+  return `<div class="btns" style="margin-top:4px">
+    <a class="btn pri" target="_blank" rel="noopener" href="https://open.spotify.com/search/${q}">${I("play_arrow")} Abrir no Spotify</a>
+    <a class="btn" target="_blank" rel="noopener" href="https://music.youtube.com/search?q=${q}">YouTube Music</a>
+    ${later ? `<button class="btn on" data-unlater="${r.id}" aria-label="Tirar da lista Ouvir depois">✓ Em Ouvir depois <span class="minus">−</span></button>` : `<button class="btn" data-later="${r.id}">+ Ouvir depois</button>`}
+  </div>`;
+}
+/** Same button takes it out again (Marcus, 09/11: "tem que ter adicionar e desadicionar"). */
+async function unlistenLater(id) {
+  const n = S.notes.find(x => x.id === id); if (!n) return;
+  const gone = S.notes.filter(x => x.kind === "ouvir_depois" && x.title === n.title);
+  for (const g of gone) await call("delete_row", { kind: "note", id: g.id }).catch(() => {});
+  S.notes = await call("list", { entity: "note" }); render();
+  if (S.notes.some(x => x.id === id)) open("memory", id); else closeDetail();
+  toast("Fora da lista Ouvir depois");
+}
+async function listenLater(id) {
+  const n = S.notes.find(x => x.id === id); if (!n) return;
+  await call("note", { kind: "ouvir_depois", title: n.title, text: "Ouvir depois: " + n.title, source: "manager" });
+  S.notes = await call("list", { entity: "note" }); render(); open("memory", id); toast("Na lista Ouvir depois");
+}
+function shareNote(id) {
+  const n = S.notes.find(x => x.id === id); if (!n) return;
+  const rx = n.fields?.receita;
+  const text = [n.title, rx ? (rx.itens || []).map(i => "• " + [i.remedio, i.dose, i.quando].filter(Boolean).join(" · ")).join("\n") : "", n.text, "— VisualContext, " + fmtFull(n.at) + (n.place ? ", " + n.place : "")].filter(Boolean).join("\n\n");
+  if (navigator.share) navigator.share({ title: n.title || "Nota", text }).catch(() => {});
+  else navigator.clipboard.writeText(text).then(() => toast("Copiado. Cole no Keep ou no Notas."), () => toast("Não consegui copiar"));
+}
+/* ---------- spec 1o: prep before a conversation (memory first, then the web, kept apart) ---------- */
+/** Connectors for prep (07/11): memory + web always; your own material (job post, CV, LinkedIn "Save to PDF", proposal) attached or pasted. */
+function prepForm(id) {
+  const box = $("#prep"); if (!box) return;
+  box.innerHTML = `<div class="sec" style="border:1.5px solid var(--line2);border-radius:14px;padding:14px"><h5 style="border:0;color:var(--g)">✦ Preparar conversa</h5>
+    <form class="f" id="pf" style="margin-top:4px">
+      <label>Que conversa é?<select name="tipo"><option value="negocios">Negócios / reunião</option><option value="entrevista_candidato">Entrevista de emprego (sou candidato)</option><option value="entrevista_entrevistador">Entrevista (eu entrevisto)</option><option value="pessoal">Pessoal</option></select></label>
+      <label>Material (opcional): a vaga, um currículo, o PDF do perfil do LinkedIn (no perfil: Mais → Salvar como PDF), uma proposta<input type="file" name="files" multiple accept=".pdf,.txt,.md,image/*"></label>
+      <label>Ou cole aqui (texto da vaga, um e-mail, o contexto)<textarea name="texto" placeholder="opcional"></textarea></label>
+      <div class="btns" style="margin-top:0"><button class="btn pri">✦ Preparar</button></div>
+      <p class="muted" style="font-size:12.5px">Fontes: sua memória e a web, sempre. Gmail e Drive: em breve.</p>
+    </form></div>`;
+  box.scrollIntoView({ behavior: "smooth", block: "start" });
+  $("#pf").onsubmit = async e => {
+    e.preventDefault();
+    const fd = new FormData(e.target), files = [];
+    let total = 0;
+    for (const f of fd.getAll("files")) {
+      if (!f || !f.size) continue;
+      total += f.size; if (total > 15e6) { toast("Material grande demais (máx. 15 MB)"); return; }
+      const b64 = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(String(fr.result).split(",")[1]); fr.readAsDataURL(f); });
+      files.push({ inlineData: { mimeType: f.type || (f.name.endsWith(".pdf") ? "application/pdf" : "text/plain"), data: b64 } });
+    }
+    prep(id, { tipo: fd.get("tipo"), texto: String(fd.get("texto") || "").slice(0, 20000), files, nomes: fd.getAll("files").filter(f => f && f.size).map(f => f.name) });
+  };
+}
+
+async function prep(id, opt = {}) {
+  bump("prep");
+  const p = S.people.find(x => x.id === id); if (!p) return;
+  const box = $("#prep"), key = gkey();
+  if (!box) return;
+  box.innerHTML = `<div class="sec"><h5>✦ Preparação</h5><div id="prepp"></div></div>`;
+  const ppr = progress($("#prepp"), [["Juntando o que você sabe", 30, 1200], ["Procurando na web", 96, 14000]]); setTimeout(() => ppr.next(), 1500);
+  box.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (!key) { box.innerHTML = `<div class="sec"><h5>✦ Preparação</h5><p>Falta a chave do Gemini. Abra o Manager pelo app ou cole a chave em Ajustes.</p></div>`; return; }
+  const first = norm(p.name).split(" ")[0];
+  const encs = S.enc.filter(e => e.person_id === p.id || (first.length > 2 && norm(e.transcript || "").includes(first))).slice(0, 12)
+    .map(e => ({ quando: e.at, lugar: e.place, resumo: e.summary, pendencias: e.follow_ups, trecho: (e.transcript || "").slice(0, 1200) }));
+  const notes = S.notes.filter(n => first.length > 2 && norm((n.title || "") + " " + (n.text || "")).includes(first)).slice(0, 8).map(n => ({ quando: n.at, titulo: n.title, texto: (n.text || "").slice(0, 600) }));
+  const mem = { pessoa: { nome: p.name, apelido: p.nickname, relacao: p.relation, empresa: p.company, cargo: p.role, tags: p.tags, notas: p.notes, ultima_vez: p.last_seen_date, onde: p.last_seen_context, linkedin: p.contact_linkedin }, encontros: encs, notas: notes };
+  const prompt = `Prepare o usuário para uma conversa com ${p.name}. Hoje: ${new Date().toLocaleString("pt-BR")}.
+Use PRIMEIRO a memória dele (abaixo). Depois procure na web, com cuidado para não confundir com homônimos (use empresa e cargo para confirmar); se não tiver certeza de que é a mesma pessoa, diga isso.
+Responda SÓ com JSON, em português, curto e direto:
+{"quem": "1 frase: quem é para o usuário", "como_se_conhecem": "1 frase ou vazio", "ultimo_encontro": "1 frase ou vazio", "pendencias": ["o que ficou combinado ou prometido"], "para_nao_errar": ["como gosta de ser chamada, nomes de pessoas próximas, assuntos a evitar, promessas feitas — só o que estiver na memória"], "pontos": ["3 pontos de conversa"], "web": ["2-4 fatos públicos e recentes: empresa, cargo, notícias"], "web_certeza": "alta|media|baixa"}
+Nunca invente. Campo sem dado fica vazio.
+TIPO DE CONVERSA: ${opt.tipo || "negocios"}.${opt.tipo === "entrevista_candidato" ? ` O usuário é o CANDIDATO: inclua "perguntas_provaveis" (5 perguntas que podem fazer a ele, com base na vaga e na empresa) e "perguntas_para_fazer" (3 perguntas inteligentes para ele fazer), e em "web" a cultura e notícias recentes da empresa.` : opt.tipo === "entrevista_entrevistador" ? ` O usuário ENTREVISTA a pessoa: inclua "perguntas_para_fazer" (5, a partir do currículo/perfil) e "pontos" com o que checar.` : ""}
+Campos extras opcionais no mesmo JSON: "perguntas_provaveis": [], "perguntas_para_fazer": [], "do_material": ["3 pontos tirados do material anexado, se houver"].
+${opt.texto ? "TEXTO COLADO PELO USUÁRIO: " + opt.texto + "\n" : ""}${opt.files?.length ? "MATERIAL ANEXADO: " + opt.nomes.join(", ") + " (em anexo).\n" : ""}MEMÓRIA: ${JSON.stringify(mem)}`;
+  try {
+    const j = await gemini(key, { contents: [{ parts: [{ text: prompt }, ...(opt.files || [])] }], tools: [{ google_search: {} }], generationConfig: { temperature: 0.2, maxOutputTokens: 6000 } });
+    const cand = j.candidates?.[0] || {};
+    const txt = (cand.content?.parts || []).filter(x => !x.thought && x.text).map(x => x.text).join("");
+    const a = JSON.parse(txt.slice(txt.indexOf("{"), txt.lastIndexOf("}") + 1));
+    const links = (cand.groundingMetadata?.groundingChunks || []).map(c => c.web).filter(Boolean).slice(0, 5);
+    const list = (xs, cls = "") => (xs || []).filter(Boolean).length ? `<ul style="margin:4px 0 0 18px" class="${cls}">${xs.filter(Boolean).map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : `<p class="muted">—</p>`;
+    box.innerHTML = `<div class="sec" style="border:1.5px solid var(--g);border-radius:14px;padding:14px"><h5 style="border:0;color:var(--g)">✦ Preparação · ${esc(p.name)}</h5>
+      <p style="font-size:16px">${esc(a.quem || "")}</p>
+      ${a.como_se_conhecem ? `<p class="muted" style="margin-top:4px">${esc(a.como_se_conhecem)}</p>` : ""}
+      ${a.ultimo_encontro ? `<p style="margin-top:8px"><b>Último encontro:</b> ${esc(a.ultimo_encontro)}</p>` : ""}
+      <h5 style="margin-top:14px">Pendências</h5>${list(a.pendencias)}
+      <h5 style="margin-top:14px">Para não errar</h5>${list(a.para_nao_errar)}
+      <h5 style="margin-top:14px">Pontos de conversa</h5>${list(a.pontos)}
+      ${(a.do_material || []).length ? `<h5 style="margin-top:14px">Do seu material</h5>${list(a.do_material)}` : ""}
+      ${(a.perguntas_provaveis || []).length ? `<h5 style="margin-top:14px">Perguntas que podem te fazer</h5>${list(a.perguntas_provaveis)}` : ""}
+      ${(a.perguntas_para_fazer || []).length ? `<h5 style="margin-top:14px">Perguntas para você fazer</h5>${list(a.perguntas_para_fazer)}` : ""}
+      <h5 style="margin-top:14px">Da web ${a.web_certeza && a.web_certeza !== "alta" ? `<span style="color:#ffd166">· confira: pode ser outra pessoa</span>` : ""}</h5>${list(a.web)}
+      ${links.length ? `<div class="src">${links.map(l => `<a href="${esc(l.uri)}" target="_blank" rel="noopener" style="font-size:12.5px;border:1.5px solid var(--line2);border-radius:10px;padding:5px 9px;color:var(--g2);text-decoration:none">${esc(l.title || "fonte")}</a>`).join("")}</div>` : ""}
+    </div>`;
+  } catch (e) {
+    box.innerHTML = `<div class="sec"><h5>✦ Preparação</h5><p>Não consegui preparar agora (${esc(String(e.message).slice(0, 90))}).</p></div>`;
+  }
+}
+
+function thingHtml(t) {
+  const q = t.lat ? `${t.lat},${t.lng}` : t.location_description;
+  return `<div class="ph"><span class="av k" style="width:64px;height:64px;font-size:26px">⌖</span><div><h2>${esc(t.name)}</h2><div class="hook">${esc(t.category || "coisa")}</div></div></div>
+  ${t.snapshot_url ? `<img src="${esc(t.snapshot_url)}" alt="" style="width:100%;max-height:260px;object-fit:cover;border-radius:14px;margin:8px 0 4px">` : ""}
+  <div class="sec"><h5>Onde ficou</h5><p style="font-size:17px">${esc(t.location_description || "—")}</p><p class="muted" style="margin-top:4px">${esc(fmtFull(t.seen_at))}</p></div>
+  ${t.audio_context ? `<div class="sec"><h5>O que você disse</h5><p>${esc(t.audio_context)}</p></div>` : ""}
+  <div class="btns">${q ? `<a class="btn pri" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}">Abrir no mapa</a>` : ""}${t.lat ? `<a class="btn" target="_blank" rel="noopener" href="https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${t.lat},${t.lng}">Ver ao redor (Street View)</a><a class="btn" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${t.lat},${t.lng}&travelmode=walking">Como chegar</a>` : ""}<button class="btn dan" data-del-row="thing:${t.id}">Apagar</button></div>`;
+}
+function placeHtml(p) {
+  const k = norm(p.name), mp = (S.myPlaces || []).find(x => norm(x.name) === k);
+  const encs = S.enc.filter(e => norm(placeName(e)) === k).sort((a, b) => b.at.localeCompare(a.at)), th = S.things.filter(t => norm(t.location_description) === k);
+  const q = mp ? `${mp.lat},${mp.lng}` : (/\d/.test(p.name) ? p.name.replace(" · ", ", ") + ", São Paulo" : p.lat ? `${p.lat},${p.lng}` : p.name);
+  const row = e => { const live = e.capture_mode === "live", w = said(e); return `<button class="row" data-k="memory" data-id="${esc(e.id)}"><span class="av k">${live ? "✦" : "◷"}</span><span class="tx"><span class="t1">${esc(live ? (w || "Conversa com o assistente") : (e.person_name && !isMe(e.person_name) ? "Encontro com " + e.person_name : w || e.context || "Momento"))}</span><span class="t2">${esc(fmtFull(e.at))}${live && w ? " · conversa com o assistente" : ""}</span></span></button>`; };
+  return `<div class="ph">${icAv(mp ? ({ casa: "home", trabalho: "work" }[mp.kind] || "star") : "location_on", "width:64px;height:64px")}<div><h2>${esc(p.name)}</h2><div class="hook">${mp ? esc(({ casa: "Sua casa", trabalho: "Seu trabalho" }[mp.kind] || "Seu lugar")) + " · " : ""}${p.n} ${p.n === 1 ? "momento" : "momentos"} · último ${esc(fmtWhen(p.date))}</div></div></div>
+  ${mp ? "" : `<div class="sec"><h5>Que lugar é este?</h5><p class="muted" style="font-size:14px;margin:0 0 8px">O GPS dentro de casa erra algumas dezenas de metros. Dando um nome, todos os momentos por perto passam a aparecer com ele.</p><div class="btns" style="margin-top:0"><button class="btn" data-name-place="casa">⌂ É minha casa</button><button class="btn" data-name-place="trabalho">▣ É meu trabalho</button><button class="btn" data-name-place="outro">★ Dar um nome…</button></div></div>`}
+  ${encs.length ? `<div class="sec"><h5>O que aconteceu aqui</h5>${encs.map(row).join("")}</div>` : ""}
+  ${th.length ? `<div class="sec"><h5>Coisas deixadas aqui</h5>${th.map(t => `<button class="row" data-k="thing" data-id="${esc(t.id)}"><span class="av k">⌖</span><span class="tx"><span class="t1">${esc(t.name)}</span><span class="t2">${esc(fmtFull(t.seen_at))}</span></span></button>`).join("")}</div>` : ""}
+  <div class="btns"><button class="btn" data-teia="place:${p.id}">${I("hub")} Teia</button><a class="btn pri" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}">Abrir no mapa</a>${mp ? `<button class="btn" data-unname-place="${mp.id}">Tirar o nome</button>` : ""}</div>`;
+}
+async function namePlace(kind, placeTitle) {
+  const k = norm(placeTitle), encs = S.enc.filter(e => norm(placeName(e)) === k && e.lat != null);
+  if (!encs.length) return toast("Este lugar não tem coordenadas");
+  const lat = encs.reduce((a, e) => a + e.lat, 0) / encs.length, lng = encs.reduce((a, e) => a + e.lng, 0) / encs.length;
+  let name = kind === "casa" ? "Casa" : kind === "trabalho" ? "Trabalho" : prompt("Nome deste lugar (ex.: Pop Vegan, academia, casa da minha mãe):", "");
+  if (!name || !name.trim()) return;
+  try { await call("save_place", { name: name.trim(), kind, lat, lng, radius_m: 120, address: placeTitle }); S.myPlaces = await call("places"); render(); open("place", "pl:" + norm(name.trim())); toast("Pronto: " + name.trim()); }
+  catch (e) { toast("Não deu: " + e.message); }
+}
+
+/* ---------- edit / merge / delete (confirmations inside the page) ---------- */
+function sheet(html) { $("#sbox").innerHTML = html; $("#sheet").classList.add("on"); pushNav("sheet"); }
+function hideSheet() { $("#sheet").classList.remove("on"); }
+/** Closing from our own buttons goes through the history too, so the phone's Back stays in step. */
+function closeSheet() { if (!navPopping && navDepth > 0 && $("#sheet").classList.contains("on")) history.back(); else hideSheet(); }
+
+/* The phone's Back button (Marcus, 09/11): closes the sheet or the open page instead of leaving the Manager.
+   Every open page / sheet pushes one history entry; Back pops it and we close what it opened. */
+let navDepth = 0, navPopping = false;
+function pushNav(what) { if (navPopping) return; navDepth++; try { history.pushState({ vc: what, n: navDepth }, ""); } catch {} }
+window.addEventListener("popstate", () => {
+  if (document.querySelector(".rv")) return; // "Reviver o dia" handles its own Back
+  navPopping = true;
+  try {
+    if ($("#sheet").classList.contains("on")) hideSheet();
+    else if ($("#detail").classList.contains("open") && innerWidth < 920) closeDetail();
+    navDepth = Math.max(0, navDepth - 1);
+  } finally { navPopping = false; }
+});
+$("#sheet").addEventListener("click", e => { if (e.target.id === "sheet" || e.target.closest("[data-x]")) closeSheet(); });
+const F = [["name", "Nome"], ["nickname", "Apelido"], ["relation", "Relação (amigo, cliente, vizinha…)"], ["company", "Empresa"], ["role", "Cargo"], ["contact_phone", "Telefone"], ["contact_whatsapp", "WhatsApp"], ["contact_email", "E-mail"], ["contact_linkedin", "LinkedIn (link)"]];
+function editPerson(id) {
+  const p = S.people.find(x => x.id === id);
+  sheet(`<h3>Editar ${esc(p.name)}</h3><form class="f" id="ef">${F.map(([k, l]) => `<label>${l}<input name="${k}" value="${esc(p[k] || "")}" ${k === "name" ? "required" : ""}></label>`).join("")}
+  <label>Etiquetas (separe por vírgula)<input name="tags" value="${esc((p.tags || []).join(", "))}"></label><label>Notas<textarea name="notes">${esc(p.notes || "")}</textarea></label>
+  <div class="btns"><button class="btn pri" type="submit">Salvar</button><button class="btn" type="button" data-x="1">Cancelar</button></div></form>`);
+  $("#ef").onsubmit = async ev => {
+    ev.preventDefault();
+    const fd = new FormData(ev.target), fields = {};
+    for (const [k] of F) fields[k] = (fd.get(k) || "").trim() || null;
+    fields.tags = String(fd.get("tags") || "").split(",").map(s => s.trim()).filter(Boolean);
+    fields.notes = (fd.get("notes") || "").trim() || null;
+    if (!fields.name) return;
+    try { await call("update_person", { id, fields }); Object.assign(p, fields); closeSheet(); toast("Salvo"); render(); open("person", id); } catch (e) { toast("Não salvou: " + e.message); }
+  };
+}
+function mergePick(id) {
+  const p = S.people.find(x => x.id === id);
+  const draw = q => S.people.filter(x => x.id !== id && (!q || norm(x.name).includes(norm(q)))).slice(0, 60).map(x => `<button class="row" data-merge-with="${x.id}">${avatar(x)}<span class="tx"><span class="t1">${esc(x.name)}</span><br><span class="t2">${esc([x.relation, x.company].filter(Boolean).join(" · "))}</span></span></button>`).join("");
+  sheet(`<h3>Juntar ${esc(p.name)} com…</h3><p class="sub">Escolha a outra ficha da mesma pessoa. Nada se perde: rostos, encontros, etiquetas e notas vão para uma só.</p><div class="f"><input id="mq" placeholder="Buscar pelo nome" autocomplete="off"></div><div class="pick" id="mlist">${draw("")}</div>`);
+  $("#mq").oninput = () => $("#mlist").innerHTML = draw($("#mq").value);
+  $("#mlist").onclick = e => { const b = e.target.closest("[data-merge-with]"); if (b) confirmMerge(id, b.dataset.mergeWith); };
+}
+function confirmMerge(a, b) {
+  let A = S.people.find(x => x.id === a), B = S.people.find(x => x.id === b);
+  if (richness(B) > richness(A)) [A, B] = [B, A];
+  sheet(`<h3>Juntar as duas fichas?</h3><p class="sub" style="margin-top:6px">Fica <strong style="color:var(--t)">${esc(A.name)}</strong>. De <strong style="color:var(--t)">${esc(B.name)}</strong> vêm os campos que faltam, os rostos, os encontros, as etiquetas e as notas.</p>
+  <div class="f"><label>Nome que fica<select id="mname"><option>${esc(A.name)}</option>${A.name !== B.name ? `<option>${esc(B.name)}</option>` : ""}</select></label></div>
+  <div class="btns"><button class="btn pri" id="mgo">Juntar</button><button class="btn" data-x="1">Cancelar</button></div>`);
+  $("#mgo").onclick = async () => {
+    try {
+      const name = $("#mname").value;
+      await call("merge_people", { keep: A.id, drop: B.id });
+      if (name !== A.name) await call("update_person", { id: A.id, fields: { name } });
+      closeSheet(); toast("Fichas juntadas"); await load(); open("person", A.id);
+    } catch (e) { toast("Não juntou: " + e.message); }
+  };
+}
+function confirmDelete(label, run) {
+  sheet(`<h3>Apagar ${esc(label)}?</h3><p class="sub" style="margin-top:6px">Isso não pode ser desfeito.</p><div class="btns"><button class="btn dan" id="dgo">Apagar</button><button class="btn" data-x="1">Cancelar</button></div>`);
+  $("#dgo").onclick = async () => { try { await run(); closeSheet(); toast("Apagado"); closeDetail(); await load(); } catch (e) { toast("Não apagou: " + e.message); } };
+}
+function dupReview() {
+  const d = dupPairs();
+  sheet(`<h3>Possíveis pessoas repetidas</h3><p class="sub">Nomes parecidos. Junte quando for a mesma pessoa.</p><div class="pick" style="max-height:60vh">${d.map(([a, b, key]) => `<div style="border:1.5px solid var(--line2);border-radius:14px;padding:12px;margin-top:10px">
+    <div style="display:flex;gap:10px;align-items:center">${avatar(a)}<span class="tx" style="flex:1;min-width:0"><b>${esc(a.name)}</b><br><span class="muted" style="font-size:13px">${esc([a.relation, a.company].filter(Boolean).join(" · ") || "—")}</span></span></div>
+    <div style="display:flex;gap:10px;align-items:center;margin-top:8px">${avatar(b)}<span class="tx" style="flex:1;min-width:0"><b>${esc(b.name)}</b><br><span class="muted" style="font-size:13px">${esc([b.relation, b.company].filter(Boolean).join(" · ") || "—")}</span></span></div>
+    <div class="btns" style="margin-top:12px"><button class="btn pri" data-dm="${a.id}|${b.id}">Juntar</button><button class="btn" data-nd="${key}">Não são a mesma</button></div></div>`).join("") || `<p class="muted" style="margin-top:14px">Nada a revisar.</p>`}</div>`);
+  $("#sbox").onclick = e => {
+    const m = e.target.closest("[data-dm]"); if (m) { const [a, b] = m.dataset.dm.split("|"); confirmMerge(a, b); return; }
+    const n = e.target.closest("[data-nd]"); if (n) { let s; try { s = JSON.parse(store.get("vc_notdup") || "[]") } catch { s = [] } s.push(n.dataset.nd); store.set("vc_notdup", JSON.stringify(s)); render(); dupReview(); }
+  };
+}
+
+/* ---------- import: LinkedIn CSV, phone vCard, spreadsheet CSV ---------- */
+function importSheet() {
+  sheet(`<h3>Importar</h3><p class="sub"><b>Rostos</b> se importam no app do celular (Ajustes → Importar rostos): prints de qualquer app com rosto e nome (Google Fotos, LinkedIn, Instagram, WhatsApp…) ou os contatos com foto. Ele precisa da câmera e do reconhecimento, que só existem lá.</p>
+  <p class="sub"><b>Aqui</b> entram arquivos, que é mais fácil num computador. Quem chega sem rosto espera o primeiro encontro para ser reconhecido. Nada duplica: o mesmo nome só completa os campos que faltam.</p>
+  <button class="opt" data-imp="linkedin"><span class="ic">in</span><span><b>LinkedIn: preparar o terreno</b><small><b>Não vem foto</b>: o LinkedIn não exporta fotos de conexões. Vem nome, empresa e cargo. Serve para chegar numa feira ou evento com as pessoas já na memória: quando você encontra alguém e diz o nome, os óculos guardam o rosto nessa pessoa, com a empresa e o cargo que vieram daqui.<br>Como pegar: LinkedIn → Configurações → Privacidade → Obter uma cópia dos seus dados → Conexões. Chega por e-mail um Connections.csv.</small></span></button>
+  <button class="opt" data-imp="vcf"><span class="ic">${I("contact_page")}</span><span><b>Contatos exportados (.vcf)</b><small>Para contatos de outro celular ou do computador. Os do seu celular, com foto, o app já importa sozinho.</small></span></button>
+  <button class="opt" data-imp="csv"><span class="ic">${I("list_alt")}</span><span><b>Planilha (CSV)</b><small>Google Planilhas ou Excel → Fazer download → CSV. Colunas: nome, empresa, cargo, e-mail, telefone.</small></span></button>`);
+  $("#sbox").onclick = e => { const b = e.target.closest("[data-imp]"); if (b) { $("#file").dataset.kind = b.dataset.imp; $("#file").value = ""; $("#file").click(); } };
+}
+$("#file").addEventListener("change", async () => {
+  const f = $("#file").files[0]; if (!f) return;
+  const text = await f.text();
+  let rows = [];
+  try { rows = /BEGIN:VCARD/i.test(text) ? parseVcf(text) : parseTable(text); } catch (e) { toast("Não consegui ler o arquivo"); return; }
+  rows = rows.filter(r => r.name && r.name.length > 1);
+  if (!rows.length) { toast("Nenhum contato encontrado no arquivo"); return; }
+  const have = new Map(S.people.map(p => [p.name.trim().toLowerCase(), p]));
+  const seen = new Set(); rows = rows.filter(r => { const k = r.name.trim().toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
+  sheet(`<h3>${rows.length} contatos em ${esc(f.name)}</h3><p class="sub">Desmarque quem não quiser. “Novo” entra na memória; “já existe” só completa campos vazios.</p>
+  <div style="display:flex;gap:8px;margin-top:10px"><button class="btn" id="iall">Marcar todos</button><button class="btn" id="inone">Desmarcar todos</button></div>
+  <div class="pv" id="pv">${rows.map((r, i) => { const ex = have.get(r.name.trim().toLowerCase()); return `<label><input type="checkbox" data-i="${i}" checked><span style="min-width:0"><b>${esc(r.name)}</b><br><span class="muted" style="font-size:12.5px">${esc([r.role, r.company, r.contact_email || r.contact_phone].filter(Boolean).join(" · "))}</span></span><span class="st ${ex ? "" : "new"}">${ex ? "já existe" : "novo"}</span></label>`; }).join("")}</div>
+  <div class="btns"><button class="btn pri" id="igo">Importar ${rows.length}</button><button class="btn" data-x="1">Cancelar</button></div>`);
+  const upd = () => { const n = document.querySelectorAll("#pv input:checked").length; $("#igo").textContent = "Importar " + n; $("#igo").disabled = !n; };
+  $("#pv").onchange = upd;
+  $("#iall").onclick = () => { document.querySelectorAll("#pv input").forEach(c => c.checked = true); upd(); };
+  $("#inone").onclick = () => { document.querySelectorAll("#pv input").forEach(c => c.checked = false); upd(); };
+  $("#igo").onclick = async () => {
+    const pick = [...document.querySelectorAll("#pv input:checked")].map(c => rows[+c.dataset.i]);
+    $("#igo").disabled = true; let added = 0, filled = 0;
+    try {
+      for (let i = 0; i < pick.length; i += 150) { $("#igo").textContent = `Importando ${Math.min(i + 150, pick.length)}/${pick.length}…`; const r = await call("add_people", { people: pick.slice(i, i + 150) }); added += r.added; filled += r.filled; }
+      closeSheet(); toast(`${added} novos · ${filled} completados`); await load(); S.cat = "person"; render();
+    } catch (e) { toast("Parou no meio: " + e.message); $("#igo").disabled = false; }
+  };
+});
+function csvRows(text) {
+  const out = [], sep = (text.split("\n").find(l => l.trim()) || "").split(";").length > (text.split("\n").find(l => l.trim()) || "").split(",").length ? ";" : ",";
+  let row = [], cell = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += c; }
+    else if (c === '"') q = true; else if (c === sep) { row.push(cell); cell = ""; } else if (c === "\n" || c === "\r") { if (c === "\r" && text[i + 1] === "\n") i++; row.push(cell); out.push(row); row = []; cell = ""; } else cell += c;
+  }
+  if (cell || row.length) { row.push(cell); out.push(row); }
+  return out.filter(r => r.some(x => x.trim()));
+}
+function parseTable(text) {
+  text = text.replace(/^﻿/, "");
+  const rows = csvRows(text);
+  const hi = rows.findIndex(r => r.some(c => /^(first name|nome|name|nome completo|full name)$/i.test(c.trim())));
+  if (hi < 0) throw new Error("header");
+  const H = rows[hi].map(h => norm(h)), col = (...names) => H.findIndex(h => names.includes(h));
+  const iF = col("first name", "primeiro nome", "nome proprio"), iL = col("last name", "sobrenome", "ultimo nome"), iN = col("nome", "name", "nome completo", "full name");
+  const iC = col("company", "empresa", "organizacao", "organization"), iR = col("position", "cargo", "title", "funcao", "role"), iE = col("email address", "email", "e mail"), iP = col("telefone", "phone", "celular", "phone number", "whatsapp"), iU = col("url", "linkedin", "profile url", "perfil");
+  return rows.slice(hi + 1).map(r => {
+    const g = i => i >= 0 ? (r[i] || "").trim() : "";
+    const name = g(iN) || [g(iF), g(iL)].filter(Boolean).join(" ");
+    const url = g(iU);
+    return { name, company: g(iC), role: g(iR), contact_email: g(iE), contact_phone: g(iP), contact_linkedin: /linkedin\.com/.test(url) ? url : "", source: iF >= 0 && iU >= 0 ? "linkedin" : "planilha" };
+  });
+}
+function parseVcf(text) {
+  const lines = text.replace(/\r\n/g, "\n").replace(/\n[ \t]/g, "").split("\n"), out = []; let c = null;
+  const val = l => l.slice(l.indexOf(":") + 1).replace(/\\,/g, ",").replace(/\\;/g, ";").replace(/\\n/gi, " ").trim();
+  const qp = (l, v) => /QUOTED-PRINTABLE/i.test(l) ? decodeURIComponent(v.replace(/=\n?/g, "%").replace(/%([^0-9A-F]|$)/gi, "")) : v;
+  for (const l of lines) {
+    const k = l.split(/[:;]/)[0].toUpperCase().replace(/^ITEM\d+\./, "");
+    if (k === "BEGIN") c = {}; else if (k === "END") { if (c) out.push(c); c = null; } else if (!c) continue;
+    else if (k === "FN") c.name = qp(l, val(l));
+    else if (k === "N" && !c.name) c.name = qp(l, val(l)).split(";").slice(0, 2).reverse().filter(Boolean).join(" ");
+    else if (k === "ORG") c.company = val(l).split(";")[0];
+    else if (k === "TITLE") c.role = val(l);
+    else if (k === "TEL" && !c.contact_phone) c.contact_phone = val(l);
+    else if (k === "EMAIL" && !c.contact_email) c.contact_email = val(l);
+    else if (k === "URL" && /linkedin/i.test(l)) c.contact_linkedin = val(l);
+  }
+  return out.map(r => ({ ...r, source: "contatos" }));
+}
+
+/* ---------- feedback everywhere ---------- */
+const appVer = () => "manager " + (($("#ver") || {}).textContent || "").split(" v")[1];
+/** Where he was when he wrote (Marcus, 09/11: the messages arrived with no reference to the page or the thing). */
+/** Everything about the moment of a feedback (Marcus, 10/11): page, view, filters, the open item, the open sheet. */
+function fbContext() {
+  const d = $("#detail"), open = d && !d.classList.contains("idle") && d.classList.contains("open") || (d && !d.classList.contains("idle") && innerWidth >= 920 && S.sel);
+  const sbox = $("#sbox"), sheetTitle = sbox && !sbox.closest(".hide") ? sbox.querySelector("h3")?.textContent.trim() : null;
+  return { page: "manager", where: where(), view: S.view, category: S.cat, search: ($("#q")?.value || "").trim() || null, only_today: !!S.dayOnly,
+    open_item: open ? { kind: d.dataset.kind || null, id: S.sel || null, title: d.querySelector("h2")?.textContent.trim().slice(0, 120) || null, image: !!d.querySelector("img.ph, img.big, .shot img") } : null,
+    sheet: sheetTitle || null, viewport: innerWidth + "x" + innerHeight, scroll: Math.round(scrollY), version: appVer(), at: new Date().toISOString() };
+}
+/** A picture of the screen at that moment (html2canvas, loaded only when needed). */
+async function fbShot() {
+  try {
+    if (!window.html2canvas) await new Promise((ok, no) => { const sc = document.createElement("script"); sc.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"; sc.onload = ok; sc.onerror = no; document.head.appendChild(sc); });
+    const c = await html2canvas(document.body, { scale: Math.min(1, 900 / innerWidth), useCORS: true, logging: false, backgroundColor: "#07090c", height: innerHeight, y: scrollY, windowHeight: innerHeight });
+    return c.toDataURL("image/jpeg", 0.6);
+  } catch (_) { return null; }
+}
+function where() {
+  const d = $("#detail"), h = d && !d.classList.contains("idle") && d.querySelector("h2");
+  if (h) return "detalhe: " + h.textContent.trim().slice(0, 80);
+  return "lista: " + ({ teia: "Teia", time: "Linha do tempo", grid: "Grade", az: "A–Z" })[S.view] + " · " + ((CATS.find(c => c[0] === S.cat) || [])[1] || S.cat);
+}
+/** Thumbs up / down under something the AI made; [what] says what was rated. */
+const rate = what => `<span class="rate" data-what="${esc(what)}"><span>Útil?</span><button data-rate="up" aria-label="Útil">${I("thumb_up")}</button><button data-rate="down" aria-label="Não ajudou">${I("thumb_down")}</button></span>`;
+async function sendRate(btn) {
+  const box = btn.closest(".rate"), what = box.dataset.what, v = btn.dataset.rate;
+  box.querySelectorAll("button").forEach(b => b.classList.toggle("on", b === btn));
+  call("feedback", { text: `[${v === "up" ? "útil" : "não ajudou"}] ${what}`, app: appVer(), usage: { kind: "rate", what, v, where: where() }, context: fbContext() }).catch(() => {});
+  if (v === "down" && !box.querySelector("input")) {
+    box.insertAdjacentHTML("beforeend", `<input placeholder="O que faltou? (opcional)" data-clarity-mask="true"><button data-ratewhy="1" aria-label="Enviar">${I("check")}</button>`);
+    box.querySelector("input").focus();
+  } else if (v === "up") box.firstElementChild.textContent = "Obrigado!";
+}
+function sendWhy(btn) {
+  const box = btn.closest(".rate"), t = box.querySelector("input").value.trim();
+  if (t) call("feedback", { text: `[não ajudou] ${box.dataset.what}: ${t}`, app: appVer(), usage: { kind: "rate_why", what: box.dataset.what, where: where() } }).catch(() => {});
+  box.innerHTML = `<span>Obrigado!</span>`;
+}
+/** Google's five faces instead of NPS (Marcus, 09/11: "NPS é muito chato"). */
+const FACES = [["sentiment_very_dissatisfied", "Muito ruim"], ["sentiment_dissatisfied", "Ruim"], ["sentiment_neutral", "Mais ou menos"], ["sentiment_satisfied", "Bom"], ["sentiment_very_satisfied", "Muito bom"]];
+async function feedbackSheet() {
+  feedbackSheet.where = where(); feedbackSheet.ctx = fbContext(); feedbackSheet.shot = null;
+  toast("Guardando este momento…");
+  feedbackSheet.shot = await fbShot();
+  sheet(`<h3>Como está sendo usar o VisualContext?</h3>${feedbackSheet.shot ? `<label style="display:flex;gap:10px;align-items:center;margin:4px 0 10px;font-size:13px;color:var(--m)"><img src="${feedbackSheet.shot}" alt="" style="width:72px;height:auto;border:1px solid var(--line);border-radius:6px"><span><input type="checkbox" id="fbshot" checked style="accent-color:var(--g)"> Enviar a imagem desta tela, para eu ver o que você estava vendo</span></label>` : ""}
+    <div class="faces" role="radiogroup" aria-label="Sua experiência">${FACES.map(([n, l], i) => `<button type="button" role="radio" aria-checked="false" data-face5="${i + 1}" title="${l}">${I(n)}<small>${l}</small></button>`).join("")}</div>
+    <p class="sub" style="margin-top:12px">Quer contar mais? Ideia, problema, elogio: vai direto para quem faz o app, sem abrir e-mail.</p>
+    <form class="f" onsubmit="return false"><textarea id="fbt" data-clarity-mask="true" placeholder="O que você achou do app?"></textarea>
+    <div class="btns" style="margin-top:0"><button class="btn pri" data-fbsend="1">Enviar</button><button class="btn" type="button" data-x="1">Fechar</button></div><p class="muted" id="fbm" style="font-size:13px"></p></form>`);
+}
+/** After using the web and then going to the timeline, once: which one makes more sense? */
+function maybeAskView(next) {
+  if (store.get("vc_view_asked") || !window.vcTeiaUsed || !["time", "grid"].includes(next)) return;
+  store.set("vc_view_asked", "1");
+  sheet(`<h3>Qual jeito faz mais sentido para você?</h3><p class="sub">Você usou a teia e agora a linha do tempo. A sua resposta decide o que abre primeiro.</p>
+    <div class="choice"><button data-viewpref="teia">${I("hub")}<span><b>Teia</b><small>mapa neural: tudo ligado, pessoas, lugares, músicas</small></span></button>
+    <button data-viewpref="time">${I("history")}<span><b>Linha do tempo</b><small>uma lista, do mais novo ao mais antigo</small></span></button>
+    <button data-viewpref="both">${I("check")}<span><b>As duas, depende do momento</b><small>abre na teia</small></span></button></div>`);
+}
+function setViewPref(v) {
+  store.set("vc_view_pref", v === "time" ? "time" : "teia");
+  call("feedback", { text: `[preferência de vista] ${({ teia: "teia", time: "linha do tempo", both: "as duas" })[v]}`, app: appVer(), usage: { kind: "view_pref", v } }).catch(() => {});
+  closeSheet(); toast("Obrigado! Anotado.");
+}
+
+/* ---------- Meu uso (Marcus, 09/11): what the app does, what you already used and what you never tried — to
+   learn the rest, not to collect trophies — and a direct line for feedback, without opening an e-mail app. ---------- */
+const bump = k => { try { const u = JSON.parse(store.get("vc_use") || "{}"); u[k] = (u[k] || 0) + 1; store.set("vc_use", JSON.stringify(u)); } catch {} };
+const used = () => { try { return JSON.parse(store.get("vc_use") || "{}"); } catch { return {}; } };
+function features() {
+  const N = k => S.notes.filter(n => (Array.isArray(k) ? k : [k]).includes(n.kind)).length, U = used();
+  return [
+    ["Reconhecer pessoas", S.enc.filter(e => e.capture_mode !== "live" && e.person_name && !isMe(e.person_name)).length, "Olhe para alguém que está na sua memória: o nome aparece na lente."],
+    ["Conversar com o assistente", S.enc.filter(e => e.capture_mode === "live").length, "Só fale com a escuta contínua ligada, ou toque longo na haste."],
+    ["Onde deixei", S.things.length, "\"Lembra que deixei a chave aqui.\" Depois: \"onde deixei a chave?\""],
+    ["Que música é essa?", N("musica"), "Com música tocando: \"que música é essa?\" — e \"mostra a letra\"."],
+    ["Ler papéis e QR", N(["pix", "link", "cartao", "cracha", "receita", "formulario", "cardapio", "outro"]), "Aponte para um cartão, receita, cardápio ou QR: \"lê isso\" ou \"guarda isso\"."],
+    ["Traduzir o que você vê", N("traducao"), "Olhando um texto em outra língua: \"traduz isso\"."],
+    ["Compromissos das conversas", N("evento"), "Combine algo numa conversa (\"sexta às 10\"): vai para a agenda sozinho."],
+    ["Tarefas", N("tarefa"), "\"Anota: mandar o orçamento pro Bruno.\" Depois: \"o que eu tenho para fazer?\""],
+    ["Ouvir depois", N("ouvir_depois"), "No cartão de uma música: + Ouvir depois."],
+    ["Nomear seus lugares", (S.myPlaces || []).length, "Num lugar da lista: dê um nome (casa, trabalho, academia)."],
+    ["Importar contatos", S.people.filter(p => /^import/.test(p.source || "")).length, "Botão Importar, no topo: contatos, LinkedIn ou planilha."],
+    ["Perguntar à memória", U.ask || 0, "Na caixa do topo: \"quem eu conheci esta semana?\""],
+    ["Preparar uma conversa", U.prep || 0, "Na página de uma pessoa: ✦ Preparar conversa."],
+    ["Reviver o dia", U.reviver || 0, "Em Meu dia: ▶ Reviver."],
+    ["Teia", (U.teia || 0) + N("ligacao"), "◉ Teia: toque, segure e arraste pontos para ligar."],
+  ];
+}
+function usage() {
+  feedbackSheet.shot = null; feedbackSheet.ctx = null;
+  feedbackSheet.where = null;
+  const fs = features(), done = fs.filter(f => f[1] > 0).length, max = Math.max(1, ...fs.map(f => f[1])), pct = done / fs.length;
+  const R = 70, len = Math.PI * R, arc = `M ${90 - R} 86 A ${R} ${R} 0 0 1 ${90 + R} 86`;
+  const admin = S.me && S.me.email === "marcusdemagalhaes@gmail.com";
+  sheet(`<h3>Meu uso</h3><p class="sub">O que o VisualContext faz, o que você já usou e o que ainda não experimentou.</p>
+    <div class="gauge"><svg viewBox="0 0 180 96" width="240" aria-hidden="true"><path d="${arc}" fill="none" stroke="var(--s2)" stroke-width="12" stroke-linecap="round"/><path d="${arc}" fill="none" stroke="var(--g)" stroke-width="12" stroke-linecap="round" stroke-dasharray="${(len * pct).toFixed(1)} ${len}"/></svg>
+      <div style="margin-top:-52px"><b>${done} de ${fs.length}</b><small>recursos já usados</small></div></div>
+    <div class="sec"><h5>Ainda não usou</h5>${fs.filter(f => !f[1]).map(f => `<div class="feat"><b style="grid-column:1/-1">${esc(f[0])}</b><span class="hint">${esc(f[2])}</span></div>`).join("") || `<p class="muted">Você já experimentou tudo. 👏</p>`}</div>
+    <div class="sec"><h5>Já usou</h5>${fs.filter(f => f[1]).sort((a, b) => b[1] - a[1]).map(f => `<div class="feat"><b>${esc(f[0])}</b><span class="n">${f[1]}×</span><span class="bar"><i style="width:${Math.max(4, f[1] / max * 100).toFixed(0)}%"></i></span></div>`).join("")}</div>
+    <div class="sec"><h5>Mande um recado para quem faz o app</h5><form class="f" onsubmit="return false" style="margin-top:0"><textarea id="fbt" placeholder="Ideia, problema, elogio… vai direto, sem abrir e-mail."></textarea>
+      <div class="btns" style="margin-top:0"><button class="btn pri" data-fbsend="1">Enviar</button><button class="btn" type="button" data-x="1">Fechar</button>${admin ? `<button class="btn" type="button" data-fblist="1">Recados recebidos</button>` : ""}</div><p class="muted" id="fbm" style="font-size:13px"></p></form></div>`);
+}
+async function sendFeedback() {
+  const face = +($("#sbox .faces .on")?.dataset.face5 || 0);
+  let t = $("#fbt").value.trim(); const m = $("#fbm");
+  if (t.length < 2 && !face) { m.textContent = "Escolha uma carinha ou escreva o recado."; return; }
+  if (face) t = `[${face}/5 ${FACES[face - 1][1]}] ` + t;
+  const at = feedbackSheet.where || where();
+  m.textContent = "Enviando…";
+  const shots = feedbackSheet.shot && $("#fbshot")?.checked ? [feedbackSheet.shot] : [];
+  try { await call("feedback", { text: t, app: appVer(), context: feedbackSheet.ctx || fbContext(), shots, usage: { where: typeof at === "string" ? at : where(), uso: Object.fromEntries(features().map(f => [f[0], f[1]])) } }); $("#fbt").value = ""; m.textContent = "✓ Recebido. Obrigado!"; feedbackSheet.shot = null; }
+  catch (e) { m.textContent = "Não deu: " + e.message; }
+}
+async function feedbackList() {
+  try { const l = await call("feedback_list"); sheet(`<h3>Recados recebidos</h3>${l.length ? l.map(f => `<div class="feat"><b>${esc(f.owner_email || "?")}</b><span class="n no">${esc(fmtWhen(f.at))}</span><span class="hint" style="color:var(--t);white-space:pre-wrap">${esc(f.text)}${f.usage && f.usage.where ? `<br><small class="muted">${esc(f.app || "")} · ${esc(f.usage.where)}</small>` : ""}${(f.shots || []).map(x => `<a href="${x}" target="_blank"><img src="${x}" alt="tela no momento" style="display:block;max-width:100%;margin-top:6px;border:1px solid var(--line);border-radius:6px"></a>`).join("")}</span></div>`).join("") : `<p class="muted">Nenhum ainda.</p>`}<div class="btns"><button class="btn" data-x="1">Fechar</button></div>`); }
+  catch (e) { toast("Não deu: " + e.message); }
+}
+
+/* ---------- testers (Marcus, 09/11): invite-only beta, limits per person ---------- */
+function testerBox(m) {
+  const t = m.tester, l = t.limits || {}, d = t.today || {};
+  const bar = (v, max) => `<span class="bar" style="display:block;height:4px;border-radius:9px;background:var(--s2);margin-top:4px"><i style="display:block;height:100%;width:${Math.min(100, max ? v / max * 100 : 0).toFixed(0)}%;background:var(--g);border-radius:9px"></i></span>`;
+  return `<div class="sec"><h5>${m.role === "super" ? "Super tester" : "Beta tester"}</h5>
+    <div class="feat"><b>Dias de teste</b><span class="n">faltam ${t.days_left} de ${l.days}</span></div>
+    <div class="feat"><b>Pedidos hoje</b><span class="n">${d.calls || 0} de ${l.calls_day}</span>${bar(d.calls || 0, l.calls_day)}</div>
+    <div class="feat"><b>Assistente hoje</b><span class="n">${Math.round((d.live_seconds || 0) / 60)} de ${l.live_min_day} min</span>${bar((d.live_seconds || 0) / 60, l.live_min_day)}</div>
+    <div class="feat"><b>Crédito do teste</b><span class="n">US$ ${Number(t.spent || 0).toFixed(2)} de ${Number(l.budget_usd).toFixed(2)}</span>${bar(t.spent || 0, l.budget_usd)}</div></div>`;
+}
+
+// Empty Manager on a computer: a QR of the download page, to open it on the phone (the person usually asked for the invite at the desk).
+function fillPhoneQR() {
+  const box = document.getElementById("emqr"); if (!box || /android|iphone|ipad|mobile/i.test(navigator.userAgent)) return;
+  const draw = () => { try { const q = qrcode(0, "M"); q.addData("https://vc.alema.io/test-download/"); q.make(); document.getElementById("emqrimg").src = q.createDataURL(6, 2); box.style.display = "flex"; } catch (_) {} };
+  if (window.qrcode) return draw();
+  const sc = document.createElement("script"); sc.src = "https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"; sc.onload = draw; document.head.appendChild(sc);
+}
+const BETA_APK = "https://vc.alema.io/test-download/";
+async function admin() {
+  let d; try { d = await call("invite_list"); } catch (e) { return toast("Não deu: " + e.message); }
+  const T = d.tiers || {}, st = i => !i.active ? "desativado" : i.accepted_at ? "ativo" : "aguardando o primeiro acesso";
+  const lim = i => { const l = { ...(T[i.tier] || {}), ...(i.limits || {}) }; return `${l.days} dias · ${l.calls_day} pedidos/dia · ${l.live_min_day} min/dia · US$ ${l.budget_usd}`; };
+  sheet(`<h3>Testadores</h3><p class="sub">Só quem está nesta lista consegue entrar no app e no Manager. O resto vê "teste fechado".</p>
+    <form class="f" id="invf" onsubmit="return false" style="margin-top:4px">
+      <input name="email" type="email" placeholder="e-mail do testador" required autocomplete="off">
+      <select name="tier"><option value="beta">Beta tester — ${T.beta ? `${T.beta.days} dias, ${T.beta.live_min_day} min/dia, US$ ${T.beta.budget_usd}` : ""}</option><option value="super">Super tester — ${T.super ? `${T.super.days} dias, ${T.super.live_min_day} min/dia, US$ ${T.super.budget_usd}, pode usar as próprias chaves` : ""}</option></select>
+      <details><summary class="muted" style="cursor:pointer;font-size:13px">Limites só desta pessoa (vazio = padrão do tipo)</summary>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+          <input name="days" type="number" min="1" placeholder="dias de teste"><input name="calls_day" type="number" min="1" placeholder="pedidos por dia">
+          <input name="live_min_day" type="number" min="0" placeholder="min de assistente/dia"><input name="budget_usd" type="number" min="0" step="0.5" placeholder="crédito total (US$)"></div></details>
+      <input name="note" placeholder="nota (de onde veio, por que convidar)">
+      <div class="btns" style="margin-top:0"><button class="btn pri" data-invsave="1">Convidar</button><button class="btn" type="button" data-x="1">Fechar</button></div></form>
+    ${(d.requests || []).length ? `<div class="sec"><h5>${d.requests.length} ${d.requests.length === 1 ? "pedido" : "pedidos"} pelo site</h5>${d.requests.map(r => `<div class="feat" style="grid-template-columns:1fr auto">
+      <b>${esc(r.name)}</b><span class="n">NOVO</span>
+      <span class="hint" style="word-break:break-all">${esc(r.email)} · ${esc(new Date(r.created_at).toLocaleDateString("pt-BR"))}${r.phone ? "<br>Celular: " + esc(r.phone) : ""}${r.glasses ? "<br>Óculos: " + esc(r.glasses) : ""}${r.why ? "<br>" + esc(r.why) : ""}</span>
+      <span class="hint" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><button class="btn pri" data-reqok="${esc(r.email)}" data-tier="beta">Aprovar Beta</button><button class="btn" data-reqok="${esc(r.email)}" data-tier="super">Aprovar Super</button><button class="btn dan" data-reqno="${esc(r.email)}">Recusar</button></span></div>`).join("")}</div>` : `<p class="muted" style="font-size:13px">Pedidos de quem se inscreve em <a href="https://vc.alema.io/test-invite/" target="_blank">vc.alema.io/test-invite</a> aparecem aqui para você aprovar.</p>`}
+    <div class="sec"><h5>${d.invites.length} convidados</h5>${d.invites.map(i => `<div class="feat" style="grid-template-columns:1fr auto">
+      <b style="word-break:break-all">${esc(i.email)}</b><span class="n ${i.active ? "" : "no"}">${i.tier === "super" ? "SUPER" : "BETA"}</span>
+      <span class="hint">${esc(st(i))} · gastou US$ ${Number(i.spent).toFixed(2)} · ${i.calls} pedidos · ${i.live_min} min${i.last_day ? " · último uso " + esc(i.last_day.split("-").reverse().join("/")) : ""}<br>${esc(lim(i))}${i.invite_code ? `<br>Código: <b style="font-family:var(--mono,monospace)">${esc(i.invite_code)}</b> · ${i.code_uses || 0} de 3 aparelhos · vale até ${esc(new Date(i.code_expires).toLocaleDateString("pt-BR"))}` : ""}${i.note ? "<br>" + esc(i.note) : ""}</span>
+      <span class="hint" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><button class="btn" data-invedit="${esc(i.email)}">Editar</button><button class="btn" data-invcopy="${esc(i.email)}">Copiar convite</button><button class="btn" data-invcode="${esc(i.email)}">Novo código</button>${i.active ? `<button class="btn dan" data-invoff="${esc(i.email)}">Desativar</button>` : `<button class="btn" data-invon="${esc(i.email)}">Reativar</button>`}</span></div>`).join("") || `<p class="muted">Ninguém ainda.</p>`}</div>`);
+  admin.list = d.invites;
+}
+function inviteText(email, name, code) {
+  const c = String(code || "").replace(/-/g, "");
+  return `Oi${name ? ", " + name.split(" ")[0] : ""}! Você entrou no beta do VisualContext, a memória para óculos inteligentes.\n\nSeu código de acesso: ${c || "(gere em Testadores → Novo código)"}\n\n1. Instale o app no celular Android: ${BETA_APK}\n2. Abra, toque em "Tenho um código de convite" e digite o código.\n3. Sua página de acesso, com o passo a passo e o roteiro: ${BETA_APK}#c=${c}\n4. O Manager, no navegador (mesmo código): https://vc.alema.io/manager\n\nO código vale 14 dias. No app, o balão verde manda feedback: conte tudo, bom e ruim. Obrigado!\nMarcus`;
+}
+async function inviteSave() {
+  const f = new FormData($("#invf")), email = String(f.get("email") || "").trim();
+  if (!email.includes("@")) return toast("Escreva o e-mail");
+  const limits = {}; for (const k of ["days", "calls_day", "live_min_day", "budget_usd"]) if (f.get(k)) limits[k] = Number(f.get(k));
+  try { const r = await call("invite_save", { email, tier: f.get("tier"), limits, note: f.get("note") || null }); await navigator.clipboard?.writeText(inviteText(email, null, r.code)).catch(() => {}); toast("Convidado · convite com o código " + (r.code || "") + " copiado para mandar"); admin(); }
+  catch (e) { toast("Não deu: " + e.message); }
+}
+function inviteEdit(email) {
+  const i = (admin.list || []).find(x => x.email === email); if (!i) return;
+  const f = $("#invf"); f.elements.email.value = i.email; f.elements.tier.value = i.tier; f.elements.note.value = i.note || "";
+  for (const k of ["days", "calls_day", "live_min_day", "budget_usd"]) f.elements[k].value = i.limits?.[k] ?? "";
+  f.querySelector("details").open = true; f.querySelector("[data-invsave]").textContent = "Salvar"; f.scrollIntoView({ behavior: "smooth" });
+}
+
+/* ---------- settings ---------- */
+function settings() {
+  const m = S.me || {}, key = store.get("vc_gemini");
+  sheet(`<h3>Ajustes</h3><p class="sub">${esc(m.email || "")}</p>
+  <div class="sec"><h5>Sua memória</h5>${kv([["Pessoas", String(Math.max(S.people?.length || 0, m.counts?.people ?? 0))], ["Rostos", String(Math.max((S.people || []).reduce((n, p) => n + (p.faces || 0), 0), m.counts?.faces ?? 0))], ["Momentos", String(Math.max(S.enc?.length || 0, m.counts?.encounters ?? 0))], ["Coisas", String(Math.max(S.things?.length || 0, m.counts?.things ?? 0))], ["Notas", String(Math.max(S.notes?.length || 0, m.counts?.notes ?? 0))], ["Plano", $("#plan").textContent]])}
+  <p class="muted" style="font-size:13px;margin-top:10px">A memória é para a vida toda: nada é apagado por tempo, e você pode exportar tudo quando quiser.</p>
+  <div class="btns"><button class="btn" id="exp">Exportar tudo (arquivo)</button></div></div>
+  ${m.tester ? testerBox(m) : ""}
+  ${m.role === "founder" ? `<div class="sec"><h5>Testadores</h5><p class="muted" style="font-size:13px">Pedidos em espera, aprovados e recusados, com o código e a resposta de cada um.</p><div class="btns" style="margin-top:6px"><button class="btn pri" data-admin="1">Abrir o painel de testadores</button></div></div>` : ""}
+  ${m.role === "beta" ? `<div class="sec"><h5>Assistente (Gemini)</h5><p style="color:var(--g1);font-size:14px">✓ Incluído pelo app: você não precisa de chave.</p></div>` : `<div class="sec"><h5>Chave do Gemini</h5>${m.role === "super" ? `<p class="muted" style="font-size:13px">${key ? "Usando a SUA chave." : "✓ Usando a chave do app. Se quiser, teste com a sua."}</p>` : ""}<p class="muted" style="font-size:13px">Fica só neste navegador. O app do celular já traz a sua quando abre o Manager.</p>
+  <p id="kst" style="font-size:14px;margin:6px 0 8px;color:${key ? "var(--g1)" : "#ffaa5a"}">${key ? "Chave salva: " + esc(key.slice(0, 6) + "…" + key.slice(-4)) : "Nenhuma chave salva."}</p>
+  <form class="f" id="kf"><input name="k" type="password" placeholder="${key ? "colar outra chave…" : "AIza…"}" autocomplete="off"><div class="btns" style="margin-top:0"><button class="btn pri">Salvar</button><button class="btn" type="button" id="ktest">Testar</button>${key ? `<button class="btn" type="button" id="kdel" style="margin-left:auto;font-size:12px;opacity:.7">${m.role === "super" ? "voltar para a chave do app" : "tirar a chave"}</button>` : ""}</div></form></div>`}
+  <div class="sec"><h5>Este navegador</h5><div class="btns" style="margin-top:0"><button class="btn dan" id="out">Sair deste navegador</button></div></div>
+  <div class="btns"><button class="btn" data-x="1">Fechar</button></div>`);
+  const kst = $("#kst"), mask = k => k.slice(0, 6) + "…" + k.slice(-4);
+  if ($("#kf")) $("#kf").onsubmit = e => { e.preventDefault(); const v = new FormData(e.target).get("k").trim(); if (v.length < 20) return toast("Cole a chave primeiro"); store.set("vc_gemini", v); store.set("vc_gmodel", null); e.target.reset(); kst.style.color = "var(--g1)"; kst.textContent = "Chave salva: " + mask(v) + " (ainda não testada)"; toast("Chave salva"); };
+  if ($("#ktest")) $("#ktest").onclick = async () => {
+    const pending = $("#kf").elements.k.value.trim(), cur = store.get("vc_gemini");
+    if (pending.length >= 20 && pending !== cur) return toast("Salve a chave colada antes de testar");
+    if (!cur) return toast("Nenhuma chave salva");
+    kst.textContent = "Testando " + mask(cur) + "…";
+    try { const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=1", { headers: { "x-goog-api-key": cur } }); if (!r.ok) throw new Error(r.status === 400 || r.status === 403 ? "Chave recusada pelo Google." : "Erro " + r.status + " do Google."); kst.style.color = "var(--m)"; kst.textContent = "✓ Chave " + mask(cur) + " funciona"; }
+    catch (x) { kst.style.color = "#ff7a6a"; kst.textContent = "✗ " + mask(cur) + ": " + (x.message || "Sem internet."); }
+  };
+  if ($("#kdel")) $("#kdel").onclick = () => { store.set("vc_gemini", null); store.set("vc_gmodel", null); toast("Chave removida"); settings(); };
+  $("#out").onclick = () => { store.set("vc_token", null); store.set("vc_gemini", null); location.reload(); };
+  $("#exp").onclick = () => {
+    const blob = new Blob([JSON.stringify({ exportado_em: new Date().toISOString(), conta: m.email, pessoas: S.people.map(({ face_embedding, ...p }) => p), momentos: S.enc, coisas: S.things, notas: S.notes }, null, 2)], { type: "application/json" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "visualcontext-memoria-" + new Date().toISOString().slice(0, 10) + ".json"; a.click(); URL.revokeObjectURL(a.href);
+  };
+}
+
+/* ---------- events ---------- */
+document.addEventListener("click", e => {
+  const t = e.target.closest("button,a"); if (!t) return;
+  const d = t.dataset;
+  if (d.c) { S.cat = d.c; render(); }
+  else if (d.face) { S.face = d.face; render(); }
+  else if (d.askSrc) { S.filter = d.askSrc; $("#q").value = ""; render(); }
+  else if (d.pickon) { S.pick = new Set(); S.view = S.view === "grid" ? "time" : S.view; render(); }
+  else if (d.pickoff) { S.pick = null; render(); }
+  else if (d.pick) { S.pick.has(d.pick) ? S.pick.delete(d.pick) : S.pick.add(d.pick); render(); }
+  else if (d.pickall) { items().filter(i => i.kind === "person" && matches(i, S.filter) && faceOk(i)).forEach(i => S.pick.add(i.id)); render(); }
+  else if (d.pickdel) { const ids = [...S.pick]; if (!ids.length) return toast("Marque alguém primeiro"); confirmDelete(`${ids.length} ${ids.length === 1 ? "pessoa" : "pessoas"} (e os rostos guardados)`, async () => { await call("delete_people", { ids }); S.pick = null; }); }
+  else if (d.clear) { S.filter = null; $("#q").value = ""; render(); }
+  else if (d.clearday) { S.dayOnly = false; render(); }
+  else if (d.day) { S.dayOnly = true; S.cat = "all"; render(); }
+  else if (d.v) { maybeAskView(d.v); S.view = d.v; render(); }
+  else if (d.teia) { const [k, id] = d.teia.split(/:(.+)/); const it = items().find(i => i.kind === k && i.id === id); if (it) { closeDetail(); teiaFocus(k, id, it.ref && it.ref.name || it.title.replace(/ ★ você$/, "")); } }
+  else if (window.teiaClick && teiaClick(d)) {}
+  else if (d.o) { S.order = d.o; render(); }
+  else if (d.ask) { $("#q").value = d.ask; renderChips(); ask(d.ask); }
+  else if (d.scope) { S.cat = d.scope; S.filter = $("#q").value.trim(); $("#scope").classList.remove("on"); $("#q").value = ""; render(); }
+  else if (d.k && d.id) open(d.k, d.id);
+  else if (d.back) { if (navDepth > 0 && innerWidth < 920) history.back(); else closeDetail(); }
+  else if (d.closeAns) { $("#ans").classList.remove("on"); $("#q").value = ""; renderChips(); }
+  else if (d.openSet) settings();
+  else if (d.edit) editPerson(d.edit);
+  else if (d.namePlace) { const h = $("#detail h2"); namePlace(d.namePlace, h ? h.textContent : ""); }
+  else if (d.unnamePlace) { (async () => { await call("delete_place", { id: d.unnamePlace }); S.myPlaces = await call("places"); render(); toast("Nome tirado"); })(); }
+  else if (d.me) { const p = S.people.find(x => x.id === d.me); (async () => { try { await call("set_me", { name: isMe(p.name) ? "" : p.name }); toast(isMe(p.name) ? "Desmarcado" : "Marcado como você"); await load(); open("person", p.id); } catch (e) { toast("Não deu: " + e.message); } })(); }
+  else if (d.merge) mergePick(d.merge);
+  else if (d.delPerson) { const p = S.people.find(x => x.id === d.delPerson); confirmDelete(p.name + " e os rostos guardados", () => call("delete_person", { id: p.id })); }
+  else if (d.delRow) { const [kind, id] = d.delRow.split(":"); confirmDelete({ note: "esta nota", thing: "esta coisa", encounter: "este momento" }[kind], () => call("delete_row", { kind, id })); }
+  else if (d.dups) dupReview();
+  else if (d.share) shareNote(d.share);
+  else if (d.later) listenLater(d.later);
+  else if (d.unlater) unlistenLater(d.unlater);
+  else if (d.usage) usage();
+  else if (d.rate) sendRate(t.closest("[data-rate]"));
+  else if (d.ratewhy) sendWhy(t.closest("[data-ratewhy]"));
+  else if (d.fb) feedbackSheet();
+  else if (d.admin) location.href = "/admin"; // the testers dashboard (Marcus, 09/11)
+  else if (d.invsave) inviteSave();
+  else if (d.reqok) call("request_decide", { email: d.reqok, decision: d.tier }).then(r => { navigator.clipboard?.writeText(inviteText(d.reqok, r.name, r.code)).catch(() => {}); toast((d.tier === "super" ? "Super tester" : "Beta tester") + " aprovado · código " + r.code + (r.mailed ? " · convite enviado por e-mail" : " · convite copiado para você mandar")); admin(); }, e => toast("Não deu: " + e.message));
+  else if (d.reqno) { if (confirm("Recusar o pedido de " + d.reqno + "?")) call("request_decide", { email: d.reqno, decision: "no" }).then(admin); }
+  else if (d.invedit) inviteEdit(d.invedit);
+  else if (d.invcopy) { const i = (admin.list || []).find(x => x.email === d.invcopy); const nm = ((i?.note || "").match(/^pedido pelo site: ([^·]+)/) || [])[1]?.trim() || null; const go = c => navigator.clipboard?.writeText(inviteText(d.invcopy, nm, c)).then(() => toast("Convite copiado, com o código " + c), () => toast("Não deu para copiar")); if (i?.invite_code && new Date(i.code_expires) > new Date()) go(i.invite_code); else call("invite_code", { email: d.invcopy }).then(r => { go(r.code); admin(); }); }
+  else if (d.invcode) { if (confirm("Gerar um código novo para " + d.invcode + "? O anterior para de funcionar.")) call("invite_code", { email: d.invcode, send: true }).then(r => { navigator.clipboard?.writeText(inviteText(d.invcode, null, r.code)).catch(() => {}); toast("Código novo: " + r.code + (r.mailed ? " · enviado por e-mail" : " · convite copiado")); admin(); }); }
+  else if (d.invoff) { if (confirm("Desativar " + d.invoff + "? Ele sai do app e do Manager na hora.")) call("invite_remove", { email: d.invoff }).then(admin); }
+  else if (d.invon) { const i = (admin.list || []).find(x => x.email === d.invon); call("invite_save", { email: i.email, tier: i.tier, limits: i.limits, note: i.note, active: true }).then(admin); }
+  else if (d.copy) { navigator.clipboard?.writeText(d.copy).then(() => toast("Número copiado"), () => toast(d.copy)); }
+  else if (d.face5) { document.querySelectorAll("#sbox .faces button").forEach(b => { b.classList.toggle("on", b === t); b.setAttribute("aria-checked", b === t); }); }
+  else if (d.viewpref) setViewPref(d.viewpref);
+  else if (d.fbsend) sendFeedback();
+  else if (d.fblist) feedbackList();
+  else if (d.translate) translateNote(d.translate);
+  else if (d.evfind) findPlans(d.evfind);
+  else if (d.taskdone) taskDone(d.taskdone);
+  else if (d.evmark) { const m = evDone(); m[d.evmark] = 1; store.set("vc_evdone", JSON.stringify(m)); call("update_note", { id: d.evmark, fields: { status: "criado" } }).then(() => { const n = S.notes.find(x => x.id === d.evmark); if (n) n.fields = { ...(n.fields || {}), status: "criado" }; }).catch(() => {}); setTimeout(() => { const id = S.sel; render(); if (id) { const it = items().find(i => i.id === id); if (it) open(it.kind, id); } }, 400); }
+  else if (d.evskip) { (async () => { await call("update_note", { id: d.evskip, fields: { status: "ignorado" } }); S.notes = S.notes.filter(n => n.id !== d.evskip); const id = S.sel; render(); if (id && id !== d.evskip) { const it = items().find(i => i.id === id); if (it) open(it.kind, id); } else closeDetail(); toast("Ignorado"); })(); }
+  else if (d.reviver) bump("reviver"), reviverDia(d.reviver === "1" ? null : d.reviver);
+  else if (d.prep) prepForm(d.prep);
+  else if (d.prepnew) prepNew();
+});
+$("#bImport").onclick = importSheet;
+$("#bSet").onclick = settings;
+$("#gTok").onclick = () => sheet(`<h3>Código do aparelho</h3><p class="sub">Começa com vc_. Está em Ajustes → modo desenvolvedor, no app.</p><form class="f" id="tf"><input name="t" autocomplete="off" placeholder="vc_…"><div class="btns" style="margin-top:0"><button class="btn pri">Entrar</button><button class="btn" type="button" data-x="1">Cancelar</button></div></form>`) || ($("#tf").onsubmit = e => { e.preventDefault(); const v = new FormData(e.target).get("t").trim(); if (/^vc_[A-Za-z0-9]{16,128}$/.test(v)) { store.set("vc_token", v); location.reload(); } else toast("Código inválido"); });
+// Invite code (Marcus, 09/11): VC-XXXX-XXXX from the approval message signs in without an e-mail.
+$("#gInv").onclick = () => sheet(`<h3>Código de convite</h3><p class="sub">Veio na mensagem de aprovação, junto com o link do app: VC-XXXX-XXXX.</p><form class="f" id="icf"><input name="c" autocomplete="off" autocapitalize="characters" placeholder="VC-XXXX-XXXX" style="font-family:var(--mono,monospace);letter-spacing:.08em"><p class="muted" id="icm" style="font-size:13px;min-height:1.2em"></p><div class="btns" style="margin-top:0"><button class="btn pri">Entrar</button><button class="btn" type="button" data-x="1">Cancelar</button></div></form>`) || ($("#icf").onsubmit = async e => {
+  e.preventDefault(); const m = $("#icm"); m.textContent = "Entrando…";
+  try {
+    const r = await fetch(API, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "redeem_code", code: new FormData(e.target).get("c"), name: "navegador " + (navigator.userAgentData?.platform || navigator.platform || "") }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.token) throw new Error(j.error || "Não deu para entrar.");
+    store.set("vc_token", j.token); location.reload();
+  } catch (x) { m.textContent = x.message; }
+});
+addEventListener("keydown", e => { if (e.key === "Escape") { closeSheet(); if ($("#detail").classList.contains("open") && innerWidth < 920) closeDetail(); } });
+
+// E-mail code login (07/11): Supabase Auth → session → a device code for this browser.
+const AUTH = "https://vzqjwhlpwvqrosoiwiin.supabase.co/auth/v1", PUB = "sb_publishable_EA_WlXKNQ9aiCQjknR8b3A_Z1qMuRxp";
+{
+  const f = $("#lf"), m = $("#lm"), b = $("#lb"), ci = f.elements.c; let sent = false;
+  const post = (u, body, bearer) => fetch(u, { method: "POST", headers: { "content-type": "application/json", apikey: PUB, ...(bearer ? { authorization: "Bearer " + bearer } : {}) }, body: JSON.stringify(body) });
+  f.elements.e.oninput = () => { if (sent) { sent = false; ci.classList.add("hide"); b.textContent = "Enviar código"; } };
+  const LOGIN = "https://vzqjwhlpwvqrosoiwiin.supabase.co/functions/v1/vc-login";
+  let mode = "invite"; // "invite": approved tester, code by e-mail (vc-login) · "auth": founder/admin, Supabase e-mail login
+  f.onsubmit = async e => {
+    e.preventDefault(); const email = f.elements.e.value.trim().toLowerCase(); b.disabled = true;
+    try {
+      if (!sent) {
+        m.textContent = "Enviando…";
+        const q = await post(LOGIN, { email });
+        const j = await q.json().catch(() => ({}));
+        if (!q.ok) throw new Error(j.error === "email" ? "Esse e-mail parece incompleto. Confira como digitou." : "Não deu para enviar o código agora. Tente de novo em instantes.");
+        if (j.state === "pending") { m.textContent = "Seu pedido está em análise: o Marcus aprova cada um pessoalmente. Quando aprovar, o código chega neste e-mail (" + email + ")."; b.disabled = false; return; }
+        if (j.state === "declined") { m.textContent = "Este e-mail não está liberado no teste fechado. Se acha que é engano, responda o e-mail que recebeu do Marcus."; b.disabled = false; return; }
+        if (j.state === "none") { m.textContent = "Não achei " + email + " entre os pedidos de convite. Confira se digitou certo ou peça o convite em vc.alema.io/test-invite."; b.disabled = false; return; }
+        if (j.state === "mail_failed") { m.textContent = "O seu e-mail está liberado, mas o envio falhou agora. Tente de novo em alguns minutos ou responda o e-mail de aprovação."; b.disabled = false; return; }
+        if (j.state === "sent") {
+          mode = "invite"; sent = true; ci.classList.remove("hide"); ci.focus(); b.textContent = "Entrar";
+          m.textContent = "Enviamos o código para " + email + (j.throttled ? " (o e-mail anterior ainda vale; espere 2 minutos para pedir outro)" : "") + ". Chega em até 1 minuto; veja também o spam. Copie o VC-XXXX-XXXX e cole aqui. Ainda não instalou o app? O e-mail tem o passo a passo e o link para baixar."; b.disabled = false; return;
+        }
+        // state "login": the founder and the admins use the e-mail login of Supabase (the e-mail has a link and, in the template, a code)
+        mode = "auth";
+        const r = await post(AUTH + "/otp?redirect_to=" + encodeURIComponent(location.origin + location.pathname), { email, create_user: false });
+        if (!r.ok) throw new Error(r.status === 429 ? "Muitos pedidos. Espere um minuto." : "Não deu para enviar o código.");
+        sent = true; ci.classList.remove("hide"); ci.focus(); b.textContent = "Entrar"; m.textContent = "Enviamos um e-mail para " + email + ". Toque no link do e-mail (ou digite o código, se vier um). Veja também o spam.";
+      } else if (mode === "invite") {
+        if (ci.value.replace(/[^A-Za-z0-9]/g, "").length < 8) throw new Error("Digite o código do e-mail: VC-XXXX-XXXX.");
+        m.textContent = "Entrando…";
+        const r = await fetch(API, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "redeem_code", code: ci.value, name: "navegador " + (navigator.userAgentData?.platform || navigator.platform || "") }) });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || !j.token) throw new Error(j.error || "Não deu para entrar.");
+        store.set("vc_token", j.token); location.reload();
+      } else {
+        const code = ci.value.replace(/\D/g, ""); if (code.length < 6) throw new Error("Digite os 6 números.");
+        m.textContent = "Entrando…";
+        const r = await post(AUTH + "/verify", { type: "email", email, token: code });
+        if (!r.ok) throw new Error("Código errado ou vencido.");
+        const s = await r.json();
+        const d = await post(API, { action: "register_device", name: "navegador " + (navigator.userAgentData?.platform || navigator.platform || "") }, s.access_token);
+        const j = await d.json().catch(() => ({}));
+        if (d.status === 403 && j.error === "convite") throw new Error("O VisualContext está em teste fechado: só entra quem foi convidado. Peça um convite em vc.alema.io/test-invite.");
+        if (!d.ok || !j.token) throw new Error("Entrou, mas não deu para registrar este navegador.");
+        store.set("vc_token", j.token); location.reload();
+      }
+    } catch (x) { m.textContent = x.message; }
+    b.disabled = false;
+  };
+}
+async function register(at, name) {
+  const d = await fetch(API, { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + at }, body: JSON.stringify({ action: "register_device", name }) });
+  const j = await d.json().catch(() => ({}));
+  if (d.status === 403 && j.error === "convite") throw new Error("O VisualContext está em teste fechado: só entra quem foi convidado.");
+  if (!d.ok || !j.token) throw new Error("Não deu para registrar este aparelho.");
+  return j.token;
+}
+if (LINK) (async () => {
+  const g = $("#gate .gate"), say = h => { $("#app").classList.add("hide"); $("#gate").classList.remove("hide"); g.innerHTML = `<img src="/brand/visualcontext-logo-transparent.png" alt="VisualContext">` + h; };
+  if (LINK.err) { say(`<h1>O link não funcionou</h1><p>${esc(LINK.err)}</p><p>Links valem uma vez e por pouco tempo. Peça um novo no app ou <a href="${location.pathname}" style="color:var(--m)">aqui</a>.</p>`); return; }
+  say(`<h1>Entrando…</h1>`);
+  try {
+    if (LINK.app) { // asked from the phone app: one code for the phone, handed over by the app's link
+      const t = await register(LINK.at, "celular");
+      store.set("vc_token", await register(LINK.at, "navegador"));
+      say(`<h1>Pronto, você entrou</h1><p>Toque abaixo para ligar o app VisualContext a esta conta.</p><div class="btns"><a class="btn pri" href="visualcontext://conectar?t=${t}">Abrir o app VisualContext</a><a class="btn" href="${location.pathname}">Ficar no Manager</a></div>`);
+    } else { store.set("vc_token", await register(LINK.at, "navegador " + (navigator.userAgentData?.platform || navigator.platform || ""))); location.replace(location.pathname); }
+  } catch (x) { say(`<h1>Quase</h1><p>${esc(x.message)}</p><p><a href="${location.pathname}" style="color:var(--m)">Tentar de novo</a></p>`); }
+})();
+function showGate() { $("#app").classList.add("hide"); $("#gate").classList.remove("hide"); }
+if (LINK) { /* the link handler above takes over */ }
+else if (!TOKEN) showGate();
+else { $("#app").classList.remove("hide"); renderChips(); load().catch(e => { if (e.message !== "token") $("#list").innerHTML = `<div class="empty">Não consegui carregar a memória (${esc(e.message)}). <button class="btn" onclick="location.reload()">Tentar de novo</button></div>`; }); }
+</script>
+<script src="/reviver.js" defer></script>
+<script src="/teia.js" defer></script>
+</body>
+</html>

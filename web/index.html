@@ -1,69 +1,252 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VisualContext</title>
-<script src="i18n.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>VisualContext — memória para óculos inteligentes</title>
+<meta name="description" content="VisualContext gives smart glasses a memory: who is in front of you, where you left your keys, where you parked, what you agreed yesterday.">
+<meta property="og:title" content="VisualContext — the glasses already see. Now they remember.">
+<meta property="og:description" content="A memory for Rokid smart glasses: faces, objects, places and conversations — and a web Manager where you just ask.">
+<meta property="og:image" content="https://vc.alema.io/brand/visualcontext-icon-512.png">
+<meta property="og:url" content="https://vc.alema.io/">
+<link rel="canonical" href="https://vc.alema.io/">
+<link rel="icon" href="/brand/visualcontext-symbol.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/brand/visualcontext-icon-512.png">
+<meta name="theme-color" content="#07090c">
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:#0a0e1a;color:#f0f4ff;font-family:-apple-system,sans-serif;
-  min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
-h1{font-size:22px;font-weight:700;color:#00ff88;margin-bottom:6px}
-.sub{font-size:13px;color:rgba(255,255,255,.4);margin-bottom:32px;text-align:center}
-.cards{display:flex;flex-direction:column;gap:12px;width:100%;max-width:320px}
-a{display:flex;align-items:center;gap:14px;padding:16px;background:#111827;
-  border:1px solid rgba(255,255,255,.08);border-radius:14px;text-decoration:none;color:#f0f4ff}
-a:active{opacity:.8}
-.ic{font-size:26px;width:44px;text-align:center;flex-shrink:0}
-.info h2{font-size:15px;font-weight:600}
-.info p{font-size:12px;color:rgba(255,255,255,.4);margin:0}
-a.primary{border-color:rgba(0,255,136,.25);background:rgba(0,255,136,.07)}
-.lang{margin-top:28px;display:flex;gap:8px}
-.lang button{background:none;border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.5);font-size:12px;padding:6px 12px;border-radius:8px;cursor:pointer}
-.lang button.on{border-color:rgba(0,255,136,.5);color:#00ff88}
+:root{--bg:#07090c;--s1:#0d1217;--s2:#121a20;--line:rgba(255,255,255,.1);--line2:rgba(255,255,255,.2);--g:#00ff88;--g2:#8fdfb5;--t:#e8f0ec;--m:#9aaaa2;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--w:1080px}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--t);font:17px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:var(--g)}img{max-width:100%;display:block}
+.wrap{max-width:var(--w);margin:0 auto;padding:0 16px}
+.skip{position:absolute;left:-999px}.skip:focus{left:12px;top:12px;z-index:99;background:var(--g);color:var(--bg);padding:8px 12px;border-radius:8px}
+header{position:sticky;top:0;z-index:10;background:#07090c;border-bottom:1px solid var(--line)}
+header .wrap{display:flex;align-items:center;gap:12px;min-height:64px}
+header .logo img{height:40px;width:auto}
+header nav{display:flex;gap:18px;margin-left:auto;align-items:center}header nav a{color:var(--t);text-decoration:none;font-size:15px}header nav a:hover{color:var(--g)}
+.lang{display:flex;gap:4px}.lang button{min-height:36px;min-width:40px;border-radius:10px;border:1px solid var(--line2);background:var(--s1);color:var(--t);font:600 13px system-ui;cursor:pointer}.lang button.on{border-color:var(--g);color:var(--g)}
+@media (max-width:760px){header nav a{display:none}header nav a.keep{display:inline}}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:50px;padding:0 22px;border-radius:14px;border:2px solid var(--g);color:var(--g);text-decoration:none;font-weight:700;font-size:16px;background:transparent}
+.btn.pri{background:var(--g);color:var(--bg)}.btns{display:flex;gap:12px;flex-wrap:wrap}
+section{padding:72px 0;border-bottom:1px solid var(--line)}
+h1{font-size:clamp(34px,6vw,58px);line-height:1.05;margin:0 0 18px;letter-spacing:-.02em}h1 em{font-style:normal;color:var(--g)}
+h2{font-size:clamp(26px,4vw,38px);line-height:1.15;margin:0 0 12px;letter-spacing:-.01em}
+.kicker{font:600 12px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--g);margin:0 0 12px}
+.lead{font-size:clamp(18px,2.2vw,21px);color:var(--g2);max-width:640px;margin:0 0 26px}
+.hero{display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:center}
+@media (max-width:860px){.hero{grid-template-columns:1fr}}
+/* the lens mock */
+.lens{position:relative;aspect-ratio:4/3;border-radius:26px;overflow:hidden;border:2px solid #1d4a33;background:radial-gradient(120% 90% at 30% 20%,#2b3a33 0%,#141c18 45%,#0a0f0c 100%)}
+.lens{background:#141c18 url(/faces/ana-souza-scene.jpg) 50% 12%/cover no-repeat}
+.lens::before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.35),rgba(0,0,0,0) 40%)}
+.lens .box{position:absolute;left:43%;top:18%;width:36%;height:44%}
+.lens .box i{position:absolute;width:22%;height:22%;border:3px solid var(--g)}
+.lens .box i:nth-child(1){left:0;top:0;border-right:0;border-bottom:0}.lens .box i:nth-child(2){right:0;top:0;border-left:0;border-bottom:0}.lens .box i:nth-child(3){left:0;bottom:0;border-right:0;border-top:0}.lens .box i:nth-child(4){right:0;bottom:0;border-left:0;border-top:0}
+.lens .tag{position:absolute;left:43%;top:9%;background:rgba(0,0,0,.75);color:var(--g);font:600 15px system-ui;padding:3px 9px;border-radius:6px}
+.lens .card{position:absolute;left:4%;bottom:6%;width:min(78%,330px);background:rgba(4,14,9,.88);border:2px solid var(--g);border-radius:14px;padding:12px 14px;font:13px/1.5 var(--mono);color:#cfeedd}
+.lens .card b{display:block;font:700 18px system-ui;color:var(--g);margin-bottom:4px}
+.lens .rec{position:absolute;right:4%;top:5%;font:12px var(--mono);color:var(--g)}
+.film{display:block;width:100%;max-width:960px;margin:22px auto 0;aspect-ratio:16/9;border-radius:20px;border:2px solid #1d4a33;background:#000}
+.filmnote{max-width:960px;margin:12px auto 0;color:var(--m);font-size:14px}.filmcta{max-width:960px;margin:18px auto 0}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:28px}@media (max-width:860px){.grid3{grid-template-columns:1fr}}
+.tile{background:var(--s1);border:1px solid var(--line2);border-radius:18px;padding:20px}.tile .ic{font-size:26px;color:var(--g)}.tile h3{margin:8px 0 6px;font-size:19px}.tile p{margin:0;color:var(--m);font-size:16px}
+/* the Manager mock */
+.mgr{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start}@media (max-width:860px){.mgr{grid-template-columns:1fr}}
+.ask{background:var(--s1);border:1px solid var(--line2);border-radius:20px;padding:18px}
+.q{display:flex;align-items:center;gap:10px;border:1.5px solid var(--line2);border-radius:14px;padding:12px 14px;font-size:17px;color:var(--t);background:var(--bg)}.q span{color:var(--g)}
+.a{margin-top:12px;border:1.5px solid var(--g);border-radius:14px;padding:14px;background:#0a1f14}
+.a .row{display:flex;gap:12px;align-items:center}.a .ph{width:64px;height:64px;border-radius:12px;background:linear-gradient(135deg,#2d3b34,#151d19);flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:26px}
+.a small{display:block;color:var(--m);font-size:14px}.a .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.a .acts span{border:1px solid #1f6b44;color:var(--g);border-radius:99px;padding:4px 10px;font-size:13px}
+.examples{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.examples span{border:1px dashed #1f6b44;border-radius:99px;padding:6px 12px;color:var(--g2);font-size:14px}
+.steps{counter-reset:s;display:grid;gap:14px;margin-top:24px}.steps li{list-style:none;counter-increment:s;display:flex;gap:14px;background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:16px}
+.steps li::before{content:counter(s);flex:0 0 36px;height:36px;border-radius:50%;background:var(--g);color:var(--bg);font-weight:800;display:flex;align-items:center;justify-content:center}
+.steps b{display:block}.steps span{color:var(--m)}ol.steps{padding:0}
+.priv{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:24px}@media (max-width:760px){.priv{grid-template-columns:1fr}}
+.priv div{background:var(--s1);border-left:4px solid var(--g);border-radius:12px;padding:14px 16px}.priv b{display:block;margin-bottom:2px}.priv span{color:var(--m);font-size:16px}
+.dl{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:24px}@media (max-width:860px){.dl{grid-template-columns:1fr}}
+.dl .tile .btn{margin-top:14px}
+footer{padding:36px 0 90px;color:var(--m);font-size:15px}footer .wrap{display:flex;gap:16px;flex-wrap:wrap;align-items:center;justify-content:space-between}footer a{color:var(--g2)}
+footer button{background:none;border:0;color:var(--g2);text-decoration:underline;font:inherit;cursor:pointer;padding:0}
 </style>
 </head>
 <body>
-<h1>⬡ VisualContext</h1>
-<p class="sub" data-i18n="pitch"></p>
-<div class="cards">
-  <a href="/webapp" class="primary">
-    <div class="ic">👥</div>
-    <div class="info"><h2>Manager</h2><p data-i18n="manager"></p></div>
-  </a>
-  <a href="/hud-editor">
-    <div class="ic">🛠</div>
-    <div class="info"><h2>HUD Editor</h2><p data-i18n="editor"></p></div>
-  </a>
-  <a href="lugares.html">
-    <div class="ic">🏛</div>
-    <div class="info"><h2 data-i18n="places_t"></h2><p data-i18n="places"></p></div>
-  </a>
-  <a href="/emulator-standalone">
-    <div class="ic">📟</div>
-    <div class="info"><h2 data-i18n="emulator_t"></h2><p data-i18n="emulator"></p></div>
-  </a>
-</div>
-<div class="lang" id="lang-btns">
-  <button data-lang="system" data-i18n="system"></button>
-  <button data-lang="en">English</button>
-  <button data-lang="pt">Português</button>
-</div>
+<a class="skip" href="#main" data-i18n="skip"></a>
+<header><div class="wrap">
+  <a class="logo" href="/" aria-label="VisualContext"><img src="/brand/visualcontext-logo-transparent.png" alt="VisualContext"></a>
+  <nav aria-label="menu">
+    <a href="#lens" data-i18n="nav_how"></a><a href="#manager" data-i18n="nav_manager"></a><a href="#privacy" data-i18n="nav_privacy"></a><a href="#download" data-i18n="nav_download"></a>
+    <a class="keep" href="/manager" data-i18n="nav_login"></a>
+    <span class="lang" id="lang"><button data-l="pt">PT</button><button data-l="en">EN</button></span>
+  </nav>
+</div></header>
+
+<main id="main">
+<section><div class="wrap hero">
+  <div>
+    <p class="kicker" data-i18n="kicker"></p>
+    <h1><span data-i18n="h1a"></span> <em data-i18n="h1b"></em></h1>
+    <p class="lead" data-i18n="lead"></p>
+    <div class="btns"><a class="btn pri" href="/demo" data-i18n="cta_demo" data-ev="cta_demo"></a><a class="btn" href="/demo-film" data-i18n="cta_film" data-ev="cta_film"></a></div>
+  </div>
+  <div class="lens" role="img" data-i18n-aria="lens_alt">
+    <div class="box"><i></i><i></i><i></i><i></i></div>
+    <div class="tag">Ana Souza</div>
+    <div class="rec" data-i18n="lens_rec"></div>
+    <div class="card"><b>Ana Souza</b><span data-i18n="lens_l1"></span><br><span data-i18n="lens_l2"></span><br><span data-i18n="lens_l3"></span></div>
+  </div>
+</div></section>
+
+<section id="film"><div class="wrap">
+  <p class="kicker" data-i18n="film_k"></p>
+  <h2 data-i18n="film_h"></h2>
+  <video class="film" controls preload="metadata" playsinline poster="/film/vc-comercial-poster.jpg" data-i18n-aria="film_alt"><source src="/film/vc-comercial.mp4" type="video/mp4"></video>
+  <p class="filmnote" data-i18n="film_note"></p>
+  <div class="btns filmcta"><a class="btn pri" href="/convite" data-i18n="film_cta" data-ev="cta_invite"></a><a class="btn" href="/demo" data-i18n="cta_demo" data-ev="cta_demo"></a></div>
+</div></section>
+
+<section id="lens"><div class="wrap">
+  <p class="kicker" data-i18n="k_lens"></p>
+  <h2 data-i18n="h_lens"></h2>
+  <p class="lead" data-i18n="p_lens"></p>
+  <div class="grid3">
+    <div class="tile"><div class="ic">◉</div><h3 data-i18n="t1"></h3><p data-i18n="t1p"></p></div>
+    <div class="tile"><div class="ic">⌖</div><h3 data-i18n="t2"></h3><p data-i18n="t2p"></p></div>
+    <div class="tile"><div class="ic">✦</div><h3 data-i18n="t3"></h3><p data-i18n="t3p"></p></div>
+  </div>
+</div></section>
+
+<section id="manager"><div class="wrap mgr">
+  <div>
+    <p class="kicker" data-i18n="k_mgr"></p>
+    <h2 data-i18n="h_mgr"></h2>
+    <p class="lead" data-i18n="p_mgr"></p>
+    <div class="examples"><span data-i18n="ex1"></span><span data-i18n="ex2"></span><span data-i18n="ex3"></span><span data-i18n="ex4"></span></div>
+  </div>
+  <div class="ask" aria-label="Manager">
+    <div class="q"><span>✦</span><span style="color:var(--t)" data-i18n="mq"></span></div>
+    <div class="a">
+      <div class="row"><div class="ph">🏍</div><div><span data-i18n="ma"></span><small data-i18n="mas"></small></div></div>
+      <div class="acts"><span data-i18n="m_map"></span><span data-i18n="m_sv"></span><span data-i18n="m_go"></span></div>
+    </div>
+    <div class="q" style="margin-top:14px"><span>✦</span><span style="color:var(--t)" data-i18n="mq2"></span></div>
+    <div class="a"><span data-i18n="ma2"></span></div>
+  </div>
+</div></section>
+
+<section id="how"><div class="wrap">
+  <p class="kicker" data-i18n="k_how"></p>
+  <h2 data-i18n="h_how"></h2>
+  <ol class="steps">
+    <li><div><b data-i18n="s1"></b><span data-i18n="s1p"></span></div></li>
+    <li><div><b data-i18n="s2"></b><span data-i18n="s2p"></span></div></li>
+    <li><div><b data-i18n="s3"></b><span data-i18n="s3p"></span></div></li>
+  </ol>
+</div></section>
+
+<section id="privacy"><div class="wrap">
+  <p class="kicker" data-i18n="k_priv"></p>
+  <h2 data-i18n="h_priv"></h2>
+  <div class="priv">
+    <div><b data-i18n="pv1"></b><span data-i18n="pv1p"></span></div>
+    <div><b data-i18n="pv2"></b><span data-i18n="pv2p"></span></div>
+    <div><b data-i18n="pv3"></b><span data-i18n="pv3p"></span></div>
+    <div><b data-i18n="pv4"></b><span data-i18n="pv4p"></span></div>
+  </div>
+</div></section>
+
+<section id="download"><div class="wrap">
+  <p class="kicker" data-i18n="k_dl"></p>
+  <h2 data-i18n="h_dl"></h2>
+  <div class="dl">
+    <div class="tile"><div class="ic">▶</div><h3 data-i18n="d1"></h3><p data-i18n="d1p"></p><a class="btn pri" href="/demo" data-i18n="cta_demo" data-ev="dl_demo"></a></div>
+    <div class="tile"><div class="ic">⬇</div><h3 data-i18n="d2"></h3><p data-i18n="d2p"></p><a class="btn" id="beta" href="https://vc.alema.io/test-invite/" data-i18n="d2b" data-ev="dl_beta"></a></div>
+    <div class="tile"><div class="ic">📱</div><h3 data-i18n="d3"></h3><p data-i18n="d3p"></p></div>
+  </div>
+</div></section>
+</main>
+
+<footer><div class="wrap">
+  <span>VisualContext · <a href="https://alema.io">Alema</a> · São Paulo</span>
+  <span><a href="/manager" data-i18n="nav_login"></a> · <a href="/demo-film" data-i18n="cta_film"></a> · <button type="button" id="cons" data-i18n="consent"></button></span>
+</div></footer>
+
+<script src="/i18n.js"></script>
 <script>
 VC_I18N.add({
-  en: { pitch:'The glasses already see. VisualContext makes them remember.', manager:'People, encounters and memories',
-        editor:'Glasses display layout — dev', emulator_t:'Emulator', places_t:'Places (prototype)', places:'Point at a building, its card stays pinned to it', emulator:'Simulates the glasses display with your camera — dev', system:'Phone language' },
-  pt: { pitch:'Os óculos já veem. O VisualContext faz eles lembrarem.', manager:'Pessoas, encontros e memórias',
-        editor:'Layout do visor dos óculos — dev', emulator_t:'Emulador', places_t:'Lugares (protótipo)', places:'Aponte para um prédio, o card fica preso a ele', emulator:'Simula o visor dos óculos com a câmera — dev', system:'Idioma do celular' }
+ pt:{ skip:"Pular para o conteúdo", nav_how:"Como funciona", nav_manager:"Manager", nav_privacy:"Privacidade", nav_download:"Baixar", nav_login:"Entrar no Manager",
+  kicker:"Memória para óculos inteligentes", h1a:"Os óculos já veem.", h1b:"Agora eles lembram.",
+  lead:"O VisualContext dá memória aos óculos Rokid: quem é a pessoa na sua frente, onde você deixou a chave, onde parou a moto, o que vocês combinaram da última vez.",
+  cta_demo:"Experimentar no navegador", cta_film:"Ver o filme (1 min)", lens_alt:"Vista pela lente: o nome da pessoa aparece sobre o rosto e um cartão mostra de onde vocês se conhecem.",
+  lens_rec:"● gravando encontro", lens_l1:"designer na Nubank", lens_l2:"última vez: feira de UX, 12/10", lens_l3:"pendente: mandar o portfólio",
+  film_k:"O filme · 2 min", film_h:"Um dia da Ana, com o VisualContext.", film_alt:"Filme do VisualContext: um dia de Ana, executiva, usando a memória dos óculos.", film_note:"Algumas cenas mostram funções ainda em desenvolvimento.", film_cta:"Pedir convite do teste",
+  k_lens:"Na lente", h_lens:"O que importa aparece na hora certa, sem você tirar o celular do bolso.",
+  p_lens:"Você conversa com o assistente pela voz. Ele vê o que você vê, cochicha a resposta e guarda o que você pedir.",
+  t1:"Rostos", t1p:"Apresente alguém uma vez (\"essa é a Ana\"). Da próxima, o nome e o contexto aparecem sobre o rosto, mesmo com barba nova ou óculos.",
+  t2:"Coisas e lugares", t2p:"\"Essas são minhas chaves\", \"guarda onde parei a moto\". Fica a foto, o lugar e a hora. Depois é só perguntar.",
+  t3:"Conversas", t3p:"Encontros viram lembranças com quem, onde e o que foi dito. Antes de uma reunião, ele te prepara.",
+  k_mgr:"Manager", h_mgr:"Sua memória, num lugar onde você só pergunta.",
+  p_mgr:"No computador ou no celular, o Manager mostra o seu dia, as pessoas com rosto grande e nome, e responde em linguagem comum.",
+  ex1:"onde deixei minha chave?", ex2:"onde estacionei a moto?", ex3:"quem eu encontrei ontem?", ex4:"o que combinei com o Rafael?",
+  mq:"onde estacionei a moto?", ma:"Rua Augusta, 1500, vaga em frente à farmácia.", mas:"ontem, 19:40 · com foto de quando você parou",
+  m_map:"Abrir no mapa", m_sv:"Ver ao redor", m_go:"Como chegar", mq2:"o que combinei com o Rafael?", ma2:"No Café Floresta, ontem: ele te manda o orçamento da reforma até sexta.",
+  k_how:"Como funciona", h_how:"Três passos, e nenhum formulário.",
+  s1:"Fale com o assistente", s1p:"Um toque na haste dos óculos (ou no botão Falar) e você conversa com o Gemini, que vê pela câmera.",
+  s2:"Ele guarda o que importa", s2p:"Pessoas que você apresenta, objetos que você mostra, encontros e combinados. Leitura de cardápio ou de placa não vira memória.",
+  s3:"Pergunte depois", s3p:"Nos óculos (\"o que eu fiz hoje?\") ou no Manager. A resposta vem com rosto, lugar e hora.",
+  k_priv:"Privacidade", h_priv:"A memória é sua. Para sempre e para sair quando quiser.",
+  pv1:"Só quem você apresentar", pv1p:"Ninguém é reconhecido sem você ter dito o nome antes. Você apaga uma pessoa com um toque.",
+  pv2:"Texto, não gravação", pv2p:"O áudio não é guardado. Fica o resumo e a transcrição, que você revisa e apaga.",
+  pv3:"Exportável e vitalícia", pv3p:"Nada some por tempo, mesmo se você parar de pagar. Você baixa tudo em um arquivo quando quiser.",
+  pv4:"Nada é vendido", pv4p:"A IA é o Google Gemini. Sua memória não é vendida, não vira anúncio e não treina modelos nossos.",
+  k_dl:"Baixar", h_dl:"Comece pelo navegador. Depois, nos seus óculos.",
+  d1:"Demo no navegador", d1p:"10 minutos, com a câmera do computador ou do celular fazendo o papel dos óculos. Nada fica guardado.",
+  d2:"Beta para Android", d2p:"Para óculos Rokid ligados a um celular Android (com ou sem o Rokid Nexus). Peça o convite e eu mando o app.", d2b:"Pedir o convite",
+  d3:"iPhone", d3p:"O iOS não deixa o app trabalhar como precisa. Estou estudando um caminho; por enquanto, só Android.",
+  consent:"Medição de uso" },
+ en:{ skip:"Skip to content", nav_how:"How it works", nav_manager:"Manager", nav_privacy:"Privacy", nav_download:"Get it", nav_login:"Sign in to the Manager",
+  kicker:"Memory for smart glasses", h1a:"The glasses already see.", h1b:"Now they remember.",
+  lead:"VisualContext gives Rokid glasses a memory: who is in front of you, where you left your keys, where you parked, what you agreed last time.",
+  cta_demo:"Try it in your browser", cta_film:"Watch the film (1 min)", lens_alt:"Seen through the lens: the person's name appears over the face and a card shows how you know each other.",
+  lens_rec:"● recording encounter", lens_l1:"designer at Nubank", lens_l2:"last time: UX fair, Oct 12", lens_l3:"to do: send the portfolio",
+  film_k:"The film · 2 min", film_h:"A day in Ana's life, with VisualContext.", film_alt:"VisualContext film: a day in the life of Ana, an executive, using the glasses' memory.", film_note:"Some scenes show features still in development. The film is in Portuguese; an English version is coming.", film_cta:"Request a test invite",
+  k_lens:"On the lens", h_lens:"What matters shows up at the right moment, without taking out your phone.",
+  p_lens:"You talk to the assistant by voice. It sees what you see, whispers the answer and keeps what you ask it to.",
+  t1:"Faces", t1p:"Introduce someone once (\"this is Ana\"). Next time, name and context appear over the face, even with a new beard or glasses.",
+  t2:"Things and places", t2p:"\"These are my keys\", \"remember where I parked\". It keeps the photo, place and time. Later, just ask.",
+  t3:"Conversations", t3p:"Encounters become memories: who, where and what was said. Before a meeting, it gets you ready.",
+  k_mgr:"Manager", h_mgr:"Your memory, in a place where you just ask.",
+  p_mgr:"On a computer or phone, the Manager shows your day, people with big faces and names, and answers in plain language.",
+  ex1:"where did I leave my keys?", ex2:"where did I park the bike?", ex3:"who did I meet yesterday?", ex4:"what did I agree with Rafael?",
+  mq:"where did I park the bike?", ma:"Rua Augusta 1500, the spot in front of the pharmacy.", mas:"yesterday, 7:40 PM · with a photo from when you parked",
+  m_map:"Open map", m_sv:"Look around", m_go:"Directions", mq2:"what did I agree with Rafael?", ma2:"At Floresta Café, yesterday: he sends you the renovation quote by Friday.",
+  k_how:"How it works", h_how:"Three steps, no forms.",
+  s1:"Talk to the assistant", s1p:"One tap on the glasses' temple (or the Talk button) and you're talking to Gemini, which sees through the camera.",
+  s2:"It keeps what matters", s2p:"People you introduce, objects you show, encounters and agreements. Reading a menu or a sign doesn't become memory.",
+  s3:"Ask later", s3p:"On the glasses (\"what did I do today?\") or in the Manager. The answer comes with face, place and time.",
+  k_priv:"Privacy", h_priv:"Your memory is yours. For life, and yours to take away.",
+  pv1:"Only people you introduce", pv1p:"Nobody is recognized unless you said their name first. Delete a person with one tap.",
+  pv2:"Text, not recordings", pv2p:"Audio is not kept. What stays is the summary and transcript, which you can review and delete.",
+  pv3:"Exportable, for life", pv3p:"Nothing expires, even if you stop paying. Download everything in one file whenever you want.",
+  pv4:"Nothing is sold", pv4p:"The AI is Google Gemini. Your memory is not sold, not used for ads and not used to train our models.",
+  k_dl:"Get it", h_dl:"Start in your browser. Then on your glasses.",
+  d1:"Browser demo", d1p:"10 minutes, with your computer's or phone's camera playing the glasses. Nothing is kept.",
+  d2:"Android beta", d2p:"For Rokid glasses paired with an Android phone (with or without Rokid Nexus). Ask for an invite and I'll send the app.", d2b:"Ask for an invite",
+  d3:"iPhone", d3p:"iOS doesn't let the app work the way it needs to. I'm exploring a path; for now, Android only.",
+  consent:"Usage measurement" }
 });
-function mark(){ var c = VC_I18N.isUserChoice() ? VC_I18N.lang : 'system';
-  document.querySelectorAll('#lang-btns button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-lang') === c); }); }
-document.querySelectorAll('#lang-btns button').forEach(function(b){
-  b.addEventListener('click', function(){ VC_I18N.set(b.getAttribute('data-lang')); });
-});
-window.addEventListener('vc-lang', mark);
-VC_I18N.apply(); mark();
+function paint(){
+  VC_I18N.apply();
+  document.querySelectorAll("[data-i18n-aria]").forEach(e => e.setAttribute("aria-label", VC_I18N.t(e.dataset.i18nAria)));
+  document.querySelectorAll("#lang button").forEach(b => b.classList.toggle("on", b.dataset.l === VC_I18N.lang));
+  const pt = VC_I18N.lang === "pt";
+  document.getElementById("beta").href = "https://vc.alema.io/test-invite/"; // the request form (Marcus, 09/11), approved in the Manager
+  document.title = pt ? "VisualContext — memória para óculos inteligentes" : "VisualContext — memory for smart glasses";
+}
+document.getElementById("lang").onclick = e => { const l = e.target.dataset.l; if (l) VC_I18N.set(l); };
+window.addEventListener("vc-lang", paint); paint();
+document.addEventListener("click", e => { const a = e.target.closest("[data-ev]"); if (a && window.vcTrack) window.vcTrack(a.dataset.ev); });
+document.getElementById("cons").onclick = () => window.vcConsentReset && window.vcConsentReset();
 </script>
+<script src="/consent.js" defer></script>
+<script src="/a11y.js" defer></script>
 </body>
 </html>
