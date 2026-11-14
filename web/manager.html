@@ -516,7 +516,7 @@ function render() {
   if (S.cat === "person" || S.cat === "all") { const d = dupPairs(); if (d.length && !q) html += `<button class="dup" data-dups="1">${I("warning")} ${d.length} ${d.length === 1 ? "possível pessoa repetida" : "possíveis pessoas repetidas"} · revisar</button>`; }
   if (S.view === "teia") { if (render.lastView !== "teia") bump("teia"); render.lastView = "teia"; $("#list").innerHTML = html + teiaHtml(); teiaMount(); return; }
   render.lastView = S.view;
-  if (!list.length) html += `<div class="empty">${q ? "Nada encontrado para “" + esc(q) + "”." : `<b style="color:var(--t,inherit);font-size:16px">Ainda não há nada aqui.</b><br>O Manager mostra o que o app do celular guardou. Para começar:<br>1. <a href="https://vc.alema.io/test-download/" target="_blank" rel="noopener" style="color:var(--g)">baixe o app no celular Android</a>;<br>2. toque em “Tenho um código de convite” e digite o código do e-mail;<br>3. grave um encontro de teste e volte aqui.`}</div>`;
+  if (!list.length) html += `<div class="empty">${q ? "Nada encontrado para “" + esc(q) + "”." : `<b style="color:var(--t,inherit);font-size:16px">Ainda não há nada aqui.</b><br>O Manager mostra o que o app do celular guardou. Para começar:<br>1. <a href="https://vc.alema.io/test-download/" target="_blank" rel="noopener" style="color:var(--g)">baixe o app no celular Android</a>;<br>2. toque em “Tenho um código de convite” e digite o código do e-mail;<br>3. grave um encontro de teste e volte aqui.<div id="emqr" style="margin:16px auto 0;max-width:340px;display:none;align-items:center;gap:14px;text-align:left"><span style="background:#fff;padding:7px;border-radius:10px;display:block;line-height:0"><img id="emqrimg" alt="QR code para baixar o app" style="width:120px;height:120px;image-rendering:pixelated"></span><span style="font-size:13px">No computador? Aponte a câmera do celular para o código e baixe o app por lá.</span></div>`}</div>`;
   else if (S.view === "az") {
     list.sort((a, b) => norm(a.title).localeCompare(norm(b.title)));
     let L = ""; for (const i of list) { const l = (norm(i.title)[0] || "#").toUpperCase(); if (l !== L) { L = l; html += `<div class="grp">${esc(l)}</div>`; } html += row(i); }
@@ -531,6 +531,7 @@ function render() {
     for (const [g, xs] of groups) html += `<div class="grp">${g}</div>` + xs.map(row).join("");
   }
   $("#list").innerHTML = html;
+  fillPhoneQR();
   hydrateCovers($("#list"));
 }
 function bucket(d) {
@@ -1383,6 +1384,14 @@ function testerBox(m) {
     <div class="feat"><b>Pedidos hoje</b><span class="n">${d.calls || 0} de ${l.calls_day}</span>${bar(d.calls || 0, l.calls_day)}</div>
     <div class="feat"><b>Assistente hoje</b><span class="n">${Math.round((d.live_seconds || 0) / 60)} de ${l.live_min_day} min</span>${bar((d.live_seconds || 0) / 60, l.live_min_day)}</div>
     <div class="feat"><b>Crédito do teste</b><span class="n">US$ ${Number(t.spent || 0).toFixed(2)} de ${Number(l.budget_usd).toFixed(2)}</span>${bar(t.spent || 0, l.budget_usd)}</div></div>`;
+}
+
+// Empty Manager on a computer: a QR of the download page, to open it on the phone (the person usually asked for the invite at the desk).
+function fillPhoneQR() {
+  const box = document.getElementById("emqr"); if (!box || /android|iphone|ipad|mobile/i.test(navigator.userAgent)) return;
+  const draw = () => { try { const q = qrcode(0, "M"); q.addData("https://vc.alema.io/test-download/"); q.make(); document.getElementById("emqrimg").src = q.createDataURL(6, 2); box.style.display = "flex"; } catch (_) {} };
+  if (window.qrcode) return draw();
+  const sc = document.createElement("script"); sc.src = "https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"; sc.onload = draw; document.head.appendChild(sc);
 }
 const BETA_APK = "https://vc.alema.io/test-download/";
 async function admin() {
