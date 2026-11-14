@@ -52,7 +52,11 @@ class SettingsActivity : Activity() {
 
     override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); handle(intent) }
 
-    override fun onResume() { super.onResume(); if (getSharedPreferences("visualcontext", MODE_PRIVATE).getBoolean("prep_on", false)) Prep.schedule(this) }
+    override fun onResume() {
+        super.onResume()
+        if (getSharedPreferences("visualcontext", MODE_PRIVATE).getBoolean("prep_on", false)) Prep.schedule(this)
+        Update.check(this) { runOnUiThread { if (!isFinishing) render() } }
+    }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         if (requestCode == 11) Prep.schedule(this)
@@ -125,6 +129,16 @@ class SettingsActivity : Activity() {
                 layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(8) }
             })
         })
+
+        // New version (Marcus, 14/11): the beta APK is installed by hand, so the app says when there is a newer one.
+        Update.pending(this)?.let { u ->
+            val pt = java.util.Locale.getDefault().language == "pt"
+            val cu = card()
+            cu.h(if (pt) "Nova versão ${u.name}" else "New version ${u.name}")
+            if (u.notes.isNotBlank()) cu.p(u.notes)
+            cu.btn(if (pt) "Baixar e instalar" else "Download and install", true) { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(u.url))) }
+            cu.btn(if (pt) "Depois" else "Later", false) { Update.dismiss(this, u); render() }
+        }
 
         // 1. Connection
         val c1 = card()
