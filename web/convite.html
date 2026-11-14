@@ -142,10 +142,14 @@ footer{border-top:1px solid var(--line);padding:22px 0 40px;color:var(--m);font-
     <form id="f" novalidate>
       <label><span data-t="l_name"></span><input name="name" autocomplete="name" required maxlength="120"></label>
       <label><span data-t="l_email"></span><input name="email" type="email" autocomplete="email" required maxlength="200"></label>
+      <label><span data-t="l_role"></span><input name="role" maxlength="100" required data-ph="ph_role"></label>
+      <label><span><span data-t="l_li"></span> <small data-t="opt"></small></span><input name="linkedin" maxlength="150" data-ph="ph_li" autocomplete="url"></label>
       <label><span><span data-t="l_phone"></span> <small data-t="opt"></small></span><input name="phone" maxlength="80" data-ph="ph_phone"></label>
       <label><span data-t="l_glasses"></span>
         <select name="glasses"><option value="" data-t="g0"></option><option value="Rokid" data-t="g1"></option><option value="outros" data-t="g2"></option></select></label>
       <label class="chk"><input type="checkbox" name="android" required><span data-t="l_android"></span></label>
+      <label><span data-t="l_why"></span><textarea name="why" required maxlength="500" data-ph="ph_why"></textarea></label>
+      <label class="chk"><input type="checkbox" name="commit" required><span data-t="l_commit"></span></label>
       <div class="hp" aria-hidden="true"><label>Site <input name="site" tabindex="-1" autocomplete="off"></label></div>
       <p class="msg err" id="err" role="alert" hidden></p>
       <button class="send" type="submit" data-t="send"></button>
@@ -207,6 +211,10 @@ const T = {
     l_name: "Nome", l_email: "E-mail", l_phone: "Modelo do celular", opt: "(opcional)", ph_phone: "ex.: Samsung Galaxy S23",
     l_glasses: "Você tem óculos inteligentes?", g0: "Ainda não", g1: "Sim, Rokid", g2: "Sim, de outra marca",
     l_android: "Tenho um celular Android (versão 11 ou mais nova). No iPhone o teste ainda não funciona.",
+    l_role: "Sua profissão e com o que você trabalha", ph_role: "ex.: designer de produto, médico, professora de inglês", l_li: "Link do seu LinkedIn", ph_li: "linkedin.com/in/…",
+    l_why: "Por que você quer testar?", ph_why: "Em uma ou duas frases: o que você espera do app e em que situação do seu dia uma memória nos óculos ajudaria.",
+    l_commit: "Me comprometo a usar o app durante os 5 dias do teste e a mandar o meu feedback. Cada testador gera custo real de servidor e de IA.",
+    e_more: "Conte a sua profissão e, em poucas palavras, por que você quer testar.", e_commit: "Confirme o compromisso de testar e dar feedback.",
     send: "Pedir o convite", sending: "Enviando…",
     e_fields: "Escreva seu nome e um e-mail válido.", e_android: "O teste por enquanto é só para Android: confirme que você tem um.", e_net: "Não deu para enviar. Confira a internet e tente de novo.",
     done_h: "Pedido recebido!", done_p: n => `Obrigado, ${n}. Assim que eu aprovar, o convite chega no seu e-mail.`,
@@ -247,6 +255,10 @@ const T = {
     l_name: "Name", l_email: "E-mail", l_phone: "Phone model", opt: "(optional)", ph_phone: "e.g. Samsung Galaxy S23",
     l_glasses: "Do you have smart glasses?", g0: "Not yet", g1: "Yes, Rokid", g2: "Yes, another brand",
     l_android: "I have an Android phone (version 11 or newer). The test does not work on iPhone yet.",
+    l_role: "Your profession and what you work with", ph_role: "e.g. product designer, doctor, English teacher", l_li: "Your LinkedIn link", ph_li: "linkedin.com/in/…",
+    l_why: "Why do you want to test it?", ph_why: "In a sentence or two: what you expect from the app and where in your day a memory on your glasses would help.",
+    l_commit: "I commit to using the app during the 5 days of the test and to sending my feedback. Every tester costs real server and AI money.",
+    e_more: "Please tell us your profession and, in a few words, why you want to test.", e_commit: "Please confirm you commit to testing and giving feedback.",
     send: "Ask for the invite", sending: "Sending…",
     e_fields: "Please write your name and a valid e-mail.", e_android: "For now the test is Android only: please confirm you have one.", e_net: "Couldn't send. Check your connection and try again.",
     done_h: "Request received!", done_p: n => `Thank you, ${n}. As soon as I approve it, the invite arrives in your e-mail.`,
@@ -274,6 +286,10 @@ const T = {
     l_name: "Name", l_email: "E-Mail", l_phone: "Handymodell", opt: "(optional)", ph_phone: "z. B. Samsung Galaxy S23",
     l_glasses: "Hast du eine smarte Brille?", g0: "Noch nicht", g1: "Ja, Rokid", g2: "Ja, eine andere Marke",
     l_android: "Ich habe ein Android-Handy (Version 11 oder neuer). Auf dem iPhone funktioniert der Test noch nicht.",
+    l_role: "Dein Beruf und womit du arbeitest", ph_role: "z. B. Produktdesignerin, Arzt, Englischlehrer", l_li: "Dein LinkedIn-Link", ph_li: "linkedin.com/in/…",
+    l_why: "Warum möchtest du testen?", ph_why: "In ein bis zwei Sätzen: was du von der App erwartest und wo in deinem Tag ein Gedächtnis in der Brille helfen würde.",
+    l_commit: "Ich verpflichte mich, die App während der 5 Testtage zu nutzen und mein Feedback zu schicken. Jeder Tester verursacht echte Server- und KI-Kosten.",
+    e_more: "Bitte nenne deinen Beruf und in wenigen Worten, warum du testen möchtest.", e_commit: "Bitte bestätige, dass du testest und Feedback gibst.",
     send: "Einladung anfordern", sending: "Wird gesendet…",
     e_fields: "Bitte gib deinen Namen und eine gültige E-Mail an.", e_android: "Der Test läuft vorerst nur auf Android: Bitte bestätige, dass du eins hast.", e_net: "Senden hat nicht geklappt. Prüfe deine Verbindung und versuche es noch einmal.",
     done_h: "Anfrage erhalten!", done_p: n => `Danke, ${n}. Sobald ich sie freigebe, kommt die Einladung per E-Mail.`,
@@ -302,10 +318,13 @@ f.addEventListener("submit", async e => {
   err.hidden = true;
   if (String(d.name || "").trim().length < 2 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(d.email || "").trim())) return show(t.e_fields);
   if (!d.android) return show(t.e_android);
+  if (String(d.role || "").trim().length < 2 || String(d.why || "").trim().length < 15) return show(t.e_more);
+  if (!d.commit) return show(t.e_commit);
+  const why = [`Profissão: ${String(d.role).trim()}`, String(d.linkedin || "").trim() && `LinkedIn: ${String(d.linkedin).trim()}`, `Por que quer testar: ${String(d.why).trim()}`, "Compromisso de testar e dar feedback: sim"].filter(Boolean).join("\n");
   const btn = f.querySelector(".send"); btn.disabled = true; btn.textContent = t.sending;
   try {
     const r = await fetch(API, { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "beta_request", name: d.name, email: d.email, phone: d.phone, glasses: d.glasses, lang: L, site: d.site }) });
+      body: JSON.stringify({ action: "beta_request", name: d.name, email: d.email, phone: d.phone, glasses: d.glasses, why, lang: L, site: d.site }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || t.e_net);
     const first = String(d.name).trim().split(/\s+/)[0];
