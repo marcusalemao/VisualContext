@@ -516,7 +516,7 @@ function render() {
   if (S.cat === "person" || S.cat === "all") { const d = dupPairs(); if (d.length && !q) html += `<button class="dup" data-dups="1">${I("warning")} ${d.length} ${d.length === 1 ? "possível pessoa repetida" : "possíveis pessoas repetidas"} · revisar</button>`; }
   if (S.view === "teia") { if (render.lastView !== "teia") bump("teia"); render.lastView = "teia"; $("#list").innerHTML = html + teiaHtml(); teiaMount(); return; }
   render.lastView = S.view;
-  if (!list.length) html += `<div class="empty">${q ? "Nada encontrado para “" + esc(q) + "”." : "Ainda não há nada aqui. Use os óculos ou o emulador no celular."}</div>`;
+  if (!list.length) html += `<div class="empty">${q ? "Nada encontrado para “" + esc(q) + "”." : `<b style="color:var(--t,inherit);font-size:16px">Ainda não há nada aqui.</b><br>O Manager mostra o que o app do celular guardou. Para começar:<br>1. <a href="https://vc.alema.io/test-download/" target="_blank" rel="noopener" style="color:var(--g)">baixe o app no celular Android</a>;<br>2. toque em “Tenho um código de convite” e digite o código do e-mail;<br>3. grave um encontro de teste e volte aqui.`}</div>`;
   else if (S.view === "az") {
     list.sort((a, b) => norm(a.title).localeCompare(norm(b.title)));
     let L = ""; for (const i of list) { const l = (norm(i.title)[0] || "#").toUpperCase(); if (l !== L) { L = l; html += `<div class="grp">${esc(l)}</div>`; } html += row(i); }
@@ -1559,7 +1559,7 @@ const AUTH = "https://vzqjwhlpwvqrosoiwiin.supabase.co/auth/v1", PUB = "sb_publi
         if (j.state === "mail_failed") { m.textContent = "O seu e-mail está liberado, mas o envio falhou agora. Tente de novo em alguns minutos ou responda o e-mail de aprovação."; b.disabled = false; return; }
         if (j.state === "sent") {
           mode = "invite"; sent = true; ci.classList.remove("hide"); ci.focus(); b.textContent = "Entrar";
-          m.textContent = "Enviamos o código para " + email + (j.throttled ? " (o e-mail anterior ainda vale; espere 2 minutos para pedir outro)" : "") + ". Chega em até 1 minuto; veja também o spam. Copie o VC-XXXX-XXXX e cole aqui."; b.disabled = false; return;
+          m.textContent = "Enviamos o código para " + email + (j.throttled ? " (o e-mail anterior ainda vale; espere 2 minutos para pedir outro)" : "") + ". Chega em até 1 minuto; veja também o spam. Copie o VC-XXXX-XXXX e cole aqui. Ainda não instalou o app? O e-mail tem o passo a passo e o link para baixar."; b.disabled = false; return;
         }
         // state "login": the founder and the admins use the e-mail login of Supabase (the e-mail has a link and, in the template, a code)
         mode = "auth";
