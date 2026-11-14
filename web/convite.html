@@ -158,7 +158,6 @@ footer{border-top:1px solid var(--line);padding:22px 0 40px;color:var(--m);font-
       <span data-i="check"></span>
       <h2 data-t="done_h"></h2>
       <p id="doneP"></p>
-      <p class="note"><a href="/demo" data-t="done_demo"></a></p>
     </div>
   </div>
 </div></section>
@@ -219,7 +218,7 @@ const T = {
     e_fields: "Escreva seu nome e um e-mail válido.", e_android: "O teste por enquanto é só para Android: confirme que você tem um.", e_net: "Não deu para enviar. Confira a internet e tente de novo.",
     done_h: "Pedido recebido!", done_p: n => `Obrigado, ${n}. Assim que eu aprovar, o convite chega no seu e-mail.`,
     done_again: n => `${n}, seu pedido já estava aqui. Assim que eu aprovar, o convite chega no seu e-mail.`,
-    done_demo: "Enquanto isso, veja a demonstração no navegador", home: "Página inicial"
+    home: "Página inicial"
   },
   en: {
     k_film: "The film · 2 min", h_film: "A day in Ana's life, with VisualContext.", film_note: "Some scenes show features still in development. The film is in Portuguese; an English version is coming.",
@@ -263,7 +262,7 @@ const T = {
     e_fields: "Please write your name and a valid e-mail.", e_android: "For now the test is Android only: please confirm you have one.", e_net: "Couldn't send. Check your connection and try again.",
     done_h: "Request received!", done_p: n => `Thank you, ${n}. As soon as I approve it, the invite arrives in your e-mail.`,
     done_again: n => `${n}, your request was already here. As soon as I approve it, the invite arrives in your e-mail.`,
-    done_demo: "Meanwhile, try the demo in your browser", home: "Home"
+    home: "Home"
   },
   de: {
     k_film: "Der Film · 2 Min.", h_film: "Ein Tag im Leben von Ana, mit VisualContext.", film_note: "Einige Szenen zeigen Funktionen, die noch in Entwicklung sind. Der Film ist auf Portugiesisch; eine englische Fassung folgt.",
@@ -294,7 +293,7 @@ const T = {
     e_fields: "Bitte gib deinen Namen und eine gültige E-Mail an.", e_android: "Der Test läuft vorerst nur auf Android: Bitte bestätige, dass du eins hast.", e_net: "Senden hat nicht geklappt. Prüfe deine Verbindung und versuche es noch einmal.",
     done_h: "Anfrage erhalten!", done_p: n => `Danke, ${n}. Sobald ich sie freigebe, kommt die Einladung per E-Mail.`,
     done_again: n => `${n}, deine Anfrage war schon da. Sobald ich sie freigebe, kommt die Einladung per E-Mail.`,
-    done_demo: "Probier inzwischen die Demo im Browser", home: "Startseite"
+    home: "Startseite"
   }
 };
 let L = (() => { const ok = ["pt","en","de"]; try { const q = new URLSearchParams(location.search).get("lang"); if (ok.includes(q)) return q; } catch (_) {} try { const s = localStorage.getItem("vc_lang"); if (ok.includes(s)) return s; } catch (_) {} const ls = (navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ""]).map(x => String(x).toLowerCase()); for (const x of ls) { if (x.startsWith("pt")) return "pt"; if (x.startsWith("de")) return "de"; if (x.startsWith("en")) break; } let tz = ""; try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (_) {} if (/^America\/(Sao_Paulo|Bahia|Fortaleza|Recife|Belem|Maceio|Araguaina|Santarem|Manaus|Cuiaba|Campo_Grande|Porto_Velho|Boa_Vista|Rio_Branco|Eirunepe|Noronha)$|^Europe\/Lisbon$|^Atlantic\/(Azores|Madeira)$|^Africa\/(Luanda|Maputo)$/.test(tz)) return "pt"; if (/^Europe\/(Berlin|Vienna|Zurich|Busingen|Vaduz)$/.test(tz)) return "de"; return "en"; })();
