@@ -45,6 +45,8 @@ h2{font-size:clamp(26px,4vw,38px);line-height:1.15;margin:0 0 12px;letter-spacin
 .lens .card{position:absolute;left:4%;bottom:6%;width:min(78%,330px);background:rgba(4,14,9,.88);border:2px solid var(--g);border-radius:14px;padding:12px 14px;font:13px/1.5 var(--mono);color:#cfeedd}
 .lens .card b{display:block;font:700 18px system-ui;color:var(--g);margin-bottom:4px}
 .lens .rec{position:absolute;right:4%;top:5%;font:12px var(--mono);color:var(--g)}
+.film{display:block;width:100%;max-width:960px;margin:22px auto 0;aspect-ratio:16/9;border-radius:20px;border:2px solid #1d4a33;background:#000}
+.filmnote{max-width:960px;margin:12px auto 0;color:var(--m);font-size:14px}.filmcta{max-width:960px;margin:18px auto 0}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:28px}@media (max-width:860px){.grid3{grid-template-columns:1fr}}
 .tile{background:var(--s1);border:1px solid var(--line2);border-radius:18px;padding:20px}.tile .ic{font-size:26px;color:var(--g)}.tile h3{margin:8px 0 6px;font-size:19px}.tile p{margin:0;color:var(--m);font-size:16px}
 /* the Manager mock */
@@ -91,6 +93,14 @@ footer button{background:none;border:0;color:var(--g2);text-decoration:underline
     <div class="rec" data-i18n="lens_rec"></div>
     <div class="card"><b>Ana Souza</b><span data-i18n="lens_l1"></span><br><span data-i18n="lens_l2"></span><br><span data-i18n="lens_l3"></span></div>
   </div>
+</div></section>
+
+<section id="film"><div class="wrap">
+  <p class="kicker" data-i18n="film_k"></p>
+  <h2 data-i18n="film_h"></h2>
+  <video class="film" controls preload="metadata" playsinline poster="/film/vc-comercial-poster.jpg" data-i18n-aria="film_alt"><source src="/film/vc-comercial.mp4" type="video/mp4"></video>
+  <p class="filmnote" data-i18n="film_note"></p>
+  <div class="btns filmcta"><a class="btn pri" href="/convite" data-i18n="film_cta" data-ev="cta_invite"></a><a class="btn" href="/demo" data-i18n="cta_demo" data-ev="cta_demo"></a></div>
 </div></section>
 
 <section id="lens"><div class="wrap">
@@ -167,6 +177,7 @@ VC_I18N.add({
   lead:"O VisualContext dá memória aos óculos Rokid: quem é a pessoa na sua frente, onde você deixou a chave, onde parou a moto, o que vocês combinaram da última vez.",
   cta_demo:"Experimentar no navegador", cta_film:"Ver o filme (1 min)", lens_alt:"Vista pela lente: o nome da pessoa aparece sobre o rosto e um cartão mostra de onde vocês se conhecem.",
   lens_rec:"● gravando encontro", lens_l1:"designer na Nubank", lens_l2:"última vez: feira de UX, 12/10", lens_l3:"pendente: mandar o portfólio",
+  film_k:"O filme · 2 min", film_h:"Um dia da Ana, com o VisualContext.", film_alt:"Filme do VisualContext: um dia de Ana, executiva, usando a memória dos óculos.", film_note:"Algumas cenas mostram funções ainda em desenvolvimento.", film_cta:"Pedir convite do teste",
   k_lens:"Na lente", h_lens:"O que importa aparece na hora certa, sem você tirar o celular do bolso.",
   p_lens:"Você conversa com o assistente pela voz. Ele vê o que você vê, cochicha a resposta e guarda o que você pedir.",
   t1:"Rostos", t1p:"Apresente alguém uma vez (\"essa é a Ana\"). Da próxima, o nome e o contexto aparecem sobre o rosto, mesmo com barba nova ou óculos.",
@@ -196,6 +207,7 @@ VC_I18N.add({
   lead:"VisualContext gives Rokid glasses a memory: who is in front of you, where you left your keys, where you parked, what you agreed last time.",
   cta_demo:"Try it in your browser", cta_film:"Watch the film (1 min)", lens_alt:"Seen through the lens: the person's name appears over the face and a card shows how you know each other.",
   lens_rec:"● recording encounter", lens_l1:"designer at Nubank", lens_l2:"last time: UX fair, Oct 12", lens_l3:"to do: send the portfolio",
+  film_k:"The film · 2 min", film_h:"A day in Ana's life, with VisualContext.", film_alt:"VisualContext film: a day in the life of Ana, an executive, using the glasses' memory.", film_note:"Some scenes show features still in development. The film is in Portuguese; an English version is coming.", film_cta:"Request a test invite",
   k_lens:"On the lens", h_lens:"What matters shows up at the right moment, without taking out your phone.",
   p_lens:"You talk to the assistant by voice. It sees what you see, whispers the answer and keeps what you ask it to.",
   t1:"Faces", t1p:"Introduce someone once (\"this is Ana\"). Next time, name and context appear over the face, even with a new beard or glasses.",

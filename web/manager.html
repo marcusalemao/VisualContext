@@ -226,10 +226,10 @@ header .sp{flex:1}
   <div class="gate">
     <img src="/brand/visualcontext-logo-transparent.png" alt="VisualContext">
     <h1>Entrar no Manager</h1>
-    <p>Use o e-mail da sua conta. Mandamos um código de 6 números; não precisa de senha.</p>
+    <p>Digite o e-mail com que você pediu o convite. Mandamos o seu código de acesso por e-mail; não precisa de senha. Ainda não pediu? <a href="https://vc.alema.io/test-invite/" style="color:var(--g)">Peça o convite aqui</a>.</p>
     <form class="f" id="lf" style="text-align:left;margin-top:18px">
       <input name="e" type="email" autocomplete="email" placeholder="seu@email.com" required>
-      <input name="c" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="código de 6 números" class="hide">
+      <input name="c" autocomplete="one-time-code" autocapitalize="characters" maxlength="14" placeholder="código do e-mail (VC-XXXX-XXXX)" class="hide" style="font-family:var(--mono,monospace);letter-spacing:.08em">
       <div class="btns" style="margin-top:0"><button class="btn pri" id="lb">Enviar código</button></div>
       <p class="muted" id="lm" style="font-size:13px;min-height:1.2em"></p>
     </form>
@@ -1543,14 +1543,36 @@ const AUTH = "https://vzqjwhlpwvqrosoiwiin.supabase.co/auth/v1", PUB = "sb_publi
   const f = $("#lf"), m = $("#lm"), b = $("#lb"), ci = f.elements.c; let sent = false;
   const post = (u, body, bearer) => fetch(u, { method: "POST", headers: { "content-type": "application/json", apikey: PUB, ...(bearer ? { authorization: "Bearer " + bearer } : {}) }, body: JSON.stringify(body) });
   f.elements.e.oninput = () => { if (sent) { sent = false; ci.classList.add("hide"); b.textContent = "Enviar código"; } };
+  const LOGIN = "https://vzqjwhlpwvqrosoiwiin.supabase.co/functions/v1/vc-login";
+  let mode = "invite"; // "invite": approved tester, code by e-mail (vc-login) · "auth": founder/admin, Supabase e-mail login
   f.onsubmit = async e => {
     e.preventDefault(); const email = f.elements.e.value.trim().toLowerCase(); b.disabled = true;
     try {
       if (!sent) {
         m.textContent = "Enviando…";
-        const r = await post(AUTH + "/otp?redirect_to=" + encodeURIComponent(location.origin + location.pathname), { email, create_user: true });
+        const q = await post(LOGIN, { email });
+        const j = await q.json().catch(() => ({}));
+        if (!q.ok) throw new Error(j.error === "email" ? "Esse e-mail parece incompleto. Confira como digitou." : "Não deu para enviar o código agora. Tente de novo em instantes.");
+        if (j.state === "pending") { m.textContent = "Seu pedido está em análise: o Marcus aprova cada um pessoalmente. Quando aprovar, o código chega neste e-mail (" + email + ")."; b.disabled = false; return; }
+        if (j.state === "declined") { m.textContent = "Este e-mail não está liberado no teste fechado. Se acha que é engano, responda o e-mail que recebeu do Marcus."; b.disabled = false; return; }
+        if (j.state === "none") { m.textContent = "Não achei " + email + " entre os pedidos de convite. Confira se digitou certo ou peça o convite em vc.alema.io/test-invite."; b.disabled = false; return; }
+        if (j.state === "mail_failed") { m.textContent = "O seu e-mail está liberado, mas o envio falhou agora. Tente de novo em alguns minutos ou responda o e-mail de aprovação."; b.disabled = false; return; }
+        if (j.state === "sent") {
+          mode = "invite"; sent = true; ci.classList.remove("hide"); ci.focus(); b.textContent = "Entrar";
+          m.textContent = "Enviamos o código para " + email + (j.throttled ? " (o e-mail anterior ainda vale; espere 2 minutos para pedir outro)" : "") + ". Chega em até 1 minuto; veja também o spam. Copie o VC-XXXX-XXXX e cole aqui."; b.disabled = false; return;
+        }
+        // state "login": the founder and the admins use the e-mail login of Supabase (the e-mail has a link and, in the template, a code)
+        mode = "auth";
+        const r = await post(AUTH + "/otp?redirect_to=" + encodeURIComponent(location.origin + location.pathname), { email, create_user: false });
         if (!r.ok) throw new Error(r.status === 429 ? "Muitos pedidos. Espere um minuto." : "Não deu para enviar o código.");
         sent = true; ci.classList.remove("hide"); ci.focus(); b.textContent = "Entrar"; m.textContent = "Enviamos um e-mail para " + email + ". Toque no link do e-mail (ou digite o código, se vier um). Veja também o spam.";
+      } else if (mode === "invite") {
+        if (ci.value.replace(/[^A-Za-z0-9]/g, "").length < 8) throw new Error("Digite o código do e-mail: VC-XXXX-XXXX.");
+        m.textContent = "Entrando…";
+        const r = await fetch(API, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "redeem_code", code: ci.value, name: "navegador " + (navigator.userAgentData?.platform || navigator.platform || "") }) });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || !j.token) throw new Error(j.error || "Não deu para entrar.");
+        store.set("vc_token", j.token); location.reload();
       } else {
         const code = ci.value.replace(/\D/g, ""); if (code.length < 6) throw new Error("Digite os 6 números.");
         m.textContent = "Entrando…";

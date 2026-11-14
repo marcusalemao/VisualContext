@@ -46,6 +46,7 @@ h2{font-size:clamp(22px,3vw,28px);line-height:1.2;margin:0 0 10px}
 .screen .bar{position:absolute;left:0;right:0;bottom:0;height:11%;background:rgba(0,0,0,.7);display:flex;justify-content:space-around;align-items:center;color:var(--g);font:600 10px system-ui}
 .phone .cap{position:absolute;bottom:-34px;left:0;right:0;text-align:center;color:var(--m);font-size:13px}
 section{padding:40px 0;border-top:1px solid var(--line)}
+.film{display:block;width:100%;max-width:880px;margin:16px auto 0;aspect-ratio:16/9;border-radius:18px;border:2px solid #1d4a33;background:#000}.filmnote{max-width:880px;margin:10px auto 0;color:var(--m);font-size:14px}
 .how{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px}
 @media (max-width:820px){.how{grid-template-columns:1fr}}
 .how div{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:16px 18px}
@@ -112,6 +113,13 @@ footer{border-top:1px solid var(--line);padding:22px 0 40px;color:var(--m);font-
   </div>
 </div>
 
+<section id="film"><div class="wrap">
+  <p class="kicker" data-t="k_film"></p>
+  <h2 data-t="h_film"></h2>
+  <video class="film" controls preload="metadata" playsinline poster="/film/vc-comercial-poster.jpg"><source src="/film/vc-comercial.mp4" type="video/mp4"></video>
+  <p class="filmnote" data-t="film_note"></p>
+</div></section>
+
 <section><div class="wrap">
   <p class="kicker" data-t="k_how"></p>
   <h2 data-t="h_how"></h2>
@@ -166,6 +174,7 @@ footer{border-top:1px solid var(--line);padding:22px 0 40px;color:var(--m);font-
 const API = "https://vzqjwhlpwvqrosoiwiin.supabase.co/functions/v1/vc";
 const T = {
   pt: {
+    k_film: "O filme · 2 min", h_film: "Um dia da Ana, com o VisualContext.", film_note: "Algumas cenas mostram funções ainda em desenvolvimento.",
     kicker: "Beta fechado · Android", h1: "Sua memória, <em>na sua frente</em>.",
     lead: "O VisualContext é a memória dos óculos inteligentes: ele vê o que você vê, ouve o que você conversa e devolve na hora certa o que você esqueceria.",
     f1: "Reconhece quem você já conheceu e lembra de onde, quando e o que vocês falaram.",
@@ -205,6 +214,7 @@ const T = {
     done_demo: "Enquanto isso, veja a demonstração no navegador", home: "Página inicial"
   },
   en: {
+    k_film: "The film · 2 min", h_film: "A day in Ana's life, with VisualContext.", film_note: "Some scenes show features still in development. The film is in Portuguese; an English version is coming.",
     kicker: "Private beta · Android", h1: "Your memory, <em>right in front of you</em>.",
     lead: "VisualContext is the memory of smart glasses: it sees what you see, hears your conversations and brings back, at the right moment, what you would forget.",
     f1: "Recognizes people you have met and recalls where, when and what you talked about.",
@@ -244,6 +254,7 @@ const T = {
     done_demo: "Meanwhile, try the demo in your browser", home: "Home"
   },
   de: {
+    k_film: "Der Film · 2 Min.", h_film: "Ein Tag im Leben von Ana, mit VisualContext.", film_note: "Einige Szenen zeigen Funktionen, die noch in Entwicklung sind. Der Film ist auf Portugiesisch; eine englische Fassung folgt.",
     kicker: "Geschlossene Beta · Android", h1: "Dein Gedächtnis, <em>direkt vor dir</em>.",
     lead: "VisualContext ist das Gedächtnis smarter Brillen: Es sieht, was du siehst, hört deine Gespräche und bringt im richtigen Moment zurück, was du sonst vergessen würdest.",
     f1: "Erkennt Menschen, die du getroffen hast, und erinnert dich, wo, wann und worüber ihr gesprochen habt.",
